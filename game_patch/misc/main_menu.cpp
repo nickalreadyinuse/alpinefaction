@@ -12,6 +12,7 @@
 #include "../rf/file/file.h"
 #include "../rf/multi.h"
 #include "../rf/sound/sound.h"
+#include "../rf/sound/sound_ds.h"
 #include "../rf/os/frametime.h"
 #include "../rf/os/os.h"
 #include "../main/main.h"
@@ -27,6 +28,7 @@ constexpr double PI = 3.14159265358979323846;
 static int g_version_click_counter = 0;
 static int g_egg_anim_start;
 static int g_game_music_sig_to_restore = -1;
+static int g_game_music_start_sig = -1;
 
 namespace rf
 {
@@ -185,10 +187,47 @@ FunHook<void()> main_menu_stop_music_hook{
             // Music changed when the menu was open - stop the old music
             // Note: In Single Player RF pauses the world when entering the menu so it should not happen
             //       In Multi Player on the other hand level scripts are still executing in the background and nothing stops
-            //       them from playing new sounds/music. Would be cool to fix it one day...
+            //       them from playing new sounds/music.
             rf::snd_pc_stop(g_game_music_sig_to_restore);
             g_game_music_sig_to_restore = -1;
         }
+        g_game_music_start_sig = -1;
+    },
+};
+
+CodeInjection game_music_play_hook{
+    0x00434139,
+    []() {
+        if (rf::is_multi) g_game_music_start_sig = rf::snd_music_sig;
+    },
+};
+
+CodeInjection snd_pause_multi_hook{
+    0x00522C09,
+    [](auto& regs) {
+        int idx = regs.edi;
+        if (rf::is_multi && g_game_music_start_sig != -1 && rf::ds_channels[idx].sig == g_game_music_start_sig) regs.eip = 0x00522C25;
+    },
+};
+
+CodeInjection gameplay_close_vol_hook{
+    0x0043175B,
+    []() {
+        if (rf::is_multi && g_game_music_start_sig != -1) rf::snd_ds_set_volume(g_game_music_start_sig, 0.0f);
+    },
+};
+
+CodeInjection gameplay_init_vol_hook{
+    0x00431684,
+    []() {
+        if (rf::is_multi && g_game_music_start_sig != -1) rf::snd_ds_set_volume(g_game_music_start_sig, rf::snd_group_volume[rf::SOUND_GROUP_MUSIC]);
+    },
+};
+
+CodeInjection snd_music_update_volume_hook{
+    0x00505E9E,
+    [](auto& regs) {
+        if (rf::is_multi && g_game_music_start_sig != -1 && regs.ecx == g_game_music_start_sig) regs.eip = 0x00505EA3;
     },
 };
 
@@ -215,4 +254,11 @@ void apply_main_menu_patches()
     // Fix music being unstoppable after opening the menu
     main_menu_set_music_injection.install();
     main_menu_stop_music_hook.install();
+
+    // Fixes for MP music desync when going into the menu
+    game_music_play_hook.install(); //save sig of last Music_Start
+    snd_pause_multi_hook.install(); //don't pause last Music_Start sig when pausing all sounds
+    gameplay_close_vol_hook.install(); //set last Music_Start sig volume to 0 in gameplay_close
+    snd_music_update_volume_hook.install(); //don't update volume on last Music_Start sig in snd_music_update_volume
+    gameplay_init_vol_hook.install(); //set last Music_Start sig volume back to what it should be in gameplay_init
 }
