@@ -14,6 +14,15 @@
 #include "server_internal.h"
 #include "multi.h"
 
+bool ends_with(const rf::String& str, const std::string& suffix)
+{
+    std::string name_str = str.c_str(); // Assuming rf::String has a c_str() method
+    if (name_str.length() >= suffix.length()) {
+        return (name_str.compare(name_str.length() - suffix.length(), suffix.length(), suffix) == 0);
+    }
+    return false;
+}
+
 struct Vote
 {
 private:
@@ -43,7 +52,9 @@ public:
         // prepare allowed player list
         auto player_list = SinglyLinkedList{rf::player_list};
         for (auto& player : player_list) {
-            if (&player != source && !get_player_additional_data(&player).is_browser) {
+            if (&player != source &&
+                !get_player_additional_data(&player).is_browser &&
+                !ends_with(player.name, " (Bot)")) {
                 remaining_players.insert(&player);
             }
         }
@@ -435,8 +446,8 @@ VoteMgr g_vote_mgr;
 
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender)
 {
-    if (get_player_additional_data(sender).is_browser) {
-        send_chat_line_packet("Browsers are not allowed to vote!", sender);
+    if (get_player_additional_data(sender).is_browser || ends_with(sender->name, " (Bot)")) {
+        send_chat_line_packet("Browsers and bots are not allowed to vote!", sender);
         return;
     }
     if (vote_name == "kick")
