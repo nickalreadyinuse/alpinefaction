@@ -19,7 +19,10 @@
 #include "../misc/player.h"
 #include "../main/main.h"
 #include <common/utils/list-utils.h>
+#include "../rf/math/vector.h"
+#include "../rf/math/matrix.h"
 #include "../rf/player/player.h"
+#include "../rf/item.h"
 #include "../rf/multi.h"
 #include "../rf/parse.h"
 #include "../rf/weapon.h"
@@ -102,6 +105,13 @@ void load_additional_server_config(rf::Parser& parser)
         parser.parse_string(&old_item);
         parser.parse_string(&new_item);
         g_additional_server_config.item_replacements.insert({old_item.c_str(), new_item.c_str()});
+    }
+
+    while (parser.parse_optional("$DF Item Respawn Time Override:")) {
+        rf::String item_name;
+        parser.parse_string(&item_name);
+        auto new_time = parser.parse_uint();
+        g_additional_server_config.item_respawn_time_overrides.insert({item_name.c_str(), new_time});
     }
 
     if (parser.parse_optional("$DF Weapon Items Give Full Ammo:")) {
@@ -434,6 +444,24 @@ CallHook<int(const char*)> item_lookup_type_hook{
     },
 };
 
+CallHook<void(int, const char*, int, int, const rf::Vector3*, const rf::Matrix3*, int, bool, bool)>
+item_create_hook{
+    0x00465175,
+    [](int type, const char* name, int count, int parent_handle, const rf::Vector3* pos,
+        const rf::Matrix3* orient, int respawn_time, bool permanent, bool from_packet) {
+
+        // when creating it, check if a spawn time override is configured for this item
+        if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
+            it != g_additional_server_config.item_respawn_time_overrides.end()) {
+            respawn_time = it->second;
+            xlog::warn("Overriding respawn time for item '{}' to {} ms", name, respawn_time);
+        }
+
+        return item_create_hook.call_target(type, name, count, parent_handle, pos, orient, respawn_time, permanent, from_packet);
+    }
+};
+
+
 CallHook<int(const char*)> find_default_weapon_for_entity_hook{
     0x004A43DA,
     [](const char* weapon_name) {
@@ -679,6 +707,9 @@ void server_init()
 
     // Item replacements
     item_lookup_type_hook.install();
+
+    // Item respawn time overrides
+    item_create_hook.install();
 
     // Default player weapon class and ammo override
     find_default_weapon_for_entity_hook.install();

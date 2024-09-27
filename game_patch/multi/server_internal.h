@@ -39,6 +39,7 @@ struct ServerAdditionalConfig
     std::optional<float> spawn_armor;
     HitSoundsConfig hit_sounds;
     std::map<std::string, std::string> item_replacements;
+    std::map<std::string, int> item_respawn_time_overrides;
     std::string default_player_weapon;
     std::optional<int> default_player_weapon_ammo;
     bool require_client_mod = true;

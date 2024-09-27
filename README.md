@@ -164,6 +164,8 @@ Configuration example:
         +Rate Limit: 10
     // Replace all "Shotgun" items with "rail gun" items when loading RFLs
     $DF Item Replacement: "Shotgun" "rail gun"
+    // Set all "Suit Repair" items to respawn after 5000ms (5 seconds) instead of the delay configured in the level
+    $DF Item Respawn Time Override: "Suit Repair" 5000
     // If enabled players are given full ammo when picking up weapon items, can be useful with the Weapons Stay standard option
     $DF Weapon Items Give Full Ammo: false
     // Replace default player weapon class
