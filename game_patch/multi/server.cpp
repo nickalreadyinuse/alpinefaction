@@ -454,7 +454,7 @@ item_create_hook{
         if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
             it != g_additional_server_config.item_respawn_time_overrides.end()) {
             respawn_time = it->second;
-            xlog::warn("Overriding respawn time for item '{}' to {} ms", name, respawn_time);
+            //xlog::warn("Overriding respawn time for item '{}' to {} ms", name, respawn_time);
         }
 
         return item_create_hook.call_target(type, name, count, parent_handle, pos, orient, respawn_time, permanent, from_packet);
