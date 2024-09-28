@@ -550,7 +550,7 @@ CodeInjection multi_on_new_player_injection{
         in_addr addr;
         addr.S_un.S_addr = ntohl(player->net_data->addr.ip_addr);
         rf::console::print("{}{} ({})", player->name,  rf::strings::has_joined, inet_ntoa(addr));
-        regs.eip = 0x0047B051;
+                regs.eip = 0x0047B051;
     },
 };
 
