@@ -220,8 +220,43 @@ ConsoleCommand2 debug_event_msg_cmd{
     }
 };
 
+struct EventDifficultyGate : rf::Event
+{
+    int difficulty;
+};
+
+EventDifficultyGate* event_difficulty_gate_create(rf::Vector3 pos, rf::String name, int difficulty)
+{
+    auto* event_difficulty_gate = static_cast<EventDifficultyGate*>(rf::event_create(pos, 0x59));
+
+    event_difficulty_gate->pos = pos;
+    event_difficulty_gate->name = name;
+    event_difficulty_gate->difficulty = difficulty;
+
+    return event_difficulty_gate;
+}
+
+CallHook<int(const rf::String* name)> event_lookup_type_hook{
+    0x0046231D,
+    [](const rf::String* name) -> int {
+        xlog::warn("Looking up event with name {}", name->c_str());
+        // custom events
+        if (*name == "Difficulty") {
+            xlog::warn("Assigning ID to Difficulty event");
+            return 89;
+        }
+        else if (*name == "Test_Event") {
+            return 90;
+        }
+
+        // original event_lookup_type for standard events
+        return event_lookup_type_hook.call_target(name);
+    }};
+
 void apply_event_patches()
 {
+    event_lookup_type_hook.install();
+
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
     switch_model_event_custom_mesh_patch.install();
     switch_model_event_obj_lighting_and_physics_fix.install();
