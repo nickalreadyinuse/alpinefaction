@@ -252,6 +252,7 @@ struct EventSetCollisionPlayer : rf::Event
     void turn_on() override
     {
         xlog::warn("Turning on custom logic for Set_World_Collide_pl event: UID {}", this->uid);
+        rf::local_player->collides_with_world = false;
     }
 
     void turn_off() override
@@ -261,53 +262,46 @@ struct EventSetCollisionPlayer : rf::Event
 
     void process() override
     {
-        xlog::warn("Processing custom logic for Set_World_Collide_pl event: UID {}", this->uid);
+        //xlog::warn("Processing custom logic for Set_World_Collide_pl event: UID {}", this->uid);
     }
 };
 
 EventSetCollisionPlayer* event_set_collision_create(rf::Vector3 pos)
 {
-    auto* event_set_collision = static_cast<EventSetCollisionPlayer*>(rf::event_create(pos, 90));
+    // Log the position being passed to ensure it looks valid
+    xlog::warn("Creating event with position: x={}, y={}, z={}", pos.x, pos.y, pos.z);
 
+    // Create the event using rf::event_create with the expected type
+    auto* base_event = rf::event_create(pos, 91); // Returns a base event type (rf::Event*)
+
+    // Log the pointer returned by rf::event_create to see if it's null or invalid
+    xlog::warn("Base event pointer after creation: {}", reinterpret_cast<uintptr_t>(base_event));
+
+    // Verify if the event creation was successful
+    if (!base_event) {
+        xlog::error("Failed to create base event for Set_World_Collide_pl.");
+        return nullptr;
+    }
+
+    // Cast the base event to the specific EventSetCollisionPlayer type
+    auto* event_set_collision = static_cast<EventSetCollisionPlayer*>(base_event);
+
+    // Ensure the cast was successful
+    if (!event_set_collision) {
+        xlog::error("Failed to cast base event to EventSetCollisionPlayer.");
+        return nullptr;
+    }
+
+    // Assign position
     event_set_collision->pos = pos;
-    //event_set_collision->name = name;
+
+    // Optionally, initialize other fields if necessary
+    // event_set_collision->name = name;
+
+    xlog::warn("Successfully created Set_World_Collide_pl event at position: x={}, y={}, z={}", pos.x, pos.y, pos.z);
 
     return event_set_collision;
 }
-
-/* CallHook<int(const rf::String* name)> event_lookup_type_hook{
-    0x0046231D,
-    [](const rf::String* name) -> int {
-        xlog::warn("Looking up event with name {}", name->c_str());
-        // custom events
-        if (*name == "Difficulty") {
-            xlog::warn("Assigning ID to Difficulty event");
-            return 89;
-        }
-        else if (*name == "Set_World_Collide_pl") {
-            xlog::warn("Assigning ID to Set_World_Collide_pl event");
-            return 90;
-        }
-        else {
-            return event_lookup_type_hook.call_target(name);
-        }        
-    }
-};*/
-
-//old
-/* CallHook<rf::Event*(int event_type)> event_allocate_hook{
-    0x004871C1, [](int event_type) -> rf::Event* {
-        if (event_type == 90) {
-            xlog::warn("Allocating custom event: Set_World_Collide_pl (ID 90)");
-
-            // Allocate the custom event
-            return new EventSetCollisionPlayer();
-        }
-        else {
-            return event_allocate_hook.call_target(event_type);
-        }       
-    }
-};*/
 
 FunHook<int __cdecl(const rf::String* name)> event_lookup_type_hook{
     0x004BD700, // Correct address for the event_lookup_type function
@@ -319,52 +313,67 @@ FunHook<int __cdecl(const rf::String* name)> event_lookup_type_hook{
             xlog::warn("Assigning ID 90 to Set_World_Collide_pl event");
 
             // Return custom event ID
-            return 90;
+            return 91;
         }
         else if (*name == "Difficulty") {
             xlog::warn("Assigning ID 89 to Difficulty event");
 
             // Return custom event ID
-            return 89;
+            return 90;
         }
 
         // Call original function for non-custom events
         return event_lookup_type_hook.call_target(name);
+    }
+};
+
+
+CallHook<rf::Event*(int event_type)> event_allocate_hook{
+    0x004871C1, // Event allocation function's address
+    [](int event_type) -> rf::Event* {
+        // Check if we are handling the custom event type
+        if (event_type == 91) {
+            xlog::warn("Allocating custom event: Set_World_Collide_pl (ID 91)");
+
+            // Allocate the custom event
+            auto* custom_event = new EventSetCollisionPlayer();
+
+            // Initialize the custom event fields
+            xlog::warn("Successfully allocated Set_World_Collide_pl event");
+            return custom_event;
+        }
+
+        // Fallback to original event allocation for non-custom events
+        return event_allocate_hook.call_target(event_type);
+    }};
+
+
+CodeInjection event_allocate_injection{
+    0x00462910, // Address for event allocation logic
+    [](BaseCodeInjection::Regs& regs) {
+        int event_type = regs.ebp; // Event type in EBP
+
+        if (event_type == 91) { // Custom event type
+            xlog::warn("Allocating custom event: Set_World_Collide_pl (ID 91)");
+
+            // Create and allocate the custom event
+            rf::Event* custom_event = new EventSetCollisionPlayer();
+
+            if (custom_event) {
+                xlog::warn("Custom event Set_World_Collide_pl allocated successfully.");
+                regs.eax = reinterpret_cast<uintptr_t>(custom_event); // Return the event pointer
+            }
+            else {
+                xlog::error("Failed to allocate custom event Set_World_Collide_pl.");
+            }
+
+            // Optionally skip the rest of the event allocation logic
+            regs.eip = 0x00462915; // Jump to next instruction after custom event handling
+        }
     }};
 
 
 
-
-
-CodeInjection event_allocate_injection{
-    0x004B69FA,  // Address just before jmp ds:jpt_4B69FA[ecx*4]
-    [](auto& regs) {
-        // Extract the event_type (from ecx)
-        int event_type = regs.eax;  // Assuming the event_type is in eax before the jump table
-
-        // Check if the event_type is your custom one (e.g., 90 for Set_World_Collide_pl)
-        if (event_type == 90) {
-            // Log that we are handling the custom event
-            xlog::warn("Allocating custom event: Set_World_Collide_pl (ID 90)");
-
-            // Allocate and return your custom event
-            rf::Event* custom_event = new EventSetCollisionPlayer();
-
-            // Setup any initial event state here if necessary
-
-            // Modify the return address (EAX) to the newly allocated custom event
-            regs.eax = reinterpret_cast<uintptr_t>(custom_event);
-
-            // Skip the jump table logic entirely
-            //regs.eip = 0x004B75FD; // Return point after the jump table
-
-            return;
-        }
-
-        // If not handling custom event, proceed with original logic
-        // Let the original jump table code handle the event
-    }
-};
 
 void custom_event_handler_function()
 {
@@ -373,27 +382,84 @@ void custom_event_handler_function()
 }
 
 CodeInjection custom_event_injection{
-    0x00462394,  // Address for jump table handling
+    0x00462910, // Inject at the location for handling the event creation process
     [](BaseCodeInjection::Regs& regs) {
-        int event_type = regs.ecx;  // Read the event type from ecx
-        xlog::warn("Event type in ECX is: {}", event_type);
+        int event_type = regs.ebp; // Get the event type
+        rf::Vector3* pos_ptr =
+            reinterpret_cast<rf::Vector3*>(static_cast<uintptr_t>(regs.edx)); // Read position pointer
 
-        // Check for custom event type
-        if (event_type == 90) {
-            xlog::warn("Handling custom event: Set_World_Collide_pl");
+        if (event_type == 91) {
+            xlog::warn("Handling custom event: Set_World_Collide_pl (ID 91)");
 
-            rf::Vector3 pos;
-            pos.set(10.0f, 20.0f, 30.0f);
+            if (pos_ptr != nullptr) {
+                rf::Vector3 pos = *pos_ptr;
+                xlog::warn("Creating event with position: x={}, y={}, z={}", pos.x, pos.y, pos.z);
 
-            event_set_collision_create(pos);
+                //rf::ObjectCreateInfo oci;
+                //oci.object
+                //oci.pos = pos;
 
-            regs.eip = 0x00462915; // Jump to the next valid instruction after processing custom event
+                
+
+                rf::Event* custom_event = new EventSetCollisionPlayer();
+                custom_event->type = rf::OT_EVENT;
+                custom_event->pos = pos;
+                custom_event->event_type = 91;
+                //rf::Event* custom_event = rf::event_create(pos, 91);
+                if (!custom_event) {
+                    xlog::error("Failed to create custom event Set_World_Collide_pl.");
+                    return;
+                }
+                // Log the created object info
+                xlog::warn("Custom Event created with pos: x={}, y={}, z={}", custom_event->pos.x, custom_event->pos.y, custom_event->pos.z);
+                xlog::warn("Custom event created: Set_World_Collide_pl (ID 91) Type: {}, Event Type: {}",
+                           std::to_string(custom_event->type), std::to_string(custom_event->event_type));
+                //custom_event->initialize();
+
+
+  
+                // call doesnt seem to be needed
+                //regs.eip = 0x00462988;
+            }
+            else {
+                xlog::warn("Invalid position pointer for custom event.");
+            }
         }
     }
 };
 
+FunHook<rf::Event*(const rf::Vector3*, int)> event_create_hook{
+    0x004B6870, // Address of the original event_create function
+    [](const rf::Vector3* pos, int event_type) -> rf::Event* {
+        // Log the position and event type
+        xlog::warn("Hooked event_create called: pos(x={}, y={}, z={}), event_type={}", pos->x, pos->y, pos->z,
+                   event_type);
+
+        // Call the original function to preserve normal behavior
+        return event_create_hook.call_target(pos, event_type);
+    }
+};
+
+// allow event creation > 91
+CodeInjection allow_event_type_91_injection{
+    0x004B68A0,  // Address just before cmp instruction
+    [](auto& regs) {
+        int event_type = regs.ebp;
+
+        if (event_type == 91) {
+            xlog::warn("Allowing custom event type 91 to bypass jump");
+            // Skip the cmp and jump instructions and continue event creation
+            regs.eip = 0x004B68A9;  // Set eip to the address after the jump
+        }
+    }
+};
+
+
+
+
+
 CodeInjection log_jump_table_entry{
-    0x0046238E, // This is the address of the jump table entry
+    0x00462324, // This is the address of the jump table entry
     [](BaseCodeInjection::Regs& regs) {
         int eax_value = regs.eax;  // Use int or uintptr_t to match register size
         int ecx_value = regs.ecx;
@@ -403,14 +469,25 @@ CodeInjection log_jump_table_entry{
     }
 };
 
+CodeInjection log_jump_table_entry2{
+    0x0046237F, // This is the address of the jump table entry
+    [](BaseCodeInjection::Regs& regs) {
+        int eax_value = regs.eax;  // Use int or uintptr_t to match register size
+
+        xlog::warn("Event type in later EAX is: {}", eax_value);
+    }
+};
+
 void apply_event_patches()
 {
     //event_lookup_type_hook.install();
-    //event_allocate_hook.install();
+    event_allocate_hook.install();
     event_lookup_type_hook.install();
-    event_allocate_injection.install();
+    //event_create_hook.install();
     custom_event_injection.install();
-    log_jump_table_entry.install();
+    //log_jump_table_entry.install();
+    //log_jump_table_entry2.install();
+    allow_event_type_91_injection.install();
 
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
     switch_model_event_custom_mesh_patch.install();
