@@ -220,89 +220,121 @@ ConsoleCommand2 debug_event_msg_cmd{
     }
 };
 
-struct EventDifficultyGate : rf::Event
-{
-    int difficulty;
-};
-
-EventDifficultyGate* event_difficulty_gate_create(rf::Vector3 pos, rf::String name, int difficulty)
-{
-    auto* event_difficulty_gate = static_cast<EventDifficultyGate*>(rf::event_create(pos, 0x59));
-
-    event_difficulty_gate->pos = pos;
-    event_difficulty_gate->name = name;
-    event_difficulty_gate->difficulty = difficulty;
-
-    return event_difficulty_gate;
-}
-
 struct EventSetCollisionPlayer : rf::Event
 {
     EventSetCollisionPlayer() : rf::Event()
     {
-        // Custom initialization logic (if any)
-        xlog::warn("Set_World_Collide_pl event created.");
+        xlog::warn("Creating event UID {}", this->uid);
     }
 
     void initialize() override
     {
-        xlog::warn("Processing custom logic for Set_World_Collide_pl event: UID {}", this->uid);
+        xlog::warn("Initializing event UID {}", this->uid);
     }
 
     void turn_on() override
     {
-        xlog::warn("Turning on custom logic for Set_World_Collide_pl event: UID {}", this->uid);
+        xlog::warn("On response for event UID {}", this->uid);
         rf::local_player->collides_with_world = true;
+        for (int i = 0; i < this->links.size(); ++i) {
+
+            int link = this->links[i];
+            xlog::warn("Link at index {}: {}", i, link);
+            rf::Object* obj = rf::obj_from_handle(link);
+            if (obj) {
+                rf::Entity* entity = static_cast<rf::Entity*>(obj);
+                xlog::warn("Name: {}, UID: {}, type: {}, ent type: {}", entity->name.c_str(), entity->uid,
+                           static_cast<int>(entity->type), entity->info_index);
+                rf::Entity* new_entity =
+                    rf::entity_create(entity->info_index, entity->name, -1, pos, entity->orient, 0, -1);
+                new_entity->entity_flags = entity->entity_flags;
+                new_entity->pos = entity->pos;
+                new_entity->entity_flags2 = entity->entity_flags2;
+                new_entity->info = entity->info;
+                new_entity->info2 = entity->info2;
+                new_entity->drop_item_class = entity->drop_item_class;
+                new_entity->obj_flags = entity->obj_flags;
+                new_entity->ai.custom_attack_range = entity->ai.custom_attack_range;
+                new_entity->ai.use_custom_attack_range = entity->ai.use_custom_attack_range;
+                new_entity->ai.attack_style = entity->ai.attack_style;
+                new_entity->ai.cooperation = entity->ai.cooperation;
+                new_entity->ai.cover_style = entity->ai.cover_style;
+                for (int i = 0; i < 64; ++i) {
+                    new_entity->ai.has_weapon[i] = entity->ai.has_weapon[i];
+                    new_entity->ai.clip_ammo[i] = entity->ai.clip_ammo[i];
+                }
+
+                for (int i = 0; i < 32; ++i) {
+                    new_entity->ai.ammo[i] = entity->ai.ammo[i];
+                }
+                new_entity->ai.current_secondary_weapon = entity->ai.current_secondary_weapon;
+                new_entity->ai.current_primary_weapon = entity->ai.current_primary_weapon;
+
+                xlog::warn("Name: {}, UID: {}, type: {}, ent type: {}", new_entity->name.c_str(), new_entity->uid,
+                           static_cast<int>(new_entity->type), new_entity->info_index);
+            }
+            
+
+        }
     }
 
     void turn_off() override
     {
-        xlog::warn("Turning off custom logic for Set_World_Collide_pl event: UID {}", this->uid);
+        xlog::warn("Off response for event UID {}", this->uid);
         rf::local_player->collides_with_world = false;
     }
 
     void process() override
     {
-        //xlog::warn("Processing custom logic for Set_World_Collide_pl event: UID {}", this->uid);
+        // activated every frame
+        //xlog::warn("Processing event UID {}", this->uid);
     }
 };
 
-EventSetCollisionPlayer* event_set_collision_create(rf::Vector3 pos)
+struct EventDifficultyGate : rf::Event
 {
-    // Log the position being passed to ensure it looks valid
-    //xlog::warn("Creating event with position: x={}, y={}, z={}", pos.x, pos.y, pos.z);
+    int difficulty;
+};
 
-    // Create the event using rf::event_create with the expected type
-    auto* base_event = rf::event_create(pos, 91); // Returns a base event type (rf::Event*)
-
-    // Log the pointer returned by rf::event_create to see if it's null or invalid
-    xlog::warn("Base event pointer after creation: {}", reinterpret_cast<uintptr_t>(base_event));
-
-    // Verify if the event creation was successful
-    if (!base_event) {
-        xlog::error("Failed to create base event for Set_World_Collide_pl.");
-        return nullptr;
+struct EventCloneEntity : rf::Event
+{
+    EventCloneEntity() : rf::Event()
+    {
+        xlog::warn("Creating event UID {}", this->uid);
     }
 
-    // Cast the base event to the specific EventSetCollisionPlayer type
-    auto* event_set_collision = static_cast<EventSetCollisionPlayer*>(base_event);
-
-    // Ensure the cast was successful
-    if (!event_set_collision) {
-        xlog::error("Failed to cast base event to EventSetCollisionPlayer.");
-        return nullptr;
+    void initialize() override
+    {
+        xlog::warn("Initializing event UID {}", this->uid);
     }
 
-    // Assign position
-    event_set_collision->pos = pos;
+    void turn_on() override
+    {
+        xlog::warn("On response for event UID {}", this->uid);
 
-    // Optionally, initialize other fields if necessary
-    // event_set_collision->name = name;
+        for (int i = 0; i < this->links.size(); ++i) {
 
-    xlog::warn("Successfully allocated Set_World_Collide_pl event at position: x={}, y={}, z={}", pos.x, pos.y, pos.z);
+            int link = this->links[i];
+            xlog::warn("Link at index {}: {}", i, link);
+            // rf::Object* obj = rf::obj_from_handle(link);
+            rf::Event* obj = rf::event_lookup_from_handle(link);
+            xlog::warn("event type: {}", obj->event_type);
+            xlog::warn("Name: {}, UID: {}, type: {}, event type: {}", obj->name.c_str(), obj->uid,
+                       static_cast<int>(obj->type), obj->event_type);
+        }
+    }
 
-    return event_set_collision;
-}
+    void turn_off() override
+    {
+        xlog::warn("Off response for event UID {}", this->uid);
+    }
+
+    void process() override
+    {
+        // activated every frame
+        // xlog::warn("Processing event UID {}", this->uid);
+    }
+};
 
 FunHook<int __cdecl(const rf::String* name)> event_lookup_type_hook{
     0x004BD700, // Correct address for the event_lookup_type function
@@ -310,11 +342,17 @@ FunHook<int __cdecl(const rf::String* name)> event_lookup_type_hook{
         xlog::warn("Looking up event with name: {}", name->c_str());
 
         // Custom event ID assignment
-        if (*name == "Set_World_Collide_pl") {
+        if (*name == "Difficulty") {
+            return 90;
+        }
+        else if (*name == "Set_Player_World_Collide") {
             return 91;
         }
-        else if (*name == "Difficulty") {
-            return 90;
+        else if (*name == "Redirector") {
+            return 92;
+        }
+        else if (*name == "Clone_Entity") {
+            return 93;
         }
 
         return event_lookup_type_hook.call_target(name);
@@ -326,6 +364,10 @@ CallHook<rf::Event*(int event_type)> event_allocate_hook{
     [](int event_type) -> rf::Event* {
 
         if (event_type == 91) {
+            auto* custom_event = new EventSetCollisionPlayer();
+            return custom_event;
+        }
+        if (event_type == 93) {
             auto* custom_event = new EventSetCollisionPlayer();
             return custom_event;
         }
@@ -345,16 +387,23 @@ CodeInjection custom_event_injection{
             rf::Vector3 pos = *pos_ptr;
 
             rf::Event* custom_event = new EventSetCollisionPlayer();
-            //custom_event->event_type = 91;
 
             // Log the created object info
             xlog::warn("Custom event created: Set_World_Collide_pl (ID 91) Type: {}, Event Type: {}, Position: {}, {}, {}",
                 std::to_string(custom_event->type),std::to_string(custom_event->event_type),
                 custom_event->pos.x, custom_event->pos.y, custom_event->pos.z);
-  
-            // call doesnt seem to be needed
-            //regs.eip = 0x00462988;
+        }
+        else if (event_type == 93) {
 
+            rf::Vector3 pos = *pos_ptr;
+
+            rf::Event* custom_event = new EventSetCollisionPlayer();
+
+            // Log the created object info
+            xlog::warn(
+                "Custom event created: Set_World_Collide_pl (ID 91) Type: {}, Event Type: {}, Position: {}, {}, {}",
+                std::to_string(custom_event->type), std::to_string(custom_event->event_type), custom_event->pos.x,
+                custom_event->pos.y, custom_event->pos.z);
         }
     }
 };
@@ -365,7 +414,7 @@ CodeInjection allow_custom_events_injection{
     [](auto& regs) {
         int event_type = regs.ebp;
 
-        if (event_type == 91) {
+        if (event_type >= 90 && event_type <= 93) {
             xlog::warn("Allowing custom event to bypass jump table");
             regs.eip = 0x004B68A9;
         }
@@ -380,18 +429,28 @@ CodeInjection custom_event_deallocate_injection{
         xlog::warn("Intercepting event deallocation for event type: {}", event_type);
 
         // Check if the event is a custom event
-        if (event_type == 91) {
+        if (event_type >= 90 && event_type <= 93) {
             uintptr_t event_addr = regs.ecx;
             rf::Event* custom_event = reinterpret_cast<rf::Event*>(event_addr);
 
-            if (custom_event) {
-                // Log information from the event before deallocation
-                xlog::warn("Deallocating custom event UID: {}, Event Type: {}",
-                    custom_event->uid, custom_event->event_type);
-                    rf::event_destructor(custom_event, 1);
+            if (custom_event && event_addr > 0x1000 && event_addr < 0xFFFFFFFF) {
+                // Log details before deallocation
+                xlog::warn("Deallocating custom event UID: {}, Event Type: {}", custom_event->uid,
+                           custom_event->event_type);
+
+                // Call the destructor (assuming rf::event_destructor handles everything safely)
+                rf::event_destructor(custom_event, 1);
+                rf::event_delete(custom_event);
+
+
+                xlog::warn("Custom event deallocated successfully.");
+            }
+            else {
+                xlog::error("Invalid or null custom event pointer: 0x{:X}", event_addr);
+                return; // Abort if pointer is invalid
             }
 
-            regs.eip = 0x004B7AC5;
+            //regs.eip = 0x004B7AC5;
             return;
         }
         xlog::warn("Proceeding with default deallocation for event type: {}", event_type);
@@ -403,7 +462,8 @@ FunHook<rf::Event*(rf::Vector3*, int)> event_create_hook{
     0x004B6870, [](rf::Vector3* pos, int event_type) -> rf::Event* {
         xlog::warn("CREATE EVENT called: pos(x={}, y={}, z={}), event_type={}", pos->x, pos->y, pos->z, event_type);
         return event_create_hook.call_target(pos, event_type);
-    }};
+    }
+};
 
 void apply_event_patches()
 {

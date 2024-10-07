@@ -25,6 +25,9 @@ namespace rf
     static_assert(sizeof(Event) == 0x2B8);
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
+    static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
     static auto& event_create = addr_as_ref<Event*(rf::Vector3 pos, int event_type)>(0x004B6870);
     static auto& event_destructor = addr_as_ref<void(rf::Event*, char flags)>(0x004BEF50);
+    static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
+    static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
     }

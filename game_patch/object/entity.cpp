@@ -3,7 +3,9 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../os/console.h"
 #include "../rf/entity.h"
+#include "../rf/event.h"
 #include "../rf/corpse.h"
 #include "../rf/weapon.h"
 #include "../rf/player/player.h"
@@ -201,8 +203,52 @@ CodeInjection entity_process_pre_hide_riot_shield_injection{
     },
 };
 
+CodeInjection entity_create_hook{
+    0x004BC180,  // Address right after the call to entity_create
+    [](BaseCodeInjection::Regs& regs) {
+        // Cast the entity pointer using the workaround
+        uintptr_t entity_addr = static_cast<uintptr_t>(regs.eax);
+        rf::Object* created_entity = reinterpret_cast<rf::Object*>(entity_addr);
+
+        // Log the pointer and additional details
+        //xlog::warn("Entity created with pointer: 0x{:X}", entity_addr);
+
+        if (created_entity) {
+            xlog::warn("New entity! Pointer: {}, UID: {}, Position: x={}, y={}, z={}, life: {}, armor: {}, handle: {}", entity_addr,
+                       created_entity->uid, created_entity->pos.x, created_entity->pos.y,
+                       created_entity->pos.z, created_entity->life, created_entity->armor, created_entity->handle);
+            //rf::Entity* testent = rf::local_player_entity;
+            //xlog::warn("Entity UID: {}", testent->uid);
+        }
+    }
+};
+
+ConsoleCommand2 testlink_cmd{
+    "dbg_make_link",
+    [](std::optional<int> from, std::optional<int> to) {
+        if (from && to) {
+            xlog::warn("Attempting to create a link from UID {} to handle {}", from.value_or(-1), to.value_or(-1));
+
+            rf::Event* from_event = rf::event_lookup_from_uid(from.value_or(-1));
+            rf::Event* to_event = rf::event_lookup_from_uid(to.value_or(-1));
+
+            rf::event_add_link(from_event->handle, to.value_or(-1));
+            //int minutes = minutes_opt.value_or(5);
+            //extend_round_time(minutes);
+            //std::string msg = std::format("\xA6 Round extended by {} minutes", minutes);
+            //rf::multi_chat_say(msg.c_str(), false);
+        }
+    },
+    "make a link",
+    "dbg_make_link",
+};
+
+
 void entity_do_patch()
 {
+    testlink_cmd.register_cmd();
+    entity_create_hook.install();
+
     // Fix player being stuck to ground when jumping, especially when FPS is greater than 200
     stuck_to_ground_when_jumping_fix.install();
     stuck_to_ground_when_using_jump_pad_fix.install();
