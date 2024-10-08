@@ -437,7 +437,8 @@ CodeInjection custom_event_deallocate_injection{
                            custom_event->event_type);
 
                 // Call the destructor (assuming rf::event_destructor handles everything safely)
-                rf::event_destructor(custom_event, 0);
+                rf::event_destructor(custom_event, 1);
+                custom_event = nullptr;
                 //rf::event_delete(custom_event);
 
 
