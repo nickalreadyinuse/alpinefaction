@@ -364,7 +364,7 @@ CallHook<rf::Event*(int event_type)> event_allocate_hook{
     }
 };
 
-CodeInjection custom_event_injection{
+/* CodeInjection custom_event_injection{
     0x00462910,
     [](BaseCodeInjection::Regs& regs) {
         int event_type = regs.ebp;
@@ -394,10 +394,10 @@ CodeInjection custom_event_injection{
                 custom_event->pos.y, custom_event->pos.z);
         }
     }
-};
+};*/
 
 // allow event creation > 91
-CodeInjection allow_custom_events_injection{
+/* CodeInjection allow_custom_events_injection{
     0x004B68A0,  // Address just before cmp instruction
     [](auto& regs) {
         int event_type = regs.ebp;
@@ -407,7 +407,7 @@ CodeInjection allow_custom_events_injection{
             regs.eip = 0x004B68A9;
         }
     }
-};
+};*/
 
 // intermitant crashing on deallocate, need to debug here
 CodeInjection custom_event_deallocate_injection{
@@ -418,37 +418,32 @@ CodeInjection custom_event_deallocate_injection{
 
         // Check if the event is a custom event
         if (event_type >= 90 && event_type <= 93) {
-            uintptr_t event_addr = regs.ecx;
-            xlog::warn("To be deallocated: {}", event_addr);
+            //uintptr_t event_addr = regs.ecx;
+            //xlog::warn("To be deallocated: {}", event_addr);
+            uintptr_t event_addr = static_cast<uintptr_t>(regs.ecx);
             rf::Event* custom_event = reinterpret_cast<rf::Event*>(event_addr);
 
-            for (int i = 0; i < custom_event->links.size(); ++i) {
-                int link = custom_event->links[i];
-                xlog::warn("Checking linked object handle: {}", link);
-                rf::Object* linked_obj = rf::obj_from_handle(link);
-                if (linked_obj) {
-                    xlog::warn("Linked object: Name: {}, UID: {}", linked_obj->name.c_str(), linked_obj->uid);
+            if (~custom_event->links.size() > 0) {
+                for (int i = 0; i < custom_event->links.size(); ++i) {
+                    int link = custom_event->links[i];
+                    xlog::warn("Checking linked object handle: {}", link);
                 }
             }
 
-            if (custom_event && event_addr > 0x1000 && event_addr < 0xFFFFFFFF) {
+            if (custom_event) {
                 // Log details before deallocation
                 xlog::warn("Deallocating custom event UID: {}, Event Type: {}", custom_event->uid,
                            custom_event->event_type);
 
-                // Call the destructor (assuming rf::event_destructor handles everything safely)
+                // Call the destructor
                 rf::event_destructor(custom_event, 1);
-                custom_event = nullptr;
+                //custom_event = nullptr;
                 //rf::event_delete(custom_event);
 
 
                 xlog::warn("Custom event deallocated successfully.");
                 return;
-            }
-            else {
-                xlog::error("Invalid or null custom event pointer: 0x{:X}", event_addr);
-                return; // Abort if pointer is invalid
-            }            
+            }   
         }
         xlog::warn("Proceeding with default deallocation for event type: {}", event_type);
     }
@@ -462,14 +457,26 @@ FunHook<rf::Event*(rf::Vector3*, int)> event_create_hook{
     }
 };
 
+FunHook<void(rf::Event*, char)> event_dt_hook{
+    0x004BEF50, [](rf::Event* current, char flags) {
+        xlog::warn("Destroying UID {}, name {}, handle {}, flags {}", current->uid, current->name, current->handle, flags);
+        return event_dt_hook.call_target(current, flags);
+    }
+};
+
 void apply_event_patches()
 {
-
+    //event_dt_hook.install();
     event_lookup_type_hook.install();
-    custom_event_injection.install();
+    //custom_event_injection.install();
     //event_create_hook.install();
     event_allocate_hook.install();
-    allow_custom_events_injection.install();
+
+    //allow_custom_events_injection.install();
+    // cleaner way to do the above, just remove the upper event ID check entirely
+    AsmWriter(0x004B68A0).nop(9);
+
+
     custom_event_deallocate_injection.install();
 
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
