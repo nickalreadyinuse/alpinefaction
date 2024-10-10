@@ -457,6 +457,8 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     CMainFrame_OnPlayLevelFromCameraCmd_skip_level_dir_injection.install();
 
 
+    AsmWriter{0x004512D2}.nop(4);
+    //AsmWriter{0x004512CC}.push(0);
 
 
 
