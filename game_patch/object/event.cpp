@@ -220,264 +220,104 @@ ConsoleCommand2 debug_event_msg_cmd{
     }
 };
 
-struct EventSetCollisionPlayer : rf::Event
-{
-    EventSetCollisionPlayer() : rf::Event()
-    {
-        xlog::warn("Creating event UID {}", this->uid);
-    }
-
-    void initialize() override
-    {
-        xlog::warn("Initializing event UID {}", this->uid);
-    }
-
-    void turn_on() override
-    {
-        xlog::warn("On response for event UID {}", this->uid);
-        rf::local_player->collides_with_world = true;
-    }
-
-    void turn_off() override
-    {
-        xlog::warn("Off response for event UID {}", this->uid);
-        rf::local_player->collides_with_world = false;
-    }
-
-    void process() override
-    {
-        // activated every frame
-        //xlog::warn("Processing event UID {}", this->uid);
-    }
-};
-
-struct EventDifficultyGate : rf::Event
+/* struct EventDifficultyGate : rf::Event
 {
     int difficulty;
-};
+};*/
 
-struct EventCloneEntity : rf::Event
-{
-    EventCloneEntity() : rf::Event()
-    {
-        xlog::warn("Creating event UID {}", this->uid);
-    }
-
-    void initialize() override
-    {
-        xlog::warn("Initializing event UID {}", this->uid);
-    }
-
-    void turn_on() override
-    {
-        xlog::warn("On response for event UID {}", this->uid);
-
-        for (int i = 0; i < this->links.size(); ++i) {
-
-            int link = this->links[i];
-            xlog::warn("Link at index {}: {}", i, link);
-            rf::Object* obj = rf::obj_from_handle(link);
-            if (obj) {
-                rf::Entity* entity = static_cast<rf::Entity*>(obj);
-                xlog::warn("Name: {}, UID: {}, type: {}, ent type: {}", entity->name.c_str(), entity->uid,
-                           static_cast<int>(entity->type), entity->info_index);
-                rf::Entity* new_entity =
-                    rf::entity_create(entity->info_index, entity->name, -1, pos, entity->orient, 0, -1);
-                new_entity->entity_flags = entity->entity_flags;
-                new_entity->pos = entity->pos;
-                new_entity->entity_flags2 = entity->entity_flags2;
-                new_entity->info = entity->info;
-                new_entity->info2 = entity->info2;
-                new_entity->drop_item_class = entity->drop_item_class;
-                new_entity->obj_flags = entity->obj_flags;
-                new_entity->ai.custom_attack_range = entity->ai.custom_attack_range;
-                new_entity->ai.use_custom_attack_range = entity->ai.use_custom_attack_range;
-                new_entity->ai.attack_style = entity->ai.attack_style;
-                new_entity->ai.cooperation = entity->ai.cooperation;
-                new_entity->ai.cover_style = entity->ai.cover_style;
-                for (int i = 0; i < 64; ++i) {
-                    new_entity->ai.has_weapon[i] = entity->ai.has_weapon[i];
-                    new_entity->ai.clip_ammo[i] = entity->ai.clip_ammo[i];
-                }
-
-                for (int i = 0; i < 32; ++i) {
-                    new_entity->ai.ammo[i] = entity->ai.ammo[i];
-                }
-                new_entity->ai.current_secondary_weapon = entity->ai.current_secondary_weapon;
-                new_entity->ai.current_primary_weapon = entity->ai.current_primary_weapon;
-
-                xlog::warn("Name: {}, UID: {}, type: {}, ent type: {}", new_entity->name.c_str(), new_entity->uid,
-                           static_cast<int>(new_entity->type), new_entity->info_index);
-            }
-        }
-    }
-
-    void turn_off() override
-    {
-        xlog::warn("Off response for event UID {}", this->uid);
-    }
-
-    void process() override
-    {
-        // activated every frame
-        // xlog::warn("Processing event UID {}", this->uid);
-    }
-};
-
-FunHook<int __cdecl(const rf::String* name)> event_lookup_type_hook{
-    0x004BD700, // Correct address for the event_lookup_type function
-    [](const rf::String* name) -> int {
+FunHook<int(const rf::String* name)> event_lookup_type_hook{
+    0x004BD700,
+    [](const rf::String* name) {
         xlog::warn("Looking up event with name: {}", name->c_str());
 
-        // Custom event ID assignment
-        if (*name == "Difficulty") {
+        // Custom event name -> ID assignment
+        if (*name == "Clone_Entity") {
             return 90;
         }
-        else if (*name == "Set_Player_World_Collide") {
+         else if (*name == "Set_World_Collide_pl") { // Set_Player_World_Collide use real name when RED piece is done
             return 91;
         }
-        else if (*name == "Redirector") {
-            return 92;
-        }
-        else if (*name == "Clone_Entity") {
-            return 93;
-        }
 
+        // stock events
         return event_lookup_type_hook.call_target(name);
     }
 };
 
-CallHook<rf::Event*(int event_type)> event_allocate_hook{
-    0x004871C1,
-    [](int event_type) -> rf::Event* {
-
-        if (event_type == 91) {
-            auto* custom_event = new EventSetCollisionPlayer();
-            return custom_event;
-        }
-        if (event_type == 93) {
-            auto* custom_event = new EventCloneEntity();
-            return custom_event;
-        }
-
-        return event_allocate_hook.call_target(event_type);
-    }
-};
-
-/* CodeInjection custom_event_injection{
-    0x00462910,
-    [](BaseCodeInjection::Regs& regs) {
-        int event_type = regs.ebp;
-        rf::Vector3* pos_ptr = reinterpret_cast<rf::Vector3*>(static_cast<uintptr_t>(regs.edx));
-
-        if (event_type == 91) {
-
-            rf::Vector3 pos = *pos_ptr;
-
-            rf::Event* custom_event = new EventSetCollisionPlayer();
-
-            // Log the created object info
-            xlog::warn("Custom event created: Type: {}, Event Type: {}, Position: {}, {}, {}",
-                std::to_string(custom_event->type),std::to_string(custom_event->event_type),
-                custom_event->pos.x, custom_event->pos.y, custom_event->pos.z);
-        }
-        else if (event_type == 93) {
-
-            rf::Vector3 pos = *pos_ptr;
-
-            rf::Event* custom_event = new EventCloneEntity();
-
-            // Log the created object info
-            xlog::warn(
-                "Custom event created: Type: {}, Event Type: {}, Position: {}, {}, {}",
-                std::to_string(custom_event->type), std::to_string(custom_event->event_type), custom_event->pos.x,
-                custom_event->pos.y, custom_event->pos.z);
-        }
-    }
-};*/
-
-// allow event creation > 91
-/* CodeInjection allow_custom_events_injection{
-    0x004B68A0,  // Address just before cmp instruction
-    [](auto& regs) {
-        int event_type = regs.ebp;
-
-        if (event_type >= 90 && event_type <= 93) {
-            xlog::warn("Allowing custom event to bypass jump table");
-            regs.eip = 0x004B68A9;
-        }
-    }
-};*/
-
-// intermitant crashing on deallocate, need to debug here
-CodeInjection custom_event_deallocate_injection{
-    0x004B775A,
-    [](BaseCodeInjection::Regs& regs) {
-        int event_type = regs.eax; 
-        xlog::warn("Intercepting event deallocation for event type: {}", event_type);
-
-        // Check if the event is a custom event
-        if (event_type >= 90 && event_type <= 93) {
-            //uintptr_t event_addr = regs.ecx;
-            //xlog::warn("To be deallocated: {}", event_addr);
-            uintptr_t event_addr = static_cast<uintptr_t>(regs.ecx);
-            rf::Event* custom_event = reinterpret_cast<rf::Event*>(event_addr);
-
-            if (~custom_event->links.size() > 0) {
-                for (int i = 0; i < custom_event->links.size(); ++i) {
-                    int link = custom_event->links[i];
-                    xlog::warn("Checking linked object handle: {}", link);
-                }
+FunHook<rf::Event*(int event_type)> event_allocate_hook{
+    0x004B69D0,
+    [](int event_type) {
+        auto allocate_custom_event = [](auto event_ptr_type) -> rf::Event* {
+            using EventType = std::remove_pointer_t<decltype(event_ptr_type)>;
+            auto* memory = operator new(sizeof(EventType));
+            if (!memory) {
+                xlog::error("Failed to allocate memory for event.");
+                return nullptr;
             }
 
-            if (custom_event) {
-                // Log details before deallocation
-                xlog::warn("Deallocating custom event UID: {}, Event Type: {}", custom_event->uid,
-                           custom_event->event_type);
+            auto* custom_event = new (memory) EventType();
+            xlog::warn("Allocating event: {}", typeid(EventType).name());
+            return static_cast<rf::Event*>(custom_event);
+        };
 
-                // Call the destructor
-                rf::event_destructor(custom_event, 1);
-                //custom_event = nullptr;
-                //rf::event_delete(custom_event);
+        switch (event_type) {
+        case 90:
+            return allocate_custom_event(static_cast<rf::EventCloneEntity*>(nullptr));
 
+        case 91:
+            return allocate_custom_event(static_cast<rf::EventSetCollisionPlayer*>(nullptr));
 
-                xlog::warn("Custom event deallocated successfully.");
-                return;
-            }   
+        default: // stock events
+            return event_allocate_hook.call_target(event_type);
         }
-        xlog::warn("Proceeding with default deallocation for event type: {}", event_type);
     }
 };
 
-// just for logging, disabled
-FunHook<rf::Event*(rf::Vector3*, int)> event_create_hook{
-    0x004B6870, [](rf::Vector3* pos, int event_type) -> rf::Event* {
-        xlog::warn("CREATE EVENT called: pos(x={}, y={}, z={}), event_type={}", pos->x, pos->y, pos->z, event_type);
-        return event_create_hook.call_target(pos, event_type);
-    }
-};
+FunHook<void(rf::Event*)> event_deallocate_hook{
+    0x004B7750,
+    [](rf::Event* eventp) {
+        if (!eventp)
+            return;
 
-FunHook<void(rf::Event*, char)> event_dt_hook{
-    0x004BEF50, [](rf::Event* current, char flags) {
-        xlog::warn("Destroying UID {}, name {}, handle {}, flags {}", current->uid, current->name, current->handle, flags);
-        return event_dt_hook.call_target(current, flags);
+        int event_type = eventp->event_type;
+        xlog::warn("Deallocating event ID: {}", event_type);
+
+        // Handle custom event types
+        switch (event_type) {
+        case 90: {
+            auto* custom_event = static_cast<rf::EventCloneEntity*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 91: {
+            auto* custom_event = static_cast<rf::EventSetCollisionPlayer*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        default: // stock events
+            event_deallocate_hook.call_target(eventp);
+            break;
+        }
     }
 };
 
 void apply_event_patches()
 {
-    //event_dt_hook.install();
+    // make event_create process events with any ID
+    AsmWriter(0x004B68A3).jmp(0x004B68A9);
+
     event_lookup_type_hook.install();
-    //custom_event_injection.install();
-    //event_create_hook.install();
     event_allocate_hook.install();
-
-    //allow_custom_events_injection.install();
-    // cleaner way to do the above, just remove the upper event ID check entirely
-    AsmWriter(0x004B68A0).nop(9);
+    event_deallocate_hook.install();
 
 
-    custom_event_deallocate_injection.install();
+
+    
+
+
+
+
 
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
     switch_model_event_custom_mesh_patch.install();
