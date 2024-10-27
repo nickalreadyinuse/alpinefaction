@@ -221,8 +221,8 @@ CodeInjection object_find_room_optimization{
 
 void object_do_patch()
 {
-    // Log error when object cannot be created, temp disable
-    //obj_create_hook.install();
+    // Log error when object cannot be created
+    obj_create_hook.install();
 
     // Change object limit
     //obj_free_slot_buffer_resize_patch.install();

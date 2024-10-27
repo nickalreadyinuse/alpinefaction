@@ -95,7 +95,6 @@ namespace rf
         void process() override {}
     };
 
-
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
     static auto& event_create = addr_as_ref<Event*(rf::Vector3 pos, int event_type)>(0x004B6870);
