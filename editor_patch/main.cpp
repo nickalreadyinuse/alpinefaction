@@ -455,11 +455,12 @@ CodeInjection texture_name_buffer_overflow_injection2{
 
 constexpr uintptr_t event_names_original_addr = 0x00578B78;
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 1;
+constexpr int new_event_count = 2;
 constexpr int total_event_count = original_event_count + new_event_count;
 
 const char* additional_event_names[new_event_count] = {
     "Clone_Entity",
+    "Test1",
 };
 
 // Managed array to hold original + additional event names
@@ -598,13 +599,14 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
     InitLogging();
     InitCrashHandler();
+    get_event_type_from_class_name_hook.install();
 
 
     xlog::warn("Initializing extended event names redirection...");
     redirect_event_names_references();
 
     debug_event_names();
-    get_event_type_from_class_name_hook.install();
+    
 
     // current state works fine EXCEPT dropdown doesnt have new names. these asmwriters make the dropdown blank
     //AsmWriter(0x00407782).lea(asm_regs::edx, extended_event_names.get()).nop();
