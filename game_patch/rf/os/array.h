@@ -51,7 +51,7 @@ namespace rf
             return &elements[num];
         }
 
-        void add(T element);
+        void add(T element);        
     };
     static_assert(sizeof(VArray<>) == 0xC);
 
