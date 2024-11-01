@@ -168,7 +168,19 @@ CallHook<int(const char*)> apc_geomod_shape_create_hook{
 
 void apply_geomod_mesh_patch()
 {
-    // array of geomod mesh options
+    
+    /* if (g_dash_options_config.geomodmesh_default.has_value()) {
+        AsmWriter(0x00437543).call(0x004ECED0);
+        const char filename = g_dash_options_config.geomodmesh_default->c_str();
+        xlog::warn("set geo mesh to {}", filename);
+        static const char NEW_GEOMESH_FILENAME[] = "NewFile.v3d";
+
+        AsmWriter(0x004374C0).push(reinterpret_cast<uintptr_t>(NEW_GEOMESH_FILENAME));
+
+    }*/
+
+
+    /*// array of geomod mesh options
     std::array<std::pair<DashOptionID, void (*)()>, 4> geomod_mesh_hooks = {
         {{DashOptionID::GeomodMesh_Default, [] { default_geomod_shape_create_hook.install(); }},
          {DashOptionID::GeomodMesh_DrillerDouble, [] { driller_double_geomod_shape_create_hook.install(); }},
@@ -184,14 +196,43 @@ void apply_geomod_mesh_patch()
             install_fn();
             any_option_loaded = true;
         }
-    }
-
+    }*/
+    bool any_option_loaded = false;
     // if any one was set, apply the necessary patches
     if (any_option_loaded) {
         AsmWriter(0x00437543).call(0x004ECED0); // Replace the call to load v3d instead of embedded
-        rf::geomod_shape_init();                // Reinitialize geomod shapes
+        //rf::geomod_shape_init();                // Reinitialize geomod shapes
     }
 }
+
+int geomod_shape_create(const char* filename, bool embedded)
+{
+    int shape_index = rf::g_num_geomod_shapes;
+    rf::g_geomod_shapes_strings[shape_index] = filename;
+
+    rf::GSolid* shape = embedded ?
+        rf::g_solid_load_v3d_embedded(filename) : rf::g_solid_load_v3d(filename);
+
+    rf::g_geomod_shapes_meshes[shape_index * 3] = reinterpret_cast<int>(shape);
+
+    return rf::g_num_geomod_shapes++;
+}
+
+FunHook<void()> geomod_shape_init_hook{
+    0x004374C0,
+    []() {
+        xlog::warn("Initing geomeshes");
+        rf::g_num_geomod_shapes = 0;
+        //rf::g_geomod_shapes_strings.clear();
+        //rf::g_geomod_shapes_meshes.clear();
+
+        geomod_shape_create("Holey01.v3d", true);
+        geomod_shape_create("bit_driller_double.v3d", true);
+        geomod_shape_create("bit_driller_single.v3d", true);
+        geomod_shape_create("Holey_APC.v3d", true);
+        rf::geomod_shape_shutdown();
+    }
+};
 
 // consolidated logic for handling geomod smoke emitter overrides
 int handle_geomod_emitter_change(const char* emitter_name,
@@ -296,7 +337,7 @@ void handle_summoner_trailer_button()
 
 void apply_dashoptions_patches()
 {
-    xlog::debug("Applying Dash Options patches");
+    xlog::warn("Applying Dash Options patches");
     // avoid unnecessary hooks by hooking only if corresponding options are specified
 
     if (g_dash_options_config.use_stock_game_players_config.value_or(false)) {
@@ -325,7 +366,9 @@ void apply_dashoptions_patches()
     }  
 
     // whether should apply is determined in helper function
-    apply_geomod_mesh_patch();
+    //apply_geomod_mesh_patch();
+    geomod_shape_init_hook.install();
+    rf::geomod_shape_init();
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Default)) {
         default_geomod_emitter_get_index_hook.install();

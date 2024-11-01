@@ -4,6 +4,7 @@
 #include "math/matrix.h"
 #include "math/plane.h"
 #include "os/array.h"
+#include "os/string.h"
 #include "os/linklist.h"
 #include "gr/gr.h"
 
@@ -455,6 +456,14 @@ namespace rf
 
     static auto& g_cache_clear = addr_as_ref<void()>(0x004F0B90);
     static auto& g_get_room_render_list = addr_as_ref<void(GRoom ***rooms, int *num_rooms)>(0x004D3330);
+
+    static auto& g_num_geomod_shapes = addr_as_ref<int>(0x00637220);
+    static auto& g_geomod_shapes_strings = addr_as_ref<String[10]>(0x006371F0);
+    static auto& g_solid_load_v3d_embedded = addr_as_ref<GSolid*(const char*)>(0x00586E70);
+    static auto& g_solid_load_v3d = addr_as_ref<GSolid*(const char*)>(0x00586F5C);
+    static auto& g_geomod_shapes_meshes = addr_as_ref<int[10]>(0x006371F8);
+
+
 
     static auto& bbox_intersect = addr_as_ref<bool(const Vector3& bbox1_min, const Vector3& bbox1_max, const Vector3& bbox2_min, const Vector3& bbox2_max)>(0x0046C340);
 }
