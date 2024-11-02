@@ -38,6 +38,16 @@ struct HitSoundsConfig
     int rate_limit = 10;
 };
 
+struct CriticalHitsConfig
+{
+    bool enabled = false;
+    int sound_id = 35;
+    int rate_limit = 10;
+    int reward_duration = 1500;
+    float base_chance = 0.1f;
+    bool dynamic_scale = true;
+    float dynamic_damage_for_max_bonus = 1200.0f;
+};
 struct WeaponStayExemptionConfig
 {
     bool enabled = false;
@@ -88,6 +98,7 @@ struct ServerAdditionalConfig
     std::optional<float> spawn_armor;
     int ctf_flag_return_time_ms = 25000;
     HitSoundsConfig hit_sounds;
+    CriticalHitsConfig critical_hits;
     WeaponStayExemptionConfig weapon_stay_exemptions;
     OvertimeConfig overtime;
     std::map<std::string, std::string> item_replacements;

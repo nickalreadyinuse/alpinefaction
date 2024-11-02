@@ -37,6 +37,7 @@ Version 1.0.0
 - Add `$DF Dynamic Rotation` option in dedicated server config
 - Lower minimum character count for console tab complete to 1
 - Add `$DF Weapon Stay Exemptions` option in dedicated server config- 
+- Add `$DF Critical Hits` option in dedicated server config
 
 
 

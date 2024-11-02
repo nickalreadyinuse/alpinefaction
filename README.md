@@ -186,8 +186,22 @@ Configuration example:
     $DF Hitsounds: true
         // Sound used for hit notification
         +Sound ID: 29
-        // max sound packets per second - keep it low to save bandwidth
+        // Max sound packets per second - keep it low to save bandwidth
         +Rate Limit: 10
+    // Enable critical hits
+    $DF Critical Hits: false
+        // Sound used for hit notification
+        +Sound ID: 35
+        // Max sound packets per second - keep it low to save bandwidth
+        +Rate Limit: 10
+        // Duration of damage amp reward on a critical hit
+        +Reward Duration: 1500
+        // Percentage chance of a critical hit
+        +Base Chance Percent: 0.1
+        // Enable dynamic chance bonus based on damage dealt in current life
+        +Use Dynamic Chance Bonus: true
+        // Amount of damage to deal in current life for the max dynamic chance bonus (+ 0.1)
+        +Dynamic Chance Damage Ceiling: 1200
     // If Weapon Stay is on, set some specific weapon pickups to be exempt (act as if it were not on) for balancing
     $DF Weapon Stay Exemptions: false
         +Flamethrower: false
