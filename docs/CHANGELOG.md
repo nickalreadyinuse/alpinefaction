@@ -64,6 +64,7 @@ Version 1.9.0 (not released yet)
 - Add `server_rcon_password` command
 - Make player maintain relative velocity when teleporting
 - Add `$DF Overtime Enabled` option in dedicated server config
+- Add support for bluebeard.bty (sound config file) in mods
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
