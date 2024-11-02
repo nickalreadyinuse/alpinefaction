@@ -72,6 +72,7 @@ Version 1.9.0 (not released yet)
 - Enable commands `drop_clutter`, `drop_entity`, `drop_item`, `teleport`, `pcollide` in single player
 - Add missing help strings for builtin cheat commands
 - Make `spectate` command set camera to free look when issued in single player
+- Make value of `spectate_mode_minimal_ui` persist between game launches
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
