@@ -10,7 +10,10 @@ namespace rf
     static auto& default_player_weapon = addr_as_ref<String>(0x007C7600);
 
     static auto& get_file_checksum = addr_as_ref<unsigned(const char* filename)>(0x00436630);
-
+    static auto& geomod_shape_init = addr_as_ref<void()>(0x004374C0);
+    static auto& geomod_shape_create = addr_as_ref<int(const char*)>(0x00437500);
+    static auto& geomod_shape_shutdown = addr_as_ref<void()>(0x00437460);
+    static auto& bink_play = addr_as_ref<char*(const char* filename)>(0x00520A90);
     static auto& g_multi_damage_modifier = addr_as_ref<float>(0x0059F7E0);
 
-    }
+}
