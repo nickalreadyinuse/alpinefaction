@@ -36,7 +36,7 @@ Version 1.0.0
 - Add `vote rand` vote type to initiate a level change to a random level on the rotation
 - Add `$DF Dynamic Rotation` option in dedicated server config
 - Lower minimum character count for console tab complete to 1
-- 
+- Add `$DF Weapon Stay Exemptions` option in dedicated server config- 
 
 
 
