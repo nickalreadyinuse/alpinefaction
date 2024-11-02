@@ -1,7 +1,7 @@
 Alpine Faction Changelog
 ======================
 
-Version 1.0.0
+Version X
 --------------------------------
 - Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
 - Add `lighting_color_range` command

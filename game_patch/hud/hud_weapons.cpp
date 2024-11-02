@@ -85,7 +85,7 @@ void hud_weapons_set_big(bool is_big)
 }
 
 ConsoleCommand2 reticle_scale_cmd{
-    "reticle_scale",
+    "ui_reticlescale",
     [](std::optional<float> scale_opt) {
         if (scale_opt) {
             g_game_config.reticle_scale = scale_opt.value();

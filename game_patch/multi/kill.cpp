@@ -166,7 +166,7 @@ FunHook<void(rf::Entity*)> entity_on_death_hook{
 };
 
 ConsoleCommand2 kill_messages_cmd{
-    "kill_messages",
+    "mp_killfeed",
     []() {
         kill_messages = !kill_messages;
     },

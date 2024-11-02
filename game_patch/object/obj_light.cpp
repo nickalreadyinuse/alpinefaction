@@ -148,7 +148,7 @@ FunHook<void()> obj_light_free_hook{
 };
 
 ConsoleCommand2 mesh_static_lighting_cmd{
-    "mesh_static_lighting",
+    "r_meshlighting",
     []() {
         g_game_config.mesh_static_lighting = !g_game_config.mesh_static_lighting;
         g_game_config.save();
@@ -168,7 +168,7 @@ CallHook<void(rf::Entity&)> entity_update_muzzle_flash_light_hook{
 };
 
 ConsoleCommand2 muzzle_flash_cmd{
-    "muzzle_flash",
+    "r_muzzleflash",
     []() {
         g_game_config.muzzle_flash = !g_game_config.muzzle_flash;
         g_game_config.save();
@@ -177,7 +177,7 @@ ConsoleCommand2 muzzle_flash_cmd{
     "Toggle muzzle flash dynamic lights",
 };
 ConsoleCommand2 fullbright_models_cmd{
-    "mesh_fullbright",
+    "r_meshfullbright",
     []() {
         g_game_config.try_mesh_fullbright = !g_game_config.try_mesh_fullbright;
         g_game_config.save();

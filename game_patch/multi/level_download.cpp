@@ -663,7 +663,7 @@ static void do_download_level(std::string filename, bool force)
 }
 
 ConsoleCommand2 download_level_cmd{
-    "download_level",
+    "net_download",
     [](std::string filename) {
         do_download_level(filename, false);
     },
@@ -672,7 +672,7 @@ ConsoleCommand2 download_level_cmd{
 };
 
 ConsoleCommand2 download_level_force_cmd{
-    "download_level_force",
+    "net_downloadforce",
     [](std::string filename) {
         do_download_level(filename, true);
     },

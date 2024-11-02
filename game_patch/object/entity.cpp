@@ -292,7 +292,7 @@ CodeInjection entity_dying_frame_explode_injection{
 };
 
 ConsoleCommand2 gibs_cmd{
-    "gibs",
+    "cl_gibs",
     []() {
         g_game_config.gibs = !g_game_config.gibs;
         g_game_config.save();

@@ -157,7 +157,7 @@ CallHook<void(rf::Matrix3&, rf::Vector3&, float, bool, bool)> player_fpgun_rende
 };
 
 ConsoleCommand2 fpgun_fov_scale_cmd{
-    "fpgun_fov_scale",
+    "r_fpgunfov",
     [](std::optional<float> scale_opt) {
         if (scale_opt) {
             g_game_config.fpgun_fov_scale = std::clamp(scale_opt.value(), 0.1f, 1.5f);

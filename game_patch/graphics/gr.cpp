@@ -113,7 +113,7 @@ CallHook<void(rf::Matrix3&, rf::Vector3&, float, bool, bool)> gr_setup_3d_railgu
 };
 
 ConsoleCommand2 fov_cmd{
-    "fov",
+    "r_fov",
     [](std::optional<float> fov_opt) {
         if (fov_opt) {
             if (fov_opt.value() <= 0.0f) {
@@ -136,7 +136,7 @@ ConsoleCommand2 fov_cmd{
 };
 
 ConsoleCommand2 gamma_cmd{
-    "gamma",
+    "r_gamma",
     [](std::optional<float> value_opt) {
         if (value_opt) {
             rf::gr::set_gamma(value_opt.value());
@@ -168,7 +168,7 @@ void evaluate_lightmaps_only()
 }
 
 ConsoleCommand2 lightmaps_only_cmd{
-    "lightmaps_only",
+    "cl_lightmaps",
     []() {
         g_game_config.try_lightmaps_only = !g_game_config.try_lightmaps_only;
         g_game_config.save();
@@ -250,21 +250,21 @@ void gr_update_texture_filtering()
 }
 
 ConsoleCommand2 fullscreen_cmd{
-    "fullscreen",
+    "d_fullscreen",
     []() {
         gr_set_window_mode(rf::gr::FULLSCREEN);
     },
 };
 
 ConsoleCommand2 windowed_cmd{
-    "windowed",
+    "d_windowed",
     []() {
         gr_set_window_mode(rf::gr::WINDOWED);
     },
 };
 
 ConsoleCommand2 nearest_texture_filtering_cmd{
-    "nearest_texture_filtering",
+    "r_nearest",
     []() {
         g_game_config.nearest_texture_filtering = !g_game_config.nearest_texture_filtering;
         g_game_config.save();
@@ -275,7 +275,7 @@ ConsoleCommand2 nearest_texture_filtering_cmd{
 };
 
 ConsoleCommand2 lod_distance_scale_cmd{
-    "lod_distance_scale",
+    "r_lodscale",
     [](std::optional<float> scale_opt) {
         if (scale_opt.has_value()) {
             gr_lod_dist_scale = scale_opt.value();

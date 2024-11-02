@@ -1309,19 +1309,27 @@ bool round_is_tied(rf::NetGameType game_type)
 
     switch (game_type) {
     case rf::NG_TYPE_DM: {
-        int highest_score = rf::player_list->stats->score;
-        int players_with_highest_score = 1;
+        const auto current_players = get_current_player_list(false);
 
-        for (rf::Player* player = rf::player_list->next; player != nullptr &&
-            player != rf::player_list; player = player->next) {        
-            if (player->stats->score > highest_score) {
-                highest_score = player->stats->score;
-                players_with_highest_score = 1;
+        if (current_players.empty())
+            return false;
+
+        const auto [highest_score, players_with_highest_score] = [&]() {
+            int highest = (*current_players.begin())->stats->score;
+            int count = 0;
+
+            for (const auto* player : current_players) {
+                if (player->stats->score > highest) {
+                    highest = player->stats->score;
+                    count = 1;
+                }
+                else if (player->stats->score == highest) {
+                    ++count;
+                }
             }
-            else if (player->stats->score == highest_score) {
-                players_with_highest_score++;
-            }
-        }
+            return std::make_pair(highest, count);
+        }();
+
         return players_with_highest_score >= 2;
     }
     case rf::NG_TYPE_CTF: {
@@ -1359,13 +1367,16 @@ FunHook<void()> multi_check_for_round_end_hook{
         else {
             switch (game_type) {
             case rf::NG_TYPE_DM: {
-                for (rf::Player* player = rf::player_list; player; player = player->next) {
+                auto current_players = get_current_player_list(false);
+
+                if (current_players.empty())
+                    break;
+
+                for (rf::Player* player : current_players) {
                     if (player->stats->score >= rf::multi_kill_limit) {
                         round_over = true;
                         break;
                     }
-                    if (player == rf::player_list)
-                        break;
                 }
                 break;
             }

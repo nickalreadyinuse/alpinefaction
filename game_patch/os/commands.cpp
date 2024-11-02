@@ -42,7 +42,7 @@ ConsoleCommand2 vli_cmd{
 };
 
 ConsoleCommand2 player_count_cmd{
-    "playercount",
+    "mp_playercount",
     []() {
         if (!rf::is_multi)
             return;
@@ -223,10 +223,11 @@ void handle_camera_command(FunHook<void()>& hook)
 
     const rf::CameraMode current_mode = rf::camera_get_mode(*rf::local_player->cam);
 
-    std::string mode_text = (current_mode == rf::CAMERA_FIRST_PERSON)   ? "first person"
-                            : (current_mode == rf::CAMERA_THIRD_PERSON) ? "third person"
-                            : (current_mode == rf::CAMERA_FREELOOK)     ? "free look"
-                                                                        : "unknown";
+    std::string mode_text =
+        (current_mode == rf::CAMERA_FIRST_PERSON) ? "first person"
+        : (current_mode == rf::CAMERA_THIRD_PERSON) ? "third person"
+        : (current_mode == rf::CAMERA_FREELOOK)     ? "free look"
+        : "unknown";
 
     std::string helper_text =
         (current_mode == rf::CAMERA_FIRST_PERSON) ? "" : " Use `camera1` to return to first person.";

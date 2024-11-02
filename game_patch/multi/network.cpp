@@ -964,7 +964,7 @@ CodeInjection server_update_rate_injection{
 };
 
 ConsoleCommand2 update_rate_cmd{
-    "update_rate",
+    "net_updaterate",
     [](std::optional<int> update_rate) {
         if (update_rate) {
             if (rf::is_server) {

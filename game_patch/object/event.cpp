@@ -214,7 +214,7 @@ CodeInjection event_load_level_turn_on_injection{
 };
 
 ConsoleCommand2 debug_event_msg_cmd{
-    "debug_event_msg",
+    "dbg_events",
     []() {
         event_debug_enabled = !event_debug_enabled;
     }

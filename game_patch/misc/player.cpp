@@ -49,11 +49,11 @@ FunHook<rf::Player*(bool)> player_create_hook{
 
 FunHook<void(rf::Player*)> player_destroy_hook{
     0x004A35C0,
-    [](rf::Player* player) {
-        set_ready_status(player, 0);
+    [](rf::Player* player) {        
         multi_spectate_on_destroy_player(player);        
         player_destroy_hook.call_target(player);
         if (rf::is_server) {
+            set_ready_status(player, 0);
             server_vote_on_player_leave(player);
         }
         g_player_additional_data_map.erase(player);
@@ -153,7 +153,7 @@ CodeInjection stop_continous_alternate_fire_patch{
 };
 
 ConsoleCommand2 swap_assault_rifle_controls_cmd{
-    "swap_assault_rifle_controls",
+    "cl_swaparcontrols",
     []() {
         g_game_config.swap_assault_rifle_controls = !g_game_config.swap_assault_rifle_controls;
         g_game_config.save();
@@ -168,7 +168,7 @@ ConsoleCommand2 swap_assault_rifle_controls_cmd{
 };
 
 ConsoleCommand2 swap_grenade_controls_cmd{
-    "swap_grenade_controls",
+    "cl_swapnadecontrols",
     []() {
         g_game_config.swap_grenade_controls = !g_game_config.swap_grenade_controls;
         g_game_config.save();
@@ -275,7 +275,7 @@ FunHook<void()> player_do_damage_screen_flash_hook{
 };
 
 ConsoleCommand2 damage_screen_flash_cmd{
-    "damage_screen_flash",
+    "cl_damageflash",
     []() {
         g_game_config.damage_screen_flash = !g_game_config.damage_screen_flash;
         g_game_config.save();

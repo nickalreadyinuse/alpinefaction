@@ -60,7 +60,7 @@ FunHook<void()> hud_render_for_multi_hook{
 };
 
 ConsoleCommand2 hud_cmd{
-    "hud",
+    "cl_hud",
     [](std::optional<bool> hud_opt) {
 
         // toggle if no parameter passed
@@ -153,7 +153,7 @@ void set_big_hud(bool is_big)
 }
 
 ConsoleCommand2 bighud_cmd{
-    "bighud",
+    "cl_bighud",
     []() {
         if (!g_game_config.big_hud && is_screen_resolution_too_low_for_big_hud()) {
             rf::console::print("Screen resolution is too low for big HUD!");
