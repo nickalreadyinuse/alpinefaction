@@ -62,6 +62,7 @@ Version 1.9.0 (not released yet)
 - Add correct scaling for geomod crater texture based on resolution
 - Add `server_password` command
 - Add `server_rcon_password` command
+- Make player maintain relative velocity when teleporting
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
