@@ -44,7 +44,7 @@ Version 1.0.0
 - Add `scope_sensitivity_modifier` and `scanner_sensitivity_modifier` commands
 - Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
 - Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
-- Add initial support for loading a file named `dashoptions.tbl` from TC mod directory, allowing mod author to change some hardcoded values
+- Add support for loading a file named `dashoptions.tbl` from TC mod directory, allowing mod author to change some hardcoded values (feature WIP)
 
 
 

@@ -367,8 +367,8 @@ void apply_dashoptions_patches()
 
     // whether should apply is determined in helper function
     //apply_geomod_mesh_patch();
-    geomod_shape_init_hook.install();
-    rf::geomod_shape_init();
+    //geomod_shape_init_hook.install();
+    //rf::geomod_shape_init();
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Default)) {
         default_geomod_emitter_get_index_hook.install();
