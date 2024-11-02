@@ -65,6 +65,7 @@ Version 1.9.0 (not released yet)
 - Make player maintain relative velocity when teleporting
 - Add `$DF Overtime Enabled` option in dedicated server config
 - Add support for bluebeard.bty (sound config file) in mods
+- Add `toggle_crouch` command to allow players to switch between toggle crouch and hold crouch (default)
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
