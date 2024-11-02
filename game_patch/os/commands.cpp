@@ -1,4 +1,5 @@
 #include <common/config/BuildConfig.h>
+#include <common/version/version.h>
 #include "console.h"
 #include "../main/main.h"
 #include "../rf/multi.h"
@@ -80,6 +81,8 @@ ConsoleCommand2 level_info_cmd{
             rf::console::print("Name: {}", rf::level.name);
             rf::console::print("Author: {}", rf::level.author);
             rf::console::print("Date: {}", rf::level.level_date);
+            std::string version_text = (rf::level.version < 200) ? "Official" : "Non-Official";
+            rf::console::print("RFL Version: {} ({})", version_text, rf::level.version);
         } else {
             rf::console::print("No level loaded!");
         }
@@ -92,6 +95,18 @@ DcCommandAlias map_info_cmd{
     level_info_cmd,
 };
 
+ConsoleCommand2 version_cmd{
+    "version",
+    []() {
+        rf::console::print("Dash Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__);
+    },
+    "Display version info",
+};
+
+DcCommandAlias ver_cmd{
+    "ver",
+    version_cmd,
+};
 ConsoleCommand2 server_password_cmd{
     "server_password",
     [](std::optional<std::string> new_password) {
@@ -254,6 +269,8 @@ void console_commands_init()
     map_cmd.register_cmd();
     level_info_cmd.register_cmd();
     map_info_cmd.register_cmd();
+    version_cmd.register_cmd();
+    ver_cmd.register_cmd();
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();
     verify_level_cmd_hook.install();
