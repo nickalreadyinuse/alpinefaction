@@ -48,6 +48,7 @@ Version 1.9.0 (not released yet)
 - Add gibbing when enemies die from explosives (enable with `gibs` command)
 - Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
 - Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
+- Add mod name to main menu
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
