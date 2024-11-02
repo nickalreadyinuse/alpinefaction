@@ -136,6 +136,7 @@ void extend_round_time(int minutes);
 void restart_current_level();
 void load_next_level();
 void load_prev_level();
+void server_vote_on_player_leave(rf::Player* player);
 void server_vote_on_limbo_state_enter();
 void process_delayed_kicks();
 const ServerAdditionalConfig& server_get_df_config();

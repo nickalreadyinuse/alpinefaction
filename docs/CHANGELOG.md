@@ -55,6 +55,7 @@ Version 1.9.0 (not released yet)
 - Add respawn point selection logic settings to dedicated server config
 - Raise limit on number of multiplayer respawn points per level from 32 to 2048
 - Add match mode ready up system (controlled by `$DF Vote Match` option in dedicated server config)
+- Improve handling for players leaving/joining multiplayer games during votes
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
