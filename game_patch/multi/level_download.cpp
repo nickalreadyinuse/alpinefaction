@@ -667,7 +667,7 @@ ConsoleCommand2 download_level_cmd{
     [](std::string filename) {
         do_download_level(filename, false);
     },
-    "Downloads level from FactionFiles.com",
+    "Downloads level from FactionFiles.com if not already loaded",
     "download_level <rfl_name>",
 };
 
@@ -676,6 +676,8 @@ ConsoleCommand2 download_level_force_cmd{
     [](std::string filename) {
         do_download_level(filename, true);
     },
+    "Force download of a level from FactionFiles.com, overwriting your local copy if one exists",
+    "download_level_force <rfl_name>",
 };
 
 void level_download_do_patch()

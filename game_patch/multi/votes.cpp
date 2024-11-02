@@ -25,6 +25,7 @@ enum class VoteType
     Restart,
     Extend,
     Next,
+    Random,
     Previous,
     Match,
     CancelMatch,
@@ -522,6 +523,11 @@ struct VoteNext : public Vote
 
 struct VoteRandom : public Vote
 {
+    VoteType get_type() const override
+    {
+        return VoteType::Random;
+    }
+
     [[nodiscard]] std::string get_title() const override
     {
         return "LOAD RANDOM LEVEL";

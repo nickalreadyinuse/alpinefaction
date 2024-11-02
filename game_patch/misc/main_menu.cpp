@@ -40,7 +40,7 @@ void __fastcall UiLabel_create2_version_label(rf::ui::Gadget* self, int edx, rf:
 {
     // if a TC mod is loaded, show the mod name on the main menu
     std::string version_text = rf::mod_param.found()
-        ? std::format("DF {} | {}", VERSION_STR, rf::mod_param.get_arg())
+        ? std::format("AF {} | {}", VERSION_STR, rf::mod_param.get_arg())
         : PRODUCT_NAME_VERSION;
     text = version_text.c_str();
     ui_get_string_size(&w, &h, text, -1, font_id);

@@ -32,7 +32,7 @@ ConsoleCommand2 dot_cmd{
 };
 
 ConsoleCommand2 vli_cmd{
-    "vli",
+    "r_vli",
     []() {
         g_game_config.glares = !g_game_config.glares;
         g_game_config.save();
@@ -100,19 +100,15 @@ DcCommandAlias map_info_cmd{
 };
 
 ConsoleCommand2 version_cmd{
-    "version",
+    "ver",
     []() {
         rf::console::print("Dash Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__);
     },
     "Display version info",
 };
 
-DcCommandAlias ver_cmd{
-    "ver",
-    version_cmd,
-};
 ConsoleCommand2 server_password_cmd{
-    "server_password",
+    "sv_password",
     [](std::optional<std::string> new_password) {
         if (!rf::is_multi || !rf::is_server) {
             rf::console::print("This command can only be run as a server!");
@@ -133,7 +129,7 @@ ConsoleCommand2 server_password_cmd{
 };
 
 ConsoleCommand2 server_rcon_password_cmd{
-    "server_rcon_password",
+    "sv_rconpassword",
     [](std::optional<std::string> new_rcon_password) {
         if (!rf::is_multi || !rf::is_dedicated_server) {
             rf::console::print("This command can only be run on a dedicated server!");
@@ -173,7 +169,7 @@ FunHook<void()> verify_level_cmd_hook{
 };
 
 ConsoleCommand2 pcollide_cmd{
-    "pcollide",
+    "sp_pcollide",
     []() {
         if (rf::is_multi) {
             rf::console::print("That command can't be used in multiplayer.");
@@ -292,33 +288,33 @@ void console_commands_init()
     // Register RF builtin commands disabled in PC build
 
     // Server configuration commands
-    register_builtin_command("kill_limit", "Sets kill limit", 0x0046CBC0);
-    register_builtin_command("time_limit", "Sets time limit", 0x0046CC10);
-    register_builtin_command("geomod_limit", "Sets geomod limit", 0x0046CC70);
-    register_builtin_command("capture_limit", "Sets capture limit", 0x0046CCC0);
+    register_builtin_command("sv_fraglimit", "Sets kill limit", 0x0046CBC0);
+    register_builtin_command("sv_timelimit", "Sets time limit", 0x0046CC10);
+    register_builtin_command("sv_geolimit", "Sets geomod limit", 0x0046CC70);
+    register_builtin_command("sv_caplimit", "Sets capture limit", 0x0046CCC0);
 
     // Misc commands
-    register_builtin_command("sound", "Toggle sound", 0x00434590);
-    register_builtin_command("difficulty", "Set game difficulty", 0x00434EB0);
+    register_builtin_command("cl_sound", "Toggle sound", 0x00434590);
+    register_builtin_command("sp_difficulty", "Set game difficulty", 0x00434EB0);
     // register_builtin_command("ms", "Set mouse sensitivity", 0x0043CE90);
     // register_builtin_command("level_info", "Show level info", 0x0045C210);
-    register_builtin_command("verify_level", "Verify level", 0x0045E1F0);
-    register_builtin_command("player_names", "Toggle player names on HUD", 0x0046CB80);
-    register_builtin_command("clients_count", "Show number of connected clients", 0x0046CD10);
-    register_builtin_command("kick_all", "Kick all clients", 0x0047B9E0);
-    register_builtin_command("timedemo", "Start timedemo", 0x004CC1B0);
-    register_builtin_command("frameratetest", "Start frame rate test", 0x004CC360);
-    register_builtin_command("system_info", "Show system information", 0x00525A60);
-    register_builtin_command("trilinear_filtering", "Toggle trilinear filtering", 0x0054F050);
-    register_builtin_command("detail_textures", "Toggle detail textures", 0x0054F0B0);
-    register_builtin_command("toggle_crouch", nullptr, 0x00430C50);
+    register_builtin_command("map_verify", "Verify level", 0x0045E1F0);
+    register_builtin_command("ui_playernames", "Toggle player names on HUD", 0x0046CB80);
+    register_builtin_command("sv_countclients", "Show number of connected clients", 0x0046CD10);
+    register_builtin_command("sv_kickall", "Kick all clients", 0x0047B9E0);
+    register_builtin_command("dbg_timedemo", "Start timedemo", 0x004CC1B0);
+    register_builtin_command("dbg_frameratetest", "Start frame rate test", 0x004CC360);
+    register_builtin_command("dbg_systeminfo", "Show system information", 0x00525A60);
+    register_builtin_command("r_trilinearfiltering", "Toggle trilinear filtering", 0x0054F050);
+    register_builtin_command("r_detailtextures", "Toggle detail textures", 0x0054F0B0);
+    register_builtin_command("cl_togglecrouch", nullptr, 0x00430C50);
 
     // risky commands, restricted in MP unless debug build
-    register_builtin_command("drop_clutter", "Spawn a clutter object by class name", 0x0040F0A0);
-    register_builtin_command("drop_entity", "Spawn an entity by class name", 0x00418740);
-    register_builtin_command("drop_item", "Spawn an item by class name", 0x00458530);
+    register_builtin_command("sp_dropclutter", "Spawn a clutter object by class name", 0x0040F0A0);
+    register_builtin_command("sp_dropentity", "Spawn an entity by class name", 0x00418740);
+    register_builtin_command("sp_dropitem", "Spawn an item by class name", 0x00458530);
     // register_builtin_command("pcollide", "Toggle if player collides with the world", 0x004A0F60);
-    register_builtin_command("teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
+    register_builtin_command("sp_teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
 
 
 #ifdef DEBUG
@@ -378,7 +374,6 @@ void console_commands_init()
     level_info_cmd.register_cmd();
     map_info_cmd.register_cmd();
     version_cmd.register_cmd();
-    ver_cmd.register_cmd();
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();
     verify_level_cmd_hook.install();

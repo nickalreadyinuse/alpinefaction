@@ -8,7 +8,7 @@
 #include <xlog/xlog.h>
 #include "faction_files.h"
 
-static const char level_download_agent_name[] = "Dash Faction";
+static const char level_download_agent_name[] = "Alpine Faction";
 static const char level_download_base_url[] = "https://autodl.factionfiles.com";
 
 FactionFilesClient::FactionFilesClient() : session_{level_download_agent_name}

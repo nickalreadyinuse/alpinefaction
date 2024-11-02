@@ -144,7 +144,7 @@ void console_auto_complete_command(int offset)
 {
     std::string cmd_name;
     int next_offset = console_auto_complete_get_component(offset, cmd_name);
-    if (cmd_name.size() < 2)
+    if (cmd_name.size() < 1)
         return;
 
     bool first = true;
@@ -173,6 +173,7 @@ void console_auto_complete_command(int offset)
             console_show_cmd_help(matching_cmds[0]);
     }
     else if (matching_cmds.size() > 1) {
+        rf::console::print("\nAvailable commands starting with \"{}\":", cmd_name);
         for (auto* cmd : matching_cmds) {
             if (cmd->help)
                 rf::console::print("{} - {}", cmd->name, cmd->help);

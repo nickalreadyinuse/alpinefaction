@@ -1,3 +1,45 @@
+Alpine Faction Changelog
+======================
+
+Version 1.0.0
+--------------------------------
+- Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
+- Add `lighting_color_range` command
+- Add `$DF CTF Flag Return Time` option in dedicated server config
+- Add gibbing when enemies die from explosives (enable with `gibs` command)
+- Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
+- Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
+- Add mod name to main menu
+- Make game spawn players at Player Start position if level has no respawn points
+- Add respawn point selection logic settings to dedicated server config
+- Raise limit on number of multiplayer respawn points per level from 32 to 2048
+- Add match mode ready up system (controlled by `$DF Vote Match` option in dedicated server config)
+- Improve handling for players leaving/joining multiplayer games during votes
+- Add `/hasmap` server chat command
+- Add handling of level filename extensions with `/vote level` server chat command
+- Change spawn protection option in dedicated server config to allow it to use Invulnerability powerup
+- Add correct scaling for geomod crater texture based on resolution
+- Add `server_password` command
+- Add `server_rcon_password` command
+- Make player maintain relative velocity when teleporting
+- Add `$DF Overtime Enabled` option in dedicated server config
+- Add support for bluebeard.bty (sound config file) in mods
+- Add `toggle_crouch` command to allow players to switch between toggle crouch and hold crouch (default)
+- Add `version` command
+- Add `spectate_mode_follow_killer` command (when player you are spectating dies, spectate their killer)
+- Add current server player count to scoreboard
+- Enable commands `drop_clutter`, `drop_entity`, `drop_item`, `teleport`, `pcollide` in single player
+- Add missing help strings for builtin cheat commands
+- Make `spectate` command set camera to free look when issued in single player
+- Make value of `spectate_mode_minimal_ui` persist between game launches
+- Add `map_rand` command to change to a random level on the rotation
+- Add `vote rand` vote type to initiate a level change to a random level on the rotation
+- Add `$DF Dynamic Rotation` option in dedicated server config
+- Lower minimum character count for console tab complete to 1
+- 
+
+
+
 Dash Faction Changelog
 ======================
 
@@ -44,38 +86,6 @@ Version 1.9.0 (not released yet)
 - Add level filename to "Level Initializing" console message
 - Properly handle WM_PAINT in dedicated server, may improve performance (DF bug)
 - Fix crash when `verify_level` command is run without a level being loaded
-- Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
-- Add `lighting_color_range` command
-- Add `$DF CTF Flag Return Time` option in dedicated server config
-- Add gibbing when enemies die from explosives (enable with `gibs` command)
-- Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
-- Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
-- Add mod name to main menu
-- Make game spawn players at Player Start position if level has no respawn points
-- Add respawn point selection logic settings to dedicated server config
-- Raise limit on number of multiplayer respawn points per level from 32 to 2048
-- Add match mode ready up system (controlled by `$DF Vote Match` option in dedicated server config)
-- Improve handling for players leaving/joining multiplayer games during votes
-- Add `/hasmap` server chat command
-- Add handling of level filename extensions with `/vote level` server chat command
-- Change spawn protection option in dedicated server config to allow it to use Invulnerability powerup
-- Add correct scaling for geomod crater texture based on resolution
-- Add `server_password` command
-- Add `server_rcon_password` command
-- Make player maintain relative velocity when teleporting
-- Add `$DF Overtime Enabled` option in dedicated server config
-- Add support for bluebeard.bty (sound config file) in mods
-- Add `toggle_crouch` command to allow players to switch between toggle crouch and hold crouch (default)
-- Add `version` command
-- Add `spectate_mode_follow_killer` command (when player you are spectating dies, spectate their killer)
-- Add current server player count to scoreboard
-- Enable commands `drop_clutter`, `drop_entity`, `drop_item`, `teleport`, `pcollide` in single player
-- Add missing help strings for builtin cheat commands
-- Make `spectate` command set camera to free look when issued in single player
-- Make value of `spectate_mode_minimal_ui` persist between game launches
-- Add `map_rand` command to change to a random level on the rotation
-- Add `vote rand` vote type to initiate a level change to a random level on the rotation
-- Add `$DF Dynamic Rotation` option in dedicated server config
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------

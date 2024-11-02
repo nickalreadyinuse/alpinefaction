@@ -107,6 +107,7 @@ void load_additional_server_config(rf::Parser& parser)
         if (parser.parse_optional("+Use Powerup:")) {
             g_additional_server_config.spawn_protection.use_powerup = parser.parse_bool();
         }
+    }
 
     if (parser.parse_optional("$DF Player Respawn Logic:")) {
         if (parser.parse_optional("+Respect Team Spawns:")) {
