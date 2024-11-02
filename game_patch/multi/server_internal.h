@@ -114,6 +114,7 @@ struct ServerAdditionalConfig
     bool allow_lightmaps_only = false;
     bool allow_disable_screenshake = false;
     int anticheat_level = 0;
+    int click_limiter_fire_wait = 50;
     bool stats_message_enabled = true;
     bool dynamic_rotation = false;
     std::string welcome_message;
