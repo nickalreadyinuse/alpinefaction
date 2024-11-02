@@ -2,9 +2,12 @@
 #include <common/version/version.h>
 #include "console.h"
 #include "../main/main.h"
+#include "../rf/player/camera.h"
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/level.h"
+#include "../rf/entity.h"
+#include "../rf/hud.h"
 #include "../misc/misc.h"
 #include "../misc/vpackfile.h"
 #include <common/utils/list-utils.h>
@@ -208,6 +211,59 @@ FunHook<void()> drop_item_hook{0x00458530, []() { restrict_mp_command(drop_item_
 //FunHook<void()> pcollide_hook{0x004A0F60, []() { restrict_mp_command(pcollide_hook); }};
 FunHook<void()> teleport_hook{0x004A0FC0, []() { restrict_mp_command(teleport_hook); }};
 
+void handle_camera_command(FunHook<void()>& hook)
+{
+    if (!(rf::level.flags & rf::LEVEL_LOADED)) {
+        rf::console::print("No level loaded!");
+        return;
+    }
+
+    if (rf::is_multi) {
+        rf::console::print("That command can't be used in multiplayer.");
+        return;
+    }
+
+    hook.call_target();
+
+    const rf::CameraMode current_mode = rf::camera_get_mode(*rf::local_player->cam);
+
+    std::string mode_text = (current_mode == rf::CAMERA_FIRST_PERSON)   ? "first person"
+                            : (current_mode == rf::CAMERA_THIRD_PERSON) ? "third person"
+                            : (current_mode == rf::CAMERA_FREELOOK)     ? "free look"
+                                                                        : "unknown";
+
+    std::string helper_text =
+        (current_mode == rf::CAMERA_FIRST_PERSON) ? "" : " Use `camera1` to return to first person.";
+
+    rf::console::print("Camera mode set to {}.{}", mode_text, helper_text);    
+}
+
+FunHook<void()> camera1_cmd_hook{0x00431270, []() { handle_camera_command(camera1_cmd_hook); }};
+FunHook<void()> camera2_cmd_hook{0x004312D0, []() { handle_camera_command(camera2_cmd_hook); }};
+FunHook<void()> camera3_cmd_hook{0x00431330, []() { handle_camera_command(camera3_cmd_hook); }};
+
+FunHook<void()> heehoo_cmd_hook{
+    0x00431210,
+    []() {
+    if (!(rf::level.flags & rf::LEVEL_LOADED)) {
+        rf::console::print("No level loaded!");
+        return;
+    }
+
+    if (rf::is_multi) {
+        rf::console::print("That command can't be used in multiplayer.");
+        return;
+    }
+
+    if (rf::entity_is_flying(rf::local_player_entity)) {
+        rf::hud_msg("You feel heavy", 0, 0, 0);
+    } else {
+        rf::hud_msg("You feel lighter", 0, 0, 0);
+    }
+    heehoo_cmd_hook.call_target();
+    }
+};
+
 static void register_builtin_command(const char* name, const char* description, uintptr_t addr)
 {
     static std::vector<std::unique_ptr<rf::console::Command>> builtin_commands;
@@ -326,4 +382,10 @@ void console_commands_init()
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();
     verify_level_cmd_hook.install();
+
+    // Hooks for builtin commands
+    camera1_cmd_hook.install();
+    camera2_cmd_hook.install();
+    camera3_cmd_hook.install();
+    heehoo_cmd_hook.install();
 }
