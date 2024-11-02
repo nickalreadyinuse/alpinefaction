@@ -42,10 +42,10 @@ Version 1.9.0 (not released yet)
 - Add Kill Reward settings for dedicated servers
 - Do not load unnecessary VPPs in dedicated server mode
 - Add level filename to "Level Initializing" console message
-- Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
-- Add `lighting_color_range` command
 - Properly handle WM_PAINT in dedicated server, may improve performance (DF bug)
 - Fix crash when `verify_level` command is run without a level being loaded
+- Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
+- Add `lighting_color_range` command
 - Add `$DF CTF Flag Return Time` option in dedicated server config
 - Add gibbing when enemies die from explosives (enable with `gibs` command)
 - Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
@@ -73,6 +73,9 @@ Version 1.9.0 (not released yet)
 - Add missing help strings for builtin cheat commands
 - Make `spectate` command set camera to free look when issued in single player
 - Make value of `spectate_mode_minimal_ui` persist between game launches
+- Add `map_rand` command to change to a random level on the rotation
+- Add `vote rand` vote type to initiate a level change to a random level on the rotation
+- Add `$DF Dynamic Rotation` option in dedicated server config
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------

@@ -60,6 +60,7 @@ struct ServerAdditionalConfig
     VoteConfig vote_extend;
     VoteConfig vote_restart;
     VoteConfig vote_next;
+    VoteConfig vote_rand;
     VoteConfig vote_previous;
     VoteConfig vote_match;
     SpawnProtectionConfig spawn_protection;
@@ -84,6 +85,7 @@ struct ServerAdditionalConfig
     bool allow_disable_screenshake = false;
     int anticheat_level = 0;
     bool stats_message_enabled = true;
+    bool dynamic_rotation = false;
     std::string welcome_message;
     bool weapon_items_give_full_ammo = false;
     float kill_reward_health = 0.0f;
@@ -149,6 +151,7 @@ void init_server_commands();
 void extend_round_time(int minutes);
 void restart_current_level();
 void load_next_level();
+void load_rand_level();
 void load_prev_level();
 void server_vote_on_player_leave(rf::Player* player);
 void server_vote_on_limbo_state_enter();
