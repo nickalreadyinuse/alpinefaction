@@ -16,6 +16,13 @@ namespace rf
     struct Player;
 }
 
+struct SpawnProtectionConfig
+{
+    bool enabled = true;
+    int duration = 1500;
+    bool use_powerup = false;
+};
+
 struct VoteConfig
 {
     bool enabled = false;
@@ -50,6 +57,7 @@ struct ServerAdditionalConfig
     VoteConfig vote_next;
     VoteConfig vote_previous;
     VoteConfig vote_match;
+    SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
     int spawn_protection_duration_ms = 1500;
     std::optional<float> spawn_life;

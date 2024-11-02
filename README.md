@@ -150,6 +150,12 @@ Configuration example:
     $DF Vote Next: true
     // Enable vote previous
     $DF Vote Previous: true
+    // Determine whether players are granted some duration of invulnerability after spawning (stock RF is true)
+    $DF Spawn Protection Enabled: true
+        // Duration of the invulnerability in ms (stock RF is 1500)
+        +Duration: 1500
+        // Enable to use an Invulnerability powerup for the spawn protection (intended for run servers)
+        +Use Powerup: false
     // Adjust setting related to player respawn logic (defaults match stock game)
     $DF Player Respawn Logic:
         // In team gamemodes (CTF/TeamDM), only spawn players at points associated with their team
