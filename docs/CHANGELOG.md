@@ -68,6 +68,7 @@ Version 1.9.0 (not released yet)
 - Add `toggle_crouch` command to allow players to switch between toggle crouch and hold crouch (default)
 - Add `version` command
 - Add `spectate_mode_follow_killer` command (when player you are spectating dies, spectate their killer)
+- Add current server player count to scoreboard
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
