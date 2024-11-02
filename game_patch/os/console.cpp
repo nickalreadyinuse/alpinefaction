@@ -180,7 +180,7 @@ void console_apply_patches()
     write_mem_ptr(0x004B2534, "-- " PRODUCT_NAME " Initializing --\n");
 
     // Console background color
-    constexpr rf::Color console_color{0x00, 0x00, 0x40, 0xC0};
+    constexpr rf::Color console_color{0x27, 0x4E, 0x69, 0xC0};
     write_mem<u32>(0x005098D1, console_color.alpha);
     write_mem<u8>(0x005098D6, console_color.blue);
     write_mem<u8>(0x005098D8, console_color.green);

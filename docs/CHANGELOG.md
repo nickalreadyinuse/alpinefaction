@@ -35,7 +35,6 @@ Version 1.0.0
 - Add `map_rand` command to change to a random level on the rotation
 - Add `vote rand` vote type to initiate a level change to a random level on the rotation
 - Add `$DF Dynamic Rotation` option in dedicated server config
-- Lower minimum character count for console tab complete to 1
 - Add `$DF Weapon Stay Exemptions` option in dedicated server config- 
 - Add `$DF Critical Hits` option in dedicated server config
 - Add `muzzle_flash` command
@@ -45,6 +44,7 @@ Version 1.0.0
 - Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
 - Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
 - Add support for loading a file named `dashoptions.tbl` from TC mod directory, allowing mod author to change some hardcoded values (feature WIP)
+- Lower minimum character count for console tab complete to 1
 
 
 
