@@ -24,6 +24,7 @@
 #include "../main/main.h"
 #include <common/utils/list-utils.h>
 #include "../rf/player/player.h"
+#include "../rf/gameseq.h"
 #include "../rf/misc.h"
 #include "../rf/multi.h"
 #include "../rf/item.h"
@@ -63,6 +64,7 @@ int current_center_item_priority = possible_central_item_names.size();
 
 ServerAdditionalConfig g_additional_server_config;
 std::string g_prev_level;
+bool g_is_overtime = false;
 
 void parse_vote_config(const char* vote_name, VoteConfig& config, rf::Parser& parser)
 {
@@ -261,6 +263,13 @@ void load_additional_server_config(rf::Parser& parser)
         }
         if (parser.parse_optional("+Armor Is Super:")) {
             g_additional_server_config.kill_reward_armor_super = {parser.parse_bool()};
+        }
+    }
+
+    if (parser.parse_optional("$DF Overtime Enabled:")) {
+        g_additional_server_config.overtime.enabled = parser.parse_bool();
+        if (parser.parse_optional("+Duration:")) {
+            g_additional_server_config.overtime.additional_time = parser.parse_uint();
         }
     }
 
@@ -1056,6 +1065,110 @@ CodeInjection multi_limbo_init_injection{
     },
 };
 
+bool round_is_tied(rf::NetGameType game_type)
+{
+    if (rf::multi_num_players() <= 1) {
+        return false;
+    }
+
+    switch (game_type) {
+    case rf::NG_TYPE_DM: {
+        int highest_score = rf::player_list->stats->score;
+        int players_with_highest_score = 1;
+
+        for (rf::Player* player = rf::player_list->next; player != nullptr &&
+            player != rf::player_list; player = player->next) {        
+            if (player->stats->score > highest_score) {
+                highest_score = player->stats->score;
+                players_with_highest_score = 1;
+            }
+            else if (player->stats->score == highest_score) {
+                players_with_highest_score++;
+            }
+        }
+        return players_with_highest_score >= 2;
+    }
+    case rf::NG_TYPE_CTF: {
+        int red_score = rf::multi_ctf_get_red_team_score();
+        int blue_score = rf::multi_ctf_get_blue_team_score();
+
+        if (red_score == blue_score) {
+            return true;
+        }
+
+        bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
+        bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
+
+        // not currently tied, but if the team with the flag right now caps it, they will be
+        return (red_flag_stolen && blue_score == red_score - 1) || (blue_flag_stolen && red_score == blue_score - 1);
+    }
+    case rf::NG_TYPE_TEAMDM: {
+        return rf::multi_tdm_get_red_team_score() == rf::multi_tdm_get_blue_team_score();
+    }
+    default:
+        return false;
+    }
+}
+
+FunHook<void()> multi_check_for_round_end_hook{
+    0x0046E7C0,
+    []() {
+        const bool time_up = (rf::multi_time_limit > 0.0f && rf::level.time >= rf::multi_time_limit);
+        bool round_over = time_up;
+        const auto game_type = rf::multi_get_game_type();
+
+        if (g_is_overtime) {
+            round_over = (time_up || !round_is_tied(game_type));
+        }
+        else {
+            switch (game_type) {
+            case rf::NG_TYPE_DM: {
+                for (rf::Player* player = rf::player_list; player; player = player->next) {
+                    if (player->stats->score >= rf::multi_kill_limit) {
+                        round_over = true;
+                        break;
+                    }
+                    if (player == rf::player_list)
+                        break;
+                }
+                break;
+            }
+            case rf::NG_TYPE_CTF: {
+                if (rf::multi_ctf_get_red_team_score() >= rf::multi_cap_limit ||
+                    rf::multi_ctf_get_blue_team_score() >= rf::multi_cap_limit) {
+                    round_over = true;
+                }
+                break;
+            }
+            case rf::NG_TYPE_TEAMDM: {
+                if (rf::multi_tdm_get_red_team_score() >= rf::multi_kill_limit ||
+                    rf::multi_tdm_get_blue_team_score() >= rf::multi_kill_limit) {
+                    round_over = true;
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
+        if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
+            if (time_up && g_additional_server_config.overtime.enabled && !g_is_overtime && round_is_tied(game_type)) {
+                g_is_overtime = true;
+                extend_round_time(g_additional_server_config.overtime.additional_time);
+
+                std::string msg = std::format("\xA6 OVERTIME! Game will end when the tie is broken");
+                msg += g_additional_server_config.overtime.additional_time > 0
+                           ? std::format(", or in {} minutes!", g_additional_server_config.overtime.additional_time)
+                           : "!";
+                send_chat_line_packet(msg.c_str(), nullptr);
+            }
+            else {
+                rf::multi_change_level(nullptr);
+            }
+        }
+    }
+};
 FunHook<int(const char*, uint8_t, const rf::Vector3*, const rf::Matrix3*, bool, bool, bool)> multi_respawn_create_point_hook{
     0x00470190,
     [](const char* name, uint8_t team, const rf::Vector3* pos, const rf::Matrix3* orient, bool red_team, bool blue_team, bool bot) 
@@ -1425,6 +1538,9 @@ void server_init()
 
     // Reduce limbo duration if server is empty
     multi_limbo_init_injection.install();
+
+    // Check if round is finished or if overtime should begin
+    multi_check_for_round_end_hook.install();
 }
 
 void server_do_frame()
@@ -1436,6 +1552,7 @@ void server_do_frame()
 
 void server_on_limbo_state_enter()
 {
+    g_is_overtime = false;
     g_prev_level = rf::level.filename.c_str();
     server_vote_on_limbo_state_enter();
 

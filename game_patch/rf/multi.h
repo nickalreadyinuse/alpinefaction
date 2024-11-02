@@ -171,6 +171,8 @@ namespace rf
     static auto& multi_find_player_by_addr = addr_as_ref<Player*(const NetAddr& addr)>(0x00484850);
     static auto& multi_find_player_by_id = addr_as_ref<Player*(uint8_t id)>(0x00484890);
     static auto& multi_time_limit = addr_as_ref<float>(0x0064EC4C);
+    static auto& multi_kill_limit = addr_as_ref<int>(0x0064EC50);
+    static auto& multi_cap_limit = addr_as_ref<int>(0x0064EC58);
     static auto& multi_ctf_get_red_team_score = addr_as_ref<uint8_t()>(0x00475020);
     static auto& multi_ctf_get_blue_team_score = addr_as_ref<uint8_t()>(0x00475030);
     static auto& multi_ctf_get_red_flag_player = addr_as_ref<Player*()>(0x00474E60);
