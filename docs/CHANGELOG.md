@@ -42,6 +42,8 @@ Version 1.0.0
 - Fix some fire packets being wrongfully dropped by click limiter (DF bug)
 - Add `$DF Semi Auto Click Rate Limit` option in dedicated server config
 - Add `scope_sensitivity_modifier` and `scanner_sensitivity_modifier` commands
+- Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
+- Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
 
 
 
@@ -89,8 +91,6 @@ Version 1.9.0 (not released yet)
 - Add Kill Reward settings for dedicated servers
 - Do not load unnecessary VPPs in dedicated server mode
 - Add level filename to "Level Initializing" console message
-- Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
-- Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
 - Properly handle WM_PAINT in dedicated server, may improve performance (DF bug)
 - Fix crash when `verify_level` command is run without a level being loaded
 
