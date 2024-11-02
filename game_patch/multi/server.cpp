@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <limits>
 #include <format>
+#include <sstream>
 #include <numeric>
 #include <unordered_set>
 #include <array>
@@ -23,6 +24,7 @@
 #include "../main/main.h"
 #include <common/utils/list-utils.h>
 #include "../rf/player/player.h"
+#include "../rf/misc.h"
 #include "../rf/multi.h"
 #include "../rf/item.h"
 #include "../rf/parse.h"
@@ -90,6 +92,7 @@ void load_additional_server_config(rf::Parser& parser)
     parse_vote_config("Vote Restart", g_additional_server_config.vote_restart, parser);
     parse_vote_config("Vote Next", g_additional_server_config.vote_next, parser);
     parse_vote_config("Vote Previous", g_additional_server_config.vote_previous, parser);
+    parse_vote_config("Vote Match", g_additional_server_config.vote_match, parser);
 
     if (parser.parse_optional("$DF Player Respawn Logic:")) {
         if (parser.parse_optional("+Respect Team Spawns:")) {
@@ -325,6 +328,38 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
     }
 }
 
+std::string get_ready_player_names(bool is_blue_team)
+{
+    const auto& team_players = is_blue_team ? g_match_info.ready_players_blue : g_match_info.ready_players_red;
+    std::ostringstream oss;
+    for (const auto& player : team_players) {
+        if (oss.tellp() > 0) {
+            oss << ", ";
+        }
+        oss << player->name;
+    }
+    return oss.str();
+}
+
+void handle_whosready_command(rf::Player* player)
+{
+    auto msg = std::format("\xA6 No match is queued.");
+
+    if (g_match_info.pre_match_active) {
+        if (!g_match_info.ready_players_red.empty() || !g_match_info.ready_players_blue.empty()) {
+            msg = std::format("\xA6 These players are currently ready:\n"
+                                   "RED TEAM: {}\n"
+                                   "BLUE TEAM: {}\n",
+                                   get_ready_player_names(0), get_ready_player_names(1));
+        }
+        else {
+            msg = std::format("\xA6 No players are ready.");
+        }        
+    }
+
+    send_chat_line_packet(msg.c_str(), player);
+}
+
 CodeInjection process_obj_update_set_pos_injection{
     0x0047E563,
     [](auto& regs) {
@@ -386,6 +421,15 @@ bool handle_server_chat_command(std::string_view server_command, rf::Player* sen
     }
     else if (cmd_name == "stats") {
         send_private_message_with_stats(sender);
+    }
+    else if (cmd_name == "ready") {
+        set_ready_status(sender, 1);
+    }
+    else if (cmd_name == "unready") {
+        set_ready_status(sender, 0);
+    }
+    else if (cmd_name == "whosready") {
+        handle_whosready_command(sender);
     }
     else {
         return false;
@@ -627,6 +671,229 @@ std::set<rf::Player*> get_current_player_list(bool include_browsers)
     return player_list;
 }
 
+bool is_player_ready(rf::Player* player)
+{
+    return g_match_info.pre_match_active &&
+        (g_match_info.ready_players_red.contains(player) || g_match_info.ready_players_blue.contains(player));
+}
+
+bool is_player_in_match(rf::Player* player)
+{
+    return g_match_info.match_active && g_match_info.active_match_players.contains(player);
+}
+
+void update_pre_match_powerups(rf::Player* player)
+{
+    rf::multi_powerup_remove_all_for_player(player);
+
+    if (g_match_info.pre_match_active) {
+        rf::multi_powerup_add(player, 0, 3600000);
+
+        if (g_match_info.ready_players_red.contains(player) || g_match_info.ready_players_blue.contains(player)) {
+            rf::multi_powerup_add(player, 1, 3600000);
+        }
+    }
+}
+
+void start_match()
+{
+    auto msg = std::format(
+        "\n>>>>>>>>>>>>>>>>> {}v{} MATCH STARTING NOW <<<<<<<<<<<<<<<<<\n"
+        "RED TEAM: {}\n"
+        "BLUE TEAM: {}\n",
+        g_match_info.team_size, g_match_info.team_size,
+        get_ready_player_names(0), get_ready_player_names(1));
+
+    send_chat_line_packet(msg.c_str(), nullptr);
+
+    g_match_info.active_match_players.clear();
+
+    g_match_info.active_match_players.insert(g_match_info.ready_players_red.begin(),
+                                             g_match_info.ready_players_red.end());
+    g_match_info.ready_players_red.clear();
+
+    g_match_info.active_match_players.insert(g_match_info.ready_players_blue.begin(),
+                                             g_match_info.ready_players_blue.end());
+    g_match_info.ready_players_blue.clear();
+
+    restart_current_level();
+
+    // restore time limit when starting match
+    rf::multi_time_limit = g_match_info.time_limit_on_pre_match_start.value_or(10.0f);
+}
+
+void cancel_match()
+{
+    rf::console::print("Canceling match");
+    if (g_match_info.match_active) {
+        load_next_level(); // end the round if active match is canceled
+    }
+    else {
+        // restore the level timer and limit if pre-match is canceled        
+        rf::level.time = 0.0f;
+        rf::multi_time_limit = g_match_info.time_limit_on_pre_match_start.value_or(10.0f);        
+    }
+
+    g_match_info.reset();
+
+    for (rf::Player* player : get_current_player_list(false)) {
+        update_pre_match_powerups(player);
+    }
+}
+
+void start_pre_match()
+{
+    if (g_match_info.pre_match_queued) {
+        g_match_info.pre_match_active = g_match_info.pre_match_queued;
+        g_match_info.pre_match_queued = false;
+        g_match_info.pre_match_start_time = std::time(nullptr);
+        g_match_info.last_ready_reminder_time = g_match_info.pre_match_start_time; // don't remind immediately
+
+        // store time limit for later, remove level timer during pre-match
+        g_match_info.time_limit_on_pre_match_start = rf::multi_time_limit;
+        rf::multi_time_limit = 0.0f;
+
+        auto msg = std::format("\n>>>>>>>>>>>>>>>>> {}v{} MATCH QUEUED <<<<<<<<<<<<<<<<<\n"
+                               "Waiting for players. Use \"/ready\" to ready up, or \"/vote nomatch\" to call a vote to cancel.",
+                               g_match_info.team_size, g_match_info.team_size);
+        send_chat_line_packet(msg.c_str(), nullptr);
+
+        for (rf::Player* player : get_current_player_list(false)) {
+            update_pre_match_powerups(player);
+        }
+    }
+}
+
+void add_ready_player(rf::Player* player)
+{
+    auto& team_ready_list = (player->team == 0) ? g_match_info.ready_players_red : g_match_info.ready_players_blue;
+    const std::string_view team_name = (player->team == 0) ? "RED" : "BLUE";
+
+    if (team_ready_list.contains(player)) {
+        send_chat_line_packet("You are already ready.", player);
+        return;
+    }
+
+    if (team_ready_list.size() >= g_match_info.team_size) {
+        send_chat_line_packet("Your team is full.", player);
+        return;
+    }
+
+    team_ready_list.insert(player);
+    update_pre_match_powerups(player);
+
+    auto ready_msg = std::format("{} ({}) is ready!", player->name.c_str(), team_name);
+    send_chat_line_packet(ready_msg.c_str(), nullptr);
+
+    const auto ready_red = g_match_info.ready_players_red.size();
+    const auto ready_blue = g_match_info.ready_players_blue.size();
+    const auto required_players = g_match_info.team_size;
+
+    if (ready_red >= required_players && ready_blue >= required_players) {
+        send_chat_line_packet("\xA6 All players are ready. Match starting!", nullptr);
+        g_match_info.everyone_ready = true;
+        start_match(); // Start the match
+    }
+    else {
+        auto waiting_msg = std::format("Still waiting for players - RED: {}, BLUE: {}.", required_players - ready_red,
+                                       required_players - ready_blue);
+        send_chat_line_packet(waiting_msg.c_str(), nullptr);
+    }
+}
+
+void remove_ready_player(rf::Player* player)
+{
+    bool was_in_red = g_match_info.ready_players_red.erase(player) > 0;
+    bool was_in_blue = g_match_info.ready_players_blue.erase(player) > 0;
+
+    if (!was_in_red && !was_in_blue) {
+        send_chat_line_packet("You were not marked as ready.", player);
+        return;
+    }
+
+    update_pre_match_powerups(player);
+
+    auto msg = std::format("{} is no longer ready! Still waiting for players - RED: {}, BLUE: {}.",
+                           player->name.c_str(), g_match_info.team_size - g_match_info.ready_players_red.size(),
+                           g_match_info.team_size - g_match_info.ready_players_blue.size());
+    send_chat_line_packet(msg.c_str(), nullptr);
+}
+
+void set_ready_status(rf::Player* player, bool is_ready)
+{
+    if (g_match_info.pre_match_active) {
+        if (is_ready) {
+            add_ready_player(player);
+        }
+        else {
+            remove_ready_player(player);
+        }
+    }
+    else {
+        send_chat_line_packet("No match is queued. Use \"/vote match\" to queue a match.", player);
+    }
+}
+
+void match_do_frame()
+{
+    if (!g_additional_server_config.vote_match.enabled) {
+        return;
+    }
+
+    if (rf::multi_num_players() <= 0) {
+        if (g_match_info.match_active || g_match_info.pre_match_active) {
+            cancel_match();
+        }
+        return; // no reminders to an empty server
+    }
+
+    std::time_t current_time = std::time(nullptr);
+
+    if (!g_match_info.match_active && !g_match_info.pre_match_active)
+    {
+        if (current_time >= g_match_info.last_match_reminder_time + 270) {
+            g_match_info.last_match_reminder_time = current_time;
+
+            send_chat_line_packet(
+                "\xA6 No active match. Use \"/vote match <type> <map filename>\" to call a match vote.", nullptr);
+        }
+    }
+    else if (g_match_info.pre_match_active) {
+        int reminder_interval = (current_time - g_match_info.pre_match_start_time) > 90 ? 15 : 30;
+
+        if (current_time >= g_match_info.last_ready_reminder_time + reminder_interval) {
+            g_match_info.last_ready_reminder_time = current_time;
+
+            const auto ready_red = g_match_info.ready_players_red.size();
+            const auto ready_blue = g_match_info.ready_players_blue.size();
+
+            for (rf::Player* player : get_current_player_list(false)) {
+                if (!is_player_ready(player)) {                    
+                    auto msg = std::format(
+                        "\xA6 You are NOT ready! {}v{} match queued, waiting for players - RED: {}, BLUE: {}.\n"
+                        "Use \"/ready\" to ready up, or \"/vote nomatch\" to call a vote to cancel the match.",
+                        g_match_info.team_size, g_match_info.team_size,
+                        g_match_info.team_size - ready_red, g_match_info.team_size - ready_blue);
+                    send_chat_line_packet(msg.c_str(), player);
+                }
+            }
+        }
+    }
+}
+
+std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_input)
+{
+    std::string level_name{level_name_input};
+
+    if (level_name.size() < 4 || level_name.compare(level_name.size() - 4, 4, ".rfl") != 0) {
+        level_name += ".rfl";
+    }
+
+    bool is_valid = rf::get_file_checksum(level_name.c_str()) != 0;
+
+    return {is_valid, level_name};
+}
+
 FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
     0x00480820,
     [](rf::Player* player) {
@@ -634,6 +901,10 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }
         if (!check_player_ac_status(player)) {
+            return;
+        }
+        if (g_match_info.match_active && !is_player_in_match(player)) {
+            send_chat_line_packet("You cannot spawn because a match is in progress. Please feel free to spectate.", player);
             return;
         }
 
@@ -647,6 +918,10 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             if (g_additional_server_config.spawn_armor) {
                 ep->armor = g_additional_server_config.spawn_armor.value();
             }
+        }
+
+        if (g_match_info.pre_match_active) {
+            update_pre_match_powerups(player);
         }
     },
 };
@@ -720,6 +995,12 @@ void server_reliable_socket_ready(rf::Player* player)
         auto msg = string_replace(g_additional_server_config.welcome_message, "$PLAYER", player->name.c_str());
         send_chat_line_packet(msg.c_str(), player);
     }
+    if (g_match_info.pre_match_active) {    
+        auto msg = std::format("\xA6 {}v{} match is queued and waiting for players! Use \"/ready\" to ready up.",
+            g_match_info.team_size, g_match_info.team_size);
+
+        send_chat_line_packet(msg.c_str(), nullptr);
+    }
 }
 
 CodeInjection multi_limbo_init_injection{
@@ -728,6 +1009,17 @@ CodeInjection multi_limbo_init_injection{
         if (!rf::player_list) {
             xlog::trace("Wait between levels shortened because server is empty");
             addr_as_ref<int>(regs.esp) = 100;
+        }
+
+        if (g_match_info.match_active) {
+            send_chat_line_packet("\xA6 Match complete!", nullptr);
+            g_match_info.reset();
+        }
+        else if (g_match_info.pre_match_active && g_match_info.everyone_ready) {
+            addr_as_ref<int>(regs.esp) = 5000;
+            g_match_info.match_active = g_match_info.everyone_ready;
+            g_match_info.everyone_ready = false;
+            g_match_info.pre_match_active = false;
         }
     },
 };
@@ -1106,6 +1398,7 @@ void server_init()
 void server_do_frame()
 {
     server_vote_do_frame();
+    match_do_frame();
     process_delayed_kicks();
 }
 

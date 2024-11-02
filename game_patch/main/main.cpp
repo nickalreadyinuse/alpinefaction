@@ -26,6 +26,7 @@
 #include "../object/object.h"
 #include "../multi/multi.h"
 #include "../multi/server.h"
+#include "../multi/server_internal.h"
 #include "../misc/misc.h"
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
@@ -174,6 +175,16 @@ FunHook<void(bool)> level_init_post_hook{
         if (g_game_config.try_disable_screenshake) {
             evaluate_restrict_disable_ss();
         }  
+
+        if (rf::is_server) {        
+            if (g_match_info.match_active) {
+                send_chat_line_packet("=========== MATCH LIVE ===========", nullptr);
+            }
+            else if (g_match_info.pre_match_queued) {
+                start_pre_match();
+            }
+        }
+
     },
 };
 
