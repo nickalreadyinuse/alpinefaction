@@ -46,6 +46,8 @@ Version 1.9.0 (not released yet)
 - Fix crash when `verify_level` command is run without a level being loaded
 - Add `$DF CTF Flag Return Time` option in dedicated server config
 - Add gibbing when enemies die from explosives (enable with `gibs` command)
+- Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
+- Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------

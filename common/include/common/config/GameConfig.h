@@ -62,6 +62,10 @@ struct GameConfig
     CfgVar<bool> show_enemy_bullets = true;
     CfgVar<bool> gibs = false;
 
+    CfgVar<bool> try_mesh_fullbright = false;
+    CfgVar<bool> try_lightmaps_only = false;
+    CfgVar<bool> try_disable_screenshake = false;
+
     static constexpr float min_fov = 75.0f;
     static constexpr float max_fov = 160.0f;
     CfgVar<float> horz_fov{0.0f, [](float val) { return val == 0.0f ? 0.0f : std::clamp(val, min_fov, max_fov); }};
