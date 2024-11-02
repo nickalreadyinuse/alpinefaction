@@ -41,6 +41,7 @@ Version 1.0.0
 - Add `muzzle_flash` command
 - Fix some fire packets being wrongfully dropped by click limiter (DF bug)
 - Add `$DF Semi Auto Click Rate Limit` option in dedicated server config
+- Add `scope_sensitivity_modifier` and `scanner_sensitivity_modifier` commands
 
 
 
