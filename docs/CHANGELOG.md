@@ -69,6 +69,7 @@ Version 1.9.0 (not released yet)
 - Add `version` command
 - Add `spectate_mode_follow_killer` command (when player you are spectating dies, spectate their killer)
 - Add current server player count to scoreboard
+- Enable commands `drop_clutter`, `drop_entity`, `drop_item`, `teleport`, `pcollide` in single player
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
