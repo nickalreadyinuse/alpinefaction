@@ -289,6 +289,16 @@ void handle_next_map_command(rf::Player* player)
     send_chat_line_packet(msg.c_str(), player);
 }
 
+void handle_has_map_command(rf::Player* player, std::string_view level_name)
+{
+    auto [is_valid, checked_level_name] = is_level_name_valid(level_name);
+
+    auto availability = is_valid ? "available" : "NOT available";
+    auto msg = std::format("Level {} is {} on the server.", checked_level_name, availability);
+
+    send_chat_line_packet(msg.c_str(), player);
+}
+
 void handle_save_command(rf::Player* player, std::string_view save_name)
 {
     auto& pdata = get_player_additional_data(player);
@@ -421,6 +431,9 @@ bool handle_server_chat_command(std::string_view server_command, rf::Player* sen
     }
     else if (cmd_name == "stats") {
         send_private_message_with_stats(sender);
+    }
+    else if (cmd_name == "hasmap" || cmd_name == "haslevel") {
+        handle_has_map_command(sender, cmd_arg);
     }
     else if (cmd_name == "ready") {
         set_ready_status(sender, 1);

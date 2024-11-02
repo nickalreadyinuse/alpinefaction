@@ -56,6 +56,8 @@ Version 1.9.0 (not released yet)
 - Raise limit on number of multiplayer respawn points per level from 32 to 2048
 - Add match mode ready up system (controlled by `$DF Vote Match` option in dedicated server config)
 - Improve handling for players leaving/joining multiplayer games during votes
+- Add `/hasmap` server chat command
+- Add handling of level filename extensions with `/vote level` server chat command
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
