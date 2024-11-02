@@ -15,3 +15,4 @@ bool server_allow_lightmaps_only();
 bool server_allow_disable_screenshake();
 void server_reliable_socket_ready(rf::Player* player);
 bool server_weapon_items_give_full_ammo();
+void process_queued_spawn_points_from_items();

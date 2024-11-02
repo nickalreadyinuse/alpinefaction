@@ -51,6 +51,9 @@ Version 1.9.0 (not released yet)
 - Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
 - Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
 - Add mod name to main menu
+- Make game spawn players at Player Start position if level has no respawn points
+- Add respawn point selection logic settings to dedicated server config
+- Raise limit on number of multiplayer respawn points per level from 32 to 2048
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
