@@ -39,6 +39,7 @@
 const char* g_rcon_cmd_whitelist[] = {
     "kick",
     "level",
+    "server_password",
     "map",
     "ban",
     "ban_ip",

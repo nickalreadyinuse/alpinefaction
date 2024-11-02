@@ -60,6 +60,7 @@ Version 1.9.0 (not released yet)
 - Add handling of level filename extensions with `/vote level` server chat command
 - Change spawn protection option in dedicated server config to allow it to use Invulnerability powerup
 - Add correct scaling for geomod crater texture based on resolution
+- Add `server_password` command
 
 Version 1.8.0 (released 2022-09-17)
 -----------------------------------
