@@ -425,6 +425,7 @@ namespace rf
     static auto& entity_is_reloading = addr_as_ref<bool(Entity* entity)>(0x00425250);
     static auto& entity_weapon_is_on = addr_as_ref<bool(int entity_handle, int weapon_type)>(0x0041A830);
     static auto& entity_reload_current_primary = addr_as_ref<bool __cdecl(Entity *entity, bool no_sound, bool is_reload_packet)>(0x00425280);
+    static auto& entity_add_to_reserve_ammo = addr_as_ref<void(Entity *entity, int weapon_type, int count)>(0x00428D90);
     static auto& entity_turn_weapon_on = addr_as_ref<void __cdecl(int entity_handle, int weapon_type, bool alt_fire)>(0x0041A870);
     static auto& entity_turn_weapon_off = addr_as_ref<void __cdecl(int entity_handle, int weapon_type)>(0x0041AE70);
     static auto& entity_restore_mesh = addr_as_ref<void(Entity *ep, const char *mesh_name)>(0x0042C570);

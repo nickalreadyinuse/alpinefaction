@@ -282,6 +282,7 @@ namespace rf
     static auto& hide_enemy_bullets = addr_as_ref<bool>(0x005A24D0);
 
     static auto& weapon_lookup_type = addr_as_ref<int(const char*)>(0x004C81F0);
+    static auto& ammo_lookup_type = addr_as_ref<int(const char*)>(0x004C22B0);
     static auto& weapon_is_detonator = addr_as_ref<bool(int weapon_type)>(0x004C9070);
     static auto& weapon_is_riot_stick = addr_as_ref<bool(int weapon_type)>(0x004C90D0);
     static auto& weapon_is_glock = addr_as_ref<bool(int weapon_type)>(0x004C9920);

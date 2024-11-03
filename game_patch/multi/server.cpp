@@ -853,6 +853,7 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
     },
 };
 
+// multi_spawn_player_server_side
 FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
     0x00480820,
     [](rf::Player* player) {
@@ -1197,7 +1198,7 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         multi_spawn_player_server_side_hook.call_target(player);
 
         if (g_additional_server_config.gungame.enabled) {
-            multi_update_gungame_weapon(player);
+            multi_update_gungame_weapon(player);            
         }
 
         rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
@@ -1746,11 +1747,35 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
         ammo_count = winfo.max_ammo + winfo.clip_size;
     }
     rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
+    //ep->ai.has_weapon[weapon_type] = true;
+    //rf::entity_add_to_reserve_ammo(ep, weapon_type, ammo_count);
+    //ep->ai.clip_ammo[weapon_type] = winfo.clip_size;
+    //ep->ai.ammo[winfo.ammo_type] = winfo.max_ammo;
+    //rf::ai_add_weapon(&ep->ai, weapon_type, ammo_count);
     rf::ai_add_weapon(&ep->ai, weapon_type, ammo_count);
     //rf::entity_reload_current_primary(ep, false, false);
     //multi_reload_weapon_server_side(player, weapon_type);
     //todo, send a packet for reload
-    rf::send_reload_packet(ep, weapon_type, ep->ai.ammo[weapon_type], ep->ai.clip_ammo[weapon_type]);
+    /* if (!rf::weapon_uses_clip(weapon_type)) {
+        //rf::send_reload_packet(ep, weapon_type, ep->ai.clip_ammo[weapon_type], ep->ai.ammo[winfo.ammo_type]);
+        if (!rf::player_is_dead(player)) {
+            rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
+            RF_ReloadPacket packet;
+            packet.header.type = RF_GPT_RELOAD;
+            packet.header.size = sizeof(packet) - sizeof(packet.header);
+            packet.entity_handle = entity->handle;
+            int weapon_type = entity->ai.current_primary_weapon;
+            packet.weapon = weapon_type;
+            packet.ammo = entity->ai.clip_ammo[weapon_type];
+            int ammo_type = rf::weapon_types[weapon_type].ammo_type;
+            packet.clip_ammo = entity->ai.ammo[ammo_type];
+            rf::multi_io_send_reliable(player, reinterpret_cast<uint8_t*>(&packet), sizeof(packet), 0);
+        }
+        //rf::send_reload_packet(ep, weapon_type, ep->reload_clip_ammo, ep->reload_reserve_ammo);
+    }*/
+
+    //ep->ammo
+    
     
     xlog::warn("gave player {} weapon {} with ammo {}", player->name, weapon_type, ammo_count);
 }

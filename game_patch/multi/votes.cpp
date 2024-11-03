@@ -16,6 +16,14 @@
 #include "server_internal.h"
 #include "multi.h"
 
+bool ends_with(const rf::String& str, const std::string& suffix)
+{
+    std::string name_str = str.c_str(); // Assuming rf::String has a c_str() method
+    if (name_str.length() >= suffix.length()) {
+        return (name_str.compare(name_str.length() - suffix.length(), suffix.length(), suffix) == 0);
+    }
+    return false;
+}
 MatchInfo g_match_info;
 
 enum class VoteType
@@ -57,6 +65,8 @@ public:
 
         start_time = std::time(nullptr);
 
+            if (&player != source && !get_player_additional_data(&player).is_browser) &&
+                !ends_with(player.name, " (Bot)")) {
         players_who_voted.insert({source, true});
 
         return check_for_early_vote_finish();
@@ -673,8 +683,8 @@ VoteMgr g_vote_mgr;
 
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender)
 {
-    if (get_player_additional_data(sender).is_browser) {
-        send_chat_line_packet("Browsers are not allowed to vote!", sender);
+    if (get_player_additional_data(sender).is_browser || ends_with(sender->name, " (Bot)")) {
+        send_chat_line_packet("Browsers and bots are not allowed to vote!", sender);
         return;
     }
     if (vote_name == "kick")
