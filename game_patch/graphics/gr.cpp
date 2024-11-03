@@ -168,7 +168,7 @@ void evaluate_lightmaps_only()
 }
 
 ConsoleCommand2 lightmaps_only_cmd{
-    "cl_lightmaps",
+    "r_lightmaps",
     []() {
         g_game_config.try_lightmaps_only = !g_game_config.try_lightmaps_only;
         g_game_config.save();
