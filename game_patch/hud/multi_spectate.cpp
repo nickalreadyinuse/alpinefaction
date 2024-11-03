@@ -283,7 +283,7 @@ ConsoleCommand2 spectate_cmd{
 };
 
 static ConsoleCommand2 spectate_mode_minimal_ui_cmd{
-    "spectate_mode_minimal_ui",
+    "spectate_minui",
     []() {
         g_game_config.spectate_mode_minimal_ui = !g_game_config.spectate_mode_minimal_ui;
         g_game_config.save();
@@ -294,7 +294,7 @@ static ConsoleCommand2 spectate_mode_minimal_ui_cmd{
 };
 
 static ConsoleCommand2 spectate_mode_follow_killer_cmd{
-    "spectate_mode_follow_killer",
+    "spectate_followkiller",
     []() {
         g_spectate_mode_follow_killer = !g_spectate_mode_follow_killer;
         rf::console::printf("Follow killer mode is %s", g_spectate_mode_follow_killer ? "enabled" : "disabled");

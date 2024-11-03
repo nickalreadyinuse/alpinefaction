@@ -269,15 +269,7 @@ CodeInjection entity_damage_explosive_death_injection{
     [](auto& regs) {        
         rf::Entity* ep = regs.esi;
         int damage_type = regs.ebp;
-        ep->ai.explosive_last_damage = (damage_type == 3); // explosive damage
-        if (consider_gibs() && ep) {
-            // using body temp > 90 (from entity.tbl class) as the determining factor for if an entity should gib
-            // in stock game, this includes only humanoid enemies and reeper/baby reeper
-            // in mods, this lets the mod author control which of their mod's entities gib
-            if (ep->ai.explosive_last_damage && ep->info->body_temp >= 90.0f) {
-                ep->death_anim_index = -1; // no death anim needed if entity is gibbing
-            }
-        }
+        ep->ai.explosive_last_damage = (damage_type == 3); // track if death was from explosive damage
     }
 };
 
@@ -285,8 +277,12 @@ CodeInjection entity_dying_frame_explode_injection{
     0x0041EE4C,
     [](auto& regs) {
         rf::Entity* ep = regs.esi;
+        // using body temp > 90 (from entity.tbl class) as the determining factor for if an entity should gib
+        // in stock game, this includes only humanoid enemies and reeper/baby reeper
+        // in mods, this lets the mod author control which of their mod's entities gib
         if (consider_gibs() && ep && ep->ai.explosive_last_damage && ep->info->body_temp >= 90.0f) {
-            regs.eip = 0x0041EE55;
+            ep->death_anim_index = -1; // no death anim needed if entity is gibbing
+            regs.eip = 0x0041EE55; // gib entity
         }
     },
 };
