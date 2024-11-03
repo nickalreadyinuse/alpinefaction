@@ -2,7 +2,9 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/ShortTypes.h>
 #include <patch_common/AsmWriter.h>
+#include <unordered_map>
 #include "multi.h"
+#include "server.h"
 #include "../os/console.h"
 #include "../rf/player/player.h"
 #include "../rf/entity.h"
@@ -16,6 +18,70 @@ bool kill_messages = true;
 
 void player_fpgun_on_player_death(rf::Player* pp);
 
+class GunGameWeaponManager
+{
+public:
+    GunGameWeaponManager()
+    {
+        initialize_score_to_weapon_map();
+    }
+
+    void initialize_score_to_weapon_map()
+    {
+        score_to_weapon_map.clear();
+        int score = 0;
+        for (const auto& [level, weapon_level] : g_additional_server_config.gungame.levels) {
+            score_to_weapon_map[score++] = weapon_level;
+            xlog::warn("{}, {}", score, weapon_level);
+        }
+    }
+
+    std::optional<int> get_weapon_for_score(int score) const
+    {
+        if (auto it = score_to_weapon_map.find(score); it != score_to_weapon_map.end()) {
+            return it->second;
+        }
+        return std::nullopt;
+    }
+
+private:
+    std::unordered_map<int, int> score_to_weapon_map;
+};
+
+GunGameWeaponManager weapon_manager;
+
+void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity, const GunGameWeaponManager& weapon_manager)
+{
+    if (!player || !entity) {
+        xlog::error("Invalid player or entity passed to handle_gungame_weapon_switch.");
+        return;
+    }
+
+    //auto* stats = static_cast<PlayerStatsNew*>(player->stats);
+    //int current_score = stats->score;
+    int current_score = player->stats->score;
+    xlog::warn("Score for {} is {} {}", player->name, player->stats->score, current_score);
+
+    // Get the weapon type based on the player's score
+    if (auto weapon_type_opt = weapon_manager.get_weapon_for_score(current_score); weapon_type_opt) {
+        int weapon_type = *weapon_type_opt;
+
+        // Switch the player's weapon to the new type
+        server_add_player_weapon(player, weapon_type, true);
+        server_set_player_weapon(player, entity, weapon_type);
+        xlog::warn("GunGame: Player '{}' reached score {}. Setting weapon to type {}.", player->name, current_score,
+                   weapon_type);
+    }
+    else {
+        xlog::info("GunGame: No weapon assigned for score {}. Player '{}' retains current weapon.", current_score,
+                   player->name);
+    }
+}
+
+void multi_update_gungame_weapon(rf::Player* player) {
+    handle_gungame_weapon_switch(player, rf::entity_from_handle(player->entity_handle), weapon_manager);
+}
+
 void multi_kill_init_player(rf::Player* player)
 {
     auto* stats = static_cast<PlayerStatsNew*>(player->stats);
@@ -28,6 +94,9 @@ FunHook<void()> multi_level_init_hook{
         auto player_list = SinglyLinkedList{rf::player_list};
         for (auto& player : player_list) {
             multi_kill_init_player(&player);
+        }
+        if (g_additional_server_config.gungame.enabled) {
+            weapon_manager.initialize_score_to_weapon_map();
         }
         multi_level_init_hook.call_target();
     },
@@ -136,7 +205,7 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
     }
 
     auto* killed_stats = static_cast<PlayerStatsNew*>(killed_player->stats);
-    killed_stats->inc_deaths();
+    killed_stats->inc_deaths();    
 
     if (killer_player) {
         auto* killer_stats = static_cast<PlayerStatsNew*>(killer_player->stats);
@@ -152,6 +221,10 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
 
         multi_spectate_on_player_kill(killed_player, killer_player);
     }
+    if (g_additional_server_config.gungame.enabled) {
+        multi_update_gungame_weapon(killer_player);
+    }
+    
 }
 
 FunHook<void(rf::Entity*)> entity_on_death_hook{

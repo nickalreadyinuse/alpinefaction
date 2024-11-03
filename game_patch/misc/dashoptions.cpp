@@ -27,10 +27,6 @@ void mark_option_loaded(DashOptionID id)
     g_dash_options_config.options_loaded[static_cast<size_t>(id)] = true;
 }
 
-namespace dashopt
-{
-std::unique_ptr<rf::File> dashoptions_file;
-
 // trim leading and trailing whitespace
 std::string trim(const std::string& str)
 {
@@ -50,8 +46,7 @@ std::optional<std::string> extract_quoted_value(const std::string& value)
 
     // check if trimmed value starts and ends with quotes, if so, extract the content inside them
     if (trimmed_value.size() >= 2 && trimmed_value.front() == '"' && trimmed_value.back() == '"') {
-        std::string extracted_value =
-            trimmed_value.substr(1, trimmed_value.size() - 2);
+        std::string extracted_value = trimmed_value.substr(1, trimmed_value.size() - 2);
         return extracted_value;
     }
 
@@ -59,6 +54,53 @@ std::optional<std::string> extract_quoted_value(const std::string& value)
     xlog::debug("String value is not enclosed in quotes, accepting it anyway: '{}'", trimmed_value);
     return trimmed_value;
 }
+
+// Helper functions for individual data types
+
+std::optional<std::string> parse_string(const std::string& value)
+{
+    return extract_quoted_value(value).value_or(value);
+}
+
+std::optional<uint32_t> parse_color(const std::string& value)
+{
+    try {
+        return std::stoul(extract_quoted_value(value).value_or(value), nullptr, 16);
+    }
+    catch (const std::exception& e) {
+        xlog::debug("Failed to parse color value: {}. Error: {}", value, e.what());
+        return std::nullopt;
+    }
+}
+
+std::optional<float> parse_float(const std::string& value)
+{
+    try {
+        return std::stof(value);
+    }
+    catch (const std::exception& e) {
+        xlog::debug("Failed to parse float value: {}. Error: {}", value, e.what());
+        return std::nullopt;
+    }
+}
+
+std::optional<int> parse_int(const std::string& value)
+{
+    try {
+        return std::stoi(value);
+    }
+    catch (const std::exception& e) {
+        xlog::debug("Failed to parse int value: {}. Error: {}", value, e.what());
+        return std::nullopt;
+    }
+}
+
+std::optional<bool> parse_bool(const std::string& value)
+{
+    return (value == "1" || value == "true" || value == "True" || value == "TRUE");
+}
+
+std::unique_ptr<rf::File> dashoptions_file;
 
 void open_url(const std::string& url)
 {
@@ -410,27 +452,28 @@ void set_option(DashOptionID option_id, std::optional<T>& option_field, const st
 {
     try {
         if constexpr (std::is_same_v<T, std::string>) {
-            option_field = extract_quoted_value(option_value).value_or(option_value);
+            option_field = parse_string(option_value);
         }
         else if constexpr (std::is_same_v<T, uint32_t>) {
-            // hex color values
-            option_field = std::stoul(extract_quoted_value(option_value).value_or(option_value), nullptr, 16);
+            option_field = parse_color(option_value);
         }
         else if constexpr (std::is_same_v<T, float>) {
-            option_field = std::stof(option_value);
+            option_field = parse_float(option_value);
         }
         else if constexpr (std::is_same_v<T, int>) {
-            option_field = std::stoi(option_value);
+            option_field = parse_int(option_value);
         }
         else if constexpr (std::is_same_v<T, bool>) {
-            // accept every reasonable representation of "true" for a boolean
-            option_field =
-                (option_value == "1" || option_value == "true" || option_value == "True" || option_value == "TRUE");
+            option_field = parse_bool(option_value);
         }
 
-        // mark option as loaded
-        mark_option_loaded(option_id);
-        xlog::debug("Parsed value has been saved: {}", option_field.value());
+        if (option_field.has_value()) {
+            mark_option_loaded(option_id);
+            xlog::debug("Parsed value has been saved: {}", option_field.value());
+        }
+        else {
+            xlog::debug("Parsing failed or value was invalid: {}", option_value);
+        }
     }
     catch (const std::exception& e) {
         xlog::debug("Failed to parse value for option: {}. Error: {}", option_value, e.what());
@@ -633,17 +676,16 @@ void parse()
     }
 }
 
-void load_dashoptions_config()
-{
-    xlog::debug("Mod launched, attempting to load Dash Options configuration");
+    void load_dashoptions_config()
+    {
+        xlog::debug("Mod launched, attempting to load Dash Options configuration");
 
-    if (!open_file("dashoptions.tbl")) {
-        return;
+        if (!open_file("dashoptions.tbl")) {
+            return;
+        }
+
+        parse();
+        close_file();
+
+        rf::console::print("Dash Options configuration loaded");
     }
-
-    parse();
-    close_file();
-
-    rf::console::print("Dash Options configuration loaded");
-}
-}

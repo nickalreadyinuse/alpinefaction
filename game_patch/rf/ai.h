@@ -222,6 +222,7 @@ namespace rf
 
     static auto& ai_get_attack_range = addr_as_ref<float(AiInfo& ai)>(0x004077A0);
     static auto& ai_has_weapon = addr_as_ref<bool(AiInfo *ai_info, int weapon_type)>(0x00403250);
+    static auto& ai_add_weapon = addr_as_ref<void(AiInfo *ai_info, int weapon_type, int clip_count)>(0x004030D0);
 
     static auto& ai_pause = addr_as_ref<bool>(0x005AF46D);
 }

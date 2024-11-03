@@ -124,10 +124,19 @@ bool multi_is_selecting_weapon(rf::Player* pp)
     return done_timestamp.valid() && !done_timestamp.elapsed();
 }
 
+void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type)
+{
+    rf::player_make_weapon_current_selection(pp, weapon_type);
+    ep->ai.current_primary_weapon = weapon_type;
+    select_weapon_done_timestamp[pp->net_data->player_id].set(300);
+}
+
 FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hook{
     0x004858D0,
     [](rf::Player *pp, rf::Entity *ep, int weapon_type) {
-        if (weapon_type == -1 || ep->ai.current_primary_weapon == weapon_type) {
+        if (weapon_type == -1
+            || g_additional_server_config.gungame.enabled
+            || ep->ai.current_primary_weapon == weapon_type) {
             // Nothing to do
             return;
         }

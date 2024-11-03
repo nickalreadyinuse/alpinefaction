@@ -3,7 +3,13 @@
 #include <array>
 #include <optional>
 #include <string>
+#include <algorithm>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <unordered_map>
 #include <type_traits>
+#include <xlog/xlog.h>
 
 enum class DashOptionID
 {
@@ -87,7 +93,11 @@ struct DashOptionsConfig
 
 extern DashOptionsConfig g_dash_options_config;
 
-namespace dashopt
-{
 void load_dashoptions_config();
-}
+std::string trim(const std::string& str);
+std::optional<std::string> extract_quoted_value(const std::string& value);
+std::optional<std::string> parse_string(const std::string& value);
+std::optional<uint32_t> parse_color(const std::string& value);
+std::optional<float> parse_float(const std::string& value);
+std::optional<int> parse_int(const std::string& value);
+std::optional<bool> parse_bool(const std::string& value);

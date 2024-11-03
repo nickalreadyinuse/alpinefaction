@@ -209,6 +209,9 @@ namespace rf
     static auto& multi_powerup_add = addr_as_ref<void(Player* pp, int powerup_type, int time_ms)>(0x00480050);
     static auto& multi_powerup_remove = addr_as_ref<void(Player* pp, int powerup_type)>(0x004801F0);
     static auto& multi_powerup_remove_all_for_player = addr_as_ref<void(Player* pp)>(0x00480310);
+    static auto& send_reload_packet =
+        addr_as_ref<void(Entity* ep, int weapon_type, int clip_ammo, int ammo)>(0x00485B50);
+
 
     static auto& netgame = addr_as_ref<NetGameInfo>(0x0064EC28);
     static auto& is_multi = addr_as_ref<bool>(0x0064ECB9);

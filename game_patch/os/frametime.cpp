@@ -65,7 +65,7 @@ void frametime_render_ui()
 }
 
 ConsoleCommand2 fps_counter_cmd{
-    "dbg_showfps",
+    "cl_showfps",
     []() {
         g_game_config.fps_counter = !g_game_config.fps_counter;
         g_game_config.save();
@@ -97,7 +97,7 @@ FunHook<void()> frametime_reset_hook{
 };
 
 ConsoleCommand2 max_fps_cmd{
-    "r_maxfps",
+    "maxfps",
     [](std::optional<int> limit_opt) {
         if (limit_opt) {
             int limit = std::clamp<int>(limit_opt.value(), GameConfig::min_fps_limit, GameConfig::max_fps_limit);

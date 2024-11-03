@@ -26,6 +26,7 @@
 #include "../rf/player/player.h"
 #include "../rf/gameseq.h"
 #include "../rf/misc.h"
+#include "../rf/ai.h"
 #include "../rf/multi.h"
 #include "../rf/item.h"
 #include "../rf/parse.h"
@@ -151,6 +152,16 @@ void load_additional_server_config(rf::Parser& parser)
         g_additional_server_config.ctf_flag_return_time_ms = {parser.parse_int()};
     }
 
+    if (parser.parse_optional("$DF GunGame:")) {
+        g_additional_server_config.gungame.enabled = parser.parse_bool();
+        while(parser.parse_optional("+Level:"))
+        {
+            int kill_level = parser.parse_int();
+            int weapon_level = parser.parse_int();
+            g_additional_server_config.gungame.levels.emplace_back(kill_level, weapon_level);
+        }
+    }
+
     if (parser.parse_optional("$DF Hitsounds:")) {
         g_additional_server_config.hit_sounds.enabled = parser.parse_bool();
         if (parser.parse_optional("+Sound ID:")) {
@@ -238,6 +249,9 @@ void load_additional_server_config(rf::Parser& parser)
 
     if (parser.parse_optional("$DF Weapon Items Give Full Ammo:")) {
         g_additional_server_config.weapon_items_give_full_ammo = parser.parse_bool();
+        if (parser.parse_optional("+Infinite Magazines:")) {
+            g_additional_server_config.weapon_infinite_magazines = parser.parse_bool();
+        }
     }
 
     if (parser.parse_optional("$DF Default Player Weapon:")) {
@@ -303,6 +317,7 @@ void load_additional_server_config(rf::Parser& parser)
     if (parser.parse_optional("$DF Dynamic Rotation:")) {
         g_additional_server_config.dynamic_rotation = parser.parse_bool();
     }
+
     if (parser.parse_optional("$DF Allow Fullbright Meshes:")) {
         g_additional_server_config.allow_fullbright_meshes = parser.parse_bool();
     }
@@ -434,6 +449,11 @@ CodeInjection dedicated_server_load_config_patch{
         // if dynamic rotation is on, shuffle rotation on server launch
         if (g_additional_server_config.dynamic_rotation) {
             shuffle_level_array();
+        }
+
+        // infinite reloads
+        if (g_additional_server_config.gungame.enabled || g_additional_server_config.weapon_infinite_magazines) {
+            AsmWriter{0x00425506}.nop(2);
         }
 
         // Insert server name in window title when hosting dedicated server
@@ -1176,6 +1196,10 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         multi_spawn_player_server_side_hook.call_target(player);
 
+        if (g_additional_server_config.gungame.enabled) {
+            multi_update_gungame_weapon(player);
+        }
+
         rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
         if (ep) {
             if (g_additional_server_config.spawn_life) {
@@ -1714,6 +1738,23 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
     }
 };
 
+void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_ammo)
+{
+    rf::WeaponInfo& winfo = rf::weapon_types[weapon_type];
+    int ammo_count = winfo.clip_size;
+    if (full_ammo) {
+        ammo_count = winfo.max_ammo + winfo.clip_size;
+    }
+    rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
+    rf::ai_add_weapon(&ep->ai, weapon_type, ammo_count);
+    //rf::entity_reload_current_primary(ep, false, false);
+    //multi_reload_weapon_server_side(player, weapon_type);
+    //todo, send a packet for reload
+    rf::send_reload_packet(ep, weapon_type, ep->ai.ammo[weapon_type], ep->ai.clip_ammo[weapon_type]);
+    
+    xlog::warn("gave player {} weapon {} with ammo {}", player->name, weapon_type, ammo_count);
+}
+
 void server_init()
 {
     // Override rcon command whitelist
@@ -1738,7 +1779,7 @@ void server_init()
     // Default player weapon class and ammo override
     find_default_weapon_for_entity_hook.install();
     give_default_weapon_ammo_hook.install();
-    spawn_player_sync_ammo_hook.install();
+    //spawn_player_sync_ammo_hook.install();
 
     init_server_commands();
 

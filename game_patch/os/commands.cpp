@@ -206,6 +206,7 @@ FunHook<void()> drop_entity_hook{0x00418740, []() { restrict_mp_command(drop_ent
 FunHook<void()> drop_item_hook{0x00458530, []() { restrict_mp_command(drop_item_hook); }};
 //FunHook<void()> pcollide_hook{0x004A0F60, []() { restrict_mp_command(pcollide_hook); }};
 FunHook<void()> teleport_hook{0x004A0FC0, []() { restrict_mp_command(teleport_hook); }};
+FunHook<void()> level_hardness_hook{0x004663E0, []() { restrict_mp_command(level_hardness_hook); }};
 
 void handle_camera_command(FunHook<void()>& hook)
 {
@@ -281,6 +282,7 @@ void console_commands_apply_patches()
     drop_item_hook.install();
     //pcollide_hook.install();
     teleport_hook.install();
+    level_hardness_hook.install();
 #endif
 }
 
@@ -316,6 +318,7 @@ void console_commands_init()
     register_builtin_command("sp_dropitem", "Spawn an item by class name", 0x00458530);
     // register_builtin_command("pcollide", "Toggle if player collides with the world", 0x004A0F60);
     register_builtin_command("sp_teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
+    register_builtin_command("sp_levelhardness", "Set default hardness for geomods", 0x004663E0);
 
 
 #ifdef DEBUG

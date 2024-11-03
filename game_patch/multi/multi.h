@@ -4,6 +4,7 @@
 #include <xlog/xlog.h>
 #include "server_internal.h"
 #include "../rf/player/player.h"
+#include "../rf/entity.h"
 #include "../rf/os/timer.h"
 
 struct PlayerStatsNew : rf::PlayerLevelStats
@@ -97,4 +98,5 @@ const std::optional<DashFactionServerInfo>& get_df_server_info();
 void multi_level_download_do_frame();
 void multi_level_download_abort();
 void multi_ban_apply_patch();
+void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
 std::optional<std::string> multi_ban_unban_last();

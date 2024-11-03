@@ -31,6 +31,12 @@ struct VoteConfig
     int time_limit_seconds = 60;
 };
 
+struct GunGameConfig
+{
+    bool enabled = false;
+    std::vector<std::pair<int, int>> levels;
+};
+
 struct HitSoundsConfig
 {
     bool enabled = true;
@@ -97,6 +103,7 @@ struct ServerAdditionalConfig
     std::optional<float> spawn_life;
     std::optional<float> spawn_armor;
     int ctf_flag_return_time_ms = 25000;
+    GunGameConfig gungame;
     HitSoundsConfig hit_sounds;
     CriticalHitsConfig critical_hits;
     WeaponStayExemptionConfig weapon_stay_exemptions;
@@ -119,6 +126,7 @@ struct ServerAdditionalConfig
     bool dynamic_rotation = false;
     std::string welcome_message;
     bool weapon_items_give_full_ammo = false;
+    bool weapon_infinite_magazines = false;
     float kill_reward_health = 0.0f;
     float kill_reward_armor = 0.0f;
     float kill_reward_effective_health = 0.0f;

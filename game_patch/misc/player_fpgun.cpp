@@ -3,6 +3,7 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
 #include <common/config/BuildConfig.h>
+#include "dashoptions.h"
 #include "../rf/player/player.h"
 #include "../rf/player/camera.h"
 #include "../rf/sound/sound.h"
