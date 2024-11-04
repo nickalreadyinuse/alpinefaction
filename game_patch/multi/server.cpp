@@ -154,6 +154,14 @@ void load_additional_server_config(rf::Parser& parser)
 
     if (parser.parse_optional("$DF GunGame:")) {
         g_additional_server_config.gungame.enabled = parser.parse_bool();
+        if (parser.parse_optional("+Dynamic Progression:")) {
+            g_additional_server_config.gungame.dynamic_progression = parser.parse_bool();
+        }
+        if (parser.parse_optional("+Final Level:")) {
+            int final_kill_level = parser.parse_int();
+            int final_weapon_level = parser.parse_int();
+            g_additional_server_config.gungame.final_level = std::make_pair(final_kill_level, final_weapon_level);
+        }
         while(parser.parse_optional("+Level:"))
         {
             int kill_level = parser.parse_int();

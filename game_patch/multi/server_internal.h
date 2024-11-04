@@ -34,6 +34,8 @@ struct VoteConfig
 struct GunGameConfig
 {
     bool enabled = false;
+    bool dynamic_progression = false;
+    std::optional<std::pair<int, int>> final_level;
     std::vector<std::pair<int, int>> levels;
 };
 

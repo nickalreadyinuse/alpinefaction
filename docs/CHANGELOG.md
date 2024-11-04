@@ -45,6 +45,7 @@ Version X
 - Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
 - Add support for loading a file named `dashoptions.tbl` from TC mod directory, allowing mod author to change some hardcoded values (feature WIP)
 - Lower minimum character count for console tab complete to 1
+- Add `$DF GunGame` option in dedicated server config
 
 
 

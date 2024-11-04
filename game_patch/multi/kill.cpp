@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <unordered_map>
 #include "multi.h"
+#include "../main/main.h"
 #include "server.h"
 #include "../os/console.h"
 #include "../rf/player/player.h"
@@ -29,30 +30,94 @@ public:
     void initialize_score_to_weapon_map()
     {
         score_to_weapon_map.clear();
-        //int score = 0;
-        for (const auto& [level, weapon_level] : g_additional_server_config.gungame.levels) {
-            score_to_weapon_map[level] = weapon_level;
-            //xlog::warn("{}, {}", level, weapon_level);
+
+         if (g_additional_server_config.gungame.dynamic_progression) {
+            auto levels = g_additional_server_config.gungame.levels; // Copy levels for shuffling
+            const int level_count = static_cast<int>(levels.size());
+
+            // Shuffle the weapon levels
+            std::shuffle(levels.begin(), levels.end(), g_rng);
+
+            // Use final level as ceiling for range if specified. Otherwise, use kill limit
+            int effective_kill_limit = g_additional_server_config.gungame.final_level
+                ? g_additional_server_config.gungame.final_level->first
+                : rf::multi_kill_limit;
+
+            xlog::warn("Initializing GunGame levels with Dynamic Progression. Levels count: {}, Kill Limit: {}",
+                level_count, effective_kill_limit);
+
+            int accumulated_kills = 0;
+            int remaining_kills = effective_kill_limit;
+            int remaining_levels = level_count;
+
+            for (const auto& [_, weapon_level] : levels) {
+                // Calculate the interval for this level based on remaining levels and remaining kills
+                int interval = remaining_kills / remaining_levels;
+
+                score_to_weapon_map[accumulated_kills] = weapon_level;
+                xlog::warn("Generated Level: Kill Level = {}, Weapon Level = {}", accumulated_kills, weapon_level);
+
+                // Accumulate kills for the next level
+                accumulated_kills += interval;
+
+                // Update remaining kills and levels for the next iteration
+                remaining_kills -= interval;
+                --remaining_levels;
+
+                // Stop if we have reached or exceeded the effective kill limit
+                if (accumulated_kills >= effective_kill_limit) {
+                    break;
+                }
+            }
+
+            // Add the final level if specified, ensuring it's the last level
+            if (g_additional_server_config.gungame.final_level) {
+                const auto& [final_kill_level, final_weapon_level] = *g_additional_server_config.gungame.final_level;
+                score_to_weapon_map[final_kill_level] = final_weapon_level;
+
+                xlog::warn("Final Level: Kill Level = {}, Weapon Level = {}", final_kill_level, final_weapon_level);
+            }
+        }
+        else {
+            xlog::warn("Initializing GunGame levels with Manual Progression.");
+
+            // Make sure the levels are ordered sequentially
+            std::sort(g_additional_server_config.gungame.levels.begin(),
+                      g_additional_server_config.gungame.levels.end(),
+                      [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+
+            // Build level array
+            for (const auto& [kill_level, weapon_level] : g_additional_server_config.gungame.levels) {
+                score_to_weapon_map[kill_level] = weapon_level;
+
+                xlog::warn("Manual Level: Kill Level = {}, Weapon Level = {}", kill_level, weapon_level); 
+            }
+
+            // Handle specified final level
+            if (g_additional_server_config.gungame.final_level) {
+                const auto& [final_kill_level, final_weapon_level] = *g_additional_server_config.gungame.final_level;
+                score_to_weapon_map[final_kill_level] = final_weapon_level;
+
+                xlog::warn("Final Level: Kill Level = {}, Weapon Level = {}", final_kill_level, final_weapon_level); 
+            }
         }
     }
 
     std::optional<int> get_weapon_for_score(int score) const
     {
+        // If score is negative, return the weapon at the lowest kill level (if any)
+        if (score < 0) {
+            return score_to_weapon_map.empty() ? std::nullopt : std::optional{score_to_weapon_map.begin()->second};
+        }
+
+        // Find the closest match for the score or the next higher score
         auto it = score_to_weapon_map.lower_bound(score);
 
-        // If there's an exact match or a lower bound that equals the score
+        // Return exact match or closest lower score, if any
         if (it != score_to_weapon_map.end() && it->first == score) {
-            return it->second;
+            return it->second; // Exact match
         }
-
-        // If no exact match, get the closest lower score
-        if (it != score_to_weapon_map.begin()) {
-            --it;
-            return it->second; // Return the closest lower weapon tier
-        }
-
-        // If no suitable score is found, return std::nullopt
-        return std::nullopt;
+        return (it != score_to_weapon_map.begin()) ? std::optional{std::prev(it)->second} : std::nullopt;
     }
 
 //private:
@@ -65,6 +130,11 @@ void gungame_weapon_notification(rf::Player* player)
 {    
     int current_score = player->stats->score;
     int weapon_type = *weapon_manager.get_weapon_for_score(current_score);
+
+    if (current_score < 0 || !weapon_type) {
+        return;
+    }
+
     auto next_it = weapon_manager.score_to_weapon_map.upper_bound(current_score);
     std::string msg;
 
@@ -75,14 +145,15 @@ void gungame_weapon_notification(rf::Player* player)
         std::string weapon_type_string = rf::weapon_types[weapon_type].display_name;
         std::string next_weapon_type_string = rf::weapon_types[next_weapon_type].display_name;
 
-        msg = std::format("Current weapon: {}. Upgrade to {} in {} more frags!", weapon_type_string,
-                          next_weapon_type_string, frags_needed);
+        msg = std::format("Current level: {}. Upgrade to {} in {} more frag{}!", weapon_type_string,
+                          next_weapon_type_string, frags_needed, frags_needed > 1 ? "s" : "");
     }
     else {
         int frags_needed_to_win = rf::multi_kill_limit - current_score;
 
         if (frags_needed_to_win > 0) {
-            msg = std::format("Get {} more frags to win the game!", frags_needed_to_win);
+            msg = std::format("Get {} more frag{} to win the game!", frags_needed_to_win,
+                              frags_needed_to_win > 1 ? "s" : "");
         }
     }
 
@@ -138,7 +209,9 @@ FunHook<void()> multi_level_init_hook{
         for (auto& player : player_list) {
             multi_kill_init_player(&player);
         }
-        if (g_additional_server_config.gungame.enabled) {
+        if ((g_additional_server_config.gungame.dynamic_progression || weapon_manager.score_to_weapon_map.empty()) &&
+            g_additional_server_config.gungame.enabled) {
+            // Build the map at the start of each level if it's dynamic. Otherwise, only when the first map loads
             weapon_manager.initialize_score_to_weapon_map();
         }
         multi_level_init_hook.call_target();
@@ -284,7 +357,7 @@ FunHook<void(rf::Entity*)> entity_on_death_hook{
 };
 
 ConsoleCommand2 kill_messages_cmd{
-    "mp_killfeed",
+    "kill_messages",
     []() {
         kill_messages = !kill_messages;
     },
