@@ -17,7 +17,7 @@ namespace rf
     struct AiInfo;
     struct Camera;
 
-    /* Settings */
+    /* Settings */   
 
     struct PlayerSettings
     {
@@ -174,4 +174,5 @@ namespace rf
     static auto& player_make_weapon_current_selection = addr_as_ref<void(Player *player, int weapon_type)>(0x004A4980);
     static auto& player_default_weapon = addr_as_ref<String>(0x007C7600);
     static auto& player_start_death_fade = addr_as_ref<void(Player *pp, float time_sec, void (*callback)(Player *))>(0x004A73E0);
+    static auto& get_player_entity_parent_vmesh = addr_as_ref<VMesh*(Player*)>(0x004A7830);
 }

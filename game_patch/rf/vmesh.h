@@ -5,7 +5,6 @@
 
 namespace rf
 {
-    struct VMesh;
     struct GRoom;
 
     enum VMeshType
@@ -15,6 +14,19 @@ namespace rf
         MESH_TYPE_CHARACTER = 2,
         MESH_TYPE_ANIM_FX = 3,
     };
+
+    struct VMesh
+    {
+        VMeshType type;
+        void* instance;
+        void* mesh;
+        char filename[65];
+        //uint8_t padding[3];             // 0x4D - 3 bytes of padding
+        void* replacement_materials;
+        char use_replacement_materials;
+        //uint8_t _padding[3];            // 0x55 - Padding bytes to align to size 0x58
+    };
+    static_assert(sizeof(VMesh) == 0x58);   
 
     struct VMeshCollisionInput
     {
@@ -90,4 +102,5 @@ namespace rf
     static auto& vmesh_update_lighting_data = addr_as_ref<int(VMesh *vmesh, GRoom *room, const Vector3 &pos, const Matrix3 &orient, void *mesh_lighting_data)>(0x00504000);
     static auto& vmesh_stop_all_actions = addr_as_ref<void(VMesh* vmesh)>(0x00503400);
     static auto& vmesh_get_materials_array = addr_as_ref<void(VMesh *vmesh, int *num_materials_out, MeshMaterial **materials_array_out)>(0x00503650);
+    static auto& vmesh_process = addr_as_ref<void(VMesh* vmesh, float frametime, int increment_only, Vector3* pos, Matrix3* orient, int lod_level)>(0x00503360);
 }

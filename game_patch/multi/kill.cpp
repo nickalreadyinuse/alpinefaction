@@ -43,19 +43,20 @@ public:
                 ? g_additional_server_config.gungame.final_level->first
                 : rf::multi_kill_limit;
 
-            xlog::warn("Initializing GunGame levels with Dynamic Progression. Levels count: {}, Kill Limit: {}",
+            xlog::warn("Initializing GunGame levels with Dynamic Progression. Levels count: {}, ceiling: {}",
                 level_count, effective_kill_limit);
 
             int accumulated_kills = 0;
             int remaining_kills = effective_kill_limit;
             int remaining_levels = level_count;
 
+            // Build level array dynamically
             for (const auto& [_, weapon_level] : levels) {
                 // Calculate the interval for this level based on remaining levels and remaining kills
                 int interval = remaining_kills / remaining_levels;
 
                 score_to_weapon_map[accumulated_kills] = weapon_level;
-                xlog::warn("Generated Level: Kill Level = {}, Weapon Level = {}", accumulated_kills, weapon_level);
+                xlog::warn("Kill Level = {}, Weapon = {}", accumulated_kills, weapon_level);
 
                 // Accumulate kills for the next level
                 accumulated_kills += interval;
@@ -68,15 +69,7 @@ public:
                 if (accumulated_kills >= effective_kill_limit) {
                     break;
                 }
-            }
-
-            // Add the final level if specified, ensuring it's the last level
-            if (g_additional_server_config.gungame.final_level) {
-                const auto& [final_kill_level, final_weapon_level] = *g_additional_server_config.gungame.final_level;
-                score_to_weapon_map[final_kill_level] = final_weapon_level;
-
-                xlog::warn("Final Level: Kill Level = {}, Weapon Level = {}", final_kill_level, final_weapon_level);
-            }
+            }            
         }
         else {
             xlog::warn("Initializing GunGame levels with Manual Progression.");
@@ -90,16 +83,16 @@ public:
             for (const auto& [kill_level, weapon_level] : g_additional_server_config.gungame.levels) {
                 score_to_weapon_map[kill_level] = weapon_level;
 
-                xlog::warn("Manual Level: Kill Level = {}, Weapon Level = {}", kill_level, weapon_level); 
-            }
+                xlog::warn("Kill Level = {}, Weapon = {}", kill_level, weapon_level); 
+            }            
+        }
 
-            // Handle specified final level
-            if (g_additional_server_config.gungame.final_level) {
-                const auto& [final_kill_level, final_weapon_level] = *g_additional_server_config.gungame.final_level;
-                score_to_weapon_map[final_kill_level] = final_weapon_level;
+        // Handle specified final level
+        if (g_additional_server_config.gungame.final_level) {
+            const auto& [final_kill_level, final_weapon_level] = *g_additional_server_config.gungame.final_level;
+            score_to_weapon_map[final_kill_level] = final_weapon_level;
 
-                xlog::warn("Final Level: Kill Level = {}, Weapon Level = {}", final_kill_level, final_weapon_level); 
-            }
+            xlog::warn("Final Level: Kill Level = {}, Weapon = {}", final_kill_level, final_weapon_level);
         }
     }
 
@@ -208,13 +201,13 @@ FunHook<void()> multi_level_init_hook{
         auto player_list = SinglyLinkedList{rf::player_list};
         for (auto& player : player_list) {
             multi_kill_init_player(&player);
-        }
+        }        
+        multi_level_init_hook.call_target();
         if ((g_additional_server_config.gungame.dynamic_progression || weapon_manager.score_to_weapon_map.empty()) &&
             g_additional_server_config.gungame.enabled) {
             // Build the map at the start of each level if it's dynamic. Otherwise, only when the first map loads
             weapon_manager.initialize_score_to_weapon_map();
         }
-        multi_level_init_hook.call_target();
     },
 };
 

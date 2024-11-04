@@ -46,6 +46,7 @@ Version X
 - Add support for loading a file named `dashoptions.tbl` from TC mod directory, allowing mod author to change some hardcoded values (feature WIP)
 - Lower minimum character count for console tab complete to 1
 - Add `$DF GunGame` option in dedicated server config
+- Fixed jeep cockpit mesh not being rendered for any jeeps entered after the first in a level
 
 
 
