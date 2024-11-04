@@ -950,7 +950,8 @@ std::set<rf::Player*> get_current_player_list(bool include_browsers)
     auto linked_player_list = SinglyLinkedList{rf::player_list};
 
     for (auto& player : linked_player_list) {
-        if (include_browsers || !get_player_additional_data(&player).is_browser) {
+        if (include_browsers ||
+            !(get_player_additional_data(&player).is_browser || ends_with(player.name, " (Bot)"))) {
             player_list.insert(&player);
         }
     }
@@ -1197,8 +1198,8 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         multi_spawn_player_server_side_hook.call_target(player);
 
-        if (g_additional_server_config.gungame.enabled) {
-            multi_update_gungame_weapon(player);            
+        if (g_additional_server_config.gungame.enabled && player) {
+            multi_update_gungame_weapon(player, true);            
         }
 
         rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
@@ -1777,7 +1778,7 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
     //ep->ammo
     
     
-    xlog::warn("gave player {} weapon {} with ammo {}", player->name, weapon_type, ammo_count);
+    //xlog::warn("gave player {} weapon {} with ammo {}", player->name, weapon_type, ammo_count);
 }
 
 void server_init()

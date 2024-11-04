@@ -18,7 +18,7 @@
 
 bool ends_with(const rf::String& str, const std::string& suffix)
 {
-    std::string name_str = str.c_str(); // Assuming rf::String has a c_str() method
+    std::string name_str = str.c_str();
     if (name_str.length() >= suffix.length()) {
         return (name_str.compare(name_str.length() - suffix.length(), suffix.length(), suffix) == 0);
     }
@@ -51,22 +51,18 @@ private:
 public:
     virtual ~Vote() = default;
 
-    virtual VoteType get_type() const = 0;
+    virtual VoteType get_type() const = 0;    
 
     bool start(std::string_view arg, rf::Player* source)
     {
         if (!process_vote_arg(arg, source)) {
             return false;
         }
-
         owner = source;
-
         send_vote_starting_msg(source);
 
         start_time = std::time(nullptr);
 
-            if (&player != source && !get_player_additional_data(&player).is_browser) &&
-                !ends_with(player.name, " (Bot)")) {
         players_who_voted.insert({source, true});
 
         return check_for_early_vote_finish();

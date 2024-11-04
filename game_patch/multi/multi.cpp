@@ -134,10 +134,12 @@ void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type)
 FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hook{
     0x004858D0,
     [](rf::Player *pp, rf::Entity *ep, int weapon_type) {
-        if (weapon_type == -1
-            || g_additional_server_config.gungame.enabled
-            || ep->ai.current_primary_weapon == weapon_type) {
+        if (weapon_type == -1 || ep->ai.current_primary_weapon == weapon_type) {
             // Nothing to do
+            return;
+        }
+        if (g_additional_server_config.gungame.enabled) {
+            //send_chat_line_packet("Weapon switch denied. In GunGame, you get new weapons by getting frags.", pp);
             return;
         }
         bool has_weapon;

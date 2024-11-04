@@ -29,28 +29,68 @@ public:
     void initialize_score_to_weapon_map()
     {
         score_to_weapon_map.clear();
-        int score = 0;
+        //int score = 0;
         for (const auto& [level, weapon_level] : g_additional_server_config.gungame.levels) {
-            score_to_weapon_map[score++] = weapon_level;
-            xlog::warn("{}, {}", score, weapon_level);
+            score_to_weapon_map[level] = weapon_level;
+            //xlog::warn("{}, {}", level, weapon_level);
         }
     }
 
     std::optional<int> get_weapon_for_score(int score) const
     {
-        if (auto it = score_to_weapon_map.find(score); it != score_to_weapon_map.end()) {
+        auto it = score_to_weapon_map.lower_bound(score);
+
+        // If there's an exact match or a lower bound that equals the score
+        if (it != score_to_weapon_map.end() && it->first == score) {
             return it->second;
         }
+
+        // If no exact match, get the closest lower score
+        if (it != score_to_weapon_map.begin()) {
+            --it;
+            return it->second; // Return the closest lower weapon tier
+        }
+
+        // If no suitable score is found, return std::nullopt
         return std::nullopt;
     }
 
-private:
-    std::unordered_map<int, int> score_to_weapon_map;
+//private:
+    std::map<int, int> score_to_weapon_map;
 };
 
 GunGameWeaponManager weapon_manager;
 
-void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity, const GunGameWeaponManager& weapon_manager)
+void gungame_weapon_notification(rf::Player* player)
+{    
+    int current_score = player->stats->score;
+    int weapon_type = *weapon_manager.get_weapon_for_score(current_score);
+    auto next_it = weapon_manager.score_to_weapon_map.upper_bound(current_score);
+    std::string msg;
+
+    if (next_it != weapon_manager.score_to_weapon_map.end()) {
+        int next_score = next_it->first;
+        int next_weapon_type = next_it->second;
+        int frags_needed = next_score - current_score;
+        std::string weapon_type_string = rf::weapon_types[weapon_type].display_name;
+        std::string next_weapon_type_string = rf::weapon_types[next_weapon_type].display_name;
+
+        msg = std::format("Current weapon: {}. Upgrade to {} in {} more frags!", weapon_type_string,
+                          next_weapon_type_string, frags_needed);
+    }
+    else {
+        int frags_needed_to_win = rf::multi_kill_limit - current_score;
+
+        if (frags_needed_to_win > 0) {
+            msg = std::format("Get {} more frags to win the game!", frags_needed_to_win);
+        }
+    }
+
+    send_chat_line_packet(msg.c_str(), player);
+}
+
+void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
+    const GunGameWeaponManager& weapon_manager, bool just_spawned)
 {
     if (!player || !entity) {
         xlog::error("Invalid player or entity passed to handle_gungame_weapon_switch.");
@@ -60,26 +100,29 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity, const 
     //auto* stats = static_cast<PlayerStatsNew*>(player->stats);
     //int current_score = stats->score;
     int current_score = player->stats->score;
-    xlog::warn("Score for {} is {} {}", player->name, player->stats->score, current_score);
+    //xlog::warn("Score for {} is {} {}", player->name, player->stats->score, current_score);
+    //bool weapon_change = false;
 
-    // Get the weapon type based on the player's score
     if (auto weapon_type_opt = weapon_manager.get_weapon_for_score(current_score); weapon_type_opt) {
         int weapon_type = *weapon_type_opt;
+
+        if (just_spawned || weapon_type != entity->ai.current_primary_weapon) {
+            gungame_weapon_notification(player);
+        }
 
         // Switch the player's weapon to the new type
         server_add_player_weapon(player, weapon_type, true);
         server_set_player_weapon(player, entity, weapon_type);
-        xlog::warn("GunGame: Player '{}' reached score {}. Setting weapon to type {}.", player->name, current_score,
-                   weapon_type);
+        // xlog::warn("GunGame: Player '{}' reached score {}. Setting weapon to type {}.", player->name,
+        // current_score, weapon_type);        
     }
     else {
-        xlog::info("GunGame: No weapon assigned for score {}. Player '{}' retains current weapon.", current_score,
-                   player->name);
+        xlog::info("GunGame: No weapon assigned for score {}. Player '{}' retains current weapon.", current_score, player->name);
     }
 }
 
-void multi_update_gungame_weapon(rf::Player* player) {
-    handle_gungame_weapon_switch(player, rf::entity_from_handle(player->entity_handle), weapon_manager);
+void multi_update_gungame_weapon(rf::Player* player, bool just_spawned) {
+    handle_gungame_weapon_switch(player, rf::entity_from_handle(player->entity_handle), weapon_manager, just_spawned);
 }
 
 void multi_kill_init_player(rf::Player* player)
@@ -220,10 +263,12 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
         multi_apply_kill_reward(killer_player);
 
         multi_spectate_on_player_kill(killed_player, killer_player);
+
+        if (g_additional_server_config.gungame.enabled) {
+            multi_update_gungame_weapon(killer_player, false);
+        }
     }
-    if (g_additional_server_config.gungame.enabled) {
-        multi_update_gungame_weapon(killer_player);
-    }
+    
     
 }
 

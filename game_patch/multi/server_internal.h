@@ -195,4 +195,5 @@ void load_prev_level();
 void server_vote_on_player_leave(rf::Player* player);
 void server_vote_on_limbo_state_enter();
 void process_delayed_kicks();
+bool ends_with(const rf::String& str, const std::string& suffix);
 const ServerAdditionalConfig& server_get_df_config();

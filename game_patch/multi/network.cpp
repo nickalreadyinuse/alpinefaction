@@ -1034,7 +1034,7 @@ FunHook<void(rf::Player*)> send_players_packet_hook{
 FunHook<void(rf::Entity*, int, int, int)> send_reload_packet_hook{
     0x00485B50, [](rf::Entity* ep, int weapon_type, int clip_ammo, int ammo) {
         // Log the clip_ammo and ammo values
-        xlog::warn("Sending a reload packet for {} with weapon {}, clip_ammo: {}, ammo: {}", ep->name, weapon_type, clip_ammo, ammo);
+        //xlog::warn("Sending a reload packet for {} with weapon {}, clip_ammo: {}, ammo: {}", ep->name, weapon_type, clip_ammo, ammo);
 
         // Call the original function
         send_reload_packet_hook.call_target(ep, weapon_type, clip_ammo, ammo);
