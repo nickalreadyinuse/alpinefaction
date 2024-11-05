@@ -31,41 +31,58 @@ public:
     {
         score_to_weapon_map.clear();
 
-         if (g_additional_server_config.gungame.dynamic_progression) {
-            auto levels = g_additional_server_config.gungame.levels; // Copy levels for shuffling
-            const int level_count = static_cast<int>(levels.size());
+        if (g_additional_server_config.gungame.dynamic_progression) {
+            // Create a map to group weapon levels by tiers (kill_level)
+            std::map<int, std::vector<int>> tiered_levels;
+            for (const auto& [tier, weapon_level] : g_additional_server_config.gungame.levels) {
+                tiered_levels[tier].emplace_back(weapon_level);
+            }
 
-            // Shuffle the weapon levels
-            std::shuffle(levels.begin(), levels.end(), g_rng);
-
-            // Use final level as ceiling for range if specified. Otherwise, use kill limit
             int effective_kill_limit = g_additional_server_config.gungame.final_level
-                ? g_additional_server_config.gungame.final_level->first
-                : rf::multi_kill_limit;
+                                           ? g_additional_server_config.gungame.final_level->first
+                                           : rf::multi_kill_limit;
 
-            xlog::warn("Initializing GunGame levels with Dynamic Progression. Levels count: {}, ceiling: {}",
-                level_count, effective_kill_limit);
+            xlog::warn("Initializing GunGame levels with Dynamic Progression. Tiers: {}, Kill Limit: {}",
+                       tiered_levels.size(), effective_kill_limit);
+
+            // Calculate the total number of weapons
+            int total_weapons = 0;
+            for (const auto& [_, weapons] : tiered_levels) {
+                total_weapons += static_cast<int>(weapons.size());
+            }
 
             int accumulated_kills = 0;
             int remaining_kills = effective_kill_limit;
-            int remaining_levels = level_count;
+            int total_tiers = static_cast<int>(tiered_levels.size());
 
-            // Build level array dynamically
-            for (const auto& [_, weapon_level] : levels) {
-                // Calculate the interval for this level based on remaining levels and remaining kills
-                int interval = remaining_kills / remaining_levels;
+            // Iterate over each tier, shuffle within each tier, and assign weapons proportionally to kill levels
+            for (auto& [tier, weapons] : tiered_levels) {
+                std::shuffle(weapons.begin(), weapons.end(), g_rng);
 
-                score_to_weapon_map[accumulated_kills] = weapon_level;
-                xlog::warn("Kill Level = {}, Weapon = {}", accumulated_kills, weapon_level);
+                // Calculate the proportional range for this tier
+                int tier_kills = (remaining_kills * weapons.size()) / total_weapons;
 
-                // Accumulate kills for the next level
-                accumulated_kills += interval;
+                // Adjust the interval based on the weapons in this tier
+                int weapon_interval = (tier_kills > 0) ? (tier_kills / weapons.size()) : 1;
 
-                // Update remaining kills and levels for the next iteration
-                remaining_kills -= interval;
-                --remaining_levels;
+                for (int weapon_level : weapons) {
+                    // Assign weapon to the current kill level and increment
+                    score_to_weapon_map[accumulated_kills] = weapon_level;
+                    xlog::warn("Tier {}, Kill Level = {}, Weapon = {}", tier, accumulated_kills, weapon_level);
 
-                // Stop if we have reached or exceeded the effective kill limit
+                    // Accumulate kills, but stop at effective_kill_limit
+                    accumulated_kills += weapon_interval;
+                    accumulated_kills = std::min(accumulated_kills, effective_kill_limit);
+
+                    // If we've hit the kill limit, stop distributing
+                    if (accumulated_kills >= effective_kill_limit)
+                        break;
+                }
+
+                // Update remaining kills and tiers
+                remaining_kills = effective_kill_limit - accumulated_kills;
+                total_weapons -= weapons.size();
+
                 if (accumulated_kills >= effective_kill_limit) {
                     break;
                 }
