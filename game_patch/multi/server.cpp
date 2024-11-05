@@ -459,6 +459,11 @@ CodeInjection dedicated_server_load_config_patch{
             shuffle_level_array();
         }
 
+        // no weapon drops on player death
+        if (g_additional_server_config.gungame.enabled) {
+            AsmWriter(0x0042B0D3).jmp(0x0042B2BC);
+        }
+
         // infinite reloads
         if (g_additional_server_config.gungame.enabled || g_additional_server_config.weapon_infinite_magazines) {
             AsmWriter{0x00425506}.nop(2);
