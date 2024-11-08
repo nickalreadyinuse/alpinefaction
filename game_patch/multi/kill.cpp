@@ -19,6 +19,9 @@ bool kill_messages = true;
 
 void player_fpgun_on_player_death(rf::Player* pp);
 
+std::unordered_map<rf::Player*, bool> final_level_notified;
+std::unordered_map<rf::Player*, bool> level_completed_while_alive;
+
 class GunGameWeaponManager
 {
 public:
@@ -68,7 +71,7 @@ public:
                 for (int weapon_level : weapons) {
                     // Assign weapon to the current kill level and increment
                     score_to_weapon_map[accumulated_kills] = weapon_level;
-                    xlog::warn("Tier {}, Kill Level = {}, Weapon = {}", tier, accumulated_kills, weapon_level);
+                    xlog::info("Tier {}, Kill Level = {}, Weapon = {}", tier, accumulated_kills, weapon_level);
 
                     // Accumulate kills, but stop at effective_kill_limit
                     accumulated_kills += weapon_interval;
@@ -100,7 +103,7 @@ public:
             for (const auto& [kill_level, weapon_level] : g_additional_server_config.gungame.levels) {
                 score_to_weapon_map[kill_level] = weapon_level;
 
-                xlog::warn("Kill Level = {}, Weapon = {}", kill_level, weapon_level); 
+                xlog::info("Kill Level = {}, Weapon = {}", kill_level, weapon_level); 
             }            
         }
 
@@ -109,7 +112,7 @@ public:
             const auto& [final_kill_level, final_weapon_level] = *g_additional_server_config.gungame.final_level;
             score_to_weapon_map[final_kill_level] = final_weapon_level;
 
-            xlog::warn("Final Level: Kill Level = {}, Weapon = {}", final_kill_level, final_weapon_level);
+            xlog::info("Final Level: Kill Level = {}, Weapon = {}", final_kill_level, final_weapon_level);
         }
     }
 
@@ -136,7 +139,13 @@ public:
 
 GunGameWeaponManager weapon_manager;
 
-void gungame_weapon_notification(rf::Player* player)
+void reset_gungame_notifications()
+{
+    final_level_notified.clear();
+    level_completed_while_alive.clear();
+}
+
+void gungame_weapon_notification(rf::Player* player, bool just_spawned)
 {    
     int current_score = player->stats->score;
     int weapon_type = *weapon_manager.get_weapon_for_score(current_score);
@@ -155,19 +164,45 @@ void gungame_weapon_notification(rf::Player* player)
         std::string weapon_type_string = rf::weapon_types[weapon_type].display_name;
         std::string next_weapon_type_string = rf::weapon_types[next_weapon_type].display_name;
 
-        msg = std::format("Current level: {}. Upgrade to {} in {} more frag{}!", weapon_type_string,
-                          next_weapon_type_string, frags_needed, frags_needed > 1 ? "s" : "");
+        if (just_spawned) {
+            msg = std::format("Current weapon: {}. Upgrade to {} in {} frag{}!",
+                weapon_type_string, next_weapon_type_string, frags_needed, frags_needed > 1 ? "s" : "");
+        }
+        else {
+            std::vector<std::string> prefixes = {
+                "Great work",
+                "Nice job",
+                "Nice work",
+                "Awesome",
+                "Congrats",
+                "Whoa",
+                "Nice",
+                "Fantastic",
+                "Frag-o-licious",
+                "Cha-ching",
+                "Sweet",
+                "Wonderful"
+            };
+            std::uniform_int_distribution<int> dist(0, static_cast<int>(prefixes.size()) - 1);
+            std::string prefix = prefixes[dist(g_rng)];
+
+            msg = std::format("{}! Upgrade to {} in {} frag{}!",
+                prefix, next_weapon_type_string, frags_needed, frags_needed > 1 ? "s" : "");
+        }        
+
+        send_chat_line_packet(msg.c_str(), player);
     }
-    else {
+    else if (!final_level_notified[player]) { // only notify on last level once per round for each player
         int frags_needed_to_win = rf::multi_kill_limit - current_score;
 
         if (frags_needed_to_win > 0) {
-            msg = std::format("Get {} more frag{} to win the game!", frags_needed_to_win,
+            msg = std::format("{} only needs {} more frag{} to win the game!", player->name, frags_needed_to_win,
                               frags_needed_to_win > 1 ? "s" : "");
-        }
-    }
 
-    send_chat_line_packet(msg.c_str(), player);
+            send_chat_line_packet(msg.c_str(), nullptr);
+            final_level_notified[player] = true;
+        }
+    }    
 }
 
 void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
@@ -187,8 +222,65 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
     if (auto weapon_type_opt = weapon_manager.get_weapon_for_score(current_score); weapon_type_opt) {
         int weapon_type = *weapon_type_opt;
 
-        if (just_spawned || weapon_type != entity->ai.current_primary_weapon) {
-            gungame_weapon_notification(player);
+        if (just_spawned ||
+            (weapon_type != entity->ai.current_primary_weapon &&
+                !((entity->ai.current_primary_weapon == 0 || entity->ai.current_primary_weapon == 1) &&
+                    (weapon_type == 0 || weapon_type == 1)))) {
+
+            gungame_weapon_notification(player, just_spawned);
+
+            if (!just_spawned) {
+                // give a reward if they finished the whole level in a single life
+                if (g_additional_server_config.gungame.rampage_rewards && level_completed_while_alive[player]) {
+                    std::vector<std::string> prefixes = {
+                    "RAMPAGE",
+                    "UNSTOPPABLE",
+                    "HOLY SHIT",
+                    "KILLING SPREE",
+                    "SQUEEGEE TIME"
+                    "DOMINATION"
+                    };
+
+                    std::uniform_int_distribution<int> dist(0, static_cast<int>(prefixes.size()) - 1);
+                    std::string prefix = prefixes[dist(g_rng)];
+
+                    std::uniform_int_distribution<int> powerup_dist(0, 3);
+                    int random_powerup = powerup_dist(g_rng);
+
+                    int random_powerup_duration = 0;
+                    std::string msg;                    
+
+                    if (random_powerup <= 1) {
+
+                        int max_duration = (random_powerup == 0) ? 10 : 20; // invuln max 10, amp max 20
+
+                        std::uniform_int_distribution<int> duration_dist(3, max_duration);
+                        random_powerup_duration = duration_dist(g_rng);
+
+                        msg = std::format("{}!!! Your reward is {} for {} seconds!",
+                            prefix, (random_powerup ? "DAMAGE AMP" : "INVULNERABILITY"), random_powerup_duration);
+
+                        int amp_time_to_add =
+                            rf::multi_powerup_get_time_until(player, random_powerup) + (random_powerup_duration * 1000);
+                        rf::multi_powerup_add(player, random_powerup, amp_time_to_add);
+                    }
+                    else {
+                        msg = std::format("{}!!! Your reward is SUPER {}!",
+                            prefix, random_powerup == 2 ? "ARMOUR" : "HEALTH");
+                        rf::multi_powerup_add(player, random_powerup, 10000);
+                    }
+                    level_completed_while_alive[player] = false; // reset rewards after granting one
+                    send_chat_line_packet(msg.c_str(), player);
+                    send_sound_packet_throwaway(player, 35); // Jolt_05.wav
+                }                
+            }
+
+            if (current_score == 0) {
+                level_completed_while_alive[player] = true;
+            }
+            else {
+                level_completed_while_alive[player] = !just_spawned;
+            }
         }
 
         // Switch the player's weapon to the new type
@@ -206,6 +298,12 @@ void multi_update_gungame_weapon(rf::Player* player, bool just_spawned) {
     handle_gungame_weapon_switch(player, rf::entity_from_handle(player->entity_handle), weapon_manager, just_spawned);
 }
 
+void gungame_on_player_spawn(rf::Player* player)
+{
+    multi_update_gungame_weapon(player, true);
+    //level_completed_while_alive[player] = false;
+}
+
 void multi_kill_init_player(rf::Player* player)
 {
     auto* stats = static_cast<PlayerStatsNew*>(player->stats);
@@ -218,12 +316,17 @@ FunHook<void()> multi_level_init_hook{
         auto player_list = SinglyLinkedList{rf::player_list};
         for (auto& player : player_list) {
             multi_kill_init_player(&player);
-        }        
+        }
+
         multi_level_init_hook.call_target();
-        if ((g_additional_server_config.gungame.dynamic_progression || weapon_manager.score_to_weapon_map.empty()) &&
-            g_additional_server_config.gungame.enabled) {
-            // Build the map at the start of each level if it's dynamic. Otherwise, only when the first map loads
-            weapon_manager.initialize_score_to_weapon_map();
+
+        if (g_additional_server_config.gungame.enabled)
+        {
+            reset_gungame_notifications();
+            if (g_additional_server_config.gungame.dynamic_progression || weapon_manager.score_to_weapon_map.empty()) {
+                // Build the map at the start of each level if it's dynamic. Otherwise, only when the first map loads
+                weapon_manager.initialize_score_to_weapon_map();
+            }
         }
     },
 };
@@ -331,13 +434,13 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
     }
 
     auto* killed_stats = static_cast<PlayerStatsNew*>(killed_player->stats);
-    killed_stats->inc_deaths();    
+    killed_stats->inc_deaths();
 
     if (killer_player) {
         auto* killer_stats = static_cast<PlayerStatsNew*>(killer_player->stats);
         if (killer_player != killed_player) {
             rf::player_add_score(killer_player, 1);
-            killer_stats->inc_kills();
+            killer_stats->inc_kills();            
         }
         else {
             rf::player_add_score(killer_player, -1);
@@ -347,7 +450,7 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
 
         multi_spectate_on_player_kill(killed_player, killer_player);
 
-        if (g_additional_server_config.gungame.enabled) {
+        if (g_additional_server_config.gungame.enabled && killer_player != killed_player) {
             multi_update_gungame_weapon(killer_player, false);
         }
     }

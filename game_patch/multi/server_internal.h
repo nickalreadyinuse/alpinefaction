@@ -35,6 +35,7 @@ struct GunGameConfig
 {
     bool enabled = false;
     bool dynamic_progression = false;
+    bool rampage_rewards = false;
     std::optional<std::pair<int, int>> final_level;
     std::vector<std::pair<int, int>> levels;
 };
@@ -102,6 +103,7 @@ struct ServerAdditionalConfig
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
     int spawn_protection_duration_ms = 1500;
+    int desired_player_count = 32;
     std::optional<float> spawn_life;
     std::optional<float> spawn_armor;
     int ctf_flag_return_time_ms = 25000;

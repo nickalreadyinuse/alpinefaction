@@ -16,6 +16,8 @@
 #include "server_internal.h"
 #include "multi.h"
 
+MatchInfo g_match_info;
+
 bool ends_with(const rf::String& str, const std::string& suffix)
 {
     std::string name_str = str.c_str();
@@ -24,7 +26,6 @@ bool ends_with(const rf::String& str, const std::string& suffix)
     }
     return false;
 }
-MatchInfo g_match_info;
 
 enum class VoteType
 {    

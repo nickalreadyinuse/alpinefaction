@@ -140,6 +140,10 @@ void load_additional_server_config(rf::Parser& parser)
         g_additional_server_config.spawn_protection_duration_ms = parser.parse_uint();
     }
 
+    if (parser.parse_optional("$DF Desired Player Count:")) {
+        g_additional_server_config.desired_player_count = parser.parse_int();
+    }
+
     if (parser.parse_optional("$DF Spawn Health:")) {
         g_additional_server_config.spawn_life = {parser.parse_float()};
     }
@@ -156,6 +160,9 @@ void load_additional_server_config(rf::Parser& parser)
         g_additional_server_config.gungame.enabled = parser.parse_bool();
         if (parser.parse_optional("+Dynamic Progression:")) {
             g_additional_server_config.gungame.dynamic_progression = parser.parse_bool();
+        }
+        if (parser.parse_optional("+Rampage Rewards:")) {
+            g_additional_server_config.gungame.rampage_rewards = parser.parse_bool();
         }
         if (parser.parse_optional("+Final Level:")) {
             int final_kill_level = parser.parse_int();
@@ -724,6 +731,18 @@ CodeInjection detect_browser_player_patch{
     },
 };
 
+void send_sound_packet_throwaway(rf::Player* target, int sound_id)
+{
+    // Send sound packet
+    RF_SoundPacket packet;
+    packet.header.type = RF_GPT_SOUND;
+    packet.header.size = sizeof(packet) - sizeof(packet.header);
+    packet.sound_id = sound_id;
+    // FIXME: it does not work on RF 1.21
+    packet.pos.x = packet.pos.y = packet.pos.z = std::numeric_limits<float>::quiet_NaN();
+    rf::multi_io_send(target, &packet, sizeof(packet));
+}
+
 void send_sound_packet(rf::Player* target, int& last_sent_time, int rate_limit, int sound_id)
 {
     // Rate limiting - max `rate_limit` times per second
@@ -1195,6 +1214,29 @@ std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_inp
     return {is_valid, level_name};
 }
 
+// count players who are not bots or browsers
+int count_real_players()
+{
+    auto player_list = SinglyLinkedList{rf::player_list};
+    const std::string bot_suffix = " (Bot)";
+
+    return std::count_if(player_list.begin(), player_list.end(), [&](rf::Player& player) {
+        rf::Entity* entity = rf::entity_from_handle(player.entity_handle);
+        return entity && !get_player_additional_data(&player).is_browser && !ends_with(player.name, bot_suffix);
+    });
+}
+
+// Function to count total spawned players (including bots and humans)
+int count_spawned_players()
+{
+    auto player_list = SinglyLinkedList{rf::player_list};
+
+    return std::count_if(player_list.begin(), player_list.end(), [](rf::Player& player) {
+        rf::Entity* entity = rf::entity_from_handle(player.entity_handle);
+        return entity != nullptr;
+    });
+}
+
 FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
     0x00480820,
     [](rf::Player* player) {
@@ -1208,11 +1250,20 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             send_chat_line_packet("You cannot spawn because a match is in progress. Please feel free to spectate.", player);
             return;
         }
+        if (g_additional_server_config.desired_player_count < 32 &&
+            ends_with(player->name, " (Bot)") &&
+            count_spawned_players() >= g_additional_server_config.desired_player_count) {
+            std::string msg = std::format("You're a bot and you can't spawn right now.");
+
+            send_chat_line_packet(msg.c_str(), player);
+            return;
+        }
 
         multi_spawn_player_server_side_hook.call_target(player);
 
         if (g_additional_server_config.gungame.enabled && player) {
-            multi_update_gungame_weapon(player, true);            
+            gungame_on_player_spawn(player);
+            //multi_update_gungame_weapon(player, true);            
         }
 
         rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
