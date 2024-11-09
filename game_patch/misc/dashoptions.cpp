@@ -10,97 +10,99 @@
 #include "../rf/sound/sound.h"
 #include "../rf/geometry.h"
 #include "../rf/misc.h"
+#include "../rf/os/os.h"
 #include <algorithm>
+#include <iostream>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
+#include <variant>
 #include <windows.h>
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
-DashOptionsConfig g_dash_options_config;
+namespace fs = std::filesystem;
 
-void mark_option_loaded(DashOptionID id)
-{
-    g_dash_options_config.options_loaded[static_cast<size_t>(id)] = true;
-}
+DashOptionsConfig g_dash_options_config;
 
 // trim leading and trailing whitespace
 std::string trim(const std::string& str)
 {
-    auto start = std::find_if_not(str.begin(), str.end(), [](unsigned char ch) { return std::isspace(ch); });
-    auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) { return std::isspace(ch); }).base();
-
-    if (start >= end) {
-        return ""; // Return empty string if nothing remains after trimming
-    }
-    return std::string(start, end);
-}
-
-// for values provided in quotes, dump the quotes before storing the values
-std::optional<std::string> extract_quoted_value(const std::string& value)
-{
-    std::string trimmed_value = trim(value);
-
-    // check if trimmed value starts and ends with quotes, if so, extract the content inside them
-    if (trimmed_value.size() >= 2 && trimmed_value.front() == '"' && trimmed_value.back() == '"') {
-        std::string extracted_value = trimmed_value.substr(1, trimmed_value.size() - 2);
-        return extracted_value;
-    }
-
-    // if not wrapped in quotes, assume valid
-    xlog::debug("String value is not enclosed in quotes, accepting it anyway: '{}'", trimmed_value);
-    return trimmed_value;
+    auto start = str.find_first_not_of(" \t\n\r");
+    auto end = str.find_last_not_of(" \t\n\r");
+    return (start == std::string::npos) ? "" : str.substr(start, end - start + 1);
 }
 
 // Helper functions for individual data types
-
-std::optional<std::string> parse_string(const std::string& value)
+// strings can be provided in quotation marks or not
+std::optional<OptionValue> parse_string(const std::string& value)
 {
-    return extract_quoted_value(value).value_or(value);
+    std::string trimmed_value = trim(value);
+    // Remove quotes if they surround the string
+    if (trimmed_value.size() >= 2 && trimmed_value.front() == '"' && trimmed_value.back() == '"') {
+        trimmed_value = trimmed_value.substr(1, trimmed_value.size() - 2);
+    }
+    return trimmed_value;
 }
 
-std::optional<uint32_t> parse_color(const std::string& value)
+// colors can be provided in quotation marks or not
+std::optional<OptionValue> parse_color(const std::string& value)
 {
-    try {
-        return std::stoul(extract_quoted_value(value).value_or(value), nullptr, 16);
+    // Remove quotes if they surround the string
+    std::string trimmed_value = trim(value);
+    if (trimmed_value.size() >= 2 && trimmed_value.front() == '"' && trimmed_value.back() == '"') {
+        trimmed_value = trimmed_value.substr(1, trimmed_value.size() - 2);
     }
-    catch (const std::exception& e) {
-        xlog::debug("Failed to parse color value: {}. Error: {}", value, e.what());
+    try {
+        return std::stoul(trimmed_value, nullptr, 16);
+    }
+    catch (...) {
         return std::nullopt;
     }
 }
 
-std::optional<float> parse_float(const std::string& value)
-{
-    try {
-        return std::stof(value);
-    }
-    catch (const std::exception& e) {
-        xlog::debug("Failed to parse float value: {}. Error: {}", value, e.what());
-        return std::nullopt;
-    }
+// floats, ints, and bools do not use quotation marks
+std::optional<OptionValue> parse_float(const std::string& value) { 
+    try { return std::stof(value); } catch (...) { return std::nullopt; } 
+}
+std::optional<OptionValue> parse_int(const std::string& value) { 
+    try { return std::stoi(value); } catch (...) { return std::nullopt; } 
+}
+std::optional<OptionValue> parse_bool(const std::string& value) { 
+    return value == "1" || value == "true" || value == "True"; 
 }
 
-std::optional<int> parse_int(const std::string& value)
-{
-    try {
-        return std::stoi(value);
-    }
-    catch (const std::exception& e) {
-        xlog::debug("Failed to parse int value: {}. Error: {}", value, e.what());
-        return std::nullopt;
-    }
-}
+//std::unique_ptr<rf::File> dashoptions_file;
 
-std::optional<bool> parse_bool(const std::string& value)
-{
-    return (value == "1" || value == "true" || value == "True" || value == "TRUE");
-}
-
-std::unique_ptr<rf::File> dashoptions_file;
+const std::unordered_map<std::string, OptionMetadata> option_metadata = {
+    {"$Scoreboard Logo", {DashOptionID::ScoreboardLogo, "af_pc_multi.tbl", parse_string}},
+    {"$Default Geomod Mesh", {DashOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}},
+    {"$Driller Double Geomod Mesh", {DashOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}},
+    {"$Driller Single Geomod Mesh", {DashOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}},
+    {"$APC Geomod Mesh", {DashOptionID::GeomodMesh_APC, "af_game.tbl", parse_string}},
+    {"$Default Geomod Smoke Emitter", {DashOptionID::GeomodEmitter_Default, "af_game.tbl", parse_string}},
+    {"$Driller Geomod Smoke Emitter", {DashOptionID::GeomodEmitter_Driller, "af_game.tbl", parse_string}},
+    {"$Ice Geomod Texture", {DashOptionID::GeomodTexture_Ice, "af_game.tbl", parse_string}},
+    {"$First Level Filename", {DashOptionID::FirstLevelFilename, "af_game.tbl", parse_string}},
+    {"$Training Level Filename", {DashOptionID::TrainingLevelFilename, "af_game.tbl", parse_string}},
+    {"$Disable Multiplayer Button", {DashOptionID::DisableMultiplayerButton, "af_game.tbl", parse_bool}},
+    {"$Disable Singleplayer Buttons", {DashOptionID::DisableSingleplayerButtons, "af_game.tbl", parse_bool}},
+    {"$Use Base Game Players Config", {DashOptionID::UseStockPlayersConfig, "af_game.tbl", parse_bool}},
+    {"$Ignore Swap Assault Rifle Controls", {DashOptionID::IgnoreSwapAssaultRifleControls, "af_game.tbl", parse_bool}},
+    {"$Ignore Swap Grenade Controls", {DashOptionID::IgnoreSwapGrenadeControls, "af_game.tbl", parse_bool}},
+    {"$Assault Rifle Ammo Counter Color", {DashOptionID::AssaultRifleAmmoColor, "af_client.tbl", parse_color}},
+    {"$Precision Rifle Scope Color", {DashOptionID::PrecisionRifleScopeColor, "af_client.tbl", parse_color}},
+    {"$Sniper Rifle Scope Color", {DashOptionID::SniperRifleScopeColor, "af_client.tbl", parse_color}},
+    {"$Rail Driver Fire Glow Color", {DashOptionID::RailDriverFireGlowColor, "af_client.tbl", parse_color}},
+    {"$Rail Driver Fire Flash Color", {DashOptionID::RailDriverFireFlashColor, "af_client.tbl", parse_color}},
+    {"$Summoner Trailer Button Action", {DashOptionID::SumTrailerButtonAction, "af_client.tbl", parse_int}},
+    {"+Summoner Trailer Button URL", {DashOptionID::SumTrailerButtonURL, "af_client.tbl", parse_string}},
+    {"+Summoner Trailer Button Bink Filename", {DashOptionID::SumTrailerButtonBikFile, "af_client.tbl", parse_string}}};
 
 void open_url(const std::string& url)
 {
@@ -133,36 +135,40 @@ std::tuple<int, int, int, int> extract_color_components(uint32_t color)
 CallHook<void(int, int, int, int)> fpgun_ar_ammo_digit_color_hook{
     0x004ABC03,
     [](int red, int green, int blue, int alpha) {
-        std::tie(red, green, blue, alpha) = extract_color_components(g_dash_options_config.ar_ammo_color.value());
+        auto ar_ammo_color = get_option_value<uint32_t>(DashOptionID::AssaultRifleAmmoColor);
+        std::tie(red, green, blue, alpha) = extract_color_components(ar_ammo_color);
         fpgun_ar_ammo_digit_color_hook.call_target(red, green, blue, alpha);
     }
 };
 
 CallHook<void(int, int, int, int)> precision_rifle_scope_color_hook{
     0x004AC850, [](int red, int green, int blue, int alpha) {
-        std::tie(red, green, blue, alpha) = extract_color_components(g_dash_options_config.pr_scope_color.value());
+        auto pr_scope_color = get_option_value<uint32_t>(DashOptionID::PrecisionRifleScopeColor);
+        std::tie(red, green, blue, alpha) = extract_color_components(pr_scope_color);
         precision_rifle_scope_color_hook.call_target(red, green, blue, alpha);
     }
 };
 
 CallHook<void(int, int, int, int)> sniper_rifle_scope_color_hook{
     0x004AC458, [](int red, int green, int blue, int alpha) {
-        std::tie(red, green, blue, alpha) = extract_color_components(g_dash_options_config.sr_scope_color.value());
+        auto sr_scope_color = get_option_value<uint32_t>(DashOptionID::SniperRifleScopeColor);
+        std::tie(red, green, blue, alpha) = extract_color_components(sr_scope_color);
         sniper_rifle_scope_color_hook.call_target(red, green, blue, alpha);
     }
 };
 
 CallHook<void(int, int, int, int)> rail_gun_fire_glow_hook{
     0x004AC00E, [](int red, int green, int blue, int alpha) {
-        std::tie(red, green, blue, alpha) = extract_color_components(g_dash_options_config.rail_glow_color.value());
+        auto rail_glow_color = get_option_value<uint32_t>(DashOptionID::RailDriverFireGlowColor);
+        std::tie(red, green, blue, alpha) = extract_color_components(rail_glow_color);
         rail_gun_fire_glow_hook.call_target(red, green, blue, alpha);
     }
 };
 
 CallHook<void(int, int, int, int)> rail_gun_fire_flash_hook{
     0x004AC04A, [](int red, int green, int blue, int alpha) {
-        std::tie(red, green, blue, std::ignore) =
-            extract_color_components(g_dash_options_config.rail_flash_color.value());
+        auto rail_flash_color = get_option_value<uint32_t>(DashOptionID::RailDriverFireFlashColor);
+        std::tie(red, green, blue, std::ignore) = extract_color_components(rail_flash_color);
         rail_gun_fire_flash_hook.call_target(red, green, blue, alpha);
     }
 };
@@ -179,32 +185,32 @@ int handle_geomod_shape_create(const char* filename, const std::optional<std::st
 // Set default geo mesh
 CallHook<int(const char*)> default_geomod_shape_create_hook{
     0x004374CF, [](const char* filename) -> int {
-        return handle_geomod_shape_create(filename,
-            g_dash_options_config.geomodmesh_default, default_geomod_shape_create_hook);
+        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_Default);
+        return default_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
 
 // Set driller double geo mesh
 CallHook<int(const char*)> driller_double_geomod_shape_create_hook{
     0x004374D9, [](const char* filename) -> int {
-        return handle_geomod_shape_create(filename,
-            g_dash_options_config.geomodmesh_driller_double, driller_double_geomod_shape_create_hook);
+        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_DrillerDouble);
+        return driller_double_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
 
 // Set driller single geo mesh
 CallHook<int(const char*)> driller_single_geomod_shape_create_hook{
     0x004374E3, [](const char* filename) -> int {
-        return handle_geomod_shape_create(filename,
-            g_dash_options_config.geomodmesh_driller_single, driller_single_geomod_shape_create_hook);
+        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_DrillerSingle);
+        return driller_single_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
 
-// Set apc geo mesh
+// Set APC geo mesh
 CallHook<int(const char*)> apc_geomod_shape_create_hook{
     0x004374ED, [](const char* filename) -> int {
-        return handle_geomod_shape_create(filename,
-            g_dash_options_config.geomodmesh_apc, apc_geomod_shape_create_hook);
+        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_APC);
+        return apc_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
 
@@ -276,61 +282,47 @@ FunHook<void()> geomod_shape_init_hook{
     }
 };
 
-// consolidated logic for handling geomod smoke emitter overrides
-int handle_geomod_emitter_change(const char* emitter_name,
-    const std::optional<std::string>& new_emitter_name_opt, CallHook<int(const char*)>& hook) {
-    std::string original_emitter_name{emitter_name};
-    std::string new_emitter_name = new_emitter_name_opt.value_or(original_emitter_name);
-    return hook.call_target(new_emitter_name.c_str());
-}
-
 // Override default geomod smoke emitter
 CallHook<int(const char*)> default_geomod_emitter_get_index_hook{
     0x00437150, [](const char* emitter_name) -> int {
-        return handle_geomod_emitter_change(emitter_name,
-            g_dash_options_config.geomodemitter_default, default_geomod_emitter_get_index_hook);
+        auto modded_emitter_name = get_option_value<std::string>(DashOptionID::GeomodEmitter_Default);
+        return default_geomod_emitter_get_index_hook.call_target(modded_emitter_name.c_str());
     }
 };
 
 // Override driller geomod smoke emitter
 CallHook<int(const char*)> driller_geomod_emitter_get_index_hook{
     0x0043715F, [](const char* emitter_name) -> int {
-        return handle_geomod_emitter_change(emitter_name,
-            g_dash_options_config.geomodemitter_driller, driller_geomod_emitter_get_index_hook);
+        auto modded_emitter_name = get_option_value<std::string>(DashOptionID::GeomodEmitter_Driller);
+        return driller_geomod_emitter_get_index_hook.call_target(modded_emitter_name.c_str());
     }
 };
 
-// replace ice geomod region texture
+// Replace ice geomod region texture
 CallHook<int(const char*, int, bool)> ice_geo_crater_bm_load_hook {
     {
         0x004673B5, // chunks
         0x00466BEF, // crater
     },
     [](const char* filename, int path_id, bool generate_mipmaps) -> int {
-        std::string original_filename{filename};
-        std::string new_filename = g_dash_options_config.geomodtexture_ice.value_or(original_filename);
-        return ice_geo_crater_bm_load_hook.call_target(new_filename.c_str(), path_id, generate_mipmaps);
+        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodTexture_Ice);
+        return ice_geo_crater_bm_load_hook.call_target(modded_filename.c_str(), path_id, generate_mipmaps);
     }
 };
-
-// Consolidated logic for handling level filename overrides
-inline void handle_level_name_change(const char* level_name, 
-    const std::optional<std::string>& new_level_name_opt, CallHook<void(const char*)>& hook) {
-    std::string new_level_name = new_level_name_opt.value_or(level_name);
-    hook.call_target(new_level_name.c_str());
-}
 
 // Override first level filename for new game menu
 CallHook<void(const char*)> first_load_level_hook{
     0x00443B15, [](const char* level_name) {
-        handle_level_name_change(level_name, g_dash_options_config.first_level_filename, first_load_level_hook);
+        auto new_level_name = get_option_value<std::string>(DashOptionID::FirstLevelFilename);
+        first_load_level_hook.call_target(new_level_name.c_str());
     }
 };
 
 // Override training level filename for new game menu
 CallHook<void(const char*)> training_load_level_hook{
     0x00443A85, [](const char* level_name) {
-        handle_level_name_change(level_name, g_dash_options_config.training_level_filename, training_load_level_hook);
+        auto new_level_name = get_option_value<std::string>(DashOptionID::TrainingLevelFilename);
+        training_load_level_hook.call_target(new_level_name.c_str());
     }
 };
 
@@ -338,40 +330,40 @@ CallHook<void(const char*)> training_load_level_hook{
 FunHook<void(int, int)> extras_summoner_trailer_click_hook{
     0x0043EC80, [](int x, int y) {
         xlog::debug("Summoner trailer button clicked");
-        int action = g_dash_options_config.sumtrailer_button_action.value_or(0);
+        int action = get_option_value<int>(DashOptionID::SumTrailerButtonAction);
+
         switch (action) {
-        case 1:
-            // open URL
-            if (g_dash_options_config.sumtrailer_button_url) {
-                const std::string& url = *g_dash_options_config.sumtrailer_button_url;
+        case 1: { // Open URL
+            if (g_dash_options_config.is_option_loaded(DashOptionID::SumTrailerButtonURL)) {
+                auto url = get_option_value<std::string>(DashOptionID::SumTrailerButtonURL);
                 open_url(url);
             }
             break;
-        case 2:
-            // disable button
+        }
+        case 2: // Disable button
             break;
-        default:
-            // play bink video, is case 0 but also default
-            std::string trailer_path = g_dash_options_config.sumtrailer_button_bik_filename.value_or("sumtrailer.bik");
+        default: { // Play Bink video
+            auto trailer_path = get_option_value<std::string>(DashOptionID::SumTrailerButtonBikFile);
             xlog::debug("Playing BIK file: {}", trailer_path);
             rf::snd_pause(true);
             rf::bink_play(trailer_path.c_str());
             rf::snd_pause(false);
             break;
         }
+        }
     }
 };
 
 void handle_summoner_trailer_button()
 {
-    if (int action = g_dash_options_config.sumtrailer_button_action.value_or(-1); action != -1) {
-        //xlog::debug("Action ID: {}", g_dash_options_config.sumtrailer_button_action.value_or(-1));
+    int action = get_option_value<int>(DashOptionID::SumTrailerButtonAction);
+    if (action != -1) {
         if (action == 3) {
-            // action 3 means remove the button
+            // Action 3: Remove the button
             AsmWriter(0x0043EE14).nop(5);
         }
         else {
-            // otherwise, install the hook
+            // Otherwise, install the hook
             extras_summoner_trailer_click_hook.install();
         }
     }
@@ -380,9 +372,10 @@ void handle_summoner_trailer_button()
 void apply_dashoptions_patches()
 {
     xlog::warn("Applying Dash Options patches");
-    // avoid unnecessary hooks by hooking only if corresponding options are specified
 
-    if (g_dash_options_config.use_stock_game_players_config.value_or(false)) {
+    // Only install hooks for options that have been loaded and specified
+    if (g_dash_options_config.is_option_loaded(DashOptionID::UseStockPlayersConfig) &&
+        std::get<bool>(g_dash_options_config.options[DashOptionID::UseStockPlayersConfig])) {
         AsmWriter(0x004A8F99).jmp(0x004A9010);
         AsmWriter(0x004A8DCC).jmp(0x004A8E53);
     }
@@ -392,6 +385,7 @@ void apply_dashoptions_patches()
     }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::PrecisionRifleScopeColor)) {
+        xlog::warn("pr specified");
         precision_rifle_scope_color_hook.install();
     }
 
@@ -405,12 +399,7 @@ void apply_dashoptions_patches()
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::RailDriverFireFlashColor)) {
         rail_gun_fire_flash_hook.install();
-    }  
-
-    // whether should apply is determined in helper function
-    //apply_geomod_mesh_patch();
-    //geomod_shape_init_hook.install();
-    //rf::geomod_shape_init();
+    }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Default)) {
         default_geomod_emitter_get_index_hook.install();
@@ -418,7 +407,7 @@ void apply_dashoptions_patches()
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Driller)) {
         driller_geomod_emitter_get_index_hook.install();
-    }    
+    }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodTexture_Ice)) {
         ice_geo_crater_bm_load_hook.install();
@@ -432,260 +421,153 @@ void apply_dashoptions_patches()
         training_load_level_hook.install();
     }
 
-    if (g_dash_options_config.disable_multiplayer_button.value_or(false)) {
-        AsmWriter(0x0044391F).nop(5); // multi
+    if (g_dash_options_config.is_option_loaded(DashOptionID::DisableMultiplayerButton) &&
+        std::get<bool>(g_dash_options_config.options[DashOptionID::DisableMultiplayerButton])) {
+        AsmWriter(0x0044391F).nop(5); // Disable multiplayer button
     }
 
-    if (g_dash_options_config.disable_singleplayer_buttons.value_or(false)) {
-        AsmWriter(0x00443906).nop(5); // save
-        AsmWriter(0x004438ED).nop(5); // load
-        AsmWriter(0x004438D4).nop(5); // new game
+    if (g_dash_options_config.is_option_loaded(DashOptionID::DisableSingleplayerButtons) &&
+        std::get<bool>(g_dash_options_config.options[DashOptionID::DisableSingleplayerButtons])) {
+        AsmWriter(0x00443906).nop(5); // Disable save button
+        AsmWriter(0x004438ED).nop(5); // Disable load button
+        AsmWriter(0x004438D4).nop(5); // Disable new game button
     }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::SumTrailerButtonAction)) {
         handle_summoner_trailer_button();
     }
+
+    xlog::warn("Dash Options patches applied successfully");
 }
 
-template<typename T>
-void set_option(DashOptionID option_id, std::optional<T>& option_field, const std::string& option_value)
+
+    // whether should apply is determined in helper function - TODO FIX
+    //apply_geomod_mesh_patch();
+    //geomod_shape_init_hook.install();
+    //rf::geomod_shape_init();
+
+
+void load_single_dashoptions_file(const std::string& file_name)
 {
-    try {
-        if constexpr (std::is_same_v<T, std::string>) {
-            option_field = parse_string(option_value);
+    auto dashoptions_file = std::make_unique<rf::File>();
+    if (dashoptions_file->open(file_name.c_str()) != 0) {
+        xlog::warn("Could not open {}", file_name);
+        return;
+    }
+    xlog::warn("Successfully opened {}", file_name);
+
+    // Read entire file content into a single string buffer
+    std::string file_content;
+    std::string buffer(2048, '\0');
+    int bytes_read;
+
+    while ((bytes_read = dashoptions_file->read(&buffer[0], buffer.size() - 1)) > 0) {
+        buffer.resize(bytes_read); // Adjust buffer to actual bytes read
+        file_content += buffer;
+        buffer.resize(2048, '\0'); // Reset buffer size for next read
+    }
+
+    dashoptions_file->close();
+
+    // Process file content line-by-line
+    std::istringstream file_stream(file_content);
+    std::string line;
+    bool found_start = false;
+
+    // Search for #Start marker
+    while (std::getline(file_stream, line)) {
+        line = trim(line);
+        if (line == "#Start") {
+            found_start = true;
+            break;
         }
-        else if constexpr (std::is_same_v<T, uint32_t>) {
-            option_field = parse_color(option_value);
+    }
+
+    if (!found_start) {
+        xlog::warn("No #Start marker found in {}", file_name);
+        return;
+    }
+
+    // Process options until #End marker is found
+    bool found_end = false;
+    while (std::getline(file_stream, line)) {
+        line = trim(line);
+
+        if (line == "#End") {
+            found_end = true;
+            break;
         }
-        else if constexpr (std::is_same_v<T, float>) {
-            option_field = parse_float(option_value);
-        }
-        else if constexpr (std::is_same_v<T, int>) {
-            option_field = parse_int(option_value);
-        }
-        else if constexpr (std::is_same_v<T, bool>) {
-            option_field = parse_bool(option_value);
+        if (line.empty() || line.starts_with("//")) {
+            continue;
         }
 
-        if (option_field.has_value()) {
-            mark_option_loaded(option_id);
-            xlog::debug("Parsed value has been saved: {}", option_field.value());
+        auto delimiter_pos = line.find(':');
+        if (delimiter_pos == std::string::npos || (line[0] != '$' && line[0] != '+')) {
+            continue;
+        }
+
+        std::string option_name = trim(line.substr(0, delimiter_pos));
+        std::string option_value = trim(line.substr(delimiter_pos + 1));
+
+        auto meta_it = option_metadata.find(option_name);
+        bool valid_file_for_option =
+            (meta_it != option_metadata.end() &&
+             (meta_it->second.filename == "af_client.tbl" || file_name.find("af_client") == 0));
+
+        if (valid_file_for_option) {
+            const auto& metadata = meta_it->second;
+            auto parsed_value = metadata.parse_function(option_value);
+            if (parsed_value) {
+                g_dash_options_config.options[metadata.id] = *parsed_value;
+                g_dash_options_config.options_loaded[static_cast<std::size_t>(metadata.id)] = true;
+                xlog::warn("Parsed and applied option {}: {}", option_name, option_value);
+                xlog::warn("Option ID {} marked as loaded", static_cast<std::size_t>(metadata.id));
+            }
+        }
+    }
+
+    if (!found_end) {
+        xlog::warn("No #End marker found in {}", file_name);
+    }
+}
+
+void load_dashoptions_config()
+{
+    xlog::warn("Loading Dash Options configuration");
+
+    // Load all af_client*.tbl files first
+    // af_client.tbl overrides numbered variations because its loaded later
+    for (int i = 0; i <= 9; ++i) {
+        std::string numbered_file = "af_client" + std::to_string(i) + ".tbl";
+        load_single_dashoptions_file(numbered_file);
+    }
+
+    // if a TC mod is loaded, handle the other options files
+    if (rf::mod_param.found()) {
+        // Collect unique file names from option_metadata
+        std::unordered_set<std::string> config_files;
+        for (const auto& [name, metadata] : option_metadata) {
+            config_files.insert(metadata.filename);
+        }
+
+        // Now load the rest of the dashoptions files
+        for (const auto& file_name : config_files) {
+            load_single_dashoptions_file(file_name);
+        }
+    }    
+
+    xlog::warn("Loaded options:");
+    for (std::size_t i = 0; i < option_count; ++i) {
+        if (g_dash_options_config.options_loaded[i]) {
+            xlog::warn("Option {} is loaded", i);
         }
         else {
-            xlog::debug("Parsing failed or value was invalid: {}", option_value);
+            xlog::warn("Option {} is NOT loaded", i);
         }
     }
-    catch (const std::exception& e) {
-        xlog::debug("Failed to parse value for option: {}. Error: {}", option_value, e.what());
-    }
+
+    // Apply all specified patches based on the parsed configuration
+    apply_dashoptions_patches();
+
+    rf::console::print("Dash Options configuration loaded");
 }
-
-// identify custom options and parse where found
-void process_dashoption_line(const std::string& option_name, const std::string& option_value)
-{
-    static const std::unordered_map<std::string, DashOptionID> option_map = {
-        {"$Scoreboard Logo", DashOptionID::ScoreboardLogo},
-        {"$Default Geomod Mesh", DashOptionID::GeomodMesh_Default},
-        {"$Driller Double Geomod Mesh", DashOptionID::GeomodMesh_DrillerDouble},
-        {"$Driller Single Geomod Mesh", DashOptionID::GeomodMesh_DrillerSingle},
-        {"$APC Geomod Mesh", DashOptionID::GeomodMesh_APC},
-        {"$Default Geomod Smoke Emitter", DashOptionID::GeomodEmitter_Default},
-        {"$Driller Geomod Smoke Emitter", DashOptionID::GeomodEmitter_Driller},
-        {"$Ice Geomod Texture", DashOptionID::GeomodTexture_Ice},
-        {"$First Level Filename", DashOptionID::FirstLevelFilename},
-        {"$Training Level Filename", DashOptionID::TrainingLevelFilename},
-        {"$Disable Multiplayer Button", DashOptionID::DisableMultiplayerButton},
-        {"$Disable Singleplayer Buttons", DashOptionID::DisableSingleplayerButtons},
-        {"$Use Base Game Players Config", DashOptionID::UseStockPlayersConfig},
-        {"$Ignore Swap Assault Rifle Controls", DashOptionID::IgnoreSwapAssaultRifleControls},
-        {"$Ignore Swap Grenade Controls", DashOptionID::IgnoreSwapGrenadeControls},
-        {"$Assault Rifle Ammo Counter Color", DashOptionID::AssaultRifleAmmoColor},
-        {"$Precision Rifle Scope Color", DashOptionID::PrecisionRifleScopeColor},
-        {"$Sniper Rifle Scope Color", DashOptionID::SniperRifleScopeColor},
-        {"$Rail Driver Fire Glow Color", DashOptionID::RailDriverFireGlowColor},
-        {"$Rail Driver Fire Flash Color", DashOptionID::RailDriverFireFlashColor},
-        {"$Summoner Trailer Button Action", DashOptionID::SumTrailerButtonAction},
-        {"+Summoner Trailer Button URL", DashOptionID::SumTrailerButtonURL},
-        {"+Summoner Trailer Button Bink Filename", DashOptionID::SumTrailerButtonBikFile}};
-
-    // save option values for options that are found
-    auto it = option_map.find(option_name);
-    if (it != option_map.end()) {
-        switch (it->second) {
-        case DashOptionID::ScoreboardLogo:
-            set_option(it->second, g_dash_options_config.scoreboard_logo, option_value);
-            break;
-        case DashOptionID::GeomodMesh_Default:
-            set_option(it->second, g_dash_options_config.geomodmesh_default, option_value);
-            break;
-        case DashOptionID::GeomodMesh_DrillerDouble:
-            set_option(it->second, g_dash_options_config.geomodmesh_driller_double, option_value);
-            break;
-        case DashOptionID::GeomodMesh_DrillerSingle:
-            set_option(it->second, g_dash_options_config.geomodmesh_driller_single, option_value);
-            break;
-        case DashOptionID::GeomodMesh_APC:
-            set_option(it->second, g_dash_options_config.geomodmesh_apc, option_value);
-            break;
-        case DashOptionID::GeomodEmitter_Default:
-            set_option(it->second, g_dash_options_config.geomodemitter_default, option_value);
-            break;
-        case DashOptionID::GeomodEmitter_Driller:
-            set_option(it->second, g_dash_options_config.geomodemitter_driller, option_value);
-            break;
-        case DashOptionID::GeomodTexture_Ice:
-            set_option(it->second, g_dash_options_config.geomodtexture_ice, option_value);
-            break;
-        case DashOptionID::FirstLevelFilename:
-            set_option(it->second, g_dash_options_config.first_level_filename, option_value);
-            break;
-        case DashOptionID::TrainingLevelFilename:
-            set_option(it->second, g_dash_options_config.training_level_filename, option_value);
-            break;
-        case DashOptionID::DisableMultiplayerButton:
-            set_option(it->second, g_dash_options_config.disable_multiplayer_button, option_value);
-            break;
-        case DashOptionID::DisableSingleplayerButtons:
-            set_option(it->second, g_dash_options_config.disable_singleplayer_buttons, option_value);
-            break;
-        case DashOptionID::UseStockPlayersConfig:
-            set_option(it->second, g_dash_options_config.use_stock_game_players_config, option_value);
-            break;
-        case DashOptionID::IgnoreSwapAssaultRifleControls:
-            set_option(it->second, g_dash_options_config.ignore_swap_assault_rifle_controls, option_value);
-            break;
-        case DashOptionID::IgnoreSwapGrenadeControls:
-            set_option(it->second, g_dash_options_config.ignore_swap_grenade_controls, option_value);
-            break;
-        case DashOptionID::AssaultRifleAmmoColor:
-            set_option(it->second, g_dash_options_config.ar_ammo_color, option_value);
-            break;
-        case DashOptionID::PrecisionRifleScopeColor:
-            set_option(it->second, g_dash_options_config.pr_scope_color, option_value);
-            break;
-        case DashOptionID::SniperRifleScopeColor:
-            set_option(it->second, g_dash_options_config.sr_scope_color, option_value);
-            break;
-        case DashOptionID::RailDriverFireGlowColor:
-            set_option(it->second, g_dash_options_config.rail_glow_color, option_value);
-            break;
-        case DashOptionID::RailDriverFireFlashColor:
-            set_option(it->second, g_dash_options_config.rail_flash_color, option_value);
-            break;
-        case DashOptionID::SumTrailerButtonAction:
-            set_option(it->second, g_dash_options_config.sumtrailer_button_action, option_value);
-            break;
-        case DashOptionID::SumTrailerButtonURL:
-            set_option(it->second, g_dash_options_config.sumtrailer_button_url, option_value);
-            break;
-        case DashOptionID::SumTrailerButtonBikFile:
-            set_option(it->second, g_dash_options_config.sumtrailer_button_bik_filename, option_value);
-            break;
-        default:
-            xlog::debug("Unrecognized DashOptionID: {}", it->first);
-        }
-    }
-    else {
-        xlog::warn("Ignoring unsupported option: {}", option_name);
-    }
-}
-
-bool open_file(const std::string& file_path)
-{
-    dashoptions_file = std::make_unique<rf::File>();
-    if (dashoptions_file->open(file_path.c_str()) != 0) {
-        xlog::debug("Failed to open {}", file_path);
-        return false;
-    }
-    xlog::debug("Successfully opened {}", file_path);
-    return true;
-}
-
-void close_file()
-{
-    if (dashoptions_file) {
-        xlog::debug("Closing file.");
-        dashoptions_file->close();
-        dashoptions_file.reset();
-
-        // after parsing is done, apply patches
-        apply_dashoptions_patches();
-    }
-}
-
-void parse()
-{
-    std::string line;
-    bool in_options_section = false; // track section, eventually this should be enum and support multiple sections
-
-    xlog::debug("Start parsing dashoptions.tbl");
-
-    while (true) {
-        std::string buffer(2048, '\0'); // handle lines up to 2048 bytes, should be plenty
-        int bytes_read = dashoptions_file->read(&buffer[0], buffer.size() - 1);
-
-        if (bytes_read <= 0) {
-            xlog::debug("End of file or read error in dashoptions.tbl.");
-            break;
-        }
-
-        buffer.resize(bytes_read); // trim unused space if fewer bytes were read
-        std::istringstream file_stream(buffer);
-
-        while (std::getline(file_stream, line)) {
-            line = trim(line);
-            xlog::debug("Parsing line: '{}'", line);
-
-            // could be expanded to support multiple sections
-            if (line == "#General") {
-                xlog::debug("Entering General section");
-                in_options_section = true;
-                continue;
-            }
-            else if (line == "#End") {
-                xlog::debug("Exiting General section");
-                in_options_section = false;
-                break; // stop, reached the end of section
-            }
-
-            // skip anything outside the options section
-            if (!in_options_section) {
-                xlog::debug("Skipping line outside of General section");
-                continue;
-            }
-
-            // skip empty lines and comments
-            if (line.empty() || line.find("//") == 0) {
-                xlog::debug("Skipping empty or comment line");
-                continue;
-            }
-
-            // valid option lines start with $ or + and contain a delimiter :
-            if ((line[0] != '$' && line[0] != '+') || line.find(':') == std::string::npos) {
-                xlog::debug("Skipping malformed line: '{}'", line);
-                continue;
-            }
-
-            // parse valid options lines
-            auto delimiter_pos = line.find(':');
-            std::string option_name = trim(line.substr(0, delimiter_pos));
-            std::string option_value = trim(line.substr(delimiter_pos + 1));
-
-            process_dashoption_line(option_name, option_value);
-        }
-    }
-}
-
-    void load_dashoptions_config()
-    {
-        xlog::debug("Mod launched, attempting to load Dash Options configuration");
-
-        if (!open_file("dashoptions.tbl")) {
-            return;
-        }
-
-        parse();
-        close_file();
-
-        rf::console::print("Dash Options configuration loaded");
-    }

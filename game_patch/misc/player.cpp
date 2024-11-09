@@ -92,12 +92,12 @@ bool should_swap_weapon_alt_fire(rf::Player* player)
     }
 
     if (g_game_config.swap_assault_rifle_controls &&
-        !g_dash_options_config.ignore_swap_assault_rifle_controls &&
+        !get_option_or_default<bool>(DashOptionID::IgnoreSwapAssaultRifleControls, false) &&
         entity->ai.current_primary_weapon == rf::assault_rifle_weapon_type)
         return true;
 
     if (g_game_config.swap_grenade_controls &&
-        !g_dash_options_config.ignore_swap_grenade_controls &&
+        !get_option_or_default<bool>(DashOptionID::IgnoreSwapGrenadeControls, false) &&
         entity->ai.current_primary_weapon == rf::grenade_weapon_type)
         return true;
 
@@ -160,7 +160,7 @@ ConsoleCommand2 swap_assault_rifle_controls_cmd{
         g_game_config.save();
         rf::console::print("Swap assault rifle controls: {}",
                      g_game_config.swap_assault_rifle_controls ? "enabled" : "disabled");
-        if (g_dash_options_config.ignore_swap_assault_rifle_controls) {
+        if (get_option_or_default<bool>(DashOptionID::IgnoreSwapAssaultRifleControls, false)) {
             rf::console::print("Note: This setting is disabled in the {} mod and will have no effect.",
                 rf::mod_param.get_arg());
         }   
@@ -175,7 +175,7 @@ ConsoleCommand2 swap_grenade_controls_cmd{
         g_game_config.save();
         rf::console::print("Swap grenade controls: {}",
                      g_game_config.swap_grenade_controls ? "enabled" : "disabled");
-        if (g_dash_options_config.ignore_swap_grenade_controls) {
+        if (get_option_or_default<bool>(DashOptionID::IgnoreSwapGrenadeControls, false)) {
             rf::console::print("Note: This setting is disabled in the {} mod and will have no effect.",
                 rf::mod_param.get_arg());
         }   

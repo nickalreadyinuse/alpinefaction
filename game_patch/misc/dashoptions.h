@@ -1,14 +1,12 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <optional>
 #include <string>
-#include <algorithm>
-#include <memory>
-#include <sstream>
-#include <stdexcept>
 #include <unordered_map>
-#include <type_traits>
+#include <variant>
+#include <cstddef>
 #include <xlog/xlog.h>
 
 enum class DashOptionID
@@ -36,68 +34,57 @@ enum class DashOptionID
     SumTrailerButtonAction,
     SumTrailerButtonURL,
     SumTrailerButtonBikFile,
-    _optioncount // dummy option for determining total num of options
+    _optioncount // dummy for total count
 };
 
-// convert enum to its underlying type
 constexpr std::size_t to_index(DashOptionID option_id)
 {
     return static_cast<std::size_t>(option_id);
 }
 
-// total number of options in DashOptionID
-constexpr std::size_t option_count = to_index(DashOptionID::_optioncount) + 1;
+constexpr std::size_t option_count = to_index(DashOptionID::_optioncount);
 
+// Variant type to represent all possible configuration option values
+using OptionValue = std::variant<std::string, uint32_t, float, int, bool>;
+
+// Metadata structure to store option information, including its parsing function
+struct OptionMetadata
+{
+    DashOptionID id;
+    std::string filename;
+    std::function<std::optional<OptionValue>(const std::string&)> parse_function;
+};
+
+// Main configuration structure for options
 struct DashOptionsConfig
 {
-    //std::optional<float> float_something; // template for float
-    //std::optional<int> int_something; // template for int
+    // Store options in a map with their parsed values
+    std::unordered_map<DashOptionID, OptionValue> options;
+    std::array<bool, option_count> options_loaded = {}; // Track loaded options
 
-    //core options
-    std::optional<std::string> scoreboard_logo;
-    std::optional<std::string> geomodmesh_default;
-    std::optional<std::string> geomodmesh_driller_double;
-    std::optional<std::string> geomodmesh_driller_single;
-    std::optional<std::string> geomodmesh_apc;
-    std::optional<std::string> geomodemitter_default;
-    std::optional<std::string> geomodemitter_driller;
-    std::optional<std::string> geomodtexture_ice;
-    std::optional<std::string> first_level_filename;
-    std::optional<std::string> training_level_filename;
-    std::optional<bool> disable_multiplayer_button;
-    std::optional<bool> disable_singleplayer_buttons;
-    std::optional<bool> use_stock_game_players_config;
-    std::optional<bool> ignore_swap_assault_rifle_controls;
-    std::optional<bool> ignore_swap_grenade_controls;
-    std::optional<uint32_t> ar_ammo_color;
-    std::optional<uint32_t> pr_scope_color;
-    std::optional<uint32_t> sr_scope_color;
-    std::optional<uint32_t> rail_glow_color;
-    std::optional<uint32_t> rail_flash_color;
-    std::optional<int> sumtrailer_button_action;
-
-    //extended options
-    //from sumtrailer_button_action
-    std::optional<std::string> sumtrailer_button_url;
-    std::optional<std::string> sumtrailer_button_bik_filename;
-
-    // track core options that are loaded
-    std::array<bool, option_count> options_loaded = {};
-
-    // check if specific core option is loaded
+    // Check if a specific option is loaded
     bool is_option_loaded(DashOptionID option_id) const
     {
-        return options_loaded[to_index(option_id)];
+        return options_loaded[static_cast<std::size_t>(option_id)];
     }
 };
 
+// Global instance of DashOptionsConfig
 extern DashOptionsConfig g_dash_options_config;
 
+// Function to load and parse the configuration files
 void load_dashoptions_config();
 std::string trim(const std::string& str);
-std::optional<std::string> extract_quoted_value(const std::string& value);
-std::optional<std::string> parse_string(const std::string& value);
-std::optional<uint32_t> parse_color(const std::string& value);
-std::optional<float> parse_float(const std::string& value);
-std::optional<int> parse_int(const std::string& value);
-std::optional<bool> parse_bool(const std::string& value);
+
+template<typename T>
+inline T get_option_value(DashOptionID id)
+{
+    return std::get<T>(g_dash_options_config.options.at(id));
+}
+
+// Helper function to retrieve an option or a default value
+template<typename T>
+inline T get_option_or_default(DashOptionID id, T default_value)
+{
+    return g_dash_options_config.is_option_loaded(id) ? get_option_value<T>(id) : default_value;
+}
