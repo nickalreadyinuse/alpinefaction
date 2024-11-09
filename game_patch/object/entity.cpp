@@ -297,8 +297,71 @@ ConsoleCommand2 gibs_cmd{
     "Make enemies and corpses explode into chunks from explosives (single player only)",
 };
 
+// no idea
+CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hook{
+    0x0049D4B6,
+    [](rf::Entity* entity, float rel_vel) {
+        // Custom behavior: adjust the relative velocity if needed
+        float adjusted_rel_vel = rel_vel;
+
+        xlog::warn("A rel_vel is {}", rel_vel);
+
+        // Call the original function with potentially modified parameters
+        physics_calc_fall_damage_hook.call_target(entity, adjusted_rel_vel);
+    }
+};
+
+// no idea
+CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookB{
+    0x0049DE23,
+    [](rf::Entity* entity, float rel_vel) {
+        // Custom behavior: adjust the relative velocity if needed
+        float adjusted_rel_vel = rel_vel;
+
+        xlog::warn("Brel_vel is {}", rel_vel);
+
+        // Call the original function with potentially modified parameters
+        physics_calc_fall_damage_hookB.call_target(entity, adjusted_rel_vel);
+    }
+};
+
+// fall damage when impacting
+CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookC{
+    0x0049DE39,
+    [](rf::Entity* entity, float rel_vel) {
+        // Custom behavior: adjust the relative velocity if needed
+        
+        xlog::warn("Crel_vel is {}", rel_vel);
+
+        float adjusted_rel_vel = rel_vel * 0; // disable
+
+        // Call the original function with potentially modified parameters
+        physics_calc_fall_damage_hookC.call_target(entity, adjusted_rel_vel);
+    }
+};
+
+// fall damage when landing
+CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookD{
+    0x004A0C28,
+    [](rf::Entity* entity, float rel_vel) {
+        // Custom behavior: adjust the relative velocity if needed
+        float adjusted_rel_vel = rel_vel;
+
+        xlog::warn("Drel_vel is {}", rel_vel);
+
+        // Call the original function with potentially modified parameters
+        physics_calc_fall_damage_hookD.call_target(entity, adjusted_rel_vel);
+    }
+};
+
+
 void entity_do_patch()
 {
+    //physics_calc_fall_damage_hook.install();
+    //physics_calc_fall_damage_hookB.install();
+    //physics_calc_fall_damage_hookC.install();
+    //physics_calc_fall_damage_hookD.install();
+
     // Fix player being stuck to ground when jumping, especially when FPS is greater than 200
     stuck_to_ground_when_jumping_fix.install();
     stuck_to_ground_when_using_jump_pad_fix.install();

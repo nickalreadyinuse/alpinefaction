@@ -1616,6 +1616,7 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
         const bool only_enemies = g_additional_server_config.new_spawn_logic.only_avoid_enemies;
 
         std::vector<const rf::RespawnPoint*> available_points;
+        bool players_found = false;
 
         for (auto& point : new_multi_respawn_points) {
             if (is_team_game && respect_team_spawns) {
@@ -1626,9 +1627,15 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
 
             const float dist = get_nearest_other_player(player, &point.position, nullptr, only_enemies);
             point.dist_other_player = dist;
+
+            if (dist != std::numeric_limits<float>::max()) {
+                players_found = true;
+            }
+
             available_points.push_back(&point);
         }
 
+        // handle case where no valid spawns are found (full rng)
         if (available_points.empty()) {
             std::uniform_int_distribution<int> dist(0, new_multi_respawn_points.size() - 1);
             const int index = dist(g_rng);
@@ -1637,6 +1644,17 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
             return 1;
         }
 
+        // handle case where no players are spawned but use_furthest is on (full rng within valid)
+        if (use_furthest && !players_found) {
+            std::uniform_int_distribution<int> dist(0, available_points.size() - 1);
+            int index = dist(g_rng);
+            *pos = available_points[index]->position;
+            *orient = available_points[index]->orientation;
+            pdata.last_spawn_point_index = index;
+            return 1;
+        }
+
+        // sort valid points by distance from nearest other player (prefer further)
         if (avoid_players || use_furthest) {
             std::sort(available_points.begin(), available_points.end(),
                       [](const rf::RespawnPoint* a, const rf::RespawnPoint* b) {
@@ -1646,7 +1664,8 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
 
         int selected_index = 0;
 
-        if (use_furthest) {
+        
+        if (use_furthest) { // select always using furthest (no RNG)
             selected_index = std::distance(
                 new_multi_respawn_points.begin(),
                 std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(), *available_points[0]));
@@ -1657,19 +1676,24 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
                     std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(), *available_points[1]));
             }
         }
-        else {
+        else if (!avoid_players) { // select with full RNG if we don't care about distance from players
+            std::uniform_int_distribution<int> dist(0, available_points.size() - 1);
+            selected_index = dist(g_rng);
+        }
+        else { // select with weighted RNG if we do care about distance from players
             std::uniform_real_distribution<double> real_dist(0.0, 1.0);
             int random_index = static_cast<int>(std::sqrt(real_dist(g_rng)) * (available_points.size() - 1) + 0.5);
 
-            selected_index = std::distance(new_multi_respawn_points.begin(),
-                                           std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(),
-                                                     *available_points[random_index]));
+            selected_index =
+                std::distance(new_multi_respawn_points.begin(),
+                    std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(),
+                        *available_points[random_index]));
 
             if (avoid_last && last_index == selected_index && available_points.size() > 1) {
                 selected_index =
                     std::distance(new_multi_respawn_points.begin(),
-                                  std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(),
-                                            *available_points[random_index == 0 ? 1 : 0]));
+                        std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(),
+                            *available_points[random_index == 0 ? 1 : 0]));
             }
         }
 
