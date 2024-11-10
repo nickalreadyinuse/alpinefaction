@@ -48,6 +48,7 @@ Version X
 - Lower minimum character count for console tab complete to 1
 - Add `$DF GunGame` option in dedicated server config
 - Fixed jeep cockpit mesh not being rendered for any jeeps entered after the first in a level
+- Add framework for custom events
 
 
 

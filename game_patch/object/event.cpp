@@ -220,6 +220,87 @@ ConsoleCommand2 debug_event_msg_cmd{
     }
 };
 
+/* struct EventDifficultyGate : rf::Event
+{
+    int difficulty;
+};*/
+
+FunHook<int(const rf::String* name)> event_lookup_type_hook{
+    0x004BD700,
+    [](const rf::String* name) {
+        xlog::warn("Looking up event with name: {}", name->c_str());
+
+        // Custom event name -> ID assignment
+        if (*name == "Clone_Entity") {
+            return 90;
+        }
+         else if (*name == "Set_World_Collide_pl") { // Set_Player_World_Collide use real name when RED piece is done
+            return 91;
+        }
+
+        // stock events
+        return event_lookup_type_hook.call_target(name);
+    }
+};
+
+FunHook<rf::Event*(int event_type)> event_allocate_hook{
+    0x004B69D0,
+    [](int event_type) {
+        auto allocate_custom_event = [](auto event_ptr_type) -> rf::Event* {
+            using EventType = std::remove_pointer_t<decltype(event_ptr_type)>;
+            auto* memory = operator new(sizeof(EventType));
+            if (!memory) {
+                xlog::error("Failed to allocate memory for event.");
+                return nullptr;
+            }
+
+            auto* custom_event = new (memory) EventType();
+            xlog::warn("Allocating event: {}", typeid(EventType).name());
+            return static_cast<rf::Event*>(custom_event);
+        };
+
+        switch (event_type) {
+        case 90:
+            return allocate_custom_event(static_cast<rf::EventCloneEntity*>(nullptr));
+
+        case 91:
+            return allocate_custom_event(static_cast<rf::EventSetCollisionPlayer*>(nullptr));
+
+        default: // stock events
+            return event_allocate_hook.call_target(event_type);
+        }
+    }
+};
+
+FunHook<void(rf::Event*)> event_deallocate_hook{
+    0x004B7750,
+    [](rf::Event* eventp) {
+        if (!eventp)
+            return;
+
+        int event_type = eventp->event_type;
+        xlog::warn("Deallocating event ID: {}", event_type);
+
+        // Handle custom event types
+        switch (event_type) {
+        case 90: {
+            auto* custom_event = static_cast<rf::EventCloneEntity*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 91: {
+            auto* custom_event = static_cast<rf::EventSetCollisionPlayer*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        default: // stock events
+            event_deallocate_hook.call_target(eventp);
+            break;
+        }
+    }
+};
 rf::Vector3 extract_yaw_vector(const rf::Matrix3& matrix)
 {
     rf::Vector3 angles;
@@ -286,6 +367,21 @@ FunHook<void(rf::Event*)> event_player_teleport_on_hook{
 
 void apply_event_patches()
 {    
+    // make event_create process events with any ID
+    AsmWriter(0x004B68A3).jmp(0x004B68A9);
+
+    event_lookup_type_hook.install();
+    event_allocate_hook.install();
+    event_deallocate_hook.install();
+
+
+
+    
+
+
+
+
+
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
     switch_model_event_custom_mesh_patch.install();
     switch_model_event_obj_lighting_and_physics_fix.install();

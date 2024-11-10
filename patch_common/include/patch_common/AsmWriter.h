@@ -189,6 +189,13 @@ public:
         return *this;
     }
 
+    AsmWriter& cmp_eax_imm(int32_t imm)
+    {
+        write<u8>(0x3D);
+        write<i32>(imm);
+        return *this;
+    }
+
     AsmWriter& push(const AsmReg32& reg)
     {
         write<u8>(0x50 | reg.reg_num); // Opcode

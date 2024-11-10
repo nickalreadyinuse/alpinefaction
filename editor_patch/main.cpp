@@ -4,6 +4,8 @@
 #include <string_view>
 #include <windows.h>
 #include <shellapi.h>
+#include <vector>
+#include <memory>
 #include <common/version/version.h>
 #include <common/config/BuildConfig.h>
 #include <common/utils/os-utils.h>
@@ -17,6 +19,7 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/CodeInjection.h>
 #include <crash_handler_stub.h>
+#include "../game_patch/rf/os/array.h"
 #include "exports.h"
 #include "resources.h"
 #include "mfc_types.h"
@@ -443,10 +446,185 @@ CodeInjection texture_name_buffer_overflow_injection2{
     },
 };
 
+
+
+
+
+
+
+
+constexpr uintptr_t event_names_original_addr = 0x00578B78;
+constexpr int original_event_count = 89;
+constexpr int new_event_count = 2;
+constexpr int total_event_count = original_event_count + new_event_count;
+
+const char* additional_event_names[new_event_count] = {
+    "Clone_Entity",
+    "Test1",
+};
+
+// Managed array to hold original + additional event names
+std::unique_ptr<const char*[]> extended_event_names;
+
+void initialize_event_names()
+{
+    // Allocate space for total event names
+    extended_event_names = std::make_unique<const char*[]>(total_event_count + 1);
+    extended_event_names[total_event_count] = nullptr; // padding to prevent overrun
+
+    // Pointer to the original event names array in memory
+    const char** original_event_names = reinterpret_cast<const char**>(event_names_original_addr);
+
+    // Dynamically read and populate original event names into extended_event_names
+    for (int i = 0; i < original_event_count; ++i) {
+        if (original_event_names[i]) {
+            extended_event_names[i] = original_event_names[i];
+            xlog::info("Loaded original event name [{}]: {}", i, original_event_names[i]);
+        }
+        else {
+            xlog::warn("Original event name [{}] is null or corrupted", i);
+            extended_event_names[i] = nullptr; // Ensuring safety if an entry is unexpectedly null
+        }
+    }
+
+    // Add new event names
+    for (int i = 0; i < new_event_count; ++i) {
+        extended_event_names[original_event_count + i] = additional_event_names[i];
+        xlog::info("Added additional event name [{}]: {}", original_event_count + i, additional_event_names[i]);
+    }
+
+    xlog::info("Initialized extended_event_names with {} entries", total_event_count);
+}
+
+void overwrite_event_names_pointer()
+{
+    // Confirm that the first and last entries in memory are as expected
+    xlog::info("Overwriting event_names pointer at 0x{:08X} to point to extended_event_names at 0x{:08X}",
+               event_names_original_addr, reinterpret_cast<uintptr_t>(extended_event_names.get()));
+
+    xlog::info("Memory verification: First entry should be 'Attack', found: {}", extended_event_names[0]);
+    xlog::info("Memory verification: Last entry should be 'Clone_Entity', found: {}",
+               extended_event_names[total_event_count - 1]);
+
+    // Verify all entries in the extended array
+    xlog::info("Verifying extended_event_names array after redirection:");
+    for (int i = 0; i < total_event_count; ++i) {
+        if (extended_event_names[i]) {
+            xlog::info("Extended Event name [{}]: {}", i, extended_event_names[i]);
+        }
+        else {
+            xlog::warn("Extended Event name [{}] is null or corrupted", i);
+        }
+    }
+}
+
+//LOGGING
+void debug_event_names()
+{
+    for (int i = 0; i < total_event_count; ++i) {
+        if (extended_event_names[i]) {
+            xlog::info("Debug: Event name [{}]: {}", i, extended_event_names[i]);
+        }
+        else {
+            xlog::warn("Debug: Event name [{}] is null or corrupted", i);
+        }
+    }
+};
+
+void redirect_event_names_references()
+{
+    initialize_event_names();
+    overwrite_event_names_pointer();
+
+    debug_event_names();
+};
+
+
+const std::unordered_map<std::string, int> event_name_to_id = {
+    {"Clone_Entity", 90},
+};
+
+FunHook<int(const rf::String* class_name)> get_event_type_from_class_name_hook{
+    0x004516A0, [](const rf::String* class_name) -> int {
+        if (!class_name || !class_name->buf) {
+            xlog::warn("class_name or buf is null");
+            return -1;
+        }
+
+        std::string input_name(class_name->buf);
+        xlog::warn("Input class_name: {}", input_name);
+
+        // Iterate over the extended event names to find a match
+        for (int i = 0; i < total_event_count; ++i) {
+            if (extended_event_names[i] && input_name == extended_event_names[i]) {
+                xlog::info("Matched event '{}' at index {}, returning event type ID {}", input_name, i, i);
+                return i; // Index in `extended_event_names` serves as the event type ID
+            }
+        }
+
+        // If no match found, return -1 to indicate an unknown event
+        xlog::warn("No match found for '{}', returning -1", input_name);
+        return -1;
+    }
+};
+
+// Function to verify the event names in extended_event_names LOGGING
+void verify_event_names()
+{
+    xlog::info("Verifying event names in array:");
+    for (int i = 0; i < total_event_count; ++i) {
+        if (extended_event_names[i]) {
+            xlog::info("Event name [{}]: {}", i, extended_event_names[i]);
+        }
+        else {
+            xlog::warn("Event name [{}] is null or corrupted", i);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
     InitLogging();
     InitCrashHandler();
+    get_event_type_from_class_name_hook.install();
+
+
+    xlog::warn("Initializing extended event names redirection...");
+    redirect_event_names_references();
+
+    debug_event_names();
+    
+
+    // current state works fine EXCEPT dropdown doesnt have new names. these asmwriters make the dropdown blank
+    //AsmWriter(0x00407782).lea(asm_regs::edx, extended_event_names.get()).nop();
+    //AsmWriter(0x004516A9).lea(asm_regs::esi, extended_event_names.get()).nop();
+    //AsmWriter(0x004617EA).lea(asm_regs::edi, extended_event_names.get()).nop();
+    
+    // tests
+    //AsmWriter(0x00408D6A).cmp_eax_imm(0x58);
+    //AsmWriter(0x00408D6A).nop(3);
+    //AsmWriter(0x00407825).nop(3);
+    //AsmWriter(0x00408219).nop(3);
+
+    xlog::info("Removed the comparison limiting the event count");
+
+
+
+    xlog::warn("Initialization complete.");
+    verify_event_names();
 
     // Change command for Play Level action to use Dash Faction launcher
     static std::string launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;
@@ -455,6 +633,12 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     AsmWriter(0x00448024, 0x0044802B).mov(eax, launcher_pathname.c_str());
     CMainFrame_OnPlayLevelCmd_skip_level_dir_injection.install();
     CMainFrame_OnPlayLevelFromCameraCmd_skip_level_dir_injection.install();
+
+
+    //AsmWriter{0x004512D2}.nop(4);
+    //AsmWriter{0x004512CC}.push(0);
+
+
 
     // Add additional file paths for V3M loading
     CEditorApp_InitInstance_additional_file_paths_injection.install();
