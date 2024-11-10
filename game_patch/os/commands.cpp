@@ -297,7 +297,7 @@ void console_commands_init()
     register_builtin_command("sv_caplimit", "Sets capture limit", 0x0046CCC0);
 
     // Misc commands
-    register_builtin_command("cl_sound", "Toggle sound", 0x00434590);
+    register_builtin_command("sound", "Toggle sound", 0x00434590);
     register_builtin_command("sp_difficulty", "Set game difficulty", 0x00434EB0);
     // register_builtin_command("ms", "Set mouse sensitivity", 0x0043CE90);
     // register_builtin_command("level_info", "Show level info", 0x0045C210);

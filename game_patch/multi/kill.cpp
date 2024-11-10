@@ -213,11 +213,7 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
         return;
     }
 
-    //auto* stats = static_cast<PlayerStatsNew*>(player->stats);
-    //int current_score = stats->score;
     int current_score = player->stats->score;
-    //xlog::warn("Score for {} is {} {}", player->name, player->stats->score, current_score);
-    //bool weapon_change = false;
 
     if (auto weapon_type_opt = weapon_manager.get_weapon_for_score(current_score); weapon_type_opt) {
         int weapon_type = *weapon_type_opt;
@@ -227,7 +223,7 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
                 !((entity->ai.current_primary_weapon == 0 || entity->ai.current_primary_weapon == 1) &&
                     (weapon_type == 0 || weapon_type == 1)))) {
 
-            gungame_weapon_notification(player, just_spawned);
+            gungame_weapon_notification(player, just_spawned); // bug: doesnt work with remote charges
 
             if (!just_spawned) {
                 // give a reward if they finished the whole level in a single life
@@ -285,9 +281,7 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
 
         // Switch the player's weapon to the new type
         server_add_player_weapon(player, weapon_type, true);
-        server_set_player_weapon(player, entity, weapon_type);
-        // xlog::warn("GunGame: Player '{}' reached score {}. Setting weapon to type {}.", player->name,
-        // current_score, weapon_type);        
+        server_set_player_weapon(player, entity, weapon_type);       
     }
     else {
         xlog::info("GunGame: No weapon assigned for score {}. Player '{}' retains current weapon.", current_score, player->name);
@@ -301,7 +295,6 @@ void multi_update_gungame_weapon(rf::Player* player, bool just_spawned) {
 void gungame_on_player_spawn(rf::Player* player)
 {
     multi_update_gungame_weapon(player, true);
-    //level_completed_while_alive[player] = false;
 }
 
 void multi_kill_init_player(rf::Player* player)

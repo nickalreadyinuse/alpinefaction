@@ -34,6 +34,9 @@ enum class DashOptionID
     SumTrailerButtonAction,
     SumTrailerButtonURL,
     SumTrailerButtonBikFile,
+    PlayerEntityType,
+    PlayerSuitEntityType,
+    PlayerScientistEntityType,
     _optioncount // dummy for total count
 };
 
@@ -73,7 +76,7 @@ struct DashOptionsConfig
 extern DashOptionsConfig g_dash_options_config;
 
 // Function to load and parse the configuration files
-void load_dashoptions_config();
+void load_af_options_config();
 std::string trim(const std::string& str);
 
 template<typename T>

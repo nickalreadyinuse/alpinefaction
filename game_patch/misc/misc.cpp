@@ -411,8 +411,8 @@ CallHook level_init_pre_console_output_hook{
 CodeInjection all_table_files_loaded_injection{
     0x004B249E, 
     []() {
-        // after all other tbl files have been loaded, load dashoptions.tbl and parse it
-        load_dashoptions_config();
+        // after all other tbl files have been loaded, load alpine options
+        load_af_options_config();
     }
 };
 

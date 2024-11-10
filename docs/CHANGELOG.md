@@ -43,14 +43,15 @@ Version X
 - Add `scope_sensitivity_modifier` and `scanner_sensitivity_modifier` commands
 - Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
 - Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
-- Add support for loading a file named `dashoptions.tbl` from TC mod directory, allowing mod author to change some hardcoded values (feature WIP)
+- Add support for mod authors to change hardcoded values via new `.tbl` files in mod folder
+- Add support for clientside mod authors to change some safe hardcoded values via `af_clientX.tbl` in `client_mods`
 - Lower minimum character count for console tab complete to 1
 - Add `$DF GunGame` option in dedicated server config
 - Fixed jeep cockpit mesh not being rendered for any jeeps entered after the first in a level
 
 
 
-Dash Faction Changelog
+Dash Faction Changelog (before fork to AF)
 ======================
 
 Version 1.9.0 (not released yet)

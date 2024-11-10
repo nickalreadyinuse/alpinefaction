@@ -13,7 +13,7 @@
 #include "../rf/os/os.h"
 #include <algorithm>
 #include <iostream>
-#include <filesystem>
+//#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -26,7 +26,7 @@
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
-namespace fs = std::filesystem;
+//namespace fs = std::filesystem;
 
 DashOptionsConfig g_dash_options_config;
 
@@ -39,6 +39,17 @@ std::string trim(const std::string& str)
 }
 
 // Helper functions for individual data types
+
+// parse hex formatted colors
+std::tuple<int, int, int, int> extract_color_components(uint32_t color)
+{
+    return std::make_tuple((color >> 24) & 0xFF, // red
+                           (color >> 16) & 0xFF, // green
+                           (color >> 8) & 0xFF,  // blue
+                           color & 0xFF          // alpha
+    );
+}
+
 // strings can be provided in quotation marks or not
 std::optional<OptionValue> parse_string(const std::string& value)
 {
@@ -77,32 +88,35 @@ std::optional<OptionValue> parse_bool(const std::string& value) {
     return value == "1" || value == "true" || value == "True"; 
 }
 
-//std::unique_ptr<rf::File> dashoptions_file;
-
+// master list of options: mapped to option ID, associated tbl, and parser
 const std::unordered_map<std::string, OptionMetadata> option_metadata = {
-    {"$Scoreboard Logo", {DashOptionID::ScoreboardLogo, "af_pc_multi.tbl", parse_string}},
-    {"$Default Geomod Mesh", {DashOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}},
-    {"$Driller Double Geomod Mesh", {DashOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}},
-    {"$Driller Single Geomod Mesh", {DashOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}},
-    {"$APC Geomod Mesh", {DashOptionID::GeomodMesh_APC, "af_game.tbl", parse_string}},
+    {"$Scoreboard Logo", {DashOptionID::ScoreboardLogo, "af_multi.tbl", parse_string}}, // applied in multi_scoreboard.cpp
+    {"$Default Geomod Mesh", {DashOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$Driller Double Geomod Mesh", {DashOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$Driller Single Geomod Mesh", {DashOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$APC Geomod Mesh", {DashOptionID::GeomodMesh_APC, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Default Geomod Smoke Emitter", {DashOptionID::GeomodEmitter_Default, "af_game.tbl", parse_string}},
     {"$Driller Geomod Smoke Emitter", {DashOptionID::GeomodEmitter_Driller, "af_game.tbl", parse_string}},
     {"$Ice Geomod Texture", {DashOptionID::GeomodTexture_Ice, "af_game.tbl", parse_string}},
     {"$First Level Filename", {DashOptionID::FirstLevelFilename, "af_game.tbl", parse_string}},
     {"$Training Level Filename", {DashOptionID::TrainingLevelFilename, "af_game.tbl", parse_string}},
-    {"$Disable Multiplayer Button", {DashOptionID::DisableMultiplayerButton, "af_game.tbl", parse_bool}},
-    {"$Disable Singleplayer Buttons", {DashOptionID::DisableSingleplayerButtons, "af_game.tbl", parse_bool}},
+    {"$Disable Multiplayer Button", {DashOptionID::DisableMultiplayerButton, "af_ui.tbl", parse_bool}},
+    {"$Disable Singleplayer Buttons", {DashOptionID::DisableSingleplayerButtons, "af_ui.tbl", parse_bool}},
     {"$Use Base Game Players Config", {DashOptionID::UseStockPlayersConfig, "af_game.tbl", parse_bool}},
-    {"$Ignore Swap Assault Rifle Controls", {DashOptionID::IgnoreSwapAssaultRifleControls, "af_game.tbl", parse_bool}},
-    {"$Ignore Swap Grenade Controls", {DashOptionID::IgnoreSwapGrenadeControls, "af_game.tbl", parse_bool}},
+    {"$Ignore Swap Assault Rifle Controls", {DashOptionID::IgnoreSwapAssaultRifleControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
+    {"$Ignore Swap Grenade Controls", {DashOptionID::IgnoreSwapGrenadeControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
     {"$Assault Rifle Ammo Counter Color", {DashOptionID::AssaultRifleAmmoColor, "af_client.tbl", parse_color}},
     {"$Precision Rifle Scope Color", {DashOptionID::PrecisionRifleScopeColor, "af_client.tbl", parse_color}},
     {"$Sniper Rifle Scope Color", {DashOptionID::SniperRifleScopeColor, "af_client.tbl", parse_color}},
     {"$Rail Driver Fire Glow Color", {DashOptionID::RailDriverFireGlowColor, "af_client.tbl", parse_color}},
     {"$Rail Driver Fire Flash Color", {DashOptionID::RailDriverFireFlashColor, "af_client.tbl", parse_color}},
-    {"$Summoner Trailer Button Action", {DashOptionID::SumTrailerButtonAction, "af_client.tbl", parse_int}},
-    {"+Summoner Trailer Button URL", {DashOptionID::SumTrailerButtonURL, "af_client.tbl", parse_string}},
-    {"+Summoner Trailer Button Bink Filename", {DashOptionID::SumTrailerButtonBikFile, "af_client.tbl", parse_string}}};
+    {"$Summoner Trailer Button Action", {DashOptionID::SumTrailerButtonAction, "af_ui.tbl", parse_int}},
+    {"+Summoner Trailer Button URL", {DashOptionID::SumTrailerButtonURL, "af_ui.tbl", parse_string}},
+    {"+Summoner Trailer Button Bink Filename", {DashOptionID::SumTrailerButtonBikFile, "af_ui.tbl", parse_string}},
+    {"$Player Entity Type", {DashOptionID::PlayerEntityType, "af_game.tbl", parse_string}},
+    {"$Player Undercover Suit Entity Type", {DashOptionID::PlayerSuitEntityType, "af_game.tbl", parse_string}},
+    {"$Player Undercover Scientist Entity Type", {DashOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}}
+};
 
 void open_url(const std::string& url)
 {
@@ -120,16 +134,6 @@ void open_url(const std::string& url)
     catch (const std::exception& ex) {
         xlog::error("Exception occurred while trying to open URL: {}", ex.what());
     }
-}
-
-//consolidated logic for parsing colors
-std::tuple<int, int, int, int> extract_color_components(uint32_t color)
-{
-    return std::make_tuple((color >> 24) & 0xFF, // red
-                           (color >> 16) & 0xFF, // green
-                           (color >> 8) & 0xFF,  // blue
-                           color & 0xFF          // alpha
-    );
 }
 
 CallHook<void(int, int, int, int)> fpgun_ar_ammo_digit_color_hook{
@@ -333,23 +337,23 @@ FunHook<void(int, int)> extras_summoner_trailer_click_hook{
         int action = get_option_value<int>(DashOptionID::SumTrailerButtonAction);
 
         switch (action) {
-        case 1: { // Open URL
-            if (g_dash_options_config.is_option_loaded(DashOptionID::SumTrailerButtonURL)) {
-                auto url = get_option_value<std::string>(DashOptionID::SumTrailerButtonURL);
-                open_url(url);
+            case 1: { // Open URL
+                if (g_dash_options_config.is_option_loaded(DashOptionID::SumTrailerButtonURL)) {
+                    auto url = get_option_value<std::string>(DashOptionID::SumTrailerButtonURL);
+                    open_url(url);
+                }
+                break;
             }
-            break;
-        }
-        case 2: // Disable button
-            break;
-        default: { // Play Bink video
-            auto trailer_path = get_option_value<std::string>(DashOptionID::SumTrailerButtonBikFile);
-            xlog::debug("Playing BIK file: {}", trailer_path);
-            rf::snd_pause(true);
-            rf::bink_play(trailer_path.c_str());
-            rf::snd_pause(false);
-            break;
-        }
+            case 2: // Disable button
+                break;
+            default: { // Play Bink video
+                auto trailer_path = get_option_value<std::string>(DashOptionID::SumTrailerButtonBikFile);
+                xlog::debug("Playing BIK file: {}", trailer_path);
+                rf::snd_pause(true);
+                rf::bink_play(trailer_path.c_str());
+                rf::snd_pause(false);
+                break;
+            }
         }
     }
 };
@@ -369,23 +373,19 @@ void handle_summoner_trailer_button()
     }
 }
 
-void apply_dashoptions_patches()
+// Only install hooks for options that have been loaded and specified
+void apply_af_options_patches()
 {
-    xlog::warn("Applying Dash Options patches");
+    xlog::warn("Applying Alpine Faction options patches");
 
-    // Only install hooks for options that have been loaded and specified
-    if (g_dash_options_config.is_option_loaded(DashOptionID::UseStockPlayersConfig) &&
-        std::get<bool>(g_dash_options_config.options[DashOptionID::UseStockPlayersConfig])) {
-        AsmWriter(0x004A8F99).jmp(0x004A9010);
-        AsmWriter(0x004A8DCC).jmp(0x004A8E53);
-    }
-
+    // ===========================
+    // af_client.tbl
+    // ===========================
     if (g_dash_options_config.is_option_loaded(DashOptionID::AssaultRifleAmmoColor)) {
         fpgun_ar_ammo_digit_color_hook.install();
     }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::PrecisionRifleScopeColor)) {
-        xlog::warn("pr specified");
         precision_rifle_scope_color_hook.install();
     }
 
@@ -400,6 +400,15 @@ void apply_dashoptions_patches()
     if (g_dash_options_config.is_option_loaded(DashOptionID::RailDriverFireFlashColor)) {
         rail_gun_fire_flash_hook.install();
     }
+
+    // ===========================
+    // af_game.tbl
+    // ===========================
+    if (g_dash_options_config.is_option_loaded(DashOptionID::UseStockPlayersConfig) &&
+        std::get<bool>(g_dash_options_config.options[DashOptionID::UseStockPlayersConfig])) {
+        AsmWriter(0x004A8F99).jmp(0x004A9010);
+        AsmWriter(0x004A8DCC).jmp(0x004A8E53);
+    }    
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Default)) {
         default_geomod_emitter_get_index_hook.install();
@@ -421,6 +430,28 @@ void apply_dashoptions_patches()
         training_load_level_hook.install();
     }
 
+    if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerEntityType)) {
+        static std::string new_entity_type = get_option_value<std::string>(DashOptionID::PlayerEntityType);
+        AsmWriter(0x0046D687).push(new_entity_type.c_str()); // multi_start
+        AsmWriter(0x004706A2).push(new_entity_type.c_str()); // multi_respawn_bot
+        AsmWriter(0x00480860).push(new_entity_type.c_str()); // multi_spawn_player_server_side
+        AsmWriter(0x004A33CF).push(new_entity_type.c_str()); // player_allocate
+        AsmWriter(0x004B003F).push(new_entity_type.c_str()); // player_undercover_init
+    }
+
+    if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerScientistEntityType)) {
+        static std::string new_entity_type = get_option_value<std::string>(DashOptionID::PlayerScientistEntityType);
+        AsmWriter(0x004B0058).push(new_entity_type.c_str()); // player_undercover_init
+    }
+
+    if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerSuitEntityType)) {
+        static std::string new_entity_type = get_option_value<std::string>(DashOptionID::PlayerSuitEntityType);
+        AsmWriter(0x004B0049).push(new_entity_type.c_str()); // player_undercover_init
+    }
+
+    // ===========================
+    // af_ui.tbl
+    // ===========================
     if (g_dash_options_config.is_option_loaded(DashOptionID::DisableMultiplayerButton) &&
         std::get<bool>(g_dash_options_config.options[DashOptionID::DisableMultiplayerButton])) {
         AsmWriter(0x0044391F).nop(5); // Disable multiplayer button
@@ -437,7 +468,8 @@ void apply_dashoptions_patches()
         handle_summoner_trailer_button();
     }
 
-    xlog::warn("Dash Options patches applied successfully");
+    xlog::warn("Alpine Faction Options patches applied successfully");
+
 }
 
 
@@ -447,7 +479,7 @@ void apply_dashoptions_patches()
     //rf::geomod_shape_init();
 
 
-void load_single_dashoptions_file(const std::string& file_name)
+void load_single_af_options_file(const std::string& file_name)
 {
     auto dashoptions_file = std::make_unique<rf::File>();
     if (dashoptions_file->open(file_name.c_str()) != 0) {
@@ -510,11 +542,12 @@ void load_single_dashoptions_file(const std::string& file_name)
         std::string option_value = trim(line.substr(delimiter_pos + 1));
 
         auto meta_it = option_metadata.find(option_name);
-        bool valid_file_for_option =
-            (meta_it != option_metadata.end() &&
-             (meta_it->second.filename == "af_client.tbl" || file_name.find("af_client") == 0));
 
-        if (valid_file_for_option) {
+        // Allow any af_client*.tbl file for options designated to af_client.tbl
+        bool is_af_client_variant = (meta_it->second.filename == "af_client.tbl" &&
+                                     file_name.rfind("af_client", 0) == 0 && file_name.ends_with(".tbl"));
+
+        if (meta_it != option_metadata.end() && (meta_it->second.filename == file_name || is_af_client_variant)) {
             const auto& metadata = meta_it->second;
             auto parsed_value = metadata.parse_function(option_value);
             if (parsed_value) {
@@ -524,6 +557,9 @@ void load_single_dashoptions_file(const std::string& file_name)
                 xlog::warn("Option ID {} marked as loaded", static_cast<std::size_t>(metadata.id));
             }
         }
+        else if (meta_it != option_metadata.end()) {
+            xlog::warn("Option {} in {} skipped (wrong tbl file)", option_name, file_name);
+        }
     }
 
     if (!found_end) {
@@ -531,15 +567,15 @@ void load_single_dashoptions_file(const std::string& file_name)
     }
 }
 
-void load_dashoptions_config()
+void load_af_options_config()
 {
-    xlog::warn("Loading Dash Options configuration");
+    xlog::warn("Loading Alpine Faction Options configuration");
 
     // Load all af_client*.tbl files first
     // af_client.tbl overrides numbered variations because its loaded later
     for (int i = 0; i <= 9; ++i) {
         std::string numbered_file = "af_client" + std::to_string(i) + ".tbl";
-        load_single_dashoptions_file(numbered_file);
+        load_single_af_options_file(numbered_file);
     }
 
     // if a TC mod is loaded, handle the other options files
@@ -552,7 +588,7 @@ void load_dashoptions_config()
 
         // Now load the rest of the dashoptions files
         for (const auto& file_name : config_files) {
-            load_single_dashoptions_file(file_name);
+            load_single_af_options_file(file_name);
         }
     }    
 
@@ -567,7 +603,7 @@ void load_dashoptions_config()
     }
 
     // Apply all specified patches based on the parsed configuration
-    apply_dashoptions_patches();
+    apply_af_options_patches();
 
-    rf::console::print("Dash Options configuration loaded");
+    rf::console::print("Alpine Faction Options configuration loaded");
 }
