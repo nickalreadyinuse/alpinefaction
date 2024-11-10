@@ -60,6 +60,7 @@ struct OptionMetadata
     DashOptionID id;
     std::string filename;
     std::function<std::optional<OptionValue>(const std::string&)> parse_function;
+    bool apply_on_server = false; // will only be set on server if true (unnecessary for most)
 };
 
 // Main configuration structure for options

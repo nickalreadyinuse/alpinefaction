@@ -33,11 +33,22 @@
 DashOptionsConfig g_dash_options_config;
 
 // trim leading and trailing whitespace
-std::string trim(const std::string& str)
+std::string trim(const std::string& str, bool remove_quotes = false)
 {
     auto start = str.find_first_not_of(" \t\n\r");
     auto end = str.find_last_not_of(" \t\n\r");
-    return (start == std::string::npos) ? "" : str.substr(start, end - start + 1);
+    if (start == std::string::npos) {
+        return "";
+    }        
+
+    std::string trimmed = str.substr(start, end - start + 1);
+
+    // extract quoted value
+    if (remove_quotes && trimmed.size() >= 2 && trimmed.front() == '"' && trimmed.back() == '"') {
+        trimmed = trimmed.substr(1, trimmed.size() - 2);
+    }
+
+    return trimmed;
 }
 
 // Helper functions for individual data types
@@ -55,22 +66,13 @@ std::tuple<int, int, int, int> extract_color_components(uint32_t color)
 // strings can be provided in quotation marks or not
 std::optional<OptionValue> parse_string(const std::string& value)
 {
-    std::string trimmed_value = trim(value);
-    // Remove quotes if they surround the string
-    if (trimmed_value.size() >= 2 && trimmed_value.front() == '"' && trimmed_value.back() == '"') {
-        trimmed_value = trimmed_value.substr(1, trimmed_value.size() - 2);
-    }
-    return trimmed_value;
+    return trim(value, true);
 }
 
 // colors can be provided in quotation marks or not
 std::optional<OptionValue> parse_color(const std::string& value)
 {
-    // Remove quotes if they surround the string
-    std::string trimmed_value = trim(value);
-    if (trimmed_value.size() >= 2 && trimmed_value.front() == '"' && trimmed_value.back() == '"') {
-        trimmed_value = trimmed_value.substr(1, trimmed_value.size() - 2);
-    }
+    std::string trimmed_value = trim(value, true);
     try {
         return std::stoul(trimmed_value, nullptr, 16);
     }
@@ -92,7 +94,7 @@ std::optional<OptionValue> parse_bool(const std::string& value) {
 
 // master list of options: mapped to option ID, associated tbl, and parser
 const std::unordered_map<std::string, OptionMetadata> option_metadata = {
-    {"$Scoreboard Logo", {DashOptionID::ScoreboardLogo, "af_multi.tbl", parse_string}}, // applied in multi_scoreboard.cpp
+    {"$Scoreboard Logo", {DashOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp
     {"$Default Geomod Mesh", {DashOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Driller Double Geomod Mesh", {DashOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Driller Single Geomod Mesh", {DashOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
@@ -115,13 +117,13 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Summoner Trailer Button Action", {DashOptionID::SumTrailerButtonAction, "af_ui.tbl", parse_int}},
     {"+Summoner Trailer Button URL", {DashOptionID::SumTrailerButtonURL, "af_ui.tbl", parse_string}},
     {"+Summoner Trailer Button Bink Filename", {DashOptionID::SumTrailerButtonBikFile, "af_ui.tbl", parse_string}},
-    {"$Player Entity Type", {DashOptionID::PlayerEntityType, "af_game.tbl", parse_string}},
+    {"$Player Entity Type", {DashOptionID::PlayerEntityType, "af_game.tbl", parse_string, true}},
     {"$Player Undercover Suit Entity Type", {DashOptionID::PlayerSuitEntityType, "af_game.tbl", parse_string}},
     {"$Player Undercover Scientist Entity Type", {DashOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}},
-    {"$Fall Damage Land Multiplier", {DashOptionID::FallDamageLandMultiplier, "af_game.tbl", parse_float}},
-    {"$Fall Damage Slam Multiplier", {DashOptionID::FallDamageSlamMultiplier, "af_game.tbl", parse_float}},
-    {"$Multiplayer Walk Speed", {DashOptionID::MultiplayerWalkSpeed, "af_game.tbl", parse_float}},
-    {"$Multiplayer Crouch Walk Speed", {DashOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float}}
+    {"$Fall Damage Land Multiplier", {DashOptionID::FallDamageLandMultiplier, "af_game.tbl", parse_float, true}},
+    {"$Fall Damage Slam Multiplier", {DashOptionID::FallDamageSlamMultiplier, "af_game.tbl", parse_float, true}},
+    {"$Multiplayer Walk Speed", {DashOptionID::MultiplayerWalkSpeed, "af_game.tbl", parse_float, true}},
+    {"$Multiplayer Crouch Walk Speed", {DashOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float, true}}
 };
 
 void open_url(const std::string& url)
@@ -558,7 +560,7 @@ void load_single_af_options_file(const std::string& file_name)
 
     // Search for #Start marker
     while (std::getline(file_stream, line)) {
-        line = trim(line);
+        line = trim(line, false);
         if (line == "#Start") {
             found_start = true;
             break;
@@ -573,7 +575,7 @@ void load_single_af_options_file(const std::string& file_name)
     // Process options until #End marker is found
     bool found_end = false;
     while (std::getline(file_stream, line)) {
-        line = trim(line);
+        line = trim(line, false);
 
         if (line == "#End") {
             found_end = true;
@@ -588,8 +590,8 @@ void load_single_af_options_file(const std::string& file_name)
             continue;
         }
 
-        std::string option_name = trim(line.substr(0, delimiter_pos));
-        std::string option_value = trim(line.substr(delimiter_pos + 1));
+        std::string option_name = trim(line.substr(0, delimiter_pos), false);
+        std::string option_value = trim(line.substr(delimiter_pos + 1), false);
 
         auto meta_it = option_metadata.find(option_name);
 
@@ -597,7 +599,10 @@ void load_single_af_options_file(const std::string& file_name)
         bool is_af_client_variant = (meta_it->second.filename == "af_client.tbl" &&
                                      file_name.rfind("af_client", 0) == 0 && file_name.ends_with(".tbl"));
 
-        if (meta_it != option_metadata.end() && (meta_it->second.filename == file_name || is_af_client_variant)) {
+        if (meta_it != option_metadata.end() &&
+            (meta_it->second.filename == file_name || is_af_client_variant) &&
+            (!rf::is_dedicated_server || meta_it->second.apply_on_server)) {
+            
             const auto& metadata = meta_it->second;
             auto parsed_value = metadata.parse_function(option_value);
             if (parsed_value) {
@@ -608,7 +613,15 @@ void load_single_af_options_file(const std::string& file_name)
             }
         }
         else if (meta_it != option_metadata.end()) {
-            xlog::warn("Option {} in {} skipped (wrong tbl file)", option_name, file_name);
+            if (meta_it->second.filename != file_name && !is_af_client_variant) {
+                xlog::warn("Option {} in {} skipped (wrong tbl file)", option_name, file_name);
+            }
+            else if (rf::is_dedicated_server && !meta_it->second.apply_on_server) {
+                xlog::warn("Option {} in {} skipped (not needed on dedicated server)", option_name, file_name);
+            }
+            else {
+                xlog::warn("Option {} in {} skipped (reason unknown)", option_name, file_name);
+            }
         }
     }
 

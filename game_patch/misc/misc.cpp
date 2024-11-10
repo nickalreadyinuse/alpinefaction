@@ -409,7 +409,8 @@ CallHook level_init_pre_console_output_hook{
 };
 
 CodeInjection all_table_files_loaded_injection{
-    0x004B249E, 
+    //0x004B249E,
+    0x004B2438,
     []() {
         // after all other tbl files have been loaded, load alpine options
         load_af_options_config();

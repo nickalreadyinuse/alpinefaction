@@ -215,7 +215,7 @@ namespace rf
 
     static auto& netgame = addr_as_ref<NetGameInfo>(0x0064EC28);
     static auto& is_multi = addr_as_ref<bool>(0x0064ECB9);
-    static auto& is_server = addr_as_ref<bool>(0x0064ECBA);
+    static auto& is_server = addr_as_ref<bool>(0x0064ECBA); // only refers to a listen server
     static auto& is_dedicated_server = addr_as_ref<bool>(0x0064ECBB);
     static auto& simultaneous_ping = addr_as_ref<uint32_t>(0x00599CD8);
     static auto& tracker_addr = addr_as_ref<NetAddr>(0x006FC550);
