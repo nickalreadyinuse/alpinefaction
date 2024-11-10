@@ -9,6 +9,8 @@
 #include "../rf/gr/gr.h"
 #include "../rf/sound/sound.h"
 #include "../rf/geometry.h"
+#include "../rf/entity.h"
+#include "../rf/multi.h"
 #include "../rf/misc.h"
 #include "../rf/os/os.h"
 #include <algorithm>
@@ -115,7 +117,11 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"+Summoner Trailer Button Bink Filename", {DashOptionID::SumTrailerButtonBikFile, "af_ui.tbl", parse_string}},
     {"$Player Entity Type", {DashOptionID::PlayerEntityType, "af_game.tbl", parse_string}},
     {"$Player Undercover Suit Entity Type", {DashOptionID::PlayerSuitEntityType, "af_game.tbl", parse_string}},
-    {"$Player Undercover Scientist Entity Type", {DashOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}}
+    {"$Player Undercover Scientist Entity Type", {DashOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}},
+    {"$Fall Damage Land Multiplier", {DashOptionID::FallDamageLandMultiplier, "af_game.tbl", parse_float}},
+    {"$Fall Damage Slam Multiplier", {DashOptionID::FallDamageSlamMultiplier, "af_game.tbl", parse_float}},
+    {"$Multiplayer Walk Speed", {DashOptionID::MultiplayerWalkSpeed, "af_game.tbl", parse_float}},
+    {"$Multiplayer Crouch Walk Speed", {DashOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float}}
 };
 
 void open_url(const std::string& url)
@@ -314,6 +320,32 @@ CallHook<int(const char*, int, bool)> ice_geo_crater_bm_load_hook {
     }
 };
 
+// fall damage when impacting
+CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_slam_hook{
+    0x0049DE39,
+    [](rf::Entity* entity, float rel_vel) {
+        float damage_multiplier = get_option_or_default<float>(DashOptionID::FallDamageSlamMultiplier, 1.0f);
+        float adjusted_rel_vel = rel_vel * damage_multiplier;
+
+        xlog::warn("New slam damage value is {}", adjusted_rel_vel);
+
+        physics_calc_fall_damage_slam_hook.call_target(entity, adjusted_rel_vel);
+    }
+};
+
+// fall damage when landing
+CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_land_hook{
+    0x004A0C28,
+    [](rf::Entity* entity, float rel_vel) {
+        float damage_multiplier = get_option_or_default<float>(DashOptionID::FallDamageLandMultiplier, 1.0f);
+        float adjusted_rel_vel = rel_vel * damage_multiplier;
+
+        xlog::warn("New land damage value is {}", adjusted_rel_vel);
+
+        physics_calc_fall_damage_land_hook.call_target(entity, adjusted_rel_vel);
+    }
+};
+
 // Override first level filename for new game menu
 CallHook<void(const char*)> first_load_level_hook{
     0x00443B15, [](const char* level_name) {
@@ -440,13 +472,31 @@ void apply_af_options_patches()
     }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerScientistEntityType)) {
-        static std::string new_entity_type = get_option_value<std::string>(DashOptionID::PlayerScientistEntityType);
-        AsmWriter(0x004B0058).push(new_entity_type.c_str()); // player_undercover_init
+        static std::string new_sci_entity_type = get_option_value<std::string>(DashOptionID::PlayerScientistEntityType);
+        AsmWriter(0x004B0058).push(new_sci_entity_type.c_str()); // player_undercover_init
     }
 
     if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerSuitEntityType)) {
-        static std::string new_entity_type = get_option_value<std::string>(DashOptionID::PlayerSuitEntityType);
-        AsmWriter(0x004B0049).push(new_entity_type.c_str()); // player_undercover_init
+        static std::string new_suit_entity_type = get_option_value<std::string>(DashOptionID::PlayerSuitEntityType);
+        AsmWriter(0x004B0049).push(new_suit_entity_type.c_str()); // player_undercover_init
+    }
+
+    if (g_dash_options_config.is_option_loaded(DashOptionID::FallDamageSlamMultiplier)) {
+        physics_calc_fall_damage_slam_hook.install();
+    }
+
+    if (g_dash_options_config.is_option_loaded(DashOptionID::FallDamageLandMultiplier)) {
+        physics_calc_fall_damage_land_hook.install();
+    }
+
+    if (g_dash_options_config.is_option_loaded(DashOptionID::MultiplayerWalkSpeed)) {
+        float multiplayer_walk_speed = get_option_or_default<float>(DashOptionID::MultiplayerWalkSpeed, 9.0f);
+        rf::multiplayer_walk_speed = multiplayer_walk_speed;
+    }
+
+    if (g_dash_options_config.is_option_loaded(DashOptionID::MultiplayerCrouchWalkSpeed)) {
+        float multiplayer_crouch_walk_speed = get_option_or_default<float>(DashOptionID::MultiplayerCrouchWalkSpeed, 7.0f);
+        rf::multiplayer_crouch_walk_speed = multiplayer_crouch_walk_speed;
     }
 
     // ===========================

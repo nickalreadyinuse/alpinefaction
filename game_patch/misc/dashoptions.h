@@ -37,6 +37,10 @@ enum class DashOptionID
     PlayerEntityType,
     PlayerSuitEntityType,
     PlayerScientistEntityType,
+    FallDamageLandMultiplier,
+    FallDamageSlamMultiplier,
+    MultiplayerWalkSpeed,
+    MultiplayerCrouchWalkSpeed,
     _optioncount // dummy for total count
 };
 

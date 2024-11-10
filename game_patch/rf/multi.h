@@ -233,6 +233,8 @@ namespace rf
     static auto& multi_hud_render_chat = addr_as_ref<void()>(0x004773D0);
     static auto& game_poll = addr_as_ref<void(void(*key_callback)(int k))>(0x004353C0);
     static auto& scoreboard_render_internal = addr_as_ref<void(bool netgame_scoreboard)>(0x00470880);
+    static auto& multiplayer_walk_speed = *reinterpret_cast<float*>(0x0059458C);
+    static auto& multiplayer_crouch_walk_speed = *reinterpret_cast<float*>(0x00594590);
 
     constexpr int multi_max_player_id = 256;
 }
