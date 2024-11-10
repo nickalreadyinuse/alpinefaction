@@ -55,7 +55,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDR_ICON                ICON                    "res/DF.ico"
+IDR_ICON                ICON                    "res/AF.ico"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -74,19 +74,19 @@ IDB_HEADER              BITMAP                  "res/header.bmp"
 IDD_MAIN DIALOGEX 0, 0, 213, 218
 STYLE DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
-CAPTION "Dash Faction Launcher"
+CAPTION "Alpine Faction Launcher"
 FONT 8, "MS Shell Dlg"
 BEGIN
     CONTROL         IDB_HEADER,IDC_HEADER_PIC,"Static",SS_BITMAP|SS_REALSIZECONTROL,0,0,213,49
-    DEFPUSHBUTTON   "Launch Game",IDOK,48,54,114,24
+    DEFPUSHBUTTON   "Play Game",IDOK,48,54,114,24
     PUSHBUTTON      "Level Editor",IDC_EDITOR_BTN,48,84,114,24
     PUSHBUTTON      "Options",IDC_OPTIONS_BTN,48,114,114,24
-    PUSHBUTTON      "Exit",IDCANCEL,48,144,114,24
+    PUSHBUTTON      "Exit Launcher",IDCANCEL,48,144,114,24
     LTEXT           "Mod:",IDC_STATIC,48,176,17,8
     COMBOBOX        IDC_MOD_COMBO,67,174,95,200,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Checking for update...",IDC_UPDATE_STATUS,6,204,114,8,SS_NOTIFY
-    CONTROL         "<a>Discord Support Channel</a>",IDC_SUPPORT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,124,192,86,8
-    CONTROL         "<a>About Dash Faction</a>",IDC_ABOUT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,142,204,68,8
+    CONTROL         "<a>Join Community Discord</a>",IDC_SUPPORT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,124,192,86,8
+    CONTROL         "<a>About Alpine Faction</a>",IDC_ABOUT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,142,204,68,8
 END
 
 IDD_OPTIONS DIALOGEX 0, 0, 452, 318
@@ -206,18 +206,19 @@ BEGIN
     COMBOBOX        IDC_LANG_COMBO,60,28,66,66,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_ABOUT DIALOGEX 0, 0, 174, 106
+IDD_ABOUT DIALOGEX 0, 0, 174, 120
 STYLE DS_SHELLFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About Dash Faction"
+CAPTION "About Alpine Faction"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    LTEXT           "Dash Faction",IDC_APP_NAME,12,6,100,16
+    LTEXT           "Alpine Faction",IDC_APP_NAME,12,6,100,16
     LTEXT           "Version: ?", IDC_APP_VERSION,12,22,100,8
-    LTEXT           "Copyright (C) 2022 rafalh",IDC_STATIC,12,34,100,8
+    LTEXT           "Copyright (C) 2024 Goober",IDC_STATIC,12,34,100,8
     LTEXT           "This software uses open-source components.",IDC_STATIC,12,46,160,8
-    CONTROL         "<a href=""https://github.com/rafalh/dashfaction"">Source code</a>",IDC_SRC_LINK,"SysLink",WS_TABSTOP,12,58,100,8
-    CONTROL         "<a>Licensing information</a>",IDC_LICENSE_LINK,"SysLink",WS_TABSTOP,12,70,100,8
-    DEFPUSHBUTTON   "OK",IDOK,62,86,50,14
+    LTEXT           "Alpine Faction is a fork of Dash Faction.",IDC_STATIC,12,58,160,8
+    CONTROL         "<a href=""https://github.com/GooberRF/alpinefaction"">Source code</a>",IDC_SRC_LINK,"SysLink",WS_TABSTOP,12,70,100,8
+    CONTROL         "<a>Licensing information</a>",IDC_LICENSE_LINK,"SysLink",WS_TABSTOP,12,82,100,8
+    DEFPUSHBUTTON   "OK",IDOK,62,98,50,14
 END
 
 

@@ -16,7 +16,7 @@
 // Variables to be modified during the release process
 #define PRODUCT_NAME           "Alpine Faction"
 #define VERSION_MAJOR          1
-#define VERSION_MINOR          9
+#define VERSION_MINOR          0
 #define VERSION_PATCH          0
 #define VERSION_TYPE           VERSION_TYPE_DEV
 #define VERSION_TYPE_REVISION  1

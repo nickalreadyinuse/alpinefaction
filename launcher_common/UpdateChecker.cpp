@@ -10,7 +10,7 @@
 #include <ed25519.h>
 #include <base64.h>
 
-#define UPDATE_CHECK_ENDPOINT_URL "https://dashfactionapi.rafalh.dev/update"
+#define UPDATE_CHECK_ENDPOINT_URL "https://redfaction.help/af_update"
 
 static unsigned char signature_public_key[] = {
     0x44, 0xCB, 0x46, 0xDC, 0xD6, 0xC7, 0xDB, 0xA0, 0x49, 0x60, 0xB5, 0x42, 0x1E, 0x14, 0xA1, 0xBD,
