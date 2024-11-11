@@ -496,46 +496,6 @@ void initialize_event_names()
     xlog::info("Initialized extended_event_names with {} entries", total_event_count);
 }
 
-void overwrite_event_names_pointer()
-{
-    // Confirm that the first and last entries in memory are as expected
-    xlog::info("Overwriting event_names pointer at 0x{:08X} to point to extended_event_names at 0x{:08X}",
-               event_names_original_addr, reinterpret_cast<uintptr_t>(extended_event_names.get()));
-
-    write_mem<const char**>(event_names_original_addr, extended_event_names.get()); // did the U|W thing but testing anyway not needed
-
-    xlog::info("Memory verification: First entry should be 'Attack', found: {}", extended_event_names[0]);
-    xlog::info("Memory verification: Last entry should be 'Clone_Entity', found: {}",
-               extended_event_names[total_event_count - 1]);
-
-    // Verify all entries in the extended array
-    xlog::info("Verifying extended_event_names array after redirection:");
-    for (int i = 0; i < total_event_count; ++i) {
-        if (extended_event_names[i]) {
-            xlog::info("Extended Event name [{}]: {}", i, extended_event_names[i]);
-        }
-        else {
-            xlog::warn("Extended Event name [{}] is null or corrupted", i);
-        }
-    }
-}
-
-CodeInjection event_names_bounds_check_injection{
-    0x00407782, [](auto& regs) {
-        int index = regs.eax;
-
-        if (index < 0 || index >= total_event_count) {
-            xlog::warn("Out-of-bounds event name access with index: {}", index);
-            regs.edx = reinterpret_cast<uintptr_t>("Unknown"); // Default message
-            regs.eip = 0x00407789;                             // Skip original instruction
-        }
-        else {
-            regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
-        }
-    }};
-
-
-
 //LOGGING
 void debug_event_names()
 {
@@ -546,35 +506,6 @@ void debug_event_names()
         else {
             xlog::warn("Debug: Event name [{}] is null or corrupted", i);
         }
-    }
-};
-
-
-const std::unordered_map<std::string, int> event_name_to_id = {
-    {"Clone_Entity", 90},
-};
-
-FunHook<int(const rf::String* class_name)> get_event_type_from_class_name_hook{
-    0x004516A0, [](const rf::String* class_name) -> int {
-        if (!class_name || !class_name->buf) {
-            xlog::warn("class_name or buf is null");
-            return -1;
-        }
-
-        std::string input_name(class_name->buf);
-        xlog::warn("Input class_name: {}", input_name);
-
-        // Iterate over the extended event names to find a match
-        for (int i = 0; i < total_event_count; ++i) {
-            if (extended_event_names[i] && input_name == extended_event_names[i]) {
-                xlog::info("Matched event '{}' at index {}, returning event type ID {}", input_name, i, i);
-                return i; // Index in `extended_event_names` serves as the event type ID
-            }
-        }
-
-        // If no match found, return -1 to indicate an unknown event
-        xlog::warn("No match found for '{}', returning -1", input_name);
-        return -1;
     }
 };
 
@@ -596,23 +527,16 @@ void verify_event_names()
 
 
 
-// seems to be totally right this is the x4
+
 CodeInjection event_names_injection{
     0x00407782,
     [](auto& regs) {
         using namespace asm_regs;
 
+        // look up index for selected event in new index
         int index = regs.eax;
         regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
-        // Load the base address of `extended_event_names` and the index into `edx`
-        /* if (index >= 0 && index < total_event_count) {
-            regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
-        } else {
-            xlog::warn("Out-of-bounds event name access with index: {}", index);
-            regs.edx = reinterpret_cast<uintptr_t>("Unknown"); // Default message
-        }*/
 
-        // Move the instruction pointer to skip over the original `mov edx, event_names[eax*4]`
         regs.eip = 0x00407789;
     }
 };
@@ -627,8 +551,7 @@ CodeInjection redirect_event_names_in_function{
             xlog::info("Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
         }
 
-        // Skip the original instruction at `0x004617EA` by setting eip to the next instruction
-        regs.eip = 0x004617EF; // Adjust this to skip past `mov edi, offset event_names`
+        regs.eip = 0x004617EF;
     }
 };
 
@@ -637,21 +560,19 @@ CodeInjection get_event_type_injection1{
     0x00004516A9,
     [](auto& regs) {
         using namespace asm_regs;
-
+        // Set esi to point to the start of `extended_event_names` instead of `event_names`
         regs.esi = reinterpret_cast<uintptr_t>(extended_event_names.get());
 
         for (int i = 0; i < total_event_count; ++i) {
             xlog::info("Also Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
         }
       
-        // Move the instruction pointer to skip over the original `mov edx, event_names[eax*4]`
         regs.eip = 0x004516AE;
     }
 };
 
 
 
-// attack index
 CodeInjection event_names_cmp_injection{
     0x004617FC, [](auto& regs) {
         AsmWriter writer{regs.eip};
@@ -663,7 +584,6 @@ CodeInjection event_names_cmp_injection{
         regs.eip += 6; // Assuming original `cmp` is 6 bytes
     }};
 
-// Modify the cmp at 0x004516C2 to compare esi with the last entry in `extended_event_names`
 CodeInjection get_event_type_injection2{
     0x004516C2, [](auto& regs) {
         AsmWriter writer{regs.eip};
@@ -688,17 +608,13 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     xlog::warn("Initializing extended event names redirection...");
     initialize_event_names();
-    //overwrite_event_names_pointer();
     debug_event_names();
 
-    //event_name_population_injection.install(); // conflicts
-    //get_event_type_from_class_name_hook.install();
-    //event_names_bounds_check_injection.install();
     redirect_event_names_in_function.install(); // array
     //event_names_cmp_injection.install(); // attack
     get_event_type_injection1.install(); // array
     //get_event_type_injection2.install(); // attack
-    event_names_injection.install();     // look up index
+    event_names_injection.install(); // look up index
 
     // holy shit this works
     AsmWriter(0x004617FC).cmp(asm_regs::edi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
