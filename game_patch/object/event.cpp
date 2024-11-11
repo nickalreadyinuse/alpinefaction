@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include <cassert>
+#include <unordered_set>
 #include "../rf/object.h"
 #include "../rf/event.h"
 #include "../rf/entity.h"
@@ -220,11 +221,6 @@ ConsoleCommand2 debug_event_msg_cmd{
     }
 };
 
-/* struct EventDifficultyGate : rf::Event
-{
-    int difficulty;
-};*/
-
 FunHook<int(const rf::String* name)> event_lookup_type_hook{
     0x004BD700,
     [](const rf::String* name) {
@@ -234,9 +230,12 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         if (*name == "Clone_Entity") {
             return 90;
         }
-         else if (*name == "Set_World_Collide_pl") { // Set_Player_World_Collide use real name when RED piece is done
+         else if (*name == "Set_Player_World_Collide") {
             return 91;
         }
+         else if (*name == "Switch_Random") {
+             return 92;
+         }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -265,6 +264,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 91:
             return allocate_custom_event(static_cast<rf::EventSetCollisionPlayer*>(nullptr));
+
+        case 92:
+            return allocate_custom_event(static_cast<rf::EventSwitchRandom*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -295,12 +297,45 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 92: {
+            auto* custom_event = static_cast<rf::EventSwitchRandom*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
         }
     }
 };
+
+// list events that don't forward messages
+static const std::unordered_set<rf::EventType> forward_exempt_ids = {
+    rf::EventType::Continuous_Damage,
+    rf::EventType::Cyclic_Timer,
+    rf::EventType::Set_Friendliness,
+    rf::EventType::Armor,
+    rf::EventType::Clear_Endgame_If_Killed,
+    rf::EventType::Play_Vclip,
+    rf::EventType::Clone_Entity,
+    rf::EventType::Switch_Random
+};
+
+// decide if a specific event type should forward messages
+FunHook<bool(int)> event_type_forwards_messages_hook{
+    0x004B8C40,
+    [](int event_type) {
+        auto event = static_cast<rf::EventType>(event_type);
+
+        if (forward_exempt_ids.count(event) > 0) {
+            return false;
+        }
+
+        return true;      
+    }
+};
+
 rf::Vector3 extract_yaw_vector(const rf::Matrix3& matrix)
 {
     rf::Vector3 angles;
@@ -366,21 +401,17 @@ FunHook<void(rf::Event*)> event_player_teleport_on_hook{
 };
 
 void apply_event_patches()
-{    
-    // make event_create process events with any ID
-    AsmWriter(0x004B68A3).jmp(0x004B68A9);
+{
 
-    event_lookup_type_hook.install();
-    event_allocate_hook.install();
-    event_deallocate_hook.install();
+    // Support custom events    
+    AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID
+    event_lookup_type_hook.install(); // define custom event IDs
+    event_allocate_hook.install(); // load custom events at level start
+    event_deallocate_hook.install(); // unload custom events at level end
+    event_type_forwards_messages_hook.install(); // events that don't forward messages
 
-
-
-    
-
-
-
-
+    // Improve player teleport behaviour
+    event_player_teleport_on_hook.install();
 
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
     switch_model_event_custom_mesh_patch.install();
@@ -407,9 +438,6 @@ void apply_event_patches()
 
     // Do not load next level if blackout is in progress
     event_load_level_turn_on_injection.install();
-
-    // Improve player teleport behaviour
-    event_player_teleport_on_hook.install();
 
     // Register commands
     debug_event_msg_cmd.register_cmd();

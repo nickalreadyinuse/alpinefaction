@@ -446,48 +446,43 @@ CodeInjection texture_name_buffer_overflow_injection2{
     },
 };
 
-
-
-
-
-
-
-
-constexpr uintptr_t event_names_original_addr = 0x00578B78;
+// Custom event support
+//constexpr uintptr_t event_names_original_addr = 0x00578B78;
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 2;
+constexpr int new_event_count = 4; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
+std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
+// master list of new events, last one is dummy for counting (ignore)
 const char* additional_event_names[new_event_count] = {
     "Clone_Entity",
-    "Test1",
+    "Set_Player_World_Collide",
+    "Switch_Random",
+    "_dummy"
 };
-
-// Managed array to hold original + additional event names
-std::unique_ptr<const char*[]> extended_event_names;
 
 void initialize_event_names()
 {
-    // Allocate space for total event names
+    // allocate space for total event names
     extended_event_names = std::make_unique<const char*[]>(total_event_count + 1);
     extended_event_names[total_event_count] = nullptr; // padding to prevent overrun
 
-    // Pointer to the original event names array in memory
-    const char** original_event_names = reinterpret_cast<const char**>(event_names_original_addr);
+    // reference the stock event names array in memory
+    const char** original_event_names = reinterpret_cast<const char**>(0x00578B78);
 
-    // Dynamically read and populate original event names into extended_event_names
+    // read and populate extended_event_names with stock event names
     for (int i = 0; i < original_event_count; ++i) {
         if (original_event_names[i]) {
             extended_event_names[i] = original_event_names[i];
             xlog::info("Loaded original event name [{}]: {}", i, original_event_names[i]);
         }
-        else {
+        else { // should never be hit, including for safety
             xlog::warn("Original event name [{}] is null or corrupted", i);
-            extended_event_names[i] = nullptr; // Ensuring safety if an entry is unexpectedly null
+            extended_event_names[i] = nullptr;
         }
     }
 
-    // Add new event names
+    // add new event names to extended_event_names
     for (int i = 0; i < new_event_count; ++i) {
         extended_event_names[original_event_count + i] = additional_event_names[i];
         xlog::info("Added additional event name [{}]: {}", original_event_count + i, additional_event_names[i]);
@@ -496,7 +491,7 @@ void initialize_event_names()
     xlog::info("Initialized extended_event_names with {} entries", total_event_count);
 }
 
-//LOGGING
+// verify the event names in extended_event_names LOGGING
 void debug_event_names()
 {
     for (int i = 0; i < total_event_count; ++i) {
@@ -509,10 +504,9 @@ void debug_event_names()
     }
 };
 
-// Function to verify the event names in extended_event_names LOGGING
+// verify the event names in extended_event_names LOGGING
 void verify_event_names()
 {
-    xlog::info("Verifying event names in array:");
     for (int i = 0; i < total_event_count; ++i) {
         if (extended_event_names[i]) {
             xlog::info("Event name [{}]: {}", i, extended_event_names[i]);
@@ -523,17 +517,13 @@ void verify_event_names()
     }
 }
 
-
-
-
-
-
+// in CDedLevel__OpenEventPropertiesInternal
 CodeInjection event_names_injection{
     0x00407782,
     [](auto& regs) {
         using namespace asm_regs;
 
-        // look up index for selected event in new index
+        // look up index for selected event in new array
         int index = regs.eax;
         regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
 
@@ -541,10 +531,10 @@ CodeInjection event_names_injection{
     }
 };
 
-// array
-CodeInjection redirect_event_names_in_function{
+// in CEventDialog__OnInitDialog
+CodeInjection OnInitDialog_redirect_event_names{
     0x004617EA, [](auto& regs) {
-        // Set edi to point to the start of `extended_event_names` instead of `event_names`
+        // update reference to old event_names array with new extended_event_names
         regs.edi = reinterpret_cast<uintptr_t>(extended_event_names.get());
 
         for (int i = 0; i < total_event_count; ++i) {
@@ -555,12 +545,12 @@ CodeInjection redirect_event_names_in_function{
     }
 };
 
-// array
-CodeInjection get_event_type_injection1{
-    0x00004516A9,
+// in get_event_type_from_class_name
+CodeInjection get_event_type_redirect_event_names{
+    0x004516A9,
     [](auto& regs) {
         using namespace asm_regs;
-        // Set esi to point to the start of `extended_event_names` instead of `event_names`
+        // update reference to old event_names array with new extended_event_names
         regs.esi = reinterpret_cast<uintptr_t>(extended_event_names.get());
 
         for (int i = 0; i < total_event_count; ++i) {
@@ -571,79 +561,43 @@ CodeInjection get_event_type_injection1{
     }
 };
 
-
-
-CodeInjection event_names_cmp_injection{
-    0x004617FC, [](auto& regs) {
-        AsmWriter writer{regs.eip};
-
-        // Insert `cmp edi, offset extended_event_names[total_event_count - 1]`
-        writer.cmp(asm_regs::edi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
-
-        // Advance instruction pointer past the original `cmp edi, offset aAttack`
-        regs.eip += 6; // Assuming original `cmp` is 6 bytes
-    }};
-
-CodeInjection get_event_type_injection2{
-    0x004516C2, [](auto& regs) {
-        AsmWriter writer{regs.eip};
-
-        // Insert `cmp esi, offset extended_event_names[total_event_count - 1]`
-        writer.cmp(asm_regs::esi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
-
-        // Advance instruction pointer past the original `cmp esi, offset aAttack`
-        regs.eip += 6; // Assuming original `cmp` is 6 bytes
-    }};
-
-
-
-
-
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
     InitLogging();
     InitCrashHandler();
 
-
-
     xlog::warn("Initializing extended event names redirection...");
-    initialize_event_names();
-    debug_event_names();
 
-    redirect_event_names_in_function.install(); // array
-    //event_names_cmp_injection.install(); // attack
-    get_event_type_injection1.install(); // array
-    //get_event_type_injection2.install(); // attack
-    event_names_injection.install(); // look up index
+    // Support custom event integration
+    initialize_event_names(); // populate extended array with stock + custom events
+    debug_event_names(); // debug logging
 
-    // holy shit this works
-    AsmWriter(0x004617FC).cmp(asm_regs::edi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
-    AsmWriter(0x004516C2).cmp(asm_regs::esi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
+    OnInitDialog_redirect_event_names.install(); // replace reference to event_names with new extended array
+    get_event_type_redirect_event_names.install(); // replace reference to event_names with new extended array
+    event_names_injection.install(); // when opening event properties, use new extended array for event look up
 
+    // set new end address for event array loops that use new extended array
+    AsmWriter(0x004617FC).cmp(asm_regs::edi,
+        reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // OnInitDialog
+    AsmWriter(0x004516C2).cmp(asm_regs::esi,
+        reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // get_event_type_from_class_name  
 
+    verify_event_names(); // debug logging
 
-
-    //extend_event_names_loop_injection.install();
-    //event_name_population_injection.install();
-
-
-
-
+    // Allow Set_Liquid_Depth to appear in the Events list
+    // Original code omits that event by name, it now omits a dummy name
+    AsmWriter(0x004440B4).push("_dummy");
 
 
+    // Remove "You must rebuild geometry before leaving group mode"
+    AsmWriter(0x0042645E).jmp(0x00426486);
+    AsmWriter(0x004263D1).jmp(0x004263F9);
+    AsmWriter(0x0042637A).jmp(0x004263A2);
+    AsmWriter(0x0042631C).jmp(0x00426344);
+    AsmWriter(0x004262E2).jmp(0x0042630A);
 
-
-
-
-
-    
-
-    xlog::info("Removed the comparison limiting the event count");
-
-
-
-    xlog::warn("Initialization complete.");
-    verify_event_names();
+    // Remove "You must rebuild geometry before texturing brushes"
+    AsmWriter(0x0042642E).jmp(0x00426456);
 
     // Change command for Play Level action to use Dash Faction launcher
     static std::string launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;
@@ -652,15 +606,6 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     AsmWriter(0x00448024, 0x0044802B).mov(eax, launcher_pathname.c_str());
     CMainFrame_OnPlayLevelCmd_skip_level_dir_injection.install();
     CMainFrame_OnPlayLevelFromCameraCmd_skip_level_dir_injection.install();
-
-
-    //AsmWriter{0x004512D2}.nop(4);
-    //AsmWriter{0x004512CC}.push(0);
-
-
-    // Allow Set_Liquid_Depth to appear in the Events list
-    // Original code omits that event by name, it now omits a dummy name
-    AsmWriter(0x004440B4).push("_dummy");
 
     // Add additional file paths for V3M loading
     CEditorApp_InitInstance_additional_file_paths_injection.install();

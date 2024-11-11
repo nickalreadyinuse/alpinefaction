@@ -2,6 +2,7 @@
 
 #include "object.h"
 #include "entity.h"
+#include "../main/main.h"
 #include "player/player.h"
 #include "os/timestamp.h"
 
@@ -18,11 +19,14 @@ namespace rf
         int event_flags;
         bool delayed_msg;
 
-        virtual void initialize() = 0;
-        virtual void turn_on() = 0;
-        virtual void turn_off() = 0;
-        virtual void process() = 0;
+        virtual void initialize(){};
+        virtual void turn_on(){};
+        virtual void turn_off(){};
+        virtual void process(){};
+        virtual void activate(){};
+        virtual void activate_links(){};
 
+        virtual ~Event() = default;
     };
     static_assert(sizeof(Event) == 0x2B8);
 
@@ -30,7 +34,6 @@ namespace rf
     // id 90
     struct EventCloneEntity : Event
     {
-        void initialize() override {}
         void turn_on() override
         {
             xlog::warn("Turning on event UID {}", this->uid);
@@ -74,14 +77,11 @@ namespace rf
                 }
             }
         }
-        void turn_off() override {}
-        void process() override {}
     };
 
     // id 91
     struct EventSetCollisionPlayer : Event
     {
-        void initialize() override {}
         void turn_on() override
         {
             xlog::warn("Turning on event UID {}", this->uid);
@@ -92,8 +92,144 @@ namespace rf
             xlog::warn("Turning off event UID {}", this->uid);
             rf::local_player->collides_with_world = false;
         }
-        void process() override {}
     };
+
+    // id 92
+    struct EventSwitchRandom : Event
+    {
+        void turn_on() override
+        {
+            xlog::warn("Turning on event UID {}", this->uid);
+
+            if (this->links.size() > 0) {
+                // select a random index from links
+                std::uniform_int_distribution<int> dist(0, this->links.size() - 1);
+                int random_index = dist(g_rng);
+                int link_handle = this->links[random_index];
+
+                rf::Object* obj = rf::obj_from_handle(link_handle);
+                if (obj) {
+                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                    if (linked_event) {
+                        // Send the "turn on" message
+                        linked_event->turn_on();
+                        xlog::warn("Randomly selected event UID {} and turned it on.", linked_event->uid);
+                    }
+                }
+            }
+            else {
+                xlog::warn("Event UID {} has no links to turn on.", this->uid);
+            }
+
+        }
+        void turn_off() override
+        {
+            xlog::warn("Turning off event UID {}", this->uid);
+
+        }
+    };
+
+    enum class EventType : int
+    {
+        Attack = 1,
+        Bolt_State,
+        Continuous_Damage,
+        Cyclic_Timer,
+        Drop_Point_Marker,
+        Explode,
+        Follow_Player,
+        Follow_Waypoints,
+        Give_Item_To_Player,
+        Goal_Create,
+        Goal_Check,
+        Goal_Set,
+        Goto,
+        Goto_Player,
+        Heal,
+        Invert,
+        Load_Level,
+        Look_At,
+        Make_Invulnerable,
+        Make_Fly,
+        Make_Walk,
+        Message,
+        Music_Start,
+        Music_Stop,
+        Particle_State,
+        Play_Animation,
+        Play_Sound,
+        Slay_Object,
+        Remove_Object,
+        Set_AI_Mode,
+        Set_Light_State,
+        Set_Liquid_Depth,
+        Set_Friendliness,
+        Shake_Player,
+        Shoot_At,
+        Shoot_Once,
+        Armor,
+        Spawn_Object,
+        Swap_Textures,
+        Switch,
+        Switch_Model,
+        Teleport,
+        When_Dead,
+        Set_Gravity,
+        Alarm,
+        Alarm_Siren,
+        Go_Undercover,
+        Delay,
+        Monitor_State,
+        UnHide,
+        Push_Region_State,
+        When_Hit,
+        Headlamp_State,
+        Item_Pickup_State,
+        Cutscene,
+        Strip_Player_Weapons,
+        Fog_State,
+        Detach,
+        Skybox_State,
+        Force_Monitor_Update,
+        Black_Out_Player,
+        Turn_Off_Physics,
+        Teleport_Player,
+        Holster_Weapon,
+        Holster_Player_Weapon,
+        Modify_Rotating_Mover,
+        Clear_Endgame_If_Killed,
+        Win_PS2_Demo,
+        Enable_Navpoint,
+        Play_Vclip,
+        Endgame,
+        Mover_Pause,
+        Countdown_Begin,
+        Countdown_End,
+        When_Countdown_Over,
+        Activate_Capek_Shield,
+        When_Enter_Vehicle,
+        When_Try_Exit_Vehicle,
+        Fire_Weapon_No_Anim,
+        Never_Leave_Vehicle,
+        Drop_Weapon,
+        Ignite_Entity,
+        When_Cutscene_Over,
+        When_Countdown_Reaches,
+        Display_Fullscreen_Image,
+        Defuse_Nuke,
+        When_Life_Reaches,
+        When_Armor_Reaches,
+        Reverse_Mover,
+        Clone_Entity,
+        Set_Player_World_Collide,
+        Switch_Random // 92
+    };
+
+    // int to EventType
+    inline EventType to_event_type(int id)
+    {
+        return static_cast<EventType>(id);
+    }
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
