@@ -50,6 +50,7 @@ Version X
 - Fixed jeep cockpit mesh not being rendered for any jeeps entered after the first in a level
 - Add framework in game and editor for custom events
 - Add custom events `Clone_Entity`, `Set_Player_World_Collide`, and `Switch_Random`
+- Add stock event `Set_Liquid_Depth` to editor objects list
 - Remove `You must rebuild geometry before X` warnings in editor
 
 
