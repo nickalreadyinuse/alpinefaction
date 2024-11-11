@@ -502,6 +502,8 @@ void overwrite_event_names_pointer()
     xlog::info("Overwriting event_names pointer at 0x{:08X} to point to extended_event_names at 0x{:08X}",
                event_names_original_addr, reinterpret_cast<uintptr_t>(extended_event_names.get()));
 
+    write_mem<const char**>(event_names_original_addr, extended_event_names.get()); // did the U|W thing but testing anyway not needed
+
     xlog::info("Memory verification: First entry should be 'Attack', found: {}", extended_event_names[0]);
     xlog::info("Memory verification: Last entry should be 'Clone_Entity', found: {}",
                extended_event_names[total_event_count - 1]);
@@ -518,6 +520,22 @@ void overwrite_event_names_pointer()
     }
 }
 
+CodeInjection event_names_bounds_check_injection{
+    0x00407782, [](auto& regs) {
+        int index = regs.eax;
+
+        if (index < 0 || index >= total_event_count) {
+            xlog::warn("Out-of-bounds event name access with index: {}", index);
+            regs.edx = reinterpret_cast<uintptr_t>("Unknown"); // Default message
+            regs.eip = 0x00407789;                             // Skip original instruction
+        }
+        else {
+            regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
+        }
+    }};
+
+
+
 //LOGGING
 void debug_event_names()
 {
@@ -529,14 +547,6 @@ void debug_event_names()
             xlog::warn("Debug: Event name [{}] is null or corrupted", i);
         }
     }
-};
-
-void redirect_event_names_references()
-{
-    initialize_event_names();
-    overwrite_event_names_pointer();
-
-    debug_event_names();
 };
 
 
@@ -586,10 +596,84 @@ void verify_event_names()
 
 
 
+// seems to be totally right this is the x4
+CodeInjection event_names_injection{
+    0x00407782,
+    [](auto& regs) {
+        using namespace asm_regs;
+
+        int index = regs.eax;
+        regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
+        // Load the base address of `extended_event_names` and the index into `edx`
+        /* if (index >= 0 && index < total_event_count) {
+            regs.edx = reinterpret_cast<uintptr_t>(extended_event_names[index]);
+        } else {
+            xlog::warn("Out-of-bounds event name access with index: {}", index);
+            regs.edx = reinterpret_cast<uintptr_t>("Unknown"); // Default message
+        }*/
+
+        // Move the instruction pointer to skip over the original `mov edx, event_names[eax*4]`
+        regs.eip = 0x00407789;
+    }
+};
+
+// array
+CodeInjection redirect_event_names_in_function{
+    0x004617EA, [](auto& regs) {
+        // Set edi to point to the start of `extended_event_names` instead of `event_names`
+        regs.edi = reinterpret_cast<uintptr_t>(extended_event_names.get());
+
+        for (int i = 0; i < total_event_count; ++i) {
+            xlog::info("Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
+        }
+
+        // Skip the original instruction at `0x004617EA` by setting eip to the next instruction
+        regs.eip = 0x004617EF; // Adjust this to skip past `mov edi, offset event_names`
+    }
+};
+
+// array
+CodeInjection get_event_type_injection1{
+    0x00004516A9,
+    [](auto& regs) {
+        using namespace asm_regs;
+
+        regs.esi = reinterpret_cast<uintptr_t>(extended_event_names.get());
+
+        for (int i = 0; i < total_event_count; ++i) {
+            xlog::info("Also Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
+        }
+      
+        // Move the instruction pointer to skip over the original `mov edx, event_names[eax*4]`
+        regs.eip = 0x004516AE;
+    }
+};
 
 
 
+// attack index
+CodeInjection event_names_cmp_injection{
+    0x004617FC, [](auto& regs) {
+        AsmWriter writer{regs.eip};
 
+        // Insert `cmp edi, offset extended_event_names[total_event_count - 1]`
+        writer.cmp(asm_regs::edi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
+
+        // Advance instruction pointer past the original `cmp edi, offset aAttack`
+        regs.eip += 6; // Assuming original `cmp` is 6 bytes
+    }};
+
+// Modify the cmp at 0x004516C2 to compare esi with the last entry in `extended_event_names`
+CodeInjection get_event_type_injection2{
+    0x004516C2, [](auto& regs) {
+        AsmWriter writer{regs.eip};
+
+        // Insert `cmp esi, offset extended_event_names[total_event_count - 1]`
+        writer.cmp(asm_regs::esi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
+
+        // Advance instruction pointer past the original `cmp esi, offset aAttack`
+        regs.eip += 6; // Assuming original `cmp` is 6 bytes
+    }};
 
 
 
@@ -599,25 +683,44 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
     InitLogging();
     InitCrashHandler();
-    get_event_type_from_class_name_hook.install();
+
 
 
     xlog::warn("Initializing extended event names redirection...");
-    redirect_event_names_references();
-
+    initialize_event_names();
+    //overwrite_event_names_pointer();
     debug_event_names();
-    
 
-    // current state works fine EXCEPT dropdown doesnt have new names. these asmwriters make the dropdown blank
-    //AsmWriter(0x00407782).lea(asm_regs::edx, extended_event_names.get()).nop();
-    //AsmWriter(0x004516A9).lea(asm_regs::esi, extended_event_names.get()).nop();
-    //AsmWriter(0x004617EA).lea(asm_regs::edi, extended_event_names.get()).nop();
+    //event_name_population_injection.install(); // conflicts
+    //get_event_type_from_class_name_hook.install();
+    //event_names_bounds_check_injection.install();
+    redirect_event_names_in_function.install(); // array
+    //event_names_cmp_injection.install(); // attack
+    get_event_type_injection1.install(); // array
+    //get_event_type_injection2.install(); // attack
+    event_names_injection.install();     // look up index
+
+    // holy shit this works
+    AsmWriter(0x004617FC).cmp(asm_regs::edi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
+    AsmWriter(0x004516C2).cmp(asm_regs::esi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
+
+
+
+
+    //extend_event_names_loop_injection.install();
+    //event_name_population_injection.install();
+
+
+
+
+
+
+
+
+
+
+
     
-    // tests
-    //AsmWriter(0x00408D6A).cmp_eax_imm(0x58);
-    //AsmWriter(0x00408D6A).nop(3);
-    //AsmWriter(0x00407825).nop(3);
-    //AsmWriter(0x00408219).nop(3);
 
     xlog::info("Removed the comparison limiting the event count");
 
@@ -639,6 +742,8 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     //AsmWriter{0x004512CC}.push(0);
 
 
+    // test of adding Set_Liquid_Depth (not functional)
+    //AsmWriter(0x00443F26).jmp(0x00443F48);
 
     // Add additional file paths for V3M loading
     CEditorApp_InitInstance_additional_file_paths_injection.install();

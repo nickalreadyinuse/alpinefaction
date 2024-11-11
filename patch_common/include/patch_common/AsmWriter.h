@@ -153,6 +153,30 @@ public:
         return *this;
     }
 
+    AsmWriter& add(const AsmReg32& dst_reg, const AsmReg32& src_reg)
+    {
+        write<u8>(0x01); // Opcode for `add r/m32, r32`
+        write_mod_rm(AsmRegMem(dst_reg), src_reg);
+        return *this;
+    }
+
+
+    AsmWriter& dec(const AsmReg32& reg)
+    {
+        write<u8>(0x48 | reg.reg_num); // Opcode for `dec reg`
+        return *this;
+    }
+
+    // Method to perform a `jg` (jump if greater) to a given address
+    AsmWriter& jg(uintptr_t address)
+    {
+        write<u8>(0x0F);
+        write<u8>(0x8F);                                               // Opcode for `jg`
+        int32_t offset = static_cast<int32_t>(address - (m_addr + 6)); // Offset for the relative jump
+        write<i32>(offset);
+        return *this;
+    }
+
     AsmWriter& xor_(const AsmReg32& dst_reg, const AsmRegMem& src_reg_mem)
     {
         write<u8>(0x33); // Opcode
@@ -189,6 +213,14 @@ public:
         return *this;
     }
 
+    AsmWriter& cmp(const AsmReg32& reg, uintptr_t imm)
+    {
+        write<u8>(0x81);
+        write<u8>(0xF8 | reg.reg_num);
+        write<u32>(static_cast<u32>(imm));
+        return *this;
+    }
+
     AsmWriter& cmp_eax_imm(int32_t imm)
     {
         write<u8>(0x3D);
@@ -206,6 +238,15 @@ public:
     {
         write<u8>(operand_size_override_prefix); // Prefix
         write<u8>(0x50 | reg.reg_num);
+        return *this;
+    }
+
+    AsmWriter& shl(const AsmReg32& reg, uint8_t shift_count)
+    {
+        assert(shift_count > 0 && shift_count <= 31 && "Shift count must be between 1 and 31.");
+        write<u8>(0xC1);               // Opcode for `shl r32, imm8`
+        write<u8>(0xE0 | reg.reg_num); // modR/M byte: `E0 | reg` for shift left with an immediate
+        write<u8>(shift_count);        // Shift count
         return *this;
     }
 
@@ -371,6 +412,20 @@ public:
     AsmWriter& call(T* addr)
     {
         return call_long(reinterpret_cast<uint32_t>(addr));
+    }
+
+    AsmWriter& jl(uintptr_t target_addr)
+    {
+        // Calculate relative offset
+        int8_t offset = static_cast<int8_t>(target_addr - (m_addr + 2));
+
+        // Check if offset is within short jump range
+        assert(offset >= -128 && offset <= 127 && "jl short jump out of range");
+
+        // Write `jl` opcode for short jump (0x7C) followed by the offset
+        write<u8>(0x7C);   // Opcode for `jl`
+        write<i8>(offset); // Relative offset to the target address
+        return *this;
     }
 
     AsmWriter& jmp_long(uint32_t addr)
