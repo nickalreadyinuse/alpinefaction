@@ -658,8 +658,9 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     //AsmWriter{0x004512CC}.push(0);
 
 
-    // test of adding Set_Liquid_Depth (not functional)
-    //AsmWriter(0x00443F26).jmp(0x00443F48);
+    // Allow Set_Liquid_Depth to appear in the Events list
+    // Original code omits that event by name, it now omits a dummy name
+    AsmWriter(0x004440B4).push("_dummy");
 
     // Add additional file paths for V3M loading
     CEditorApp_InitInstance_additional_file_paths_injection.install();

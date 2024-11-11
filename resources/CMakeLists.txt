@@ -21,6 +21,7 @@ endfunction()
 
 add_packfile(dashfaction.vpp
     maps_df.txt
+    events.tbl
 
     images/DF_green.tga
     images/DF_red.tga
