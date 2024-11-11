@@ -1,0 +1,340 @@
+//
+// event.tbl
+//
+// file to specify the events tree structure for the editor
+//
+// $Event Name     - The name of the event
+// $RFE Level1:    - The name of the sub-directory where this item will appear in the events tree
+//
+// ------------------------------------------------
+
+#Events
+
+// ------------------------------------------------
+// Trigger
+// ------------------------------------------------
+
+#Trigger
+
+$Event Name:      "Trigger Event"
+
+#End
+
+// ------------------------------------------------
+// AI_Actions
+// ------------------------------------------------
+
+#AI_Actions
+
+$Event Name:      "Attack"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Drop_Point_Marker"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Drop_Weapon"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Follow_Waypoints"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Goto"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Goto_Player"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Headlamp_State"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Holster_Weapon"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Holster_Player_Weapon"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Look_At"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Play_Animation"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Set_AI_Mode"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Set_Friendliness"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Shoot_At"
+$RFE Level1:      "AI_Actions"
+
+$Event Name:      "Shoot_Once"
+$RFE Level1:      "AI_Actions"
+
+#End
+
+// ------------------------------------------------
+// Level
+// ------------------------------------------------
+
+#Level
+
+$Event Name:      "Alarm"
+$RFE Level1:      "Level"
+
+$Event Name:      "Alarm_Siren"
+$RFE Level1:      "Level"
+
+$Event Name:      "Cutscene"
+$RFE Level1:      "Level"
+
+$Event Name:      "Enable_Navpoint"
+$RFE Level1:      "Level"
+
+$Event Name:      "Endgame"
+$RFE Level1:      "Level"
+
+$Event Name:      "Explode"
+$RFE Level1:      "Level"
+
+$Event Name:      "Goal_Create"
+$RFE Level1:      "Level"
+
+$Event Name:      "Goal_Check"
+$RFE Level1:      "Level"
+
+$Event Name:      "Goal_Set"
+$RFE Level1:      "Level"
+
+$Event Name:      "Item_Pickup_State"
+$RFE Level1:      "Level"
+
+$Event Name:      "Load_Level"
+$RFE Level1:      "Level"
+
+$Event Name:      "Message"
+$RFE Level1:      "Level"
+
+$Event Name:      "Monitor_State"
+$RFE Level1:      "Level"
+
+$Event Name:      "Music_Start"
+$RFE Level1:      "Level"
+
+$Event Name:      "Music_Stop"
+$RFE Level1:      "Level"
+
+$Event Name:      "Play_Sound"
+$RFE Level1:      "Level"
+
+$Event Name:      "Play_Vclip"
+$RFE Level1:      "Level"
+
+$Event Name:      "Slay_Object"
+$RFE Level1:      "Level"
+
+$Event Name:      "Spawn_Object"
+$RFE Level1:      "Level"
+
+$Event Name:      "Swap_Textures"
+$RFE Level1:      "Level"
+
+$Event Name:      "Remove_Object"
+$RFE Level1:      "Level"
+
+#End
+
+// ------------------------------------------------
+// Modifiers
+// ------------------------------------------------
+
+#Modifiers
+
+$Event Name:      "Armor"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Black_Out_Player"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Bolt_State"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Continuous_Damage"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Detach"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Clear_Endgame_If_Killed"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Force_Monitor_Update"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Fog_State"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Give_Item_To_Player"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Go_Undercover"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Heal"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Ignite_Entity"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Make_Invulnerable"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Make_Fly"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Make_Walk"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Modify_Rotating_Mover"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Mover_Pause"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Particle_State"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Push_Region_State"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Reverse_Mover"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Set_Gravity"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Set_Liquid_Depth"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Shake_Player"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Skybox_State"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Strip_Player_Weapons"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Switch_Model"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Teleport"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Teleport_Player"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "Turn_Off_Physics"
+$RFE Level1:      "Modifiers"
+
+$Event Name:      "UnHide"
+$RFE Level1:      "Modifiers"
+
+#End
+
+// ------------------------------------------------
+// Catalysts
+// ------------------------------------------------
+
+#Catalysts
+
+$Event Name:      "Cyclic_Timer"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "Delay"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "Invert"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "Switch"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Countdown_Over"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Countdown_Reaches"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Cutscene_Over"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Dead"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Enter_Vehicle"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Try_Exit_Vehicle"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Hit"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Life_Reaches"
+$RFE Level1:      "Catalysts"
+
+$Event Name:      "When_Armor_Reaches"
+$RFE Level1:      "Catalysts"
+
+
+#End
+
+// ------------------------------------------------
+// Special Case Events
+// ------------------------------------------------
+
+#Special
+
+$Event Name:      "Activate_Capek_Shield"
+$RFE Level1:      "Special"
+
+$Event Name:      "Countdown_Begin"
+$RFE Level1:      "Special"
+
+$Event Name:      "Countdown_End"
+$RFE Level1:      "Special"
+
+$Event Name:      "Display_Fullscreen_Image"
+$RFE Level1:      "Special"
+
+$Event Name:      "Defuse_Nuke"
+$RFE Level1:      "Special"
+
+$Event Name:      "Fire_Weapon_No_Anim"
+$RFE Level1:      "Special"
+
+$Event Name:      "Never_Leave_Vehicle"
+$RFE Level1:      "Special"
+
+$Event Name:      "Win_PS2_Demo"
+$RFE Level1:      "Special"
+
+#End
+
+// ------------------------------------------------
+// Custom Events in Alpine Faction
+// ------------------------------------------------
+
+#Alpine
+
+$Event Name:      "Clone_Entity"
+$RFE Level1:      "Alpine_Faction"
+
+$Event Name:      "Set_Player_World_Collide"
+$RFE Level1:      "Alpine_Faction"
+
+$Event Name:      "Switch_Random"
+$RFE Level1:      "Alpine_Faction"
+
+#End
