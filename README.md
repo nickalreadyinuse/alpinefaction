@@ -1,12 +1,43 @@
-Dash Faction
+Alpine Faction
 ============
 
 About
 -----
-Dash Faction is a Red Faction game modification designed to fix original game bugs, improve compatibility with modern
-hardware and software, extend functionality, and improve graphical quality and engine performance.
+Alpine Faction is a patch/modification for the 2001 FPS game Red Faction. While it is not a "source port", it serves a similar purpose.
 
-Features:
+Project goals for Alpine Faction are:
+* Fix bugs in the original game
+* Resolve security vulnerabilites
+* Improve compatibility with modern hardware, drivers, and operating systems
+* Improve engine performance and graphical quality
+* Modernize the game by adding features expected in modern games
+* Restore cut functionality from the original game
+* Add new functionality for players and server operators
+* Provide expanded capabilities for level designers and mod developers to make awesome stuff
+
+Alpine Faction requires:
+* Windows 7 or newer (or you can use WINE)
+* A copy of any official Red Faction full game distribution (retail, Steam, GoG, etc.)
+    * Digital distributions through Steam, GoG, etc. are supported
+    * Retail (disk) distributions are supported
+    * Official localizations are supported (English, French, German)
+        * Many unofficial localizations are supported via mods
+
+Key Features
+-----
+For players:
+* Fixed submarine explosion bug (and other FPS-related issues)
+* Fixed water/lava rising functionality in Geothermal Plant
+* Autosave at the start of every level
+* Support for any resolution and aspect ratio
+* Enemies explode into gibs when killed by explosives
+* Ability to skip cutscenes
+* Enhanced mouse input
+* Many performance and graphical improvements
+
+* Multiplayer level automatic downloader (using API at https://autodl.factionfiles.com)
+* Spectate mode (first person and free camera)
+* 
 * Multiplayer level auto-downloader (uses https://autodl.factionfiles.com just like Pure Faction)
 * Spectate mode (first person or free camera)
 * Widescreen support

@@ -565,6 +565,11 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
     InitLogging();
     InitCrashHandler();
+    
+    //console_open();
+    //xlog::warn("console visible? {}", console_is_visible());
+    //console_print_cmd_list();
+    //console_init(1);
 
     xlog::warn("Initializing extended event names redirection...");
 
@@ -588,6 +593,19 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Original code omits that event by name, it now omits a dummy name
     AsmWriter(0x004440B4).push("_dummy");
 
+
+    // Stop editor console window from turning red due to legacy geometry limits
+    AsmWriter(0x0043A544).jmp(0x0043A546); // verticies exceeded limit
+    AsmWriter(0x0043A53A).jmp(0x0043A546); // face verticies exceeded limit
+    AsmWriter(0x0043A530).jmp(0x0043A546); // faces exceeded limit
+
+    // Remove legacy geometry maximums from build output window
+    static char new_faces_string[] = "Faces: %d\n"; // Replace "Faces: %d/%d\n"
+    static char new_face_vertices_string[] = "Face Vertices: %d\n"; // Replace "Face Vertices: %d/%d\n"
+    static char new_vertices_string[] = "Vertices: %d\n"; // Replace "Vertices: %d/%d\n"
+    AsmWriter(0x0043A4A3).push(reinterpret_cast<int32_t>(new_faces_string)); // faces
+    AsmWriter(0x0043A4C7).push(reinterpret_cast<int32_t>(new_face_vertices_string)); // face verts
+    AsmWriter(0x0043A4EB).push(reinterpret_cast<int32_t>(new_vertices_string)); // verts
 
     // Remove "You must rebuild geometry before leaving group mode"
     AsmWriter(0x0042645E).jmp(0x00426486);

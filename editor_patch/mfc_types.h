@@ -54,3 +54,10 @@ inline HWND WndToHandle(CWnd* wnd)
 {
     return struct_field_ref<HWND>(wnd, 4 + 0x18);
 }
+
+//static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
+//static auto& console_open = addr_as_ref<char()>(0x004D66A0);
+//static auto& console_visible = *reinterpret_cast<bool*>(0x0171C214);
+//static auto& console_is_visible = addr_as_ref<bool()>(0x004D66C0);
+//static auto& console_update = addr_as_ref<void(bool)>(0x004D58C0);
+//static auto& console_init = addr_as_ref<void(char)>(0x004D66F0);

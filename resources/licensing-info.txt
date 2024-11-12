@@ -1,4 +1,39 @@
 ###############################################################################
+## Alpine Faction
+###############################################################################
+
+Homepage: https://github.com/gooberRF/alpinefaction
+
+Alpine Faction is developed by Chris "Goober" Parsons with assistance and
+contributions from the individuals listed below.
+
+Alpine Faction is a fork of Dash Faction, which is developed by Rafalh.
+Licensing information for Dash Faction is below.
+
+The Alpine Faction source code is available on GitHub and licensed under the
+Mozilla Public License 2.0.
+
+Alpine Faction uses some open-source third-party components. Their licenses can
+be found below.
+
+---------------------------------
+Special Thanks
+---------------------------------
+
+Rafalh:
+* Creating Dash Faction
+* An unbelievable amount of RE work on Red Faction and its editor
+
+natalie <webmistress@natalie.ee>:
+* Assistance learning IDA and C++
+
+nick:
+* Extensive testing
+
+Intharth:
+* Extensive testing
+
+###############################################################################
 ## Dash Faction
 ###############################################################################
 

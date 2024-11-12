@@ -52,6 +52,8 @@ Version X
 - Add custom events `Clone_Entity`, `Set_Player_World_Collide`, and `Switch_Random`
 - Add stock event `Set_Liquid_Depth` to editor objects list
 - Remove `You must rebuild geometry before X` warnings in editor
+- Stop editor output window from turning red when map exceeds legacy RF geometry limits
+- Remove references to legacy geometry limits from build report in editor output window
 
 
 
