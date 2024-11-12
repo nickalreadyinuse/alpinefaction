@@ -1,7 +1,8 @@
+========================
 Alpine Faction Changelog
-======================
+========================
 
-Version X
+Version 1.0.0
 --------------------------------
 - Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
 - Add `lighting_color_range` command
@@ -54,13 +55,16 @@ Version X
 - Remove `You must rebuild geometry before X` warnings in editor
 - Stop editor output window from turning red when map exceeds legacy RF geometry limits
 - Remove references to legacy geometry limits from build report in editor output window
+- Stop faces being added to "fix PS2 tiling" at build time in editor
+- Stop mover brushes being split to "fix PS2 tiling" in editor
 
 
 
-Dash Faction Changelog (before fork to AF)
+======================
+Dash Faction Changelog
 ======================
 
-Version 1.9.0 (not released yet)
+Version 1.9.0
 --------------------------------
 - Added experimental D3D11 renderer
 - Added option to switch between D3D8, D3D9 and D3D11 renderer

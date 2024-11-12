@@ -617,6 +617,12 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Remove "You must rebuild geometry before texturing brushes"
     AsmWriter(0x0042642E).jmp(0x00426456);
 
+    // Stop adding faces to "fix ps2 tiling" when the surface UVs tile a lot
+    AsmWriter(0x0043A0A5).jmp(0x0043A0CC); // stop splitting movers
+    AsmWriter(0x0043A098).nop(5); // stop spliting faces at build time
+    AsmWriter(0x0043A08D).nop(5);          // don't print "Fixing up texture uvs for ps2..." in output window
+    AsmWriter(0x0043A0E4).nop(5); // don't print "Has to add X faces to fix ps2 tiling" in output window
+
     // Change command for Play Level action to use Dash Faction launcher
     static std::string launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;
     using namespace asm_regs;
