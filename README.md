@@ -7,7 +7,7 @@ About
 Alpine Faction is a patch/modification for the 2001 FPS game Red Faction. While Alpine Faction
 is not a source port, its goals and features are similar to what you might expect from one.
 
-This project is a fork of <a href="https://github.com/rafalh/dashfaction">Dash Faction</a>.
+Alpine Faction is a fork of rafalh's <a href="https://github.com/rafalh/dashfaction">Dash Faction</a>.
 
 Alpine Faction project goals:
 * Fix bugs in the original game
