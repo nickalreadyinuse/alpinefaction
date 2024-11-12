@@ -362,6 +362,8 @@ void InitCrashHandler()
 
 void ApplyGraphicsPatches();
 void ApplyTriggerPatches();
+void ApplyEventsPatches();
+void ApplyTexturesPatches();
 
 void LoadDashEditorPackfile()
 {
@@ -664,6 +666,8 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Apply patches defined in other files
     ApplyGraphicsPatches();
     ApplyTriggerPatches();
+    ApplyEventsPatches();
+    ApplyTexturesPatches();
 
     // Browse for .v3m files instead of .v3d
     static char mesh_ext_filter[] = "Mesh (*.v3m)|*.v3m|All Files (*.*)|*.*||";

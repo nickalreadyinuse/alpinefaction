@@ -4,7 +4,7 @@ Alpine Faction
 About
 -----
 Alpine Faction is a patch/modification for the 2001 FPS game Red Faction.
-While it is not a "source port", it serves a similar purpose.
+While Alpine Faction is not a source port, its goals and features are similar to what you might expect from one.
 
 Alpine Faction project goals:
 * Fix bugs in the original game
@@ -28,14 +28,14 @@ Key Features
 Most important:
 * Fixes for critical security vulnerabilities
 * Multiplayer level automatic downloader (using API at https://autodl.factionfiles.com)
-* Fixed infamous submarine explosion bug (and other FPS-related issues)
+* Fix for infamous submarine explosion bug (and other FPS-related issues)
 * Enemies explode into gibs when killed by explosives
 * Autosave at the start of every level
 * Support for any resolution and aspect ratio
 * Fullscreen, windowed, borderless window modes
 * Enhanced mouse input
 * Ability to skip cutscenes
-* Fixed water/lava rising functionality in Geothermal Plant
+* Restored water/lava rising functionality in Geothermal Plant
 * Enhanced graphics options such as anti-aliasing and full color range lighting
 * High resolution HUD and vector fonts
 * Many performance and graphical improvements
@@ -56,13 +56,13 @@ Multiplayer:
 Level/mod development:
 * DDS texture support
 * OGG audio support
-* Support for custom BIK videos in mods
 * New events for use in maps
 * Access for many hardcoded settings to be customized in mods
 * Support for custom HUDs and translation packs as clientside mods
 * Ability to use custom meshes in multiplayer
 * Enhanced trigger options for multiplayer
 * Full color range lightmaps
+* Support for custom BIK videos in mods
 * Many engine geometry and object limits raised or removed
 * Many level editor bug fixes and performance improvements
 

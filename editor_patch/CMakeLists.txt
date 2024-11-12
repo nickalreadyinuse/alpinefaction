@@ -1,7 +1,9 @@
 set(SRCS
     exports.h
+    events.cpp
     graphics.cpp
     main.cpp
+    textures.cpp
     trigger.cpp
     vtypes.h
     resources.rc

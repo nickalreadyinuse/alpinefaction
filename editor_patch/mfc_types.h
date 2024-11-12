@@ -11,13 +11,10 @@ struct CWnd
     } _d;
 };
 
-// CComboBox class extending CWnd
 struct CComboBox : public CWnd
 {
-    // Method to add a string to the combo box, mimicking the original function's behavior
     int AddString(const char* lpszString)
     {
-        // Send a CB_ADDSTRING message to the combo box to add the string
         return static_cast<int>(SendMessageA(this->_d.m_hWnd, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(lpszString)));
     }
 };
