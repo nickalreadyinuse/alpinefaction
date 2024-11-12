@@ -3,59 +3,68 @@ Alpine Faction
 
 About
 -----
-Alpine Faction is a patch/modification for the 2001 FPS game Red Faction. While it is not a "source port", it serves a similar purpose.
+Alpine Faction is a patch/modification for the 2001 FPS game Red Faction.
+While it is not a "source port", it serves a similar purpose.
 
-Project goals for Alpine Faction are:
+Alpine Faction project goals:
 * Fix bugs in the original game
 * Resolve security vulnerabilites
-* Improve compatibility with modern hardware, drivers, and operating systems
-* Improve engine performance and graphical quality
+* Improve compatibility with modern hardware and operating systems
+* Enhance engine performance and graphical quality
 * Modernize the game by adding features expected in modern games
 * Restore cut functionality from the original game
-* Add new functionality for players and server operators
-* Provide expanded capabilities for level designers and mod developers to make awesome stuff
+* Empower players with extensive control over their gameplay experience
+* Offer server operators enhanced flexibility to customize their servers as desired
+* Equip level and mod designers with a robust set of tools to create awesome stuff
 
 Alpine Faction requires:
 * Windows 7 or newer (or you can use WINE)
-* A copy of any official Red Faction full game distribution (retail, Steam, GoG, etc.)
-    * Digital distributions through Steam, GoG, etc. are supported
-    * Retail (disk) distributions are supported
-    * Official localizations are supported (English, French, German)
-        * Many unofficial localizations are supported via mods
+* Any official distribution of Red Faction (Steam, GoG, retail, etc.)
+    * All official localizations are supported (English, French, German)
+    * Many other localizations are supported via mods
 
 Key Features
 -----
-For players:
-* Fixed submarine explosion bug (and other FPS-related issues)
-* Fixed water/lava rising functionality in Geothermal Plant
+Most important:
+* Fixes for critical security vulnerabilities
+* Multiplayer level automatic downloader (using API at https://autodl.factionfiles.com)
+* Fixed infamous submarine explosion bug (and other FPS-related issues)
+* Enemies explode into gibs when killed by explosives
 * Autosave at the start of every level
 * Support for any resolution and aspect ratio
-* Enemies explode into gibs when killed by explosives
-* Ability to skip cutscenes
+* Fullscreen, windowed, borderless window modes
 * Enhanced mouse input
+* Ability to skip cutscenes
+* Fixed water/lava rising functionality in Geothermal Plant
+* Enhanced graphics options such as anti-aliasing and full color range lighting
+* High resolution HUD and vector fonts
 * Many performance and graphical improvements
 
-* Multiplayer level automatic downloader (using API at https://autodl.factionfiles.com)
-* Spectate mode (first person and free camera)
-* 
-* Multiplayer level auto-downloader (uses https://autodl.factionfiles.com just like Pure Faction)
-* Spectate mode (first person or free camera)
-* Widescreen support
-* Windowed and borderless display modes
-* Autosaving support for singleplayer
-* Better graphical quality (anti-aliasing, higher texture color depth, anisotropic filtering, higher scanner view and mirror resolutions, LOD model improvements and more)
-* Improved security (enabled Data Execution Prevention, multiple buffer overflow fixes)
-* Multiple game limits raised/removed
-* Improved scoreboard with Kills/Deaths column
-* Information about killer's weapon displayed in chat
-* Option to disable level ambient sounds
-* `ui.vpp` cheating prevention
-* Multiple fixes for high FPS (currently limited to 240), especially the infamous exploding submarine bug
-* Country-specific edition support (properly handles game directory structure for German and French editions)
-* Improved game performance
-* Voting support for dedicated servers
-* Hit-sound support for dedicated servers
-* Other usability and stability enhancements
+Multiplayer:
+* Increased (and configurable) tick rate
+* "GunGame" game mode
+* Competitive match framework including "ready up" system and overtime
+* Hitsounds
+* Random critical hits (configurable)
+* Improved scoreboard
+* Voting system for kicking players and changing levels
+* First person and free camera spectate
+* Cheating prevention
+* Many server fixes, performance improvements, and customizable features
+* `rf://` protocol handler for joining servers
+
+Level/mod development:
+* DDS texture support
+* OGG audio support
+* Support for custom BIK videos in mods
+* New events for use in maps
+* Access for many hardcoded settings to be customized in mods
+* Support for custom HUDs and translation packs as clientside mods
+* Ability to use custom meshes in multiplayer
+* Enhanced trigger options for multiplayer
+* Full color range lightmaps
+* Many engine geometry and object limits raised or removed
+* Many level editor bug fixes and performance improvements
 
 See the [CHANGELOG file](docs/CHANGELOG.md) for a detailed list of all features.
 
