@@ -351,7 +351,7 @@ void player_do_patch()
     // Fix hud msg never disappearing in spectate mode
     players_do_frame_hook.install();
 
-    // Fix jeep cockpit mesh not rendering for jeeps entered after the first each load
+    // Fix jeep cockpit not rendering for any jeeps entered after the first
     AsmWriter(0x004A77C3).jmp(0x004A77FB);
 
     // Make sure scanner bitmap is a render target in player_allocate
