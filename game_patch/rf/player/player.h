@@ -88,6 +88,14 @@ namespace rf
         TEAM_BLUE = 1,
     };
 
+    enum class GameDifficultyLevel : uint32_t
+    {
+        DIFFICULTY_EASY = 0x0,
+        DIFFICULTY_MEDIUM = 0x1,
+        DIFFICULTY_HARD = 0x2,
+        DIFFICULTY_IMPOSSIBLE = 0x3,
+    };
+
     struct PlayerViewport
     {
         int clip_x;
@@ -175,4 +183,5 @@ namespace rf
     static auto& player_default_weapon = addr_as_ref<String>(0x007C7600);
     static auto& player_start_death_fade = addr_as_ref<void(Player *pp, float time_sec, void (*callback)(Player *))>(0x004A73E0);
     static auto& get_player_entity_parent_vmesh = addr_as_ref<VMesh*(Player*)>(0x004A7830);
+    static auto& game_get_skill_level = addr_as_ref<GameDifficultyLevel()>(0x004369D0);
 }

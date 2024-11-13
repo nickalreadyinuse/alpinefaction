@@ -236,6 +236,9 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
          else if (*name == "Switch_Random") {
              return 92;
          }
+         else if (*name == "Gate_Is_Easy") {
+             return 93;
+         }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -267,6 +270,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 92:
             return allocate_custom_event(static_cast<rf::EventSwitchRandom*>(nullptr));
+
+        case 93:
+            return allocate_custom_event(static_cast<rf::EventGateIsEasy*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -303,6 +309,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 93: {
+            auto* custom_event = static_cast<rf::EventGateIsEasy*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -320,7 +332,9 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::Play_Vclip,
     rf::EventType::Clone_Entity,
     rf::EventType::Switch_Random
+    //rf::EventType::Gate_Is_Easy
 };
+// need to figure out delay for custom events
 
 // decide if a specific event type should forward messages
 FunHook<bool(int)> event_type_forwards_messages_hook{
@@ -329,6 +343,13 @@ FunHook<bool(int)> event_type_forwards_messages_hook{
         auto event = static_cast<rf::EventType>(event_type);
 
         if (forward_exempt_ids.count(event) > 0) {
+            return false;
+        }
+        if ((event_type == rf::event_type_to_int(rf::EventType::Gate_Is_Easy) &&
+            rf::game_get_skill_level() != rf::GameDifficultyLevel::DIFFICULTY_EASY) ||
+            event_type == -1
+            )
+        {
             return false;
         }
 

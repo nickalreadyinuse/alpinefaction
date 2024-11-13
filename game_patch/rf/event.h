@@ -23,8 +23,8 @@ namespace rf
         virtual void turn_on(){};
         virtual void turn_off(){};
         virtual void process(){};
-        virtual void activate(){};
-        virtual void activate_links(){};
+        virtual void activate(int trigger_handle, int handle, bool on){};
+        virtual void activate_links(int trigger_handle, int handle, bool on){};
 
         virtual ~Event() = default;
     };
@@ -129,6 +129,30 @@ namespace rf
         }
     };
 
+    // id 93
+    struct EventGateIsEasy : Event
+    {
+        /* void activate_links(int trigger_handle, int handle,
+                                 bool on) override // not working, TBD how activate and activate_links work
+        {
+            xlog::warn("Activating event UID {}, trigger_handle {}, handle {}, on? {}", this->uid, trigger_handle, handle, on);
+            
+        }*/
+
+        /* void turn_on() override
+        {
+            xlog::warn("Turning on event UID {}", this->uid);
+            if (rf::game_get_skill_level() == rf::GameDifficultyLevel::DIFFICULTY_EASY) {
+                this->activate(this->trigger_handle, this->handle, true);
+            }
+        }
+
+        void turn_off() override
+        {
+            xlog::warn("Turning off event UID {}", this->uid);
+        }*/
+    };
+
     enum class EventType : int
     {
         Attack = 1,
@@ -220,15 +244,22 @@ namespace rf
         When_Life_Reaches,
         When_Armor_Reaches,
         Reverse_Mover,
-        Clone_Entity,
+        Clone_Entity, // 90
         Set_Player_World_Collide,
-        Switch_Random // 92
+        Switch_Random,
+        Gate_Is_Easy
     };
 
     // int to EventType
-    inline EventType to_event_type(int id)
+    inline EventType int_to_event_type(int id)
     {
         return static_cast<EventType>(id);
+    }
+
+    // EventType to int
+    inline int event_type_to_int(EventType eventType)
+    {
+        return static_cast<int>(eventType);
     }
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);

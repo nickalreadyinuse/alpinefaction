@@ -451,7 +451,7 @@ CodeInjection texture_name_buffer_overflow_injection2{
 // Custom event support
 //constexpr uintptr_t event_names_original_addr = 0x00578B78;
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 4; // must be 1 higher than actual count
+constexpr int new_event_count = 5; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -460,6 +460,7 @@ const char* additional_event_names[new_event_count] = {
     "Clone_Entity",
     "Set_Player_World_Collide",
     "Switch_Random",
+    "Gate_Is_Easy",
     "_dummy"
 };
 

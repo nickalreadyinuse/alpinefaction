@@ -337,4 +337,7 @@ $RFE Level1:      "Alpine_Faction"
 $Event Name:      "Switch_Random"
 $RFE Level1:      "Alpine_Faction"
 
+$Event Name:      "Gate_Is_Easy"
+$RFE Level1:      "Alpine_Faction"
+
 #End
