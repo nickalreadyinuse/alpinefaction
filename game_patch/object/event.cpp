@@ -322,38 +322,24 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
     }
 };
 
-// list events that don't forward messages
+// list custom events that don't forward messages by default
 static const std::unordered_set<rf::EventType> forward_exempt_ids = {
-    rf::EventType::Continuous_Damage,
-    rf::EventType::Cyclic_Timer,
-    rf::EventType::Set_Friendliness,
-    rf::EventType::Armor,
-    rf::EventType::Clear_Endgame_If_Killed,
-    rf::EventType::Play_Vclip,
-    rf::EventType::Clone_Entity,
-    rf::EventType::Switch_Random
-    //rf::EventType::Gate_Is_Easy
+    rf::EventType::Switch_Random,
+    rf::EventType::Gate_Is_Easy
 };
-// need to figure out delay for custom events
 
 // decide if a specific event type should forward messages
-FunHook<bool(int)> event_type_forwards_messages_hook{
-    0x004B8C40,
-    [](int event_type) {
-        auto event = static_cast<rf::EventType>(event_type);
+CodeInjection event_type_forwards_messages_patch{
+    0x004B8C44, [](auto& regs) {
+        // Convert regs.eax to EventType
+        auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
+        auto& result = regs.al;
 
-        if (forward_exempt_ids.count(event) > 0) {
-            return false;
+        // Check if the event type is in forward_exempt_ids
+        if (forward_exempt_ids.find(event_type) != forward_exempt_ids.end()) {
+            result = false;
+            regs.eip = 0x004B8C5D;  // Jump to the address after the check
         }
-        if ((event_type == rf::event_type_to_int(rf::EventType::Gate_Is_Easy) &&
-            rf::game_get_skill_level() != rf::GameDifficultyLevel::DIFFICULTY_EASY) ||
-            event_type == -1
-            )
-        {
-            return false;
-        }
-
-        return true;      
     }
 };
 
@@ -421,15 +407,43 @@ FunHook<void(rf::Event*)> event_player_teleport_on_hook{
     }
 };
 
+CodeInjection level_read_events_patch { //wip not ready
+    0x00462324, [](auto& regs) {
+        // Convert regs.eax to EventType
+        auto event_type = rf::int_to_event_type(static_cast<int>(regs.ebp));
+
+        const char* class_name = *reinterpret_cast<const char**>(regs.esp + 0x5C);
+        const char* script_name = *reinterpret_cast<const char**>(regs.esp + 0x54);
+
+        rf::Vector3* pos = regs.edx;
+
+
+         float float1 = *reinterpret_cast<float*>(regs.esp + 0x84); // Float1 at offset -84h
+        float float2 = *reinterpret_cast<float*>(regs.esp + 0x7C); // Float2 at offset -7Ch
+        int int1 = *reinterpret_cast<int*>(
+            regs.esp + 0x88); // Int1 at offset -88h (mapped to `Bool1` here if it holds integer data)
+        int int2 = *reinterpret_cast<int*>(
+            regs.esp + 0x80); // Int2 at offset -80h (mapped to `Bool2` here if it holds integer data)
+
+        // Log values to verify accuracy
+        xlog::warn("Reading event - Event ID: {}, Class Name: {}, Script Name: {}", static_cast<int>(event_type),
+                   class_name, script_name);
+        xlog::warn("float1: {}, float2: {}, int1: {}, int2: {}", pos->x, pos->y, pos->z, int2);
+  
+        //regs.eip = 0x0046291A; // set pointer after jump table
+    }
+};
+
 void apply_event_patches()
 {
-
-    // Support custom events    
-    AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID
+    // Support custom events
+    //level_read_events_patch.install();
+    AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID (params specified)
     event_lookup_type_hook.install(); // define custom event IDs
     event_allocate_hook.install(); // load custom events at level start
     event_deallocate_hook.install(); // unload custom events at level end
-    event_type_forwards_messages_hook.install(); // events that don't forward messages
+    //event_type_forwards_messages_hook.install(); // events that don't forward messages //broken
+    event_type_forwards_messages_patch.install();
 
     // Improve player teleport behaviour
     event_player_teleport_on_hook.install();

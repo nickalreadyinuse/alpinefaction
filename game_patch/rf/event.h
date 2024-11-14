@@ -23,10 +23,31 @@ namespace rf
         virtual void turn_on(){};
         virtual void turn_off(){};
         virtual void process(){};
-        virtual void activate(int trigger_handle, int handle, bool on){};
-        virtual void activate_links(int trigger_handle, int handle, bool on){};
 
-        virtual ~Event() = default;
+        // do not directly override, override `do_` instead. Base game does not allocate these.
+    virtual void activate(int trigger_handle, int triggered_by_handle, bool on)
+    {
+        // Call the overridable function, using default if not overridden.
+        do_activate(trigger_handle, triggered_by_handle, on);
+    }
+    
+    virtual void activate_links(int trigger_handle, int triggered_by_handle, bool on)
+    {
+        // Call the overridable function, using default if not overridden.
+        do_activate_links(trigger_handle, triggered_by_handle, on);
+    }
+
+protected:
+    // Default behavior calls the original game function
+    virtual void do_activate(int trigger_handle, int triggered_by_handle, bool on)
+    {
+        AddrCaller{0x004B8B70}.this_call(this, trigger_handle, triggered_by_handle, on);
+    }
+
+    virtual void do_activate_links(int trigger_handle, int triggered_by_handle, bool on)
+    {
+        AddrCaller{0x004B8B00}.this_call(this, trigger_handle, triggered_by_handle, on);
+    }
     };
     static_assert(sizeof(Event) == 0x2B8);
 
@@ -122,35 +143,58 @@ namespace rf
             }
 
         }
-        void turn_off() override
-        {
-            xlog::warn("Turning off event UID {}", this->uid);
-
-        }
     };
 
     // id 93
     struct EventGateIsEasy : Event
     {
-        /* void activate_links(int trigger_handle, int handle,
-                                 bool on) override // not working, TBD how activate and activate_links work
-        {
-            xlog::warn("Activating event UID {}, trigger_handle {}, handle {}, on? {}", this->uid, trigger_handle, handle, on);
-            
-        }*/
+        rf::GameDifficultyLevel difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
 
-        /* void turn_on() override
+        void turn_on() override
         {
-            xlog::warn("Turning on event UID {}", this->uid);
-            if (rf::game_get_skill_level() == rf::GameDifficultyLevel::DIFFICULTY_EASY) {
-                this->activate(this->trigger_handle, this->handle, true);
+            if (this->name == "Gate_Is_Medium") {
+                difficulty = GameDifficultyLevel::DIFFICULTY_MEDIUM;
+            }
+            else if (this->name == "Gate_Is_Hard") {
+                difficulty = GameDifficultyLevel::DIFFICULTY_HARD;
+            }
+            else if (this->name == "Gate_Is_Impossible") {
+                difficulty = GameDifficultyLevel::DIFFICULTY_IMPOSSIBLE;
+            }
+            else {
+                difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
+            }
+
+            xlog::warn("Gate {} with UID {} is checking for difficulty {}",
+                this->name, this->uid, static_cast<int>(difficulty));
+
+            if (rf::game_get_skill_level() == difficulty) {
+                activate_links(this->trigger_handle, this->triggered_by_handle, true);
             }
         }
 
         void turn_off() override
         {
-            xlog::warn("Turning off event UID {}", this->uid);
-        }*/
+            if (this->name == "Gate_Is_Medium") {
+                difficulty = GameDifficultyLevel::DIFFICULTY_MEDIUM;
+            }
+            else if (this->name == "Gate_Is_Hard") {
+                difficulty = GameDifficultyLevel::DIFFICULTY_HARD;
+            }
+            else if (this->name == "Gate_Is_Impossible") {
+                difficulty = GameDifficultyLevel::DIFFICULTY_IMPOSSIBLE;
+            }
+            else {
+                difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
+            }
+
+            xlog::warn("Gate {} with UID {} is checking for difficulty {}",
+                this->name, this->uid, static_cast<int>(difficulty));
+
+            if (rf::game_get_skill_level() == difficulty) {
+                activate_links(this->trigger_handle, this->triggered_by_handle, false);
+            }
+        }
     };
 
     enum class EventType : int
@@ -265,7 +309,8 @@ namespace rf
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
     static auto& event_create = addr_as_ref<Event*(rf::Vector3 pos, int event_type)>(0x004B6870);
-    static auto& event_destructor = addr_as_ref<void(rf::Event*, char flags)>(0x004BEF50);
+    //static auto& event_destructor = addr_as_ref<void(rf::Event*, char flags)>(0x004BEF50); // probably crashes, unneeded
     static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
     static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
-    }
+
+}
