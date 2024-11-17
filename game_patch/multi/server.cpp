@@ -868,8 +868,8 @@ CallHook<int(const char*)> item_lookup_type_hook{
     },
 };
 
-CallHook<void(int, const char*, int, int, const rf::Vector3*, const rf::Matrix3*, int, bool, bool)>
-item_create_hook{
+/* CallHook<void(int, const char*, int, int, const rf::Vector3*, const rf::Matrix3*, int, bool, bool)>
+    item_create_hook{
     0x00465175,
     [](int type, const char* name, int count, int parent_handle, const rf::Vector3* pos,
         const rf::Matrix3* orient, int respawn_time, bool permanent, bool from_packet) {
@@ -883,7 +883,7 @@ item_create_hook{
 
         return item_create_hook.call_target(type, name, count, parent_handle, pos, orient, respawn_time, permanent, from_packet);
     }
-};
+};*/
 
 
 CallHook<int(const char*)> find_default_weapon_for_entity_hook{
@@ -1707,13 +1707,13 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
         
         if (use_furthest) { // select always using furthest (no RNG)
             selected_index = std::distance(
-                new_multi_respawn_points.begin(),
-                std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(), *available_points[0]));
+                available_points.begin(), std::find(available_points.begin(),
+                    available_points.end(), available_points[0]));
 
             if (avoid_last && last_index == selected_index && available_points.size() > 1) {
                 selected_index = std::distance(
-                    new_multi_respawn_points.begin(),
-                    std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(), *available_points[1]));
+                    available_points.begin(), std::find(available_points.begin(),
+                        available_points.end(), available_points[1]));
             }
         }
         else if (!avoid_players) { // select with full RNG if we don't care about distance from players
@@ -1724,23 +1724,18 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
             std::uniform_real_distribution<double> real_dist(0.0, 1.0);
             int random_index = static_cast<int>(std::sqrt(real_dist(g_rng)) * (available_points.size() - 1) + 0.5);
 
-            selected_index =
-                std::distance(new_multi_respawn_points.begin(),
-                    std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(),
-                        *available_points[random_index]));
+            selected_index = random_index;
 
             if (avoid_last && last_index == selected_index && available_points.size() > 1) {
-                selected_index =
-                    std::distance(new_multi_respawn_points.begin(),
-                        std::find(new_multi_respawn_points.begin(), new_multi_respawn_points.end(),
-                            *available_points[random_index == 0 ? 1 : 0]));
+                selected_index = (random_index == 0 ? 1 : 0);
             }
         }
 
-        *pos = new_multi_respawn_points[selected_index].position;
-        *orient = new_multi_respawn_points[selected_index].orientation;
+        *pos = available_points[selected_index]->position;
+        *orient = available_points[selected_index]->orientation;
         pdata.last_spawn_point_index = selected_index;
-        xlog::debug("Player {} requested a spawn point. Giving them index {}", player->name, selected_index);
+        //xlog::warn("Player {} (blue? {}) requested a spawn point. Giving them index {}. its red? {}, blue? {}", player->name, player->team, selected_index,
+        //    available_points[selected_index]->red_team, available_points[selected_index]->blue_team);
 
         return 1;
     }
@@ -1843,6 +1838,12 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
     [](int type, const char* name, int count, int parent_handle, const rf::Vector3* pos, rf::Matrix3* orient,
        int respawn_time, bool permanent, bool from_packet) {
 
+        // when creating it, check if a spawn time override is configured for this item
+        if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
+            it != g_additional_server_config.item_respawn_time_overrides.end()) {
+            respawn_time = it->second;
+        }
+
         if (rf::is_dedicated_server && !g_additional_server_config.new_spawn_logic.allowed_respawn_items.empty()) {
             const auto& allowed_items = g_additional_server_config.new_spawn_logic.allowed_respawn_items;
 
@@ -1922,7 +1923,7 @@ void server_init()
     item_lookup_type_hook.install();
 
     // Item respawn time overrides
-    item_create_hook.install();
+    // item_create_hook.install();
 
     // Default player weapon class and ammo override
     find_default_weapon_for_entity_hook.install();
@@ -1958,7 +1959,7 @@ void server_init()
     multi_respawn_level_init_hook.install();
     multi_respawn_create_point_hook.install();
     multi_respawn_get_next_point_hook.install();
-    item_create_hook.install();
+    item_create_hook.install(); // also used for respawn time overrides
 
     // Support forcing player character
     multi_spawn_player_server_side_hook.install();
