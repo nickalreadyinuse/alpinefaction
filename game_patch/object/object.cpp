@@ -17,7 +17,7 @@ FunHook<rf::Object*(int, int, int, rf::ObjectCreateInfo*, int, rf::GRoom*)> obj_
     0x00486DA0,
     [](int type, int sub_type, int parent, rf::ObjectCreateInfo* create_info, int flags, rf::GRoom* room) {
         rf::Object* objp = obj_create_hook.call_target(type, sub_type, parent, create_info, flags, room);
-        xlog::warn("Object create request: type={}, sub_type={}, owner_objh={}, flags={}", type, sub_type, parent, flags);
+        //xlog::warn("Object create request: type={}, sub_type={}, owner_objh={}, flags={}", type, sub_type, parent, flags);
 
         if (!objp) {
             xlog::info("Failed to create object (type {})", type);

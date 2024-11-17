@@ -378,6 +378,9 @@ void load_additional_server_config(rf::Parser& parser)
         if (parser.parse_optional("+Duration:")) {
             g_additional_server_config.overtime.additional_time = parser.parse_uint();
         }
+        if (parser.parse_optional("+Consider Tied If Flag Stolen:")) {
+            g_additional_server_config.overtime.tie_if_flag_stolen = parser.parse_bool();
+        }
     }
 
     if (!parser.parse_optional("$Name:") && !parser.parse_optional("#End")) {
@@ -651,7 +654,7 @@ bool handle_server_chat_command(std::string_view server_command, rf::Player* sen
     auto [cmd_name, cmd_arg] = strip_by_space(server_command);
 
     if (cmd_name == "info") {
-        send_chat_line_packet(std::format("Server powered by Dash Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__).c_str(), sender);
+        send_chat_line_packet(std::format("Server powered by Alpine Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__).c_str(), sender);
     }
     else if (cmd_name == "vote") {
         auto [vote_name, vote_arg] = strip_by_space(cmd_arg);
@@ -1425,16 +1428,22 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_CTF: {
         int red_score = rf::multi_ctf_get_red_team_score();
         int blue_score = rf::multi_ctf_get_blue_team_score();
+        //xlog::warn("red: {}, blue: {}", red_score, blue_score);
 
         if (red_score == blue_score) {
             return true;
         }
 
-        bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
-        bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
+        if (g_additional_server_config.overtime.tie_if_flag_stolen) {        
+            bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
+            bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
 
-        // not currently tied, but if the team with the flag right now caps it, they will be
-        return (red_flag_stolen && blue_score == red_score - 1) || (blue_flag_stolen && red_score == blue_score - 1);
+            // not currently tied, but if the team with the flag right now caps it, they will be
+            return (red_flag_stolen && blue_score == red_score - 1) || (blue_flag_stolen && red_score == blue_score - 1);
+        }
+        else {
+            return false;
+        }        
     }
     case rf::NG_TYPE_TEAMDM: {
         return rf::multi_tdm_get_red_team_score() == rf::multi_tdm_get_blue_team_score();
@@ -1447,7 +1456,7 @@ bool round_is_tied(rf::NetGameType game_type)
 FunHook<void()> multi_check_for_round_end_hook{
     0x0046E7C0,
     []() {
-        const bool time_up = (rf::multi_time_limit > 0.0f && rf::level.time >= rf::multi_time_limit);
+        bool time_up = (rf::multi_time_limit > 0.0f && rf::level.time >= rf::multi_time_limit);
         bool round_over = time_up;
         const auto game_type = rf::multi_get_game_type();
 
@@ -1490,6 +1499,8 @@ FunHook<void()> multi_check_for_round_end_hook{
         }
 
         if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
+            xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_additional_server_config.overtime.enabled, g_is_overtime, round_is_tied(game_type));
+
             if (time_up && g_additional_server_config.overtime.enabled && !g_is_overtime && round_is_tied(game_type)) {
                 g_is_overtime = true;
                 extend_round_time(g_additional_server_config.overtime.additional_time);
@@ -1506,6 +1517,7 @@ FunHook<void()> multi_check_for_round_end_hook{
         }
     }
 };
+
 FunHook<int(const char*, uint8_t, const rf::Vector3*, const rf::Matrix3*, bool, bool, bool)> multi_respawn_create_point_hook{
     0x00470190,
     [](const char* name, uint8_t team, const rf::Vector3* pos, const rf::Matrix3* orient, bool red_team, bool blue_team, bool bot) 

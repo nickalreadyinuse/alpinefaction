@@ -337,7 +337,36 @@ $RFE Level1:      "Alpine_Faction"
 $Event Name:      "Switch_Random"
 $RFE Level1:      "Alpine_Faction"
 
-$Event Name:      "Gate_Is_Easy"
+$Event Name:      "Difficulty_Gate"
+$RFE Level1:      "Alpine_Faction"
+
+$Event Name:      "HUD_Message"
+$RFE Level1:      "Alpine_Faction"
+
+$Event Name:      "Play_Video"
+$RFE Level1:      "Alpine_Faction"
+
+#End
+
+// ------------------------------------------------
+// Utility Events in Alpine Faction
+// ------------------------------------------------
+
+#AplineUtility
+
+// =========================
+// == SetVar syntax guide ==
+// =========================
+// !SetVar_VAR=VALUE
+// =========================
+// "!" prefix = set on init
+// no prefix = set on "on"
+// =========================
+// VAR = variable name
+// VALUE = value to set
+// =========================
+
+$Event Name:      "SetVar"
 $RFE Level1:      "Alpine_Faction"
 
 #End

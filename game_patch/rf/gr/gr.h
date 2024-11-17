@@ -27,6 +27,16 @@ namespace rf::gr
         }
 
         bool operator==(const Color& other) const = default;
+
+        static Color from_hex(uint32_t hex_color, bool has_alpha = true)
+        {
+            ubyte r = (hex_color >> 24) & 0xFF;
+            ubyte g = (hex_color >> 16) & 0xFF;
+            ubyte b = (hex_color >> 8) & 0xFF;
+            ubyte a = has_alpha ? (hex_color & 0xFF) : 255;
+
+            return Color(r, g, b, a);
+        }
     };
 
     struct BaseVertex

@@ -16,6 +16,11 @@ namespace rf
             return num;
         }
 
+        [[nodiscard]] bool empty() const
+        {
+            return num == 0;
+        }
+
         [[nodiscard]] T& operator[](int index)
         {
             return elements[index];

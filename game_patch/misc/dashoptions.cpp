@@ -520,7 +520,7 @@ void apply_af_options_patches()
         handle_summoner_trailer_button();
     }
 
-    xlog::warn("Alpine Faction Options patches applied successfully");
+    //xlog::warn("Alpine Faction Options patches applied successfully");
 
 }
 
@@ -535,10 +535,10 @@ void load_single_af_options_file(const std::string& file_name)
 {
     auto dashoptions_file = std::make_unique<rf::File>();
     if (dashoptions_file->open(file_name.c_str()) != 0) {
-        xlog::warn("Could not open {}", file_name);
+        //xlog::warn("Could not open {}", file_name);
         return;
     }
-    xlog::warn("Successfully opened {}", file_name);
+    //xlog::warn("Successfully opened {}", file_name);
 
     // Read entire file content into a single string buffer
     std::string file_content;
@@ -632,7 +632,7 @@ void load_single_af_options_file(const std::string& file_name)
 
 void load_af_options_config()
 {
-    xlog::warn("Loading Alpine Faction Options configuration");
+    //xlog::warn("Loading Alpine Faction Options configuration");
 
     // Load all af_client*.tbl files first
     // af_client.tbl overrides numbered variations because its loaded later
@@ -658,10 +658,10 @@ void load_af_options_config()
     xlog::warn("Loaded options:");
     for (std::size_t i = 0; i < option_count; ++i) {
         if (g_dash_options_config.options_loaded[i]) {
-            xlog::warn("Option {} is loaded", i);
+            //xlog::warn("Option {} is loaded", i);
         }
         else {
-            xlog::warn("Option {} is NOT loaded", i);
+            //xlog::warn("Option {} is NOT loaded", i);
         }
     }
 

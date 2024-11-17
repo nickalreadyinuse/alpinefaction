@@ -6,6 +6,9 @@
 #include <shellapi.h>
 #include <vector>
 #include <memory>
+#include <iomanip>
+#include <sstream>
+#include <string>
 #include <common/version/version.h>
 #include <common/config/BuildConfig.h>
 #include <common/utils/os-utils.h>
@@ -451,16 +454,19 @@ CodeInjection texture_name_buffer_overflow_injection2{
 // Custom event support
 //constexpr uintptr_t event_names_original_addr = 0x00578B78;
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 5; // must be 1 higher than actual count
+constexpr int new_event_count = 8; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
 // master list of new events, last one is dummy for counting (ignore)
 const char* additional_event_names[new_event_count] = {
+    "SetVar",
     "Clone_Entity",
     "Set_Player_World_Collide",
     "Switch_Random",
-    "Gate_Is_Easy",
+    "Difficulty_Gate",
+    "HUD_Message",
+    "Play_Video",
     "_dummy"
 };
 
@@ -477,10 +483,10 @@ void initialize_event_names()
     for (int i = 0; i < original_event_count; ++i) {
         if (original_event_names[i]) {
             extended_event_names[i] = original_event_names[i];
-            xlog::info("Loaded original event name [{}]: {}", i, original_event_names[i]);
+            //xlog::info("Loaded original event name [{}]: {}", i, original_event_names[i]);
         }
         else { // should never be hit, including for safety
-            xlog::warn("Original event name [{}] is null or corrupted", i);
+            //xlog::warn("Original event name [{}] is null or corrupted", i);
             extended_event_names[i] = nullptr;
         }
     }
@@ -488,7 +494,7 @@ void initialize_event_names()
     // add new event names to extended_event_names
     for (int i = 0; i < new_event_count; ++i) {
         extended_event_names[original_event_count + i] = additional_event_names[i];
-        xlog::info("Added additional event name [{}]: {}", original_event_count + i, additional_event_names[i]);
+        //xlog::info("Added additional event name [{}]: {}", original_event_count + i, additional_event_names[i]);
     }
 
     xlog::info("Initialized extended_event_names with {} entries", total_event_count);
@@ -499,7 +505,7 @@ void debug_event_names()
 {
     for (int i = 0; i < total_event_count; ++i) {
         if (extended_event_names[i]) {
-            xlog::info("Debug: Event name [{}]: {}", i, extended_event_names[i]);
+            //xlog::info("Debug: Event name [{}]: {}", i, extended_event_names[i]);
         }
         else {
             xlog::warn("Debug: Event name [{}] is null or corrupted", i);
@@ -512,7 +518,7 @@ void verify_event_names()
 {
     for (int i = 0; i < total_event_count; ++i) {
         if (extended_event_names[i]) {
-            xlog::info("Event name [{}]: {}", i, extended_event_names[i]);
+            //xlog::info("Event name [{}]: {}", i, extended_event_names[i]);
         }
         else {
             xlog::warn("Event name [{}] is null or corrupted", i);
@@ -541,7 +547,7 @@ CodeInjection OnInitDialog_redirect_event_names{
         regs.edi = reinterpret_cast<uintptr_t>(extended_event_names.get());
 
         for (int i = 0; i < total_event_count; ++i) {
-            xlog::info("Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
+            //xlog::info("Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
         }
 
         regs.eip = 0x004617EF;
@@ -557,12 +563,120 @@ CodeInjection get_event_type_redirect_event_names{
         regs.esi = reinterpret_cast<uintptr_t>(extended_event_names.get());
 
         for (int i = 0; i < total_event_count; ++i) {
-            xlog::info("Also Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
+            //xlog::info("Also Attempting to access extended_event_names[{}]: {}", i, extended_event_names[i]);
         }
       
         regs.eip = 0x004516AE;
     }
 };
+
+// set template, in CDedLevel__OpenEventProperties
+// not needed currently (not finished), disabled
+CodeInjection open_event_properties_patch{
+    0x00408D6D, [](auto& regs) {
+        using namespace asm_regs;
+        // NOTE: all event IDs in RED are 1 less than event IDs in the game
+        int event_type = static_cast<int>(regs.ecx);
+
+        if (event_type > 89) { // maybe should be 88? confirm
+            xlog::warn("custom event handle");
+            int template_id = 192;
+
+            switch (event_type) {            
+                case 93:
+                    template_id = 267;
+                    xlog::warn("case 93 handle");
+                    break;
+            }
+                xlog::warn("output: {}", template_id);
+
+            regs.eax = template_id;
+            regs.eip = 0x00408F27;
+        }
+    }
+};
+
+void format_assign(CString& target, const char* format, float value)
+{
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), format, value);
+    target.assign(buffer);
+}
+
+// set up template and handle fields, in CDedLevel__OpenEventPropertiesInternal
+// not needed currently (not finished), disabled
+CodeInjection open_event_properties_internal_patch{
+    0x00407828, [](auto& regs) {
+        using namespace asm_regs;
+
+        CEventDialog* dialog = reinterpret_cast<CEventDialog*>(regs.ebp - 0x2408);
+        DedEvent* event = *reinterpret_cast<DedEvent**>(regs.ebp + 8);
+        int template_id = *reinterpret_cast<int*>(regs.ebp + 0x0C);
+
+        if (!dialog || !event) {
+            xlog::error("Invalid dialog or event pointer!");
+            return;
+        }
+
+        xlog::warn("DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
+        xlog::warn(
+            "DedEvent: type={}, delay={}, int1={}, int2={}, float1={}, float2={}, bool1={}, bool2={}, str1={}, str2={}",
+            event->event_type, event->delay, event->int1, event->int2, event->float1, event->float2, event->bool1,
+            event->bool2, event->str1.c_str(), event->str2.c_str());
+        xlog::warn("template_id value: {}", template_id);
+
+        /* int event_type = event->event_type;
+        float delay = event->delay;
+        int int1 = event->int1;
+        int int2 = event->int2;
+        float float1 = event->float1;
+        float float2 = event->float2;
+        bool bool1 = event->bool1;
+        bool bool2 = event->bool2;
+        VString* str1 = &event->str1;
+        VString* str2 = &event->str2;*/
+
+
+        if (event->event_type == 93 && template_id == 267) {
+            xlog::warn("Handling template ID 267");
+
+            CString* target_field = reinterpret_cast<CString*>(&dialog->field_1724[1056]);
+            target_field->Format("%d", event->int1);
+            xlog::warn("Formatted int1 '{}' into field_1724[1056]", event->int1);
+            
+            // Re-entry point
+            regs.eip = 0x00408131;
+        }
+
+
+        /* if (event_type == 93 && template_id == 200) {
+            xlog::warn("Handling event_type 93 with template ID 200");
+
+            // Load DedEvent values into the dialog fields
+            //if (!str1->empty())
+            //    dialog->field_2C8.assign(str1->c_str());
+            //if (!str2->empty())
+            //    dialog->field_344.assign(str2->c_str());
+            dialog->field_3C4.assign(std::to_string(delay).c_str());
+            dialog->field_440.assign(std::to_string(int1).c_str());
+            dialog->field_4BC.assign(std::to_string(int2).c_str());
+
+            // Assuming event_type 36 uses similar fields
+            //dialog->field_538.assign(std::to_string(float1).c_str());
+            //dialog->field_5B4.assign(std::to_string(float2).c_str());
+            //dialog->field_630.assign(str1->c_str());
+            //dialog->field_634 = bool1;           
+
+            // Skip the original "if (v10 <= 0x58)" section by jumping to the re-entry point
+            regs.eip = 0x00408131;
+        }*/
+    }
+};
+
+
+
+
+
 
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
@@ -576,6 +690,8 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     xlog::warn("Initializing extended event names redirection...");
 
+    AsmWriter(0x00407828).jmp(0x0040782E); // OpenEventPropertiesInternal remove max lookup 58h// probably doesnt matter
+
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + custom events
     debug_event_names(); // debug logging
@@ -583,6 +699,10 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     OnInitDialog_redirect_event_names.install(); // replace reference to event_names with new extended array
     get_event_type_redirect_event_names.install(); // replace reference to event_names with new extended array
     event_names_injection.install(); // when opening event properties, use new extended array for event look up
+
+    // not finished
+    open_event_properties_patch.install(); // set template IDs for AF events (works)
+    open_event_properties_internal_patch.install(); // handle values for AF events in templates (not working)
 
     // set new end address for event array loops that use new extended array
     AsmWriter(0x004617FC).cmp(asm_regs::edi,

@@ -16,6 +16,53 @@
 
 bool event_debug_enabled;
 
+namespace rf
+{
+
+    std::optional<rf::SetVarEventParts> parse_event_name(const std::string& name)
+    {
+        // Check for auto_activate (! prefix)
+        bool auto_activate = !name.empty() && name[0] == '!';
+
+        // Remove the exclamation mark if present
+        std::string adjusted_name = auto_activate ? name.substr(1) : name;
+
+        xlog::warn("auto? {}, name = {}", auto_activate, adjusted_name);
+
+        // Check if the name starts with "SetVar_"
+        const std::string prefix = "SetVar_";
+        if (adjusted_name.compare(0, prefix.size(), prefix) != 0) {
+            // Name doesn't start with "SetVar_", return no match
+            return std::nullopt;
+        }
+
+        // Remove "SetVar_" from the beginning
+        adjusted_name = adjusted_name.substr(prefix.size());
+
+        // Find the '=' to separate var_name and value
+        size_t equal_pos = adjusted_name.find('=');
+        if (equal_pos == std::string::npos) {
+            // Invalid format if '=' is missing
+            return std::nullopt;
+        }
+
+        // Extract var_name and value
+        std::string var_name = adjusted_name.substr(0, equal_pos);
+        std::string value = adjusted_name.substr(equal_pos + 1);
+
+        xlog::warn("auto? {}, name = {}, value = {}", auto_activate, var_name, value);
+
+        // Return the parsed components
+        return rf::SetVarEventParts{auto_activate, var_name, value};
+    }
+
+
+    // handler storage
+    std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
+        Event::variable_handler_storage = {};
+
+} // namespace rf
+
 CodeInjection switch_model_event_custom_mesh_patch{
     0x004BB921,
     [](auto& regs) {
@@ -224,21 +271,30 @@ ConsoleCommand2 debug_event_msg_cmd{
 FunHook<int(const rf::String* name)> event_lookup_type_hook{
     0x004BD700,
     [](const rf::String* name) {
-        xlog::warn("Looking up event with name: {}", name->c_str());
+        //xlog::warn("Looking up event with name: {}", name->c_str());
 
         // Custom event name -> ID assignment
-        if (*name == "Clone_Entity") {
+        if (*name == "SetVar") {
             return 90;
         }
-         else if (*name == "Set_Player_World_Collide") {
+        else if (*name == "Clone_Entity") {
             return 91;
         }
-         else if (*name == "Switch_Random") {
-             return 92;
-         }
-         else if (*name == "Gate_Is_Easy") {
-             return 93;
-         }
+        else if (*name == "Set_Player_World_Collide") {
+            return 92;
+        }
+        else if (*name == "Switch_Random") {
+            return 93;
+        }
+        else if (*name == "Difficulty_Gate") {
+            return 94;
+        }
+        else if (*name == "HUD_Message") {
+            return 95;
+        }
+        else if (*name == "Play_Video") {
+            return 96;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -257,22 +313,34 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
             }
 
             auto* custom_event = new (memory) EventType();
-            xlog::warn("Allocating event: {}", typeid(EventType).name());
-            return static_cast<rf::Event*>(custom_event);
+            //xlog::warn("Allocating event: {}", typeid(EventType).name());
+            auto result = static_cast<rf::Event*>(custom_event);
+            result->initialize(); // run init void after creation, var handlers are set here
+            return result;
+            //return static_cast<rf::Event*>(custom_event);
         };
 
         switch (event_type) {
         case 90:
-            return allocate_custom_event(static_cast<rf::EventCloneEntity*>(nullptr));
+            return allocate_custom_event(static_cast<rf::EventSetVar*>(nullptr));
 
         case 91:
-            return allocate_custom_event(static_cast<rf::EventSetCollisionPlayer*>(nullptr));
+            return allocate_custom_event(static_cast<rf::EventCloneEntity*>(nullptr));
 
         case 92:
-            return allocate_custom_event(static_cast<rf::EventSwitchRandom*>(nullptr));
+            return allocate_custom_event(static_cast<rf::EventSetCollisionPlayer*>(nullptr));
 
         case 93:
-            return allocate_custom_event(static_cast<rf::EventGateIsEasy*>(nullptr));
+            return allocate_custom_event(static_cast<rf::EventSwitchRandom*>(nullptr));
+
+        case 94:
+            return allocate_custom_event(static_cast<rf::EventDifficultyGate*>(nullptr));
+
+        case 95:
+            return allocate_custom_event(static_cast<rf::EventHUDMessage*>(nullptr));
+
+        case 96:
+            return allocate_custom_event(static_cast<rf::EventPlayVideo*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -287,30 +355,48 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
 
         int event_type = eventp->event_type;
-        xlog::warn("Deallocating event ID: {}", event_type);
+        //xlog::warn("Deallocating event ID: {}", event_type);
 
         // Handle custom event types
         switch (event_type) {
         case 90: {
-            auto* custom_event = static_cast<rf::EventCloneEntity*>(eventp);
+            auto* custom_event = static_cast<rf::EventSetVar*>(eventp);
             delete custom_event;
             return;
         }
 
         case 91: {
-            auto* custom_event = static_cast<rf::EventSetCollisionPlayer*>(eventp);
+            auto* custom_event = static_cast<rf::EventCloneEntity*>(eventp);
             delete custom_event;
             return;
         }
 
         case 92: {
-            auto* custom_event = static_cast<rf::EventSwitchRandom*>(eventp);
+            auto* custom_event = static_cast<rf::EventSetCollisionPlayer*>(eventp);
             delete custom_event;
             return;
         }
 
         case 93: {
-            auto* custom_event = static_cast<rf::EventGateIsEasy*>(eventp);
+            auto* custom_event = static_cast<rf::EventSwitchRandom*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 94: {
+            auto* custom_event = static_cast<rf::EventDifficultyGate*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 95: {
+            auto* custom_event = static_cast<rf::EventHUDMessage*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 96: {
+            auto* custom_event = static_cast<rf::EventPlayVideo*>(eventp);
             delete custom_event;
             return;
         }
@@ -324,8 +410,9 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
 
 // list custom events that don't forward messages by default
 static const std::unordered_set<rf::EventType> forward_exempt_ids = {
+    rf::EventType::SetVar,
     rf::EventType::Switch_Random,
-    rf::EventType::Gate_Is_Easy
+    rf::EventType::Difficulty_Gate
 };
 
 // decide if a specific event type should forward messages
@@ -366,6 +453,7 @@ rf::Vector3 rotate_velocity(const rf::Matrix3& old_orient, const rf::Matrix3& ne
     return new_orient.rvec * base_velocity.x + new_orient.uvec * base_velocity.y + new_orient.fvec * base_velocity.z;
 }
 
+//todo: rewrite with codeinjection for just vel
 FunHook<void(rf::Event*)> event_player_teleport_on_hook{
     0x004B9820,
     [](rf::Event* event) {
@@ -407,43 +495,47 @@ FunHook<void(rf::Event*)> event_player_teleport_on_hook{
     }
 };
 
-CodeInjection level_read_events_patch { //wip not ready
-    0x00462324, [](auto& regs) {
-        // Convert regs.eax to EventType
-        auto event_type = rf::int_to_event_type(static_cast<int>(regs.ebp));
+// unneeded currently as RED piece isn't done
+// factory for Gate_Is_Easy events
+rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, int difficulty, bool also_include_higher)
+{
 
-        const char* class_name = *reinterpret_cast<const char**>(regs.esp + 0x5C);
-        const char* script_name = *reinterpret_cast<const char**>(regs.esp + 0x54);
+    rf::Event* base_event = rf::event_create(pos, 94);
 
-        rf::Vector3* pos = regs.edx;
+    rf::EventDifficultyGate* event = dynamic_cast<rf::EventDifficultyGate*>(base_event);
 
+    event->difficulty = static_cast<rf::GameDifficultyLevel>(difficulty);
 
-         float float1 = *reinterpret_cast<float*>(regs.esp + 0x84); // Float1 at offset -84h
-        float float2 = *reinterpret_cast<float*>(regs.esp + 0x7C); // Float2 at offset -7Ch
-        int int1 = *reinterpret_cast<int*>(
-            regs.esp + 0x88); // Int1 at offset -88h (mapped to `Bool1` here if it holds integer data)
-        int int2 = *reinterpret_cast<int*>(
-            regs.esp + 0x80); // Int2 at offset -80h (mapped to `Bool2` here if it holds integer data)
+    return event;
+}
+// for custom events that have additional values
+CodeInjection level_read_events_patch {
+    0x00462910, [](auto& regs) {
 
-        // Log values to verify accuracy
-        xlog::warn("Reading event - Event ID: {}, Class Name: {}, Script Name: {}", static_cast<int>(event_type),
-                   class_name, script_name);
-        xlog::warn("float1: {}, float2: {}, int1: {}, int2: {}", pos->x, pos->y, pos->z, int2);
-  
-        //regs.eip = 0x0046291A; // set pointer after jump table
+        int event_type = static_cast<int>(regs.ebp);
+
+        if (event_type == 94) {        
+            const rf::Vector3* pos = reinterpret_cast<rf::Vector3*>(regs.esp + 0x60); // todo: confirm correct pos offset
+
+            rf::Event* this_event = event_difficulty_gate_create(pos, 3, false); // dummy values, need to get values from level file
+            regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
+            regs.eip = 0x00462915; // we already made the event, set stack pointer after jump table
+        }
     }
 };
 
 void apply_event_patches()
 {
     // Support custom events
-    //level_read_events_patch.install();
+    
     AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID (params specified)
     event_lookup_type_hook.install(); // define custom event IDs
     event_allocate_hook.install(); // load custom events at level start
     event_deallocate_hook.install(); // unload custom events at level end
-    //event_type_forwards_messages_hook.install(); // events that don't forward messages //broken
-    event_type_forwards_messages_patch.install();
+    event_type_forwards_messages_patch.install(); // handle custom events that shouldn't forward messages by default
+
+    // unneeded currently as RED piece isn't done
+    // level_read_events_patch.install(); // handle creating custom events on level load if they have additional values
 
     // Improve player teleport behaviour
     event_player_teleport_on_hook.install();

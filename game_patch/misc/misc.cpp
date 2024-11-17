@@ -518,7 +518,7 @@ void misc_init()
     AsmWriter{0x0045514E}.nop(5);
     AsmWriter{0x0045515B}.nop(5);
 
-    // Add support for Bink videos in mods
+    // Add support for Bink videos and bluebeard.bty in mods
     game_set_file_paths_injection.install();
 
     // Add level name to "-- Level Initializing --" message

@@ -68,7 +68,7 @@ struct GameConfig
     CfgVar<bool> muzzle_flash = true;
     CfgVar<bool> glares = true;
     CfgVar<bool> show_enemy_bullets = true;
-    CfgVar<bool> gibs = false;
+    CfgVar<bool> gibs = true;
 
     CfgVar<bool> try_mesh_fullbright = false;
     CfgVar<bool> try_lightmaps_only = false;

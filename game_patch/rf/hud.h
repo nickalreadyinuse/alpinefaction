@@ -145,4 +145,5 @@ namespace rf
 
     static auto& hud_do_frame = addr_as_ref<void(Player*)>(0x00437B80);
     static auto& hud_msg = addr_as_ref<void(const char* text, int, int duration, Color*)>(0x004383C0);
+    static auto& hud_msg_clear = addr_as_ref<void()>(0x004381F0); // hud_msg_level_init in code
 }

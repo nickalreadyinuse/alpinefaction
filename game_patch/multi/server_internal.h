@@ -75,11 +75,14 @@ struct WeaponStayExemptionConfig
     bool riot_shield = false;
     bool rail_gun = false;
 };
+
 struct OvertimeConfig
 {
     bool enabled = false;
     int additional_time = 5;
+    bool tie_if_flag_stolen = true;
 };
+
 struct NewSpawnLogicConfig // defaults match stock game
 {
     bool respect_team_spawns = true;    

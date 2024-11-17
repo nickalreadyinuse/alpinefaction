@@ -619,11 +619,12 @@ CallHook<int(void*, int, int, rf::NetAddr&, int)> net_get_tracker_hook{
 };
 
 constexpr uint32_t DASH_FACTION_SIGNATURE = 0xDA58FAC7;
+constexpr uint32_t APLINE_FACTION_SIGNATURE = 0x4E4C5246;
 
 // Appended to game_info and join_req packets
 struct df_sign_packet_ext
 {
-    uint32_t df_signature = DASH_FACTION_SIGNATURE;
+    uint32_t df_signature = APLINE_FACTION_SIGNATURE;
     uint8_t version_major = VERSION_MAJOR;
     uint8_t version_minor = VERSION_MINOR;
 };
@@ -651,7 +652,7 @@ std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet(const std::byte* d
 std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_df_signature(std::byte* data, size_t len)
 {
     df_sign_packet_ext ext;
-    ext.df_signature = DASH_FACTION_SIGNATURE;
+    ext.df_signature = APLINE_FACTION_SIGNATURE;
     ext.version_major = VERSION_MAJOR;
     ext.version_minor = VERSION_MINOR;
     return extend_packet(data, len, ext);
@@ -668,7 +669,7 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook
 
 struct DashFactionJoinAcceptPacketExt
 {
-    uint32_t df_signature = DASH_FACTION_SIGNATURE;
+    uint32_t df_signature = APLINE_FACTION_SIGNATURE;
     uint8_t version_major = VERSION_MAJOR;
     uint8_t version_minor = VERSION_MINOR;
 
@@ -731,7 +732,7 @@ CodeInjection process_join_accept_injection{
         std::copy(packet + ext_offset, packet + ext_offset + sizeof(DashFactionJoinAcceptPacketExt),
             reinterpret_cast<std::byte*>(&ext_data));
         xlog::debug("Checking for join_accept DF extension: {:08X}", ext_data.df_signature);
-        if (ext_data.df_signature == DASH_FACTION_SIGNATURE) {
+        if (ext_data.df_signature == DASH_FACTION_SIGNATURE || ext_data.df_signature == APLINE_FACTION_SIGNATURE) {
             DashFactionServerInfo server_info;
             server_info.version_major = ext_data.version_major;
             server_info.version_minor = ext_data.version_minor;

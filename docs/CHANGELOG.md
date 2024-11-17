@@ -56,6 +56,8 @@ Version 1.0.0
 - Remove references to legacy geometry limits from build report in editor output window
 - Stop faces being added to "fix PS2 tiling" at build time in editor
 - Stop mover brushes being split to "fix PS2 tiling" in editor
+- Add framework for real-time modification of defined event properties
+- Add custom events `SetVar`, `Difficulty_Gate`, and `HUD_Message`
 
 
 

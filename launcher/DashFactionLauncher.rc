@@ -206,19 +206,20 @@ BEGIN
     COMBOBOX        IDC_LANG_COMBO,60,28,66,66,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 END
 
-IDD_ABOUT DIALOGEX 0, 0, 174, 120
+IDD_ABOUT DIALOGEX 0, 0, 186, 130
 STYLE DS_SHELLFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About Alpine Faction"
 FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Alpine Faction",IDC_APP_NAME,12,6,100,16
     LTEXT           "Version: ?", IDC_APP_VERSION,12,22,100,8
-    LTEXT           "Copyright (C) 2024 Goober",IDC_STATIC,12,34,100,8
-    LTEXT           "This software uses open-source components.",IDC_STATIC,12,46,160,8
-    LTEXT           "Alpine Faction is a fork of Dash Faction.",IDC_STATIC,12,58,160,8
-    CONTROL         "<a href=""https://github.com/GooberRF/alpinefaction"">Source code</a>",IDC_SRC_LINK,"SysLink",WS_TABSTOP,12,70,100,8
-    CONTROL         "<a>Licensing information</a>",IDC_LICENSE_LINK,"SysLink",WS_TABSTOP,12,82,100,8
-    DEFPUSHBUTTON   "OK",IDOK,62,98,50,14
+    LTEXT           "Alpine Faction is Copyright (C) 2024 Goober.",IDC_STATIC,12,34,180,8
+    LTEXT           "Alpine Faction is a fork of Dash Faction.",IDC_STATIC,12,46,180,8
+    LTEXT           "Dash Faction is Copyright (C) 2022 rafalh.",IDC_STATIC,12,58,180,8
+    LTEXT           "This software uses open-source components.",IDC_STATIC,12,70,180,8
+    CONTROL         "<a href=""https://github.com/GooberRF/alpinefaction"">Source code</a>",IDC_SRC_LINK,"SysLink",WS_TABSTOP,12,82,100,8
+    CONTROL         "<a>Licensing information</a>",IDC_LICENSE_LINK,"SysLink",WS_TABSTOP,12,94,100,8
+    DEFPUSHBUTTON   "OK",IDOK,62,110,50,14
 END
 
 

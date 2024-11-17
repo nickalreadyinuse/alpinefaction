@@ -1,6 +1,13 @@
 #pragma once
 
+#include <string>
+#include <vector>
+#include <sstream>
+#include <optional>
 #include "object.h"
+#include "level.h"
+#include "misc.h"
+#include "hud.h"
 #include "entity.h"
 #include "../main/main.h"
 #include "player/player.h"
@@ -19,40 +26,184 @@ namespace rf
         int event_flags;
         bool delayed_msg;
 
-        virtual void initialize(){};
-        virtual void turn_on(){};
-        virtual void turn_off(){};
-        virtual void process(){};
+        // handler storage, defined in event.vpp
+        static std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
+            variable_handler_storage;
 
-        // do not directly override, override `do_` instead. Base game does not allocate these.
-    virtual void activate(int trigger_handle, int triggered_by_handle, bool on)
-    {
-        // Call the overridable function, using default if not overridden.
-        do_activate(trigger_handle, triggered_by_handle, on);
-    }
+        // register variable handlers (AF new) plus default event initialization (does nothing)
+        // safe to override, but including call to base struct initialize is a good idea for var handler registration
+        virtual void initialize()
+        {
+            register_variable_handlers();
+            AddrCaller{0x004B8CD0}.this_call(this);
+        };
+
+        // default event turning on (switch based on some default event types)
+        // safe to override
+        virtual void turn_on()
+        {
+            AddrCaller{0x004B9070}.this_call(this);
+        };
+
+        // default event turning off (switch based on some default event types)
+        // safe to override
+        virtual void turn_off()
+        {
+            AddrCaller{0x004B9F80}.this_call(this);
+        };
+
+        // default event processing, handles delays (set in activate) and switch on some default event types
+        // if overridden, delays need to be handled otherwise event won't work with delay specified
+        virtual void process()
+        {
+            AddrCaller{0x004B8CE0}.this_call(this);
+        };
+
+        // do not directly override activate and activate_links, override `do_`. Base game does not allocate these
+        virtual void activate(int trigger_handle, int triggered_by_handle, bool on)
+        {
+            // call the overridable function, using default if not overridden
+            do_activate(trigger_handle, triggered_by_handle, on);
+        }
     
-    virtual void activate_links(int trigger_handle, int triggered_by_handle, bool on)
-    {
-        // Call the overridable function, using default if not overridden.
-        do_activate_links(trigger_handle, triggered_by_handle, on);
-    }
+        virtual void activate_links(int trigger_handle, int triggered_by_handle, bool on)
+        {
+            // call the overridable function, using default if not overridden
+            do_activate_links(trigger_handle, triggered_by_handle, on);
+        }
 
-protected:
-    // Default behavior calls the original game function
-    virtual void do_activate(int trigger_handle, int triggered_by_handle, bool on)
-    {
-        AddrCaller{0x004B8B70}.this_call(this, trigger_handle, triggered_by_handle, on);
-    }
+    protected:
+        // default internal event activation, handles delays, turn on/off, and event forwarding
+        // if overridden, delays need to be handled otherwise event won't work with delay specified
+        virtual void do_activate(int trigger_handle, int triggered_by_handle, bool on)
+        {
+            AddrCaller{0x004B8B70}.this_call(this, trigger_handle, triggered_by_handle, on);
+        }
 
-    virtual void do_activate_links(int trigger_handle, int triggered_by_handle, bool on)
-    {
-        AddrCaller{0x004B8B00}.this_call(this, trigger_handle, triggered_by_handle, on);
-    }
+        // default event link activation, handles sending on/off signals to links
+        // safe to override, but be careful - this is standard behaviour for all stock events
+        virtual void do_activate_links(int trigger_handle, int triggered_by_handle, bool on)
+        {
+            AddrCaller{0x004B8B00}.this_call(this, trigger_handle, triggered_by_handle, on);
+        }
+
+        virtual void register_variable_handlers()
+        {
+            auto& handlers = variable_handler_storage[this];
+            handlers["delay"] = [](Event* event, const std::string& value) {
+                event->delay_seconds = std::stof(value);
+                xlog::warn("apply_var: delay set to {}", event->delay_seconds);
+            };
+        }
+
+    public:
+        virtual void apply_var(const std::string& var_name, const std::string& value)
+        {
+            auto it = variable_handler_storage.find(this); // Access handlers by `this`
+            if (it != variable_handler_storage.end()) {
+                auto& handlers = it->second;
+                auto handler_it = handlers.find(var_name);
+                if (handler_it != handlers.end()) {
+                    try {
+                        handler_it->second(this, value);
+                    }
+                    catch (const std::exception& ex) {
+                        xlog::error("apply_var: Failed to set var_name={} with value={} - {}", var_name, value,
+                                    ex.what());
+                    }
+                }
+                else {
+                    xlog::warn("apply_var: Unsupported var_name={} for Event", var_name);
+                }
+            }
+            else {
+                xlog::warn("apply_var: No handlers registered for Event");
+            }
+        }
     };
     static_assert(sizeof(Event) == 0x2B8);
 
+    // used for SetVar events only
+    struct SetVarEventParts
+    {
+        bool auto_activate;
+        std::string var_name;
+        std::string value;
+    };
+
+    std::optional<SetVarEventParts> parse_event_name(const std::string& name); // defined in event.cpp
+
     // custom event structs
     // id 90
+    struct EventSetVar : Event
+    {
+        bool fired = false;
+
+        void turn_on() override
+        {
+            xlog::warn("Activating UID {}", this->uid);
+            this->activate(this->trigger_handle, this->triggered_by_handle, true);
+        }
+
+        void process() override
+        {
+            // xlog::warn("Processing UID {}", this->uid);
+
+            if (fired || (this->name.empty() || this->name[0] != '!')) {
+                return; // Skip processing if already fired or manual activation is required
+            }
+
+            // Check if all linked events are initialized and have handlers registered
+            bool all_handlers_registered = true;
+            for (int link_handle : this->links) {
+                rf::Object* obj = rf::obj_from_handle(link_handle);
+                if (obj && obj->type == OT_EVENT) {
+                    auto* linked_event = static_cast<rf::Event*>(obj);
+
+                    // Check if the linked event has registered handlers in the static storage
+                    if (Event::variable_handler_storage.find(linked_event) == Event::variable_handler_storage.end()) {
+                        xlog::warn("Linked event UID {} has not registered handlers", linked_event->uid);
+                        all_handlers_registered = false;
+                        break;
+                    }
+                }
+                else {
+                    xlog::warn("Linked handle {} is not a valid Event", link_handle);
+                }
+            }
+
+            if (!all_handlers_registered) {
+                xlog::warn("UID {}: Not all linked events have registered handlers", this->uid);
+                return;
+            }
+
+            xlog::warn("Activating UID {}", this->uid);
+            this->activate(this->trigger_handle, this->triggered_by_handle, true);
+            fired = true;
+        }
+
+        void do_activate(int trigger_handle, int triggered_by_handle, bool on) override
+        {
+            auto parsed_name = parse_event_name(this->name);
+            if (!parsed_name) {
+                xlog::error("Failed to parse event name: {}", this->name);
+                return;
+            }
+
+            auto& parts = *parsed_name;
+
+            // Apply the variable to all linked events
+            for (int link_handle : this->links) {
+                rf::Object* obj = rf::obj_from_handle(link_handle);
+                if (obj && obj->type == OT_EVENT) {
+                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                    linked_event->apply_var(parts.var_name, parts.value);
+                }
+            }
+        }
+    };
+
+    // id 91
     struct EventCloneEntity : Event
     {
         void turn_on() override
@@ -100,7 +251,7 @@ protected:
         }
     };
 
-    // id 91
+    // id 92
     struct EventSetCollisionPlayer : Event
     {
         void turn_on() override
@@ -115,7 +266,7 @@ protected:
         }
     };
 
-    // id 92
+    // id 93
     struct EventSwitchRandom : Event
     {
         void turn_on() override
@@ -145,26 +296,34 @@ protected:
         }
     };
 
-    // id 93
-    struct EventGateIsEasy : Event
+    // id 94
+    struct EventDifficultyGate : Event
     {
         rf::GameDifficultyLevel difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
+        //bool should_apply_underwater = false;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["difficulty"] = [](Event* event, const std::string& value) {
+                auto* gate_event = static_cast<EventDifficultyGate*>(event);
+                int difficulty_value = std::stoi(value);
+                gate_event->difficulty = static_cast<rf::GameDifficultyLevel>(difficulty_value);
+                xlog::warn("apply_var: Set difficulty to {} for EventDifficultyGate", difficulty_value);
+            };
+
+            // handler reg template (not used)
+            //handlers["should_apply_underwater"] = [](Event* event, const std::string& value) {
+            //    auto* gate_event = static_cast<EventDifficultyGate*>(event);
+            //    gate_event->should_apply_underwater = (value == "true");
+            //    xlog::warn("apply_var: Set should_apply_underwater to {}", gate_event->should_apply_underwater);
+            //};
+        }
 
         void turn_on() override
         {
-            if (this->name == "Gate_Is_Medium") {
-                difficulty = GameDifficultyLevel::DIFFICULTY_MEDIUM;
-            }
-            else if (this->name == "Gate_Is_Hard") {
-                difficulty = GameDifficultyLevel::DIFFICULTY_HARD;
-            }
-            else if (this->name == "Gate_Is_Impossible") {
-                difficulty = GameDifficultyLevel::DIFFICULTY_IMPOSSIBLE;
-            }
-            else {
-                difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
-            }
-
             xlog::warn("Gate {} with UID {} is checking for difficulty {}",
                 this->name, this->uid, static_cast<int>(difficulty));
 
@@ -175,24 +334,77 @@ protected:
 
         void turn_off() override
         {
-            if (this->name == "Gate_Is_Medium") {
-                difficulty = GameDifficultyLevel::DIFFICULTY_MEDIUM;
-            }
-            else if (this->name == "Gate_Is_Hard") {
-                difficulty = GameDifficultyLevel::DIFFICULTY_HARD;
-            }
-            else if (this->name == "Gate_Is_Impossible") {
-                difficulty = GameDifficultyLevel::DIFFICULTY_IMPOSSIBLE;
-            }
-            else {
-                difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
-            }
-
             xlog::warn("Gate {} with UID {} is checking for difficulty {}",
                 this->name, this->uid, static_cast<int>(difficulty));
 
             if (rf::game_get_skill_level() == difficulty) {
                 activate_links(this->trigger_handle, this->triggered_by_handle, false);
+            }
+        }
+    };
+
+    // id 95
+    struct EventHUDMessage : Event
+    {
+        std::string message = "";
+        std::optional<int> duration;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["message"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventHUDMessage*>(event);
+                this_event->message = value;
+                xlog::warn("apply_var: Set message to '{}' for EventHUDMessage UID={}", this_event->message,
+                           this_event->uid);
+            };
+
+            handlers["duration"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventHUDMessage*>(event);
+                this_event->duration = std::stoi(value);
+                xlog::warn("apply_var: Set duration to '{}' for EventHUDMessage UID={}",
+                           this_event->duration.value_or(0), this_event->uid);
+            };            
+        }
+
+        void turn_on() override
+        {
+            rf::hud_msg(message.c_str(), 0, duration.value_or(0), 0);
+        }
+
+        void turn_off() override
+        {
+            rf::hud_msg_clear();
+        }
+    };
+
+    // id 96
+    struct EventPlayVideo : Event
+    {
+        std::optional<std::string> filename;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["filename"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventPlayVideo*>(event);
+                this_event->filename = value;
+                xlog::warn("apply_var: Set message to '{}' for EventPlayVideo UID={}", this_event->filename->c_str(),
+                           this_event->uid);
+            };            
+        }
+
+        void turn_on() override
+        {
+            if (filename) {
+                rf::bink_play(filename->c_str());
+            }
+            else {
+                xlog::error("EventPlayVideo UID={} attempted to play a video without a valid filename.", this->uid);
             }
         }
     };
@@ -288,10 +500,13 @@ protected:
         When_Life_Reaches,
         When_Armor_Reaches,
         Reverse_Mover,
-        Clone_Entity, // 90
+        SetVar, // 90
+        Clone_Entity,
         Set_Player_World_Collide,
         Switch_Random,
-        Gate_Is_Easy
+        Difficulty_Gate,
+        HUD_Message,
+        Play_Video
     };
 
     // int to EventType
@@ -308,9 +523,10 @@ protected:
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
-    static auto& event_create = addr_as_ref<Event*(rf::Vector3 pos, int event_type)>(0x004B6870);
+    static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
     //static auto& event_destructor = addr_as_ref<void(rf::Event*, char flags)>(0x004BEF50); // probably crashes, unneeded
     static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
     static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
+    
 
 }
