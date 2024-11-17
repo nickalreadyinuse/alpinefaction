@@ -37,6 +37,7 @@ Version 1.0.0
 - Add `vote rand` vote type to initiate a level change to a random level on the rotation
 - Add `$DF Dynamic Rotation` option in dedicated server config
 - Add `$DF Weapon Stay Exemptions` option in dedicated server config- 
+- Add `$DF Item Respawn Time Override` option in dedicated server config
 - Add `$DF Critical Hits` option in dedicated server config
 - Add `muzzle_flash` command
 - Fix some fire packets being wrongfully dropped by click limiter (DF bug)

@@ -116,6 +116,7 @@ struct ServerAdditionalConfig
     WeaponStayExemptionConfig weapon_stay_exemptions;
     OvertimeConfig overtime;
     std::map<std::string, std::string> item_replacements;
+    std::map<std::string, int> item_respawn_time_overrides;
     std::string default_player_weapon;
     std::optional<int> default_player_weapon_ammo;
     bool require_client_mod = true;
