@@ -108,6 +108,7 @@ struct ServerAdditionalConfig
     int spawn_protection_duration_ms = 1500;
     int desired_player_count = 32;
     std::optional<float> spawn_life;
+    bool use_sp_damage_calculation = false;
     std::optional<float> spawn_armor;
     int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;

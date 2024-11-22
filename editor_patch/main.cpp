@@ -584,7 +584,7 @@ CodeInjection open_event_properties_patch{
 
             switch (event_type) {            
                 case 93:
-                    template_id = 267;
+                    template_id = 222;
                     xlog::warn("case 93 handle");
                     break;
             }
@@ -637,16 +637,82 @@ CodeInjection open_event_properties_internal_patch{
         VString* str2 = &event->str2;*/
 
 
-        if (event->event_type == 93 && template_id == 267) {
-            xlog::warn("Handling template ID 267");
+        if (event->event_type == 93 && template_id == 222) {
+            xlog::warn("Handling template ID 222");
 
-            CString* target_field = reinterpret_cast<CString*>(&dialog->field_1724[1056]);
-            target_field->Format("%d", event->int1);
-            xlog::warn("Formatted int1 '{}' into field_1724[1056]", event->int1);
+            xlog::info("str1: {}", event->str1.c_str());
+            xlog::info("bool1: {}", event->bool1);
+            
+
+            const char* v21 = event->str1.cstr();
+            if (!v21) {
+                xlog::warn("str1 is null; assigning empty string to field_EFC");
+                v21 = "test";
+            }
+
+            xlog::warn("str1: {}", v21);
+
+            reinterpret_cast<CString*>(&dialog->field_EFC)->operator=(v21);
+
+            //dialog->field_EFC = v21;
+
+            xlog::warn("bool1: {}", event->bool1);
+
+            dialog->field_F00 = event->bool1 ? 1 : 0;
+
+            xlog::info("Assigned field_EFC: {}", dialog->field_EFC.c_str());
+            xlog::info("Assigned field_F00: {}", dialog->field_F00);
+
+            //const char* v62 = event->str1.cstr(); 
+            //dialog->field_23E4 = v62;
+
+            //xlog::warn("float1: {}", event->float1);
+
+            //reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%.2f", event->float1);
+
+            //xlog::warn("float1: {}", event->float1);
+
+            //reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%d", event->int1);
+
+
+            regs.eip = 0x00408131;
+        }
+
+        /* if (event->event_type == 93 && template_id == 200) {
+            xlog::warn("Handling template ID 200");
+            const char* v40 = event->str1.cstr();
+
+            xlog::warn("Set v40 {}", v40);
+
+            //reinterpret_cast<CString*>(&dialog->field_1724[2072])->operator=(v40);
+
+            xlog::warn("Set str1 {}", v40);
+
+            reinterpret_cast<CString*>(&dialog->field_1724[2136])->Format("%.2f", event->float1);
+
+            xlog::warn("Set float1 {}", event->float1);
+
+
+
+            regs.eip = 0x00408131;
+        }*/
+
+
+         /*if (event->event_type == 93 && template_id == 226) {
+            xlog::warn("Handling template ID 226");
+            const char* v11 = event->str1.cstr(); // Get the C-style string from VString
+
+            // Use CString's operator= to assign the string to field_24C
+            dialog->field_24C = v11; // Assigning using CString's operator=
+
+
+            //CString* target_field = reinterpret_cast<CString*>(&dialog->field_1724[1056]);
+            //target_field->Format("%d", event->str1);
+            //xlog::warn("Formatted int1 '{}' into field_1724[1056]", event->int1);
             
             // Re-entry point
             regs.eip = 0x00408131;
-        }
+        }*/
 
 
         /* if (event_type == 93 && template_id == 200) {
@@ -673,7 +739,72 @@ CodeInjection open_event_properties_internal_patch{
     }
 };
 
+CodeInjection open_event_properties_internal_patch2{
+    0x0040821C, [](auto& regs) {
+        using namespace asm_regs;
 
+        CEventDialog* dialog = reinterpret_cast<CEventDialog*>(regs.ebp - 0x2408);
+        DedEvent* event = *reinterpret_cast<DedEvent**>(regs.ebp + 8);
+        int template_id = *reinterpret_cast<int*>(regs.ebp + 0x0C);
+
+        if (!dialog || !event) {
+            xlog::error("Invalid dialog or event pointer!");
+            return;
+        }
+
+        //xlog::warn("2 DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
+        //xlog::warn(
+        //    "2 DedEvent: type={}, delay={}, int1={}, int2={}, float1={}, float2={}, bool1={}, bool2={}, str1={}, str2={}",
+        //    event->event_type, event->delay, event->int1, event->int2, event->float1, event->float2, event->bool1,
+        //    event->bool2, event->str1.c_str(), event->str2.c_str());
+        //xlog::warn("2 template_id value: {}", template_id);
+
+        /* int event_type = event->event_type;
+        float delay = event->delay;
+        int int1 = event->int1;
+        int int2 = event->int2;
+        float float1 = event->float1;
+        float float2 = event->float2;
+        bool bool1 = event->bool1;
+        bool bool2 = event->bool2;
+        VString* str1 = &event->str1;
+        VString* str2 = &event->str2;*/
+
+
+        // current state: str1 seems to be working fine, bool1 is working fine except you can never turn it off
+        // investigate sub_4848D0
+        if (event->event_type == 93 && template_id == 222) {
+            xlog::warn("2 Handling template ID 222");            
+
+            xlog::warn("field_EFC.m_pchData: {}", dialog->field_EFC.m_pchData ? dialog->field_EFC.m_pchData : "null");
+
+
+            const char* fieldEFCValue = dialog->field_EFC;
+            if (!fieldEFCValue || strlen(fieldEFCValue) == 0) {
+                xlog::error("2 field_EFC is empty or null");
+            }
+            else {
+                event->str1.assign_0(fieldEFCValue);
+                xlog::warn("2 str1 after assign_0: {}", event->str1.cstr());
+            }
+
+            int fieldF00Value = dialog->field_F00;
+
+            //event->bool1 = reinterpret_cast<bool>(&dialog->field_F00);
+
+            event->bool1 = fieldF00Value != 0;
+
+            xlog::warn("2 bool1: {}", event->bool1);
+
+
+            // reinterpret_cast<CString*>(&dialog->field_EFC)->operator=(v21);
+            // const char* v21 = event->str1.cstr();
+            //dialog->field_F00 = event->bool1;
+
+            regs.eip = 0x00408A79;
+        }        
+    }
+};
 
 
 
@@ -690,7 +821,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     xlog::warn("Initializing extended event names redirection...");
 
-    AsmWriter(0x00407828).jmp(0x0040782E); // OpenEventPropertiesInternal remove max lookup 58h// probably doesnt matter
+    //AsmWriter(0x00407828).jmp(0x0040782E); // OpenEventPropertiesInternal remove max lookup 58h// probably doesnt matter
 
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + custom events
@@ -702,7 +833,8 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     // not finished
     open_event_properties_patch.install(); // set template IDs for AF events (works)
-    open_event_properties_internal_patch.install(); // handle values for AF events in templates (not working)
+    open_event_properties_internal_patch.install(); // handle values for AF events in templates (maybe working?)
+    open_event_properties_internal_patch2.install(); // handle saving values for AF events from templates (not working)
 
     // set new end address for event array loops that use new extended array
     AsmWriter(0x004617FC).cmp(asm_regs::edi,

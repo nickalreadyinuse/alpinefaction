@@ -155,6 +155,10 @@ void load_additional_server_config(rf::Parser& parser)
         g_additional_server_config.spawn_armor = {parser.parse_float()};
     }
 
+    if (parser.parse_optional("$DF Use SP Damage Calculation:")) {
+        g_additional_server_config.use_sp_damage_calculation = parser.parse_bool();
+    }
+
     if (parser.parse_optional("$DF CTF Flag Return Time:")) {
         g_additional_server_config.ctf_flag_return_time_ms = {parser.parse_int()};
     }
@@ -487,6 +491,11 @@ CodeInjection dedicated_server_load_config_patch{
         // infinite reloads
         if (g_additional_server_config.gungame.enabled || g_additional_server_config.weapon_infinite_magazines) {
             AsmWriter{0x00425506}.nop(2);
+        }
+
+        if (g_additional_server_config.use_sp_damage_calculation) {
+            xlog::warn("Applying SP damage logic");
+            AsmWriter(0x0041A37A).jmp(0x0041A3C1);
         }
 
         // Insert server name in window title when hosting dedicated server
@@ -1902,7 +1911,7 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
 }
 
 void server_init()
-{
+{ 
     // Override rcon command whitelist
     write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);
     write_mem_ptr(0x0046C7D1 + 2, g_rcon_cmd_whitelist + std::size(g_rcon_cmd_whitelist));

@@ -2,6 +2,9 @@
 
 #include <windows.h>
 #include <patch_common/MemUtils.h>
+#include <mbstring.h>
+#include <algorithm>
+
 
 struct CCmdTarget_mbrs
 {
@@ -9,61 +12,23 @@ struct CCmdTarget_mbrs
     //char placeholder[0x18];
 };
 
-struct CCmdTarget_vtbl
+struct CWnd_mbrs
 {
-    // Placeholder struct for virtual table
-    //char placeholder[0x50];
+    char padding1[0x18]; // Offset to m_hWnd
+    HWND m_hWnd;         // Handle to the window
+    char padding2[0x1C]; // Remaining padding to make the size correct
 };
+static_assert(sizeof(CWnd_mbrs) == 0x38, "CWnd_mbrs size mismatch!");
 
-struct CWnd_mbrs: CCmdTarget_mbrs
-{
-    //CCmdTarget_mbrs baseclass_0;
-    HWND m_hWnd;
-    HWND m_hWndOwner;
-    unsigned int m_nFlags;
-    int(__stdcall* m_pfnSuper)(HWND, unsigned int, unsigned int, int);
-    int m_nModalResult;
-    void* m_pDropTarget;
-    struct COleControlContainer* m_pCtrlCont;
-    struct COleControlSite* m_pCtrlSite;
-};
 
-struct CWnd_vtbl : CCmdTarget_vtbl
-{
-    //CCmdTarget_vtbl baseclass_0; // Base class virtual table
-    void* PreSubclassWindow;     // Offset 0x50
-    void* Create;                // Offset 0x54
-    void* DestroyWindow;         // Offset 0x58
-    void* PreCreateWindow;       // Offset 0x5C
-    void* CalcWindowRect;        // Offset 0x60
-    void* OnToolHitTest;         // Offset 0x64
-    void* GetScrollBarCtrl;      // Offset 0x68
-    void* WinHelp;               // Offset 0x6C
-    void* ContinueModal;         // Offset 0x70
-    void* EndModalLoop;          // Offset 0x74
-    void* OnCommand;             // Offset 0x78
-    void* OnNotify;              // Offset 0x7C
-    void* GetSuperWndProcAddr;   // Offset 0x80
-    void* DoDataExchange;        // Offset 0x84
-    void* BeginModalState;       // Offset 0x88
-    void* EndModalState;         // Offset 0x8C
-    void* PreTranslateMessage;   // Offset 0x90
-    void* OnAmbientProperty;     // Offset 0x94
-    void* WindowProc;            // Offset 0x98
-    void* OnWndMsg;              // Offset 0x9C
-    void* DefWindowProc;         // Offset 0xA0
-    void* PostNcDestroy;         // Offset 0xA4
-    void* OnChildNotify;         // Offset 0xA8
-    void* CheckAutoCenter;       // Offset 0xAC
-    void* IsFrameWnd;            // Offset 0xB0
-    void* SetOccDialogInfo;      // Offset 0xB4
-};
 
 struct CWnd
 {
-    CWnd_vtbl* _vft;
-    CWnd_mbrs _d;
+    int _vft;     // Virtual function table pointer (int, not a pointer type)
+    CWnd_mbrs _d; // Member variables of `CWnd`
 };
+static_assert(sizeof(CWnd) == 0x3C, "CWnd size mismatch!");
+
 
 
 struct CComboBox : public CWnd
@@ -81,6 +46,14 @@ struct CDataExchange
 	HWND m_hWndLastControl;
 	BOOL m_bEditLastControl;
 };
+
+//static auto sub_52C9A0 = reinterpret_cast<int(__stdcall*)(char*, int)>(0x0052C9A0); // formatting function for cstring
+
+static auto GetBuffer = reinterpret_cast<void*(__thiscall*)(void*, int)>(0x0052FE42);
+static auto ReleaseBuffer = reinterpret_cast<void(__thiscall*)(void*, int)>(0x0052FE91);
+
+int __stdcall sub_52C9A0_fmt(char* Format, int a2);
+
 
 struct CString
 {
@@ -116,45 +89,183 @@ struct CString
         return m_pchData == nullptr || m_pchData[0] == '\0';
     }
 
-    operator const char*() const
-    {
-        return m_pchData ? m_pchData : "";
-    }
-
     const char* c_str() const
     {
         return m_pchData ? m_pchData : "";
     }
 
-    bool operator==(const char* s) const
+    CString& operator=(const char* Dst)
     {
-        return std::strcmp(c_str(), s) == 0;
+        static AddrCaller operatorCaller{0x0052FBDC};
+        operatorCaller.this_call<void>(this, Dst);
+        return *this;
     }
 
-    bool operator!=(const char* s) const
+    operator const char*() const
+    {
+        return m_pchData ? m_pchData : "";
+    }
+
+    /* bool operator!=(const char* s) const
     {
         return !(*this == s);
+    }*/
+
+    int Format(const char* Format, ...)
+    {
+        xlog::warn("Calling sub_52C9A0_fmt with Format=%s", Format);
+        
+        va_list args;
+        va_start(args, Format);
+
+        xlog::warn("Arguments passed to sub_52C9A0_fmt=%d", reinterpret_cast<int>(args));
+
+        int result = sub_52C9A0_fmt(const_cast<char*>(Format), reinterpret_cast<int>(args));
+
+        va_end(args);
+        return result;
     }
 
-    void Format(const char* fmt, ...)
+    void* GetBuffer(int bufferSize)
+    {
+        // Allocate a new buffer
+        delete[] m_pchData;                   // Free existing buffer
+        m_pchData = new char[bufferSize + 1]; // +1 for null terminator
+        return m_pchData;
+    }
+
+    // ReleaseBuffer: Finalize the string and optionally set its length
+    void ReleaseBuffer(int newLength)
+    {
+        if (newLength == -1) {
+            newLength = strlen(m_pchData); // Automatically determine length
+        }
+        m_pchData[newLength] = '\0'; // Ensure null-termination
+    }
+
+
+    /* void Format(const char* fmt, ...)
     {
         va_list args;
         va_start(args, fmt);
 
-        // Determine the required length for the formatted string
         size_t size = vsnprintf(nullptr, 0, fmt, args) + 1;
-
         va_end(args);
-        va_start(args, fmt);
 
-        // Allocate memory and format the string
         delete[] m_pchData;
         m_pchData = new char[size];
-        vsnprintf(m_pchData, size, fmt, args);
 
+        va_start(args, fmt);
+        vsnprintf(m_pchData, size, fmt, args);
         va_end(args);
-    }
+    }*/
 };
+
+inline int __stdcall sub_52C9A0_fmt(char* Format, int a2)
+{
+    // Local variables
+    CString* targetString = nullptr;
+    unsigned char* formatCursor = reinterpret_cast<unsigned char*>(Format);
+    va_list args = reinterpret_cast<va_list>(a2); // Cast a2 back to va_list
+    int totalLength = 0;
+
+    while (*formatCursor) {
+        // Check for format specifiers (%)
+        if (*formatCursor != '%' || (*(++formatCursor) == '%')) {
+            // Non-format character or escaped %%
+            totalLength += _mbclen(formatCursor);
+        }
+        else {
+            // Handle format specifier
+            int width = 0, precision = 0;
+            int sizeModifier = 0; // e.g., for "l", "h", or "I64"
+            int isWideChar = 0;
+
+            // Parse flags
+            while (*formatCursor == '#' || *formatCursor == '-' || *formatCursor == '+' || *formatCursor == '0' ||
+                   *formatCursor == ' ') {
+                totalLength += 2; // Assume these flags add length
+                ++formatCursor;
+            }
+
+            // Parse width
+            if (*formatCursor == '*') {
+                width = va_arg(args, int);
+                ++formatCursor;
+            }
+            else if (isdigit(*formatCursor)) {
+                width = atoi(reinterpret_cast<const char*>(formatCursor));
+                while (isdigit(*formatCursor)) ++formatCursor;
+            }
+
+            // Parse precision
+            if (*formatCursor == '.') {
+                ++formatCursor;
+                if (*formatCursor == '*') {
+                    precision = va_arg(args, int);
+                    ++formatCursor;
+                }
+                else if (isdigit(*formatCursor)) {
+                    precision = atoi(reinterpret_cast<const char*>(formatCursor));
+                    while (isdigit(*formatCursor)) ++formatCursor;
+                }
+            }
+
+            // Parse size modifiers (e.g., "l", "h", "I64")
+            if (!strncmp(reinterpret_cast<const char*>(formatCursor), "I64", 3)) {
+                sizeModifier = 0x40000;
+                formatCursor += 3;
+            }
+            else if (*formatCursor == 'l') {
+                sizeModifier = 0x20000;
+                ++formatCursor;
+            }
+            else if (*formatCursor == 'h') {
+                sizeModifier = 0x10000;
+                ++formatCursor;
+            }
+
+            // Parse format type (e.g., 'd', 's', 'f', etc.)
+            char formatType = *formatCursor++;
+            switch (formatType) {
+            case 'd':
+            case 'i':
+                va_arg(args, int);
+                totalLength += std::max(width, 11); // Assuming int max length is 11 characters
+                break;
+            case 'f':
+                va_arg(args, double);
+                totalLength += std::max(width, precision + 6); // Precision + extra space for decimal
+                break;
+            case 's': {
+                const char* str = va_arg(args, const char*);
+                totalLength += strlen(str);
+                break;
+            }
+            case 'S': {
+                const wchar_t* wstr = va_arg(args, const wchar_t*);
+                totalLength += wcslen(wstr);
+                break;
+            }
+            case 'c':
+                va_arg(args, int);
+                totalLength += 1;
+                break;
+            default:
+                // Handle unsupported format specifiers
+                break;
+            }
+        }
+    }
+
+    // Allocate buffer for the resulting formatted string
+    targetString = reinterpret_cast<CString*>(reinterpret_cast<void*>(args));
+    targetString->GetBuffer(totalLength);
+    vsprintf(targetString->m_pchData, Format, args); // Format the string into the buffer
+    targetString->ReleaseBuffer(-1);                 // Finalize the buffer
+
+    return totalLength;
+}
 
 
 
@@ -200,31 +311,38 @@ struct Vector3
     Vector3() = default;
     Vector3(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
 };
+static_assert(sizeof(Vector3) == 0xC, "Vector3 size mismatch!");
+
 
 struct Matrix3
 {
-    float data[3][3] = {0};
+    Vector3 rvec;
+    Vector3 uvec;
+    Vector3 fvec;
 
     Matrix3() = default;
+    Matrix3(const Vector3& r, const Vector3& u, const Vector3& f) : rvec(r), uvec(u), fvec(f) {}
 };
+static_assert(sizeof(Matrix3) == 0x24, "Matrix3 size mismatch!");
+
 
 template<typename T>
 struct VArray
 {
     int size;     // Number of elements currently stored
-    int capacity; // Total capacity of the array (max elements it can hold before resizing)
+    int capacity; // Total capacity of the array
     T* data_ptr;  // Pointer to the actual data
 
-    // Constructor
+    // Default constructor
     VArray() : size(0), capacity(0), data_ptr(nullptr) {}
 
-    // Destructor to free memory if allocated
+    // Destructor to clean up allocated memory
     ~VArray()
     {
         delete[] data_ptr;
     }
 
-    // Method to add a new element, handling resizing if necessary
+    // Add a new element, resizing if necessary
     void add(const T& element)
     {
         if (size >= capacity) {
@@ -233,31 +351,46 @@ struct VArray
         data_ptr[size++] = element;
     }
 
-    // Access operator to retrieve elements
+    // Access operator for non-const access
     T& operator[](size_t index)
     {
-        if (index >= static_cast<size_t>(size))
+        if (index >= static_cast<size_t>(size)) {
             throw std::out_of_range("Index out of range");
+        }
         return data_ptr[index];
     }
 
+    // Access operator for const access
     const T& operator[](size_t index) const
     {
-        if (index >= static_cast<size_t>(size))
+        if (index >= static_cast<size_t>(size)) {
             throw std::out_of_range("Index out of range");
+        }
         return data_ptr[index];
     }
 
-    // Get current size
+    // Get the current number of elements
     int get_size() const
     {
         return size;
     }
 
-    // Get current capacity
+    // Get the current capacity
     int get_capacity() const
     {
         return capacity;
+    }
+
+    // Clear the array without deallocating memory
+    void clear()
+    {
+        size = 0;
+    }
+
+    // Check if the array is empty
+    bool empty() const
+    {
+        return size == 0;
     }
 
 private:
@@ -267,9 +400,9 @@ private:
         int new_capacity = (capacity == 0) ? 1 : capacity * 2;
         T* new_data = new T[new_capacity];
 
-        // Copy old data to the new array
+        // Move old data to the new array
         for (int i = 0; i < size; ++i) {
-            new_data[i] = data_ptr[i];
+            new_data[i] = std::move(data_ptr[i]);
         }
 
         // Free old data and update pointers
@@ -278,55 +411,47 @@ private:
         capacity = new_capacity;
     }
 };
+static_assert(sizeof(VArray<int>) == 0xC, "VArray size mismatch!");
+
 
 struct VString
 {
     int max_len; // Maximum length of the string
     char* buf;   // Pointer to the character buffer
 
+    // Default constructor: initializes an empty string
     VString() : max_len(0), buf(nullptr) {}
 
-    VString(const char* str)
+    // Original "assign" function that copies another VString
+    VString& assign(const VString& other)
     {
-        if (str) {
-            max_len = static_cast<int>(strlen(str));
-            buf = new char[max_len + 1];
-            strcpy(buf, str);
-        }
-        else {
-            max_len = 0;
-            buf = nullptr;
-        }
+        static AddrCaller assignCaller{0x004B6DB0}; // Address of String::assign
+        assignCaller.this_call<int>(this, &other);
+        return *this;
     }
 
-    // Destructor to clean up dynamically allocated memory
-    ~VString()
+    // Original "assign_0" function that assigns a const char*
+    VString& assign_0(const char* str)
     {
-        delete[] buf;
+        static AddrCaller assign0Caller{0x004B6E10}; // Address of String::assign_0
+        assign0Caller.this_call<int>(this, str);
+        return *this;
     }
 
-    // Access the string as a C-style string
+    // Original "cstr" function to get the buffer as a C-style string
+    const char* cstr()
+    {
+        static AddrCaller cstrCaller{0x004B6810}; // Address of String::cstr
+        return cstrCaller.this_call<const char*>(this);
+    }
+
+    // Fallback method to access the string as a C-style string
     const char* c_str() const
     {
         return buf ? buf : "";
     }
 
-    // Assignment operator for managing string memory
-    VString& operator=(const char* str)
-    {
-        delete[] buf; // Free existing buffer
-        if (str) {
-            max_len = static_cast<int>(strlen(str));
-            buf = new char[max_len + 1];
-            strcpy(buf, str);
-        }
-        else {
-            max_len = 0;
-            buf = nullptr;
-        }
-        return *this;
-    }
-
+    // Check if the string is empty
     bool empty() const
     {
         return buf == nullptr || buf[0] == '\0';
@@ -343,27 +468,34 @@ struct VString
         other.buf = nullptr;
     }
 
-    VString& operator=(VString&& other) noexcept
+    /* VString& operator=(VString&& other) noexcept
     {
         if (this != &other) {
-            delete[] buf;
             max_len = other.max_len;
             buf = other.buf;
             other.max_len = 0;
             other.buf = nullptr;
         }
         return *this;
-    }
+    }*/
 };
-
+static_assert(sizeof(VString) == 0x8, "VString size mismatch!");
 
 struct Color
 {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
+    uint8_t r; // Red channel
+    uint8_t g; // Green channel
+    uint8_t b; // Blue channel
+    uint8_t a; // Alpha channel (transparency)
+
+    // Default constructor (opaque black by default)
+    Color() : r(0), g(0), b(0), a(255) {}
+
+    // Constructor with parameters
+    Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) : r(red), g(green), b(blue), a(alpha) {}
 };
+static_assert(sizeof(Color) == 0x4, "Color size mismatch!");
+
 
 struct DedObject
 {
@@ -386,6 +518,8 @@ struct DedObject
     VArray<int> links;
     VArray<std::string> field_88;
 };
+static_assert(sizeof(DedObject) == 0x94, "DedObject size mismatch!");
+
 
 struct DedEvent : DedObject
 {
@@ -399,84 +533,59 @@ struct DedEvent : DedObject
     float float2;
     bool bool1;
     bool bool2;
-    char padding[2];
+    char padding[2]; // needed?
     VString str1;
     VString str2;
 };
+static_assert(sizeof(DedEvent) == 0xC4, "DedEvent size mismatch");
 
-struct CDialog_mbrs : CWnd_mbrs
-{
-    //CWnd_mbrs baseclass_0;
-    UINT m_nIDHelp;
-    LPCTSTR m_lpszTemplateName;
-    HGLOBAL m_hDialogTemplate;
-    LPCDLGTEMPLATE m_lpDialogTemplate;
-    void* m_lpDialogInit;
-    void* m_pParentWnd;
-    HWND m_hWndTop;
-    int m_pOccDialogInfo;
-};
 
-struct CDialog_vtbl : CWnd_vtbl
+struct CDialog_mbrs
 {
-    //CWnd_vtbl baseclass_0; // Base class virtual table entries
-    void* DoModal;         // Offset 0xB8 // overridden in CDialog
-    void* OnInitDialog;    // Offset 0xBC
-    void* OnSetFont;       // Offset 0xC0
-    void* OnOK;            // Offset 0xC4 // overridden in CDialog
-    void* OnCancel;        // Offset 0xC8
-    void* PreInitDialog;   // Offset 0xCC
+    char padding[0x58]; // Placeholder for the actual member variables
 };
 
 struct CDialog
 {
-    CDialog_vtbl* _vft;
-    CDialog_mbrs _d;
-
-    int __thiscall DoModal()
-    {
-        return AddrCaller{0x0052F425}.this_call<int>(this);
-    }
-
-    void OnOK()
-    {
-        AddrCaller{0x0052F712}.this_call<void>(this);
-    }
-
-    signed int UpdateData(BOOL bSaveAndValidate)
-    {
-        return AddrCaller{0x00532575}.this_call<signed int>(this, bSaveAndValidate);
-    }
+    void* _vft;      // Virtual function table pointer (4 bytes)
+    CDialog_mbrs _d; // Placeholder for the member variables (0x58 bytes)
 };
+static_assert(sizeof(CDialog) == 0x5C, "CDialog size mismatch!");
 
 
-struct CEdit
+
+
+
+struct CEdit : CWnd
 {
-    // placeholder struct, can be defined later if needed
+    // Inherits all fields from `CWnd`
 };
+static_assert(sizeof(CEdit) == 0x3C, "CEdit size mismatch!");
 
-struct CStatic
+struct CStatic : CWnd
 {
-    // placeholder struct, can be defined later if needed
+    // Inherits all fields from `CWnd`
 };
+static_assert(sizeof(CStatic) == 0x3C, "CStatic size mismatch!");
 
-struct CButton
+struct CButton : CWnd
 {
-    // placeholder struct, can be defined later if needed
+    // Inherits all fields from `CWnd`
 };
+static_assert(sizeof(CButton) == 0x3C, "CButton size mismatch!");
 
 struct CEventDialog : CDialog
 {
-    //CDialog baseclass_0;
+    // Base class fields
     CEdit field_5C;
     CString field_98;
-    CString field_9C; // script name field
+    CString field_9C; // Script name field
     CStatic field_A0;
     CWnd field_DC;
-    CString field_118; // delay field
+    CString field_118; // Delay field
     CStatic field_11C;
     CComboBox field_158;
-    CString field_194; // class name field
+    CString field_194; // Class name field
     CButton field_198;
     CStatic field_1D4;
     CComboBox field_210;
@@ -564,8 +673,8 @@ struct CEventDialog : CDialog
     CString field_E80;
     CStatic field_E84;
     CEdit field_EC0;
-    CString field_EFC;
-    int field_F00;
+    CString field_EFC; // CString field at offset 0xEFC
+    int field_F00;     // Integer field at offset 0xF00
     CStatic field_F04;
     CComboBox field_F40;
     CString field_F7C;
@@ -618,15 +727,22 @@ struct CEventDialog : CDialog
     CEdit field_1668[2];
     CString field_16E0[2];
     CStatic field_16E8;
-    char field_1724[3264];
-    CString field_23E4;
+    char field_1724[3264]; // Large array field
+    CString field_23E4;    // CString near end of structure
     char field_23E8;
     char field_23E9;
+    char padding1[2]; // Alignment padding
     int field_23EC;
-    int field_23F0; // uid
-    int field_23F4; // something with links, maybe link count?
+    int field_23F0;
+    int field_23F4;
     int field_23F8;
 };
+static_assert(sizeof(CEventDialog) == 0x23FC, "CEventDialog size mismatch!");
+static_assert(offsetof(CEventDialog, field_5C) == 0x5C, "field_5C offset mismatch!");
+static_assert(offsetof(CEventDialog, field_98) == 0x98, "field_98 offset mismatch!");
+static_assert(offsetof(CEventDialog, field_1724) == 0x1724, "field_1724 offset mismatch!");
+
+
 
 // console is still broken
 //static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
