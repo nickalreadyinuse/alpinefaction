@@ -673,8 +673,8 @@ struct CEventDialog : CDialog
     CString field_E80;
     CStatic field_E84;
     CEdit field_EC0;
-    CString field_EFC; // CString field at offset 0xEFC
-    int field_F00;     // Integer field at offset 0xF00
+    CString field_EFC; // template 222 as str1
+    int field_F00;     // template 222 as bool1
     CStatic field_F04;
     CComboBox field_F40;
     CString field_F7C;

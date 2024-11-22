@@ -31,7 +31,7 @@ namespace rf
             variable_handler_storage;
 
         // register variable handlers (AF new) plus default event initialization (does nothing)
-        // safe to override, but including call to base struct initialize is a good idea for var handler registration
+        // safe to override, but include call to base struct initialize for var handler registration
         virtual void initialize()
         {
             register_variable_handlers();
@@ -53,7 +53,7 @@ namespace rf
         };
 
         // default event processing, handles delays (set in activate) and switch on some default event types
-        // if overridden, delays need to be handled otherwise event won't work with delay specified
+        // if overridden, delays need to be handled otherwise event won't work with delay specified (just like some stock events)
         virtual void process()
         {
             AddrCaller{0x004B8CE0}.this_call(this);
@@ -138,10 +138,12 @@ namespace rf
     struct EventSetVar : Event
     {
         bool fired = false;
+        std::optional<std::string> var_name;
+        std::optional<std::string> var_value;
 
         void turn_on() override
         {
-            xlog::warn("Activating UID {}", this->uid);
+            xlog::warn("Activating UID {}, var_name: {}", this->uid, var_name.value_or(""));
             this->activate(this->trigger_handle, this->triggered_by_handle, true);
         }
 
@@ -149,7 +151,7 @@ namespace rf
         {
             // xlog::warn("Processing UID {}", this->uid);
 
-            if (fired || (this->name.empty() || this->name[0] != '!')) {
+            /* if (fired || (this->name.empty() || this->name[0] != '!')) {
                 return; // Skip processing if already fired or manual activation is required
             }
 
@@ -179,25 +181,35 @@ namespace rf
 
             xlog::warn("Activating UID {}", this->uid);
             this->activate(this->trigger_handle, this->triggered_by_handle, true);
-            fired = true;
+            fired = true;*/
         }
 
         void do_activate(int trigger_handle, int triggered_by_handle, bool on) override
         {
-            auto parsed_name = parse_event_name(this->name);
-            if (!parsed_name) {
-                xlog::error("Failed to parse event name: {}", this->name);
+            // Ensure var_name is present; error out if it's not
+            if (!var_name) {
+                xlog::error("Event UID {} has no var_name defined!", this->uid);
                 return;
             }
 
-            auto& parts = *parsed_name;
+            std::string value = var_value.value_or(""); // Use empty string if var_value is not defined
 
-            // Apply the variable to all linked events
+            xlog::info("Activating event UID {} with var_name: '{}' and value: '{}'", this->uid, *var_name, value);
+
             for (int link_handle : this->links) {
                 rf::Object* obj = rf::obj_from_handle(link_handle);
                 if (obj && obj->type == OT_EVENT) {
                     rf::Event* linked_event = static_cast<rf::Event*>(obj);
-                    linked_event->apply_var(parts.var_name, parts.value);
+                    try {
+                        linked_event->apply_var(*var_name, value); // Pass by reference
+                    }
+                    catch (const std::exception& ex) {
+                        xlog::error("Failed to apply var_name={} with value={} to linked event UID={} - {}", *var_name,
+                                    value, linked_event->uid, ex.what());
+                    }
+                }
+                else {
+                    xlog::warn("Skipping invalid or non-Event linked object with handle {}", link_handle);
                 }
             }
         }

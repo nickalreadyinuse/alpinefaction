@@ -495,16 +495,38 @@ FunHook<void(rf::Event*)> event_player_teleport_on_hook{
     }
 };
 
-// unneeded currently as RED piece isn't done
-// factory for Gate_Is_Easy events
-rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, int difficulty, bool also_include_higher)
+// factory for SetVar events
+rf::EventSetVar* event_setvar_create(const rf::Vector3* pos, std::string script_name, std::string str1)
 {
+    rf::Event* base_event = rf::event_create(pos, 90);
+    rf::EventSetVar* event = dynamic_cast<rf::EventSetVar*>(base_event);
 
+    if (event) {
+        // var_name
+        const std::string_view prefix = "SetVar_";
+        if (script_name.starts_with(prefix)) {
+            event->var_name = script_name.substr(prefix.size());
+        }
+
+        // var_value
+        if (!str1.empty()) {
+            event->var_value = str1;
+        }
+    }
+
+    return event;
+}
+
+// factory for Difficulty_Gate events
+rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, int difficulty)
+{
     rf::Event* base_event = rf::event_create(pos, 94);
-
     rf::EventDifficultyGate* event = dynamic_cast<rf::EventDifficultyGate*>(base_event);
 
-    event->difficulty = static_cast<rf::GameDifficultyLevel>(difficulty);
+    if (event) {
+        // set difficulty
+        event->difficulty = static_cast<rf::GameDifficultyLevel>(difficulty);
+    }
 
     return event;
 }
@@ -513,47 +535,79 @@ rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, in
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
 
+        // testing for values
+        /* uintptr_t str1_address = regs.esp + 0x44;
+            uint32_t max_len = *reinterpret_cast<uint32_t*>(str1_address);           // First DWORD: max_len
+            uintptr_t buf_address = *reinterpret_cast<uintptr_t*>(str1_address + 4); // Second DWORD: buf pointer
+
+            xlog::warn("Potential str1 String object:");
+            xlog::warn("  max_len: {}", max_len);
+            xlog::warn("  buf_address: 0x{:08X}", buf_address);
+
+
+            if (buf_address != 0) {
+                xlog::info("Dumping memory at str1->buf_address (0x{:08X}):", buf_address);
+                for (int offset = 0; offset < 32; ++offset) { // Dump a reasonable range of memory
+                    char value = *reinterpret_cast<char*>(buf_address + offset);
+                    xlog::warn("  Memory at 0x{:08X}: '{}'", buf_address + offset, value ? value : '.');
+                }
+            }
+            else {
+                xlog::error("str1->buf_address is null!");
+            }*/
+
+        // event type
         int event_type = static_cast<int>(regs.ebp);
         xlog::warn("handling event type {}", event_type);
 
-        if (event_type == 94) {        
-            //const rf::Vector3* pos = reinterpret_cast<rf::Vector3*>(regs.esp + 0x98 - 0x3C); // todo: confirm correct pos offset
-            //const char* str1 = reinterpret_cast<const char*>(regs.esp + 0x98 - 0x5C);
+        // position
+        rf::Vector3* pos = regs.edx;
+        xlog::warn("pos: x={}, y={}, z={}", pos->x, pos->y, pos->z);
 
-            //xlog::warn("str1: {}", str1);
+        // event name
+        rf::String* class_name_obj = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
+        if (class_name_obj) {
+            const char* class_name_cstr = class_name_obj->c_str();
+            xlog::warn("class_name: {}", class_name_cstr);
+        }
 
-            //const char* str1 = *reinterpret_cast<const char**>(regs.esp + 0x98 - 0x5C);
-            //const bool bool1 = *reinterpret_cast<const bool*>(regs.esp + 0x98 - 0x88);
-            //const bool bool2 = *reinterpret_cast<const bool*>(regs.esp + 0x98 - 0x80);
-            //const float float1 = *reinterpret_cast<const float*>(regs.esp + 0x98 - 0x84);
-            //const float float2 = *reinterpret_cast<const float*>(regs.esp + 0x98 - 0x7C);
-            //const rf::Vector3* pos = reinterpret_cast<const rf::Vector3*>(regs.esp + 0x98 - 0x3C);
-            rf::Vector3* pos = regs.edx;
-            //const rf::String* str1_obj = reinterpret_cast<const rf::String*>(regs.esp + 0x98 - 0x5C);
+        rf::String* script_name_obj = reinterpret_cast<rf::String*>(regs.esp + 0x54);
+        std::optional<std::string> script_name;
+        if (script_name_obj) {
+            script_name = script_name_obj->c_str();
+            xlog::warn("script_name: {}", script_name.value_or(""));
+        }
 
-            xlog::warn("Extracted values:");
-            //xlog::warn("str1: {}", str1_obj->c_str());
-            //xlog::warn("bool1: {}", bool1);
-            //xlog::warn("bool2: {}", bool2);
-            //xlog::warn("float1: {}", float1);
-            //xlog::warn("float2: {}", float2);
-            xlog::warn("pos: x={}, y={}, z={}", pos->x, pos->y, pos->z);
+        // string values
+        rf::String* str1_obj = reinterpret_cast<rf::String*>(regs.esp + 0x44);
+        std::optional<std::string> str1;
+        if (str1_obj) {
+            str1 = str1_obj->c_str();
+            xlog::warn("str1: {}", str1.value_or(""));
+        }
 
-            // current state: position and event_type read fine, other params not. They are being saved to the rfl though
+        rf::String* str2_obj = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
+        if (str2_obj) {
+            const char* str2_cstr = str2_obj->c_str();
+            xlog::warn("str2: {}", str2_cstr);
+        }
 
+        if (event_type == 90) {
 
+            rf::Event* this_event = event_setvar_create(pos, script_name.value_or(""), str1.value_or(""));
 
-
-
-
-
-
-
-
-
-            rf::Event* this_event = event_difficulty_gate_create(pos, 0, false); // dummy values, need to get values from level file
             regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
-            regs.eip = 0x00462915; // we already made the event, set stack pointer after jump table
+
+            regs.eip = 0x00462915; // we successfully made the event, set stack pointer after jump table
+        }
+
+        if (event_type == 94) {        
+            
+            rf::Event* this_event = event_difficulty_gate_create(pos, 0); // dummy values
+
+            regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
+
+            regs.eip = 0x00462915; // we successfully made the event, set stack pointer after jump table
         }
     }
 };

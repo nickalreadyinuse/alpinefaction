@@ -578,14 +578,14 @@ CodeInjection open_event_properties_patch{
         // NOTE: all event IDs in RED are 1 less than event IDs in the game
         int event_type = static_cast<int>(regs.ecx);
 
-        if (event_type > 89) { // maybe should be 88? confirm
+        if (event_type > 88) { // maybe should be 88? confirm
             xlog::warn("custom event handle");
             int template_id = 192;
 
             switch (event_type) {            
-                case 93:
+                case 89:
                     template_id = 222;
-                    xlog::warn("case 93 handle");
+                    xlog::warn("case 90 handle");
                     break;
             }
                 xlog::warn("output: {}", template_id);
@@ -637,7 +637,7 @@ CodeInjection open_event_properties_internal_patch{
         VString* str2 = &event->str2;*/
 
 
-        if (event->event_type == 93 && template_id == 222) {
+        if (event->event_type == 89 && template_id == 222) {
             xlog::warn("Handling template ID 222");
 
             xlog::info("str1: {}", event->str1.c_str());
@@ -759,21 +759,10 @@ CodeInjection open_event_properties_internal_patch2{
         //    event->bool2, event->str1.c_str(), event->str2.c_str());
         //xlog::warn("2 template_id value: {}", template_id);
 
-        /* int event_type = event->event_type;
-        float delay = event->delay;
-        int int1 = event->int1;
-        int int2 = event->int2;
-        float float1 = event->float1;
-        float float2 = event->float2;
-        bool bool1 = event->bool1;
-        bool bool2 = event->bool2;
-        VString* str1 = &event->str1;
-        VString* str2 = &event->str2;*/
-
 
         // current state: values saved to rfl. not read during level creation
         // investigate sub_4848D0
-        if (event->event_type == 93 && template_id == 222) {
+        if (event->event_type == 89 && template_id == 222) {
             xlog::warn("2 Handling template ID 222");            
 
             xlog::warn("field_EFC.m_pchData: {}", dialog->field_EFC.m_pchData ? dialog->field_EFC.m_pchData : "null");
