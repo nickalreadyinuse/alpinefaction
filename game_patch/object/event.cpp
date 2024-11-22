@@ -508,16 +508,50 @@ rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, in
 
     return event;
 }
+
 // for custom events that have additional values
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
 
         int event_type = static_cast<int>(regs.ebp);
+        xlog::warn("handling event type {}", event_type);
 
         if (event_type == 94) {        
-            const rf::Vector3* pos = reinterpret_cast<rf::Vector3*>(regs.esp + 0x60); // todo: confirm correct pos offset
+            //const rf::Vector3* pos = reinterpret_cast<rf::Vector3*>(regs.esp + 0x98 - 0x3C); // todo: confirm correct pos offset
+            //const char* str1 = reinterpret_cast<const char*>(regs.esp + 0x98 - 0x5C);
 
-            rf::Event* this_event = event_difficulty_gate_create(pos, 3, false); // dummy values, need to get values from level file
+            //xlog::warn("str1: {}", str1);
+
+            //const char* str1 = *reinterpret_cast<const char**>(regs.esp + 0x98 - 0x5C);
+            //const bool bool1 = *reinterpret_cast<const bool*>(regs.esp + 0x98 - 0x88);
+            //const bool bool2 = *reinterpret_cast<const bool*>(regs.esp + 0x98 - 0x80);
+            //const float float1 = *reinterpret_cast<const float*>(regs.esp + 0x98 - 0x84);
+            //const float float2 = *reinterpret_cast<const float*>(regs.esp + 0x98 - 0x7C);
+            //const rf::Vector3* pos = reinterpret_cast<const rf::Vector3*>(regs.esp + 0x98 - 0x3C);
+            rf::Vector3* pos = regs.edx;
+            //const rf::String* str1_obj = reinterpret_cast<const rf::String*>(regs.esp + 0x98 - 0x5C);
+
+            xlog::warn("Extracted values:");
+            //xlog::warn("str1: {}", str1_obj->c_str());
+            //xlog::warn("bool1: {}", bool1);
+            //xlog::warn("bool2: {}", bool2);
+            //xlog::warn("float1: {}", float1);
+            //xlog::warn("float2: {}", float2);
+            xlog::warn("pos: x={}, y={}, z={}", pos->x, pos->y, pos->z);
+
+            // current state: position and event_type read fine, other params not. They are being saved to the rfl though
+
+
+
+
+
+
+
+
+
+
+
+            rf::Event* this_event = event_difficulty_gate_create(pos, 0, false); // dummy values, need to get values from level file
             regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
             regs.eip = 0x00462915; // we already made the event, set stack pointer after jump table
         }
@@ -535,7 +569,7 @@ void apply_event_patches()
     event_type_forwards_messages_patch.install(); // handle custom events that shouldn't forward messages by default
 
     // unneeded currently as RED piece isn't done
-    // level_read_events_patch.install(); // handle creating custom events on level load if they have additional values
+    level_read_events_patch.install(); // handle creating custom events on level load if they have additional values
 
     // Improve player teleport behaviour
     event_player_teleport_on_hook.install();

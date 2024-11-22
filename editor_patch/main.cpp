@@ -771,7 +771,7 @@ CodeInjection open_event_properties_internal_patch2{
         VString* str2 = &event->str2;*/
 
 
-        // current state: str1 seems to be working fine, bool1 is working fine except you can never turn it off
+        // current state: values saved to rfl. not read during level creation
         // investigate sub_4848D0
         if (event->event_type == 93 && template_id == 222) {
             xlog::warn("2 Handling template ID 222");            
