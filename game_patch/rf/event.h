@@ -382,9 +382,55 @@ namespace rf
 
         void turn_on() override
         {
-            //rf::bink_play(filename->c_str());
             xlog::warn("level hardness is currently {}, setting to {}", rf::level.default_rock_hardness, hardness);
             rf::level.default_rock_hardness = std::clamp(hardness, 0, 100);
+        }
+    };
+
+    // id 98
+    struct EventSequence : Event
+    {
+        int last_link_index = -1; // start with firing index 0
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["last_link_index"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSequence*>(event);
+                this_event->last_link_index = std::stoi(value);
+                xlog::warn("apply_var: Set last_link_index to {} for EventSequence UID={}", this_event->last_link_index,
+                           this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            xlog::warn("Turning on event UID {}", this->uid);
+
+            if (this->links.empty()) {
+                xlog::warn("Event UID {} has no links to turn on.", this->uid);
+                return;
+            }
+
+            // if last_link_index is out of bounds (for example, if a linked object was destroyed), start at 0
+            if (last_link_index < 0 || last_link_index >= static_cast<int>(this->links.size())) {
+                last_link_index = 0;
+            }
+            else {
+                // tick up last_link_index, wrap around if at the end of the links array
+                last_link_index = (last_link_index + 1) % this->links.size();
+            }
+
+            // find link to be activated, activate it
+            int link_handle = this->links[last_link_index];
+            rf::Object* obj = rf::obj_from_handle(link_handle);
+            if (obj && obj->type == OT_EVENT) {
+                rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                linked_event->turn_on();
+                xlog::warn("Activated event UID {} at index {}.", linked_event->uid, last_link_index);
+            }
         }
     };
 
@@ -486,7 +532,8 @@ namespace rf
         Difficulty_Gate,
         HUD_Message,
         Play_Video,
-        Set_Level_Hardness
+        Set_Level_Hardness,
+		Sequence
     };
 
     // int to EventType

@@ -258,6 +258,9 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Set_Level_Hardness") {
             return 97;
         }
+        else if (*name == "Sequence") {
+            return 98;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -307,6 +310,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 97:
             return allocate_custom_event(static_cast<rf::EventSetLevelHardness*>(nullptr));
+
+        case 98:
+            return allocate_custom_event(static_cast<rf::EventSequence*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -373,6 +379,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 98: {
+            auto* custom_event = static_cast<rf::EventSequence*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -384,7 +396,8 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
 static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::SetVar,
     rf::EventType::Switch_Random,
-    rf::EventType::Difficulty_Gate
+    rf::EventType::Difficulty_Gate,
+    rf::EventType::Sequence
 };
 
 // decide if a specific event type should forward messages
