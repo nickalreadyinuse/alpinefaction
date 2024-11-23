@@ -255,6 +255,9 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Play_Video") {
             return 96;
         }
+        else if (*name == "Set_Level_Hardness") {
+            return 97;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -301,6 +304,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 96:
             return allocate_custom_event(static_cast<rf::EventPlayVideo*>(nullptr));
+
+        case 97:
+            return allocate_custom_event(static_cast<rf::EventSetLevelHardness*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -357,6 +363,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
 
         case 96: {
             auto* custom_event = static_cast<rf::EventPlayVideo*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 97: {
+            auto* custom_event = static_cast<rf::EventSetLevelHardness*>(eventp);
             delete custom_event;
             return;
         }
@@ -504,6 +516,34 @@ rf::EventHUDMessage* event_hud_message_create(const rf::Vector3* pos, std::strin
     return event;
 }
 
+// factory for Play_Video events
+rf::EventPlayVideo* event_play_video_create(const rf::Vector3* pos, std::string filename)
+{
+    rf::Event* base_event = rf::event_create(pos, 96);
+    rf::EventPlayVideo* event = dynamic_cast<rf::EventPlayVideo*>(base_event);
+
+    if (event) {
+        // set filename
+        event->filename = filename;
+    }
+
+    return event;
+}
+
+// factory for Set_Level_Hardness events
+rf::EventSetLevelHardness* event_set_level_hardness_create(const rf::Vector3* pos, int hardness)
+{
+    rf::Event* base_event = rf::event_create(pos, 97);
+    rf::EventSetLevelHardness* event = dynamic_cast<rf::EventSetLevelHardness*>(base_event);
+
+    if (event) {
+        // set hardness
+        event->hardness = hardness;
+    }
+
+    return event;
+}
+
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
@@ -533,12 +573,22 @@ CodeInjection level_read_events_patch {
                     break;
                 }
                 case 94: { // Difficulty_Gate
-                    rf::Event* this_event = event_difficulty_gate_create(pos, int1); // dummy values
+                    rf::Event* this_event = event_difficulty_gate_create(pos, int1);
                     regs.eax = this_event;
                     break;
                 }
                 case 95: { // HUD_Message
                     rf::Event* this_event = event_hud_message_create(pos, str1->c_str());
+                    regs.eax = this_event;
+                    break;
+                }
+                case 96: { // Play_Video
+                    rf::Event* this_event = event_play_video_create(pos, str1->c_str());
+                    regs.eax = this_event;
+                    break;
+                }
+                case 97: { // Set_Level_Hardness
+                    rf::Event* this_event = event_set_level_hardness_create(pos, int1);
                     regs.eax = this_event;
                     break;
                 }

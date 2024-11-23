@@ -453,7 +453,7 @@ CodeInjection texture_name_buffer_overflow_injection2{
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 8; // must be 1 higher than actual count
+constexpr int new_event_count = 9; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -466,6 +466,7 @@ const char* additional_event_names[new_event_count] = {
     "Difficulty_Gate",
     "HUD_Message",
     "Play_Video",
+    "Set_Level_Hardness",
     "_dummy"
 };
 
@@ -592,6 +593,14 @@ CodeInjection open_event_properties_patch{
                 case 94: // HUD_Message
                     template_id = 257;
                     break;
+
+                case 95: // Play_Video
+                    template_id = 257;
+                    break;
+
+                case 96: // Set_Level_Hardness
+                    template_id = 311;
+                    break;
             }
 
             xlog::info("Using template ID {} for event type {}", template_id, event_type);
@@ -658,6 +667,30 @@ CodeInjection open_event_properties_internal_patch{
 
             regs.eip = 0x00408131;
         }
+
+        // Play_Video, template 257
+        if (event->event_type == 95) {
+            const char* str1 = event->str1.cstr();
+            char* field_1724_offset = &dialog->field_1724[804];
+            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
+
+            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
+
+            regs.eip = 0x00408131;
+        }
+
+        // Set_Level_Hardness, template 311
+        if (event->event_type == 96) {
+            int int_value = event->int1;
+            char int_as_str[32];
+            std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
+            reinterpret_cast<CString*>(&dialog->field_1724[3140])->operator=(int_as_str);
+
+            const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
+            xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
+
+            regs.eip = 0x00408131;
+        }
     }
 };
 
@@ -716,6 +749,36 @@ CodeInjection open_event_properties_internal_patch2{
             else {
                 event->str1.assign_0(str1_field_value);
                 xlog::warn("str1 after assign: {}", event->str1.cstr());
+            }
+
+            regs.eip = 0x00408A79;
+        }
+
+        // Play_Video, template 257
+        if (event->event_type == 95) {
+            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
+
+            if (!str1_field_value || strlen(str1_field_value) == 0) {
+                xlog::error("field is empty or null");
+            }
+            else {
+                event->str1.assign_0(str1_field_value);
+                xlog::warn("str1 after assign: {}", event->str1.cstr());
+            }
+
+            regs.eip = 0x00408A79;
+        }
+
+        // Set_Level_Hardness, template 311
+        if (event->event_type == 96) {
+            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
+
+            if (!int1_field_value || strlen(int1_field_value) == 0) {
+                xlog::error("field is empty or null");
+            }
+            else {
+                event->int1 = std::atoi(int1_field_value);
+                xlog::warn("int1 after assign: {}", event->int1);
             }
 
             regs.eip = 0x00408A79;

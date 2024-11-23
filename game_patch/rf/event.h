@@ -358,12 +358,33 @@ namespace rf
 
         void turn_on() override
         {
-            if (filename) {
-                rf::bink_play(filename->c_str());
-            }
-            else {
-                xlog::error("EventPlayVideo UID={} attempted to play a video without a valid filename.", this->uid);
-            }
+            rf::bink_play(filename->c_str());
+        }
+    };
+
+    // id 97
+    struct EventSetLevelHardness : Event
+    {
+        int hardness;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["hardness"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetLevelHardness*>(event);
+                this_event->hardness = std::clamp(std::stoi(value), 0, 100);
+                xlog::warn("apply_var: Set hardness to {} for EventSetLevelHardness UID={}", this_event->hardness,
+                            this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            //rf::bink_play(filename->c_str());
+            xlog::warn("level hardness is currently {}, setting to {}", rf::level.default_rock_hardness, hardness);
+            rf::level.default_rock_hardness = std::clamp(hardness, 0, 100);
         }
     };
 
@@ -464,7 +485,8 @@ namespace rf
         Switch_Random,
         Difficulty_Gate,
         HUD_Message,
-        Play_Video
+        Play_Video,
+        Set_Level_Hardness
     };
 
     // int to EventType
