@@ -357,13 +357,10 @@ $RFE Level1:      "Alpine_Faction"
 // =========================
 // == SetVar syntax guide ==
 // =========================
-// !SetVar_VAR=VALUE
+// SetVar_VARNAME
 // =========================
-// "!" prefix = set on init
-// no prefix = set on "on"
-// =========================
-// VAR = variable name
-// VALUE = value to set
+// Use VARNAME to name the
+// variable that is set
 // =========================
 
 $Event Name:      "SetVar"

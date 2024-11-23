@@ -548,41 +548,16 @@ rf::EventHUDMessage* event_hud_message_create(const rf::Vector3* pos, std::strin
 // for custom events that have additional values
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
-
-        // testing for values
-        /* uintptr_t str1_address = regs.esp + 0x44;
-            uint32_t max_len = *reinterpret_cast<uint32_t*>(str1_address);           // First DWORD: max_len
-            uintptr_t buf_address = *reinterpret_cast<uintptr_t*>(str1_address + 4); // Second DWORD: buf pointer
-
-            xlog::warn("Potential str1 String object:");
-            xlog::warn("  max_len: {}", max_len);
-            xlog::warn("  buf_address: 0x{:08X}", buf_address);
-
-
-            if (buf_address != 0) {
-                xlog::info("Dumping memory at str1->buf_address (0x{:08X}):", buf_address);
-                for (int offset = 0; offset < 32; ++offset) { // Dump a reasonable range of memory
-                    char value = *reinterpret_cast<char*>(buf_address + offset);
-                    xlog::warn("  Memory at 0x{:08X}: '{}'", buf_address + offset, value ? value : '.');
-                }
-            }
-            else {
-                xlog::error("str1->buf_address is null!");
-            }*/
-
-        // event type
         int event_type = static_cast<int>(regs.ebp);
-        xlog::warn("handling event type {}", event_type);
-
-        // position
         rf::Vector3* pos = regs.edx;
-        xlog::warn("pos: x={}, y={}, z={}", pos->x, pos->y, pos->z);
+        xlog::warn("reading event type {}, pos: x={}, y={}, z={}", event_type, pos->x, pos->y, pos->z);
 
         // event name
         rf::String* class_name_obj = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
+        std::optional<std::string> class_name;
         if (class_name_obj) {
-            const char* class_name_cstr = class_name_obj->c_str();
-            xlog::warn("class_name: {}", class_name_cstr);
+            class_name = class_name_obj->c_str();
+            xlog::warn("class_name: {}", class_name.value_or(""));
         }
 
         rf::String* script_name_obj = reinterpret_cast<rf::String*>(regs.esp + 0x54);
@@ -601,9 +576,18 @@ CodeInjection level_read_events_patch {
         }
 
         rf::String* str2_obj = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
+        std::optional<std::string> str2;
         if (str2_obj) {
-            const char* str2_cstr = str2_obj->c_str();
-            xlog::warn("str2: {}", str2_cstr);
+            str2 = str2_obj->c_str();
+            xlog::warn("str2: {}", str2.value_or(""));
+        }
+
+        // int values
+        int int1_obj = *reinterpret_cast<int*>(regs.esp - 0x24);
+        std::optional<int> int1;
+        if (int1_obj) {
+            int1 = int1_obj;
+            xlog::warn("int1: {}", int1.value_or(-1));
         }
 
         // SetVar
@@ -617,7 +601,7 @@ CodeInjection level_read_events_patch {
         // Difficulty_Gate
         if (event_type == 94) {
             
-            rf::Event* this_event = event_difficulty_gate_create(pos, 0); // dummy values
+            rf::Event* this_event = event_difficulty_gate_create(pos, int1.value_or(0)); // dummy values
             regs.eax = this_event;
             regs.eip = 0x00462915;
         }

@@ -542,13 +542,13 @@ static_assert(sizeof(DedEvent) == 0xC4, "DedEvent size mismatch");
 
 struct CDialog_mbrs
 {
-    char padding[0x58]; // Placeholder for the actual member variables
+    char padding[0x58]; // placeholder
 };
 
 struct CDialog
 {
-    void* _vft;      // Virtual function table pointer (4 bytes)
-    CDialog_mbrs _d; // Placeholder for the member variables (0x58 bytes)
+    void* _vft;
+    CDialog_mbrs _d;
 };
 static_assert(sizeof(CDialog) == 0x5C, "CDialog size mismatch!");
 
@@ -558,19 +558,19 @@ static_assert(sizeof(CDialog) == 0x5C, "CDialog size mismatch!");
 
 struct CEdit : CWnd
 {
-    // Inherits all fields from `CWnd`
+    // placeholder
 };
 static_assert(sizeof(CEdit) == 0x3C, "CEdit size mismatch!");
 
 struct CStatic : CWnd
 {
-    // Inherits all fields from `CWnd`
+    // placeholder
 };
 static_assert(sizeof(CStatic) == 0x3C, "CStatic size mismatch!");
 
 struct CButton : CWnd
 {
-    // Inherits all fields from `CWnd`
+    // placeholder
 };
 static_assert(sizeof(CButton) == 0x3C, "CButton size mismatch!");
 
@@ -727,11 +727,11 @@ struct CEventDialog : CDialog
     CEdit field_1668[2];
     CString field_16E0[2];
     CStatic field_16E8;
-    char field_1724[3264]; // Large array field
-    CString field_23E4;    // CString near end of structure
+    char field_1724[3264]; // Large array field, treat as a CString starting at specified offset
+    CString field_23E4;
     char field_23E8;
     char field_23E9;
-    char padding1[2]; // Alignment padding
+    char padding1[2];
     int field_23EC;
     int field_23F0;
     int field_23F4;

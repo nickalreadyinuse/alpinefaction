@@ -586,6 +586,10 @@ CodeInjection open_event_properties_patch{
                     template_id = 257;
                     break;
 
+                case 93: // Difficulty_Gate
+                    template_id = 311;
+                    break;
+
                 case 94: // HUD_Message
                     template_id = 257;
                     break;
@@ -631,6 +635,27 @@ CodeInjection open_event_properties_internal_patch{
 
             regs.eip = 0x00408131;
         }
+
+        // Difficulty_Gate, template 311
+        if (event->event_type == 93) {
+            // Get the value of int1 from the event
+            int int_value = event->int1;
+
+            // Convert int_value to a string
+            char int_as_str[32];
+            std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
+
+            // Assign the converted string to field_1724[3140]
+            reinterpret_cast<CString*>(&dialog->field_1724[3140])->operator=(int_as_str);
+
+            // Log the assigned value
+            const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
+            xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
+
+            // Update the instruction pointer
+            regs.eip = 0x00408131;
+        }
+
 
         // HUD_Message, template 257
         if (event->event_type == 94) {
@@ -708,6 +733,24 @@ CodeInjection open_event_properties_internal_patch2{
                 xlog::warn("str1 after assign: {}", event->str1.cstr());
             }
 
+            regs.eip = 0x00408A79;
+        }
+
+        // Difficulty_Gate, template 311
+        if (event->event_type == 93) {
+            // Treat the field_1724 at offset 804 as a CString
+            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
+
+            if (!int1_field_value || strlen(int1_field_value) == 0) {
+                xlog::error("field is empty or null");
+            }
+            else {
+                // Convert the string to an integer and assign it to event->int1
+                event->int1 = std::atoi(int1_field_value);
+                xlog::warn("int1 after assign: {}", event->int1);
+            }
+
+            // Update the instruction pointer
             regs.eip = 0x00408A79;
         }
 
