@@ -545,62 +545,32 @@ rf::EventHUDMessage* event_hud_message_create(const rf::Vector3* pos, std::strin
     return event;
 }
 
-// for custom events that have additional values
+// assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
         int event_type = static_cast<int>(regs.ebp);
         rf::Vector3* pos = regs.edx;
         xlog::warn("reading event type {}, pos: x={}, y={}, z={}", event_type, pos->x, pos->y, pos->z);
 
-        // event name
-        rf::String* class_name_obj = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
-        std::optional<std::string> class_name;
-        if (class_name_obj) {
-            class_name = class_name_obj->c_str();
-            xlog::warn("class_name: {}", class_name.value_or(""));
-        }
+        // event parameters
+        rf::String* class_name = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
+        rf::String* script_name = reinterpret_cast<rf::String*>(regs.esp + 0x54);
+        rf::String* str1 = reinterpret_cast<rf::String*>(regs.esp + 0x44);
+        rf::String* str2 = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
+        int int1 = *reinterpret_cast<int*>(regs.esp - 0x24);
+        int int2 = *reinterpret_cast<int*>(regs.esp - 0x18);
 
-        rf::String* script_name_obj = reinterpret_cast<rf::String*>(regs.esp + 0x54);
-        std::optional<std::string> script_name;
-        if (script_name_obj) {
-            script_name = script_name_obj->c_str();
-            xlog::warn("script_name: {}", script_name.value_or(""));
-        }
-
-        // string values
-        rf::String* str1_obj = reinterpret_cast<rf::String*>(regs.esp + 0x44);
-        std::optional<std::string> str1;
-        if (str1_obj) {
-            str1 = str1_obj->c_str();
-            xlog::warn("str1: {}", str1.value_or(""));
-        }
-
-        rf::String* str2_obj = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
-        std::optional<std::string> str2;
-        if (str2_obj) {
-            str2 = str2_obj->c_str();
-            xlog::warn("str2: {}", str2.value_or(""));
-        }
-
-        // int values
-        int int1_obj = *reinterpret_cast<int*>(regs.esp - 0x24);
-        std::optional<int> int1;
-        if (int1_obj) {
-            int1 = int1_obj;
-            xlog::warn("int1: {}", int1.value_or(-1));
-        }
-
-        int int2_obj = *reinterpret_cast<int*>(regs.esp - 0x100 + 0xE8);
-        std::optional<int> int2;
-        if (int2_obj) {
-            int2 = int2_obj;
-            xlog::warn("int2: {}", int2.value_or(-1));
-        }
+        xlog::warn("class_name: {}", class_name->c_str());
+        xlog::warn("script_name: {}", script_name->c_str());
+        xlog::warn("str1: {}", str1->c_str());
+        xlog::warn("str2: {}", str2->c_str());
+        xlog::warn("int1: {}", int1);
+        xlog::warn("int2: {}", int2);        
 
         // SetVar
         if (event_type == 90) {
 
-            rf::Event* this_event = event_setvar_create(pos, script_name.value_or(""), str1.value_or(""));
+            rf::Event* this_event = event_setvar_create(pos, script_name->c_str(), str1->c_str());
             regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
             regs.eip = 0x00462915; // made the event, set stack pointer after jump table
         }
@@ -608,7 +578,7 @@ CodeInjection level_read_events_patch {
         // Difficulty_Gate
         if (event_type == 94) {
             
-            rf::Event* this_event = event_difficulty_gate_create(pos, int1.value_or(0)); // dummy values
+            rf::Event* this_event = event_difficulty_gate_create(pos, int1); // dummy values
             regs.eax = this_event;
             regs.eip = 0x00462915;
         }
@@ -616,7 +586,7 @@ CodeInjection level_read_events_patch {
         // HUD_Message
         if (event_type == 95) {
 
-            rf::Event* this_event = event_hud_message_create(pos, str1.value_or(""));
+            rf::Event* this_event = event_hud_message_create(pos, str1->c_str());
             regs.eax = this_event;
             regs.eip = 0x00462915;
         }
@@ -625,16 +595,13 @@ CodeInjection level_read_events_patch {
 
 void apply_event_patches()
 {
-    // Support custom events
-    
+    // Support custom events    
     AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID (params specified)
-    event_lookup_type_hook.install(); // define custom event IDs
-    event_allocate_hook.install(); // load custom events at level start
-    event_deallocate_hook.install(); // unload custom events at level end
-    event_type_forwards_messages_patch.install(); // handle custom events that shouldn't forward messages by default
-
-    // unneeded currently as RED piece isn't done
-    level_read_events_patch.install(); // handle creating custom events on level load if they have additional values
+    event_lookup_type_hook.install(); // define AF event IDs
+    event_allocate_hook.install(); // load AF events at level start
+    event_deallocate_hook.install(); // unload AF events at level end
+    event_type_forwards_messages_patch.install(); // handle AF events that shouldn't forward messages by default
+    level_read_events_patch.install(); // assign factories for AF events
 
     // Improve player teleport behaviour
     event_player_teleport_on_hook.install();

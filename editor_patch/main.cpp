@@ -737,9 +737,10 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     xlog::warn("Initializing extended event names redirection...");
 
     // Support custom event integration
-    initialize_event_names(); // populate extended array with stock + custom events
+    initialize_event_names(); // populate extended array with stock + AF events
     debug_event_names(); // debug logging
 
+    // assign extended events array
     OnInitDialog_redirect_event_names.install(); // replace reference to event_names with new extended array
     get_event_type_redirect_event_names.install(); // replace reference to event_names with new extended array
     event_names_injection.install(); // when opening event properties, use new extended array for event look up
