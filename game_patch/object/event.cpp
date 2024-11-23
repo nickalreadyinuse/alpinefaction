@@ -590,6 +590,13 @@ CodeInjection level_read_events_patch {
             xlog::warn("int1: {}", int1.value_or(-1));
         }
 
+        int int2_obj = *reinterpret_cast<int*>(regs.esp - 0x100 + 0xE8);
+        std::optional<int> int2;
+        if (int2_obj) {
+            int2 = int2_obj;
+            xlog::warn("int2: {}", int2.value_or(-1));
+        }
+
         // SetVar
         if (event_type == 90) {
 

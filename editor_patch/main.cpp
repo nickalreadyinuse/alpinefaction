@@ -618,12 +618,12 @@ CodeInjection open_event_properties_internal_patch{
         }
 
         // debug logging
-        xlog::warn("DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
+        /* xlog::warn("DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
         xlog::warn(
             "DedEvent: type={}, delay={}, int1={}, int2={}, float1={}, float2={}, bool1={}, bool2={}, str1={}, str2={}",
             event->event_type, event->delay, event->int1, event->int2, event->float1, event->float2, event->bool1,
             event->bool2, event->str1.c_str(), event->str2.c_str());
-        xlog::warn("template_id value: {}", template_id);
+        xlog::warn("template_id value: {}", template_id);*/
 
         // SetVar, template 257
         if (event->event_type == 89) {
@@ -638,72 +638,27 @@ CodeInjection open_event_properties_internal_patch{
 
         // Difficulty_Gate, template 311
         if (event->event_type == 93) {
-            // Get the value of int1 from the event
             int int_value = event->int1;
-
-            // Convert int_value to a string
             char int_as_str[32];
             std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
-
-            // Assign the converted string to field_1724[3140]
             reinterpret_cast<CString*>(&dialog->field_1724[3140])->operator=(int_as_str);
 
-            // Log the assigned value
             const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
             xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
 
-            // Update the instruction pointer
             regs.eip = 0x00408131;
         }
-
 
         // HUD_Message, template 257
         if (event->event_type == 94) {
             const char* str1 = event->str1.cstr();            
-            char* field_1724_offset = &dialog->field_1724[804]; // treat field_1724 as a CString starting at offset 804
+            char* field_1724_offset = &dialog->field_1724[804];
             reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
 
             const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
 
             regs.eip = 0x00408131;
         }
-
-
-        // reference, template 222
-        /* if (event->event_type == 89) {
-
-            const char* v21 = event->str1.cstr();
-            if (!v21) {
-                xlog::warn("str1 is null; assigning empty string to field_EFC");
-                v21 = "test";
-            }
-
-            xlog::warn("str1: {}", v21);
-
-            reinterpret_cast<CString*>(&dialog->field_EFC)->operator=(v21);
-
-            // dialog->field_EFC = v21;
-
-            xlog::warn("bool1: {}", event->bool1);
-
-            dialog->field_F00 = event->bool1 ? 1 : 0;
-
-            xlog::info("Assigned field_EFC: {}", dialog->field_EFC.c_str());
-            xlog::info("Assigned field_F00: {}", dialog->field_F00);
-
-            // const char* v62 = event->str1.cstr();
-            // dialog->field_23E4 = v62;
-
-            // xlog::warn("float1: {}", event->float1);
-
-            // reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%.2f", event->float1);
-
-            // xlog::warn("float1: {}", event->float1);
-
-            // reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%d", event->int1);
-
-            regs.eip = 0x00408131;
-        }*/
     }
 };
 
@@ -738,19 +693,16 @@ CodeInjection open_event_properties_internal_patch2{
 
         // Difficulty_Gate, template 311
         if (event->event_type == 93) {
-            // Treat the field_1724 at offset 804 as a CString
             const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
 
             if (!int1_field_value || strlen(int1_field_value) == 0) {
                 xlog::error("field is empty or null");
             }
             else {
-                // Convert the string to an integer and assign it to event->int1
                 event->int1 = std::atoi(int1_field_value);
                 xlog::warn("int1 after assign: {}", event->int1);
             }
 
-            // Update the instruction pointer
             regs.eip = 0x00408A79;
         }
 
@@ -769,7 +721,6 @@ CodeInjection open_event_properties_internal_patch2{
 
             regs.eip = 0x00408A79;
         }
-        
     }
 };
 
