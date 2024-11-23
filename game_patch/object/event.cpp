@@ -531,6 +531,20 @@ rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, in
     return event;
 }
 
+// factory for HUD_Message events
+rf::EventHUDMessage* event_hud_message_create(const rf::Vector3* pos, std::string message)
+{
+    rf::Event* base_event = rf::event_create(pos, 95);
+    rf::EventHUDMessage* event = dynamic_cast<rf::EventHUDMessage*>(base_event);
+
+    if (event) {
+        // set message
+        event->message = message;
+    }
+
+    return event;
+}
+
 // for custom events that have additional values
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
@@ -592,22 +606,28 @@ CodeInjection level_read_events_patch {
             xlog::warn("str2: {}", str2_cstr);
         }
 
+        // SetVar
         if (event_type == 90) {
 
             rf::Event* this_event = event_setvar_create(pos, script_name.value_or(""), str1.value_or(""));
-
             regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
-
-            regs.eip = 0x00462915; // we successfully made the event, set stack pointer after jump table
+            regs.eip = 0x00462915; // made the event, set stack pointer after jump table
         }
 
-        if (event_type == 94) {        
+        // Difficulty_Gate
+        if (event_type == 94) {
             
             rf::Event* this_event = event_difficulty_gate_create(pos, 0); // dummy values
+            regs.eax = this_event;
+            regs.eip = 0x00462915;
+        }
 
-            regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
+        // HUD_Message
+        if (event_type == 95) {
 
-            regs.eip = 0x00462915; // we successfully made the event, set stack pointer after jump table
+            rf::Event* this_event = event_hud_message_create(pos, str1.value_or(""));
+            regs.eax = this_event;
+            regs.eip = 0x00462915;
         }
     }
 };

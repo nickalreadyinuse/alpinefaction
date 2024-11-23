@@ -571,24 +571,27 @@ CodeInjection get_event_type_redirect_event_names{
 };
 
 // set template, in CDedLevel__OpenEventProperties
-// not needed currently (not finished), disabled
 CodeInjection open_event_properties_patch{
     0x00408D6D, [](auto& regs) {
         using namespace asm_regs;
-        // NOTE: all event IDs in RED are 1 less than event IDs in the game
+        // NOTE: all event IDs in editor are 1 less than event IDs in the game
         int event_type = static_cast<int>(regs.ecx);
 
-        if (event_type > 88) { // maybe should be 88? confirm
-            xlog::warn("custom event handle");
-            int template_id = 192;
+        if (event_type > 88) {
+            int template_id = 192; // default template
 
-            switch (event_type) {            
-                case 89:
-                    template_id = 222;
-                    xlog::warn("case 90 handle");
+            switch (event_type) {
+
+                case 89: // SetVar
+                    template_id = 257;
+                    break;
+
+                case 94: // HUD_Message
+                    template_id = 257;
                     break;
             }
-                xlog::warn("output: {}", template_id);
+
+            xlog::info("Using template ID {} for event type {}", template_id, event_type);
 
             regs.eax = template_id;
             regs.eip = 0x00408F27;
@@ -596,15 +599,7 @@ CodeInjection open_event_properties_patch{
     }
 };
 
-void format_assign(CString& target, const char* format, float value)
-{
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), format, value);
-    target.assign(buffer);
-}
-
-// set up template and handle fields, in CDedLevel__OpenEventPropertiesInternal
-// not needed currently (not finished), disabled
+// set up template and populate fields from event struct, in CDedLevel__OpenEventPropertiesInternal
 CodeInjection open_event_properties_internal_patch{
     0x00407828, [](auto& regs) {
         using namespace asm_regs;
@@ -618,6 +613,7 @@ CodeInjection open_event_properties_internal_patch{
             return;
         }
 
+        // debug logging
         xlog::warn("DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
         xlog::warn(
             "DedEvent: type={}, delay={}, int1={}, int2={}, float1={}, float2={}, bool1={}, bool2={}, str1={}, str2={}",
@@ -625,24 +621,31 @@ CodeInjection open_event_properties_internal_patch{
             event->bool2, event->str1.c_str(), event->str2.c_str());
         xlog::warn("template_id value: {}", template_id);
 
-        /* int event_type = event->event_type;
-        float delay = event->delay;
-        int int1 = event->int1;
-        int int2 = event->int2;
-        float float1 = event->float1;
-        float float2 = event->float2;
-        bool bool1 = event->bool1;
-        bool bool2 = event->bool2;
-        VString* str1 = &event->str1;
-        VString* str2 = &event->str2;*/
+        // SetVar, template 257
+        if (event->event_type == 89) {
+            const char* str1 = event->str1.cstr();
+            char* field_1724_offset = &dialog->field_1724[804]; // treat field_1724 as a CString starting at offset 804
+            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
+
+            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
+
+            regs.eip = 0x00408131;
+        }
+
+        // HUD_Message, template 257
+        if (event->event_type == 94) {
+            const char* str1 = event->str1.cstr();            
+            char* field_1724_offset = &dialog->field_1724[804]; // treat field_1724 as a CString starting at offset 804
+            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
+
+            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
+
+            regs.eip = 0x00408131;
+        }
 
 
-        if (event->event_type == 89 && template_id == 222) {
-            xlog::warn("Handling template ID 222");
-
-            xlog::info("str1: {}", event->str1.c_str());
-            xlog::info("bool1: {}", event->bool1);
-            
+        // reference, template 222
+        /* if (event->event_type == 89) {
 
             const char* v21 = event->str1.cstr();
             if (!v21) {
@@ -654,7 +657,7 @@ CodeInjection open_event_properties_internal_patch{
 
             reinterpret_cast<CString*>(&dialog->field_EFC)->operator=(v21);
 
-            //dialog->field_EFC = v21;
+            // dialog->field_EFC = v21;
 
             xlog::warn("bool1: {}", event->bool1);
 
@@ -663,82 +666,23 @@ CodeInjection open_event_properties_internal_patch{
             xlog::info("Assigned field_EFC: {}", dialog->field_EFC.c_str());
             xlog::info("Assigned field_F00: {}", dialog->field_F00);
 
-            //const char* v62 = event->str1.cstr(); 
-            //dialog->field_23E4 = v62;
+            // const char* v62 = event->str1.cstr();
+            // dialog->field_23E4 = v62;
 
-            //xlog::warn("float1: {}", event->float1);
+            // xlog::warn("float1: {}", event->float1);
 
-            //reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%.2f", event->float1);
+            // reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%.2f", event->float1);
 
-            //xlog::warn("float1: {}", event->float1);
+            // xlog::warn("float1: {}", event->float1);
 
-            //reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%d", event->int1);
+            // reinterpret_cast<CString*>(&dialog->field_23E4)->Format("%d", event->int1);
 
-
-            regs.eip = 0x00408131;
-        }
-
-        /* if (event->event_type == 93 && template_id == 200) {
-            xlog::warn("Handling template ID 200");
-            const char* v40 = event->str1.cstr();
-
-            xlog::warn("Set v40 {}", v40);
-
-            //reinterpret_cast<CString*>(&dialog->field_1724[2072])->operator=(v40);
-
-            xlog::warn("Set str1 {}", v40);
-
-            reinterpret_cast<CString*>(&dialog->field_1724[2136])->Format("%.2f", event->float1);
-
-            xlog::warn("Set float1 {}", event->float1);
-
-
-
-            regs.eip = 0x00408131;
-        }*/
-
-
-         /*if (event->event_type == 93 && template_id == 226) {
-            xlog::warn("Handling template ID 226");
-            const char* v11 = event->str1.cstr(); // Get the C-style string from VString
-
-            // Use CString's operator= to assign the string to field_24C
-            dialog->field_24C = v11; // Assigning using CString's operator=
-
-
-            //CString* target_field = reinterpret_cast<CString*>(&dialog->field_1724[1056]);
-            //target_field->Format("%d", event->str1);
-            //xlog::warn("Formatted int1 '{}' into field_1724[1056]", event->int1);
-            
-            // Re-entry point
-            regs.eip = 0x00408131;
-        }*/
-
-
-        /* if (event_type == 93 && template_id == 200) {
-            xlog::warn("Handling event_type 93 with template ID 200");
-
-            // Load DedEvent values into the dialog fields
-            //if (!str1->empty())
-            //    dialog->field_2C8.assign(str1->c_str());
-            //if (!str2->empty())
-            //    dialog->field_344.assign(str2->c_str());
-            dialog->field_3C4.assign(std::to_string(delay).c_str());
-            dialog->field_440.assign(std::to_string(int1).c_str());
-            dialog->field_4BC.assign(std::to_string(int2).c_str());
-
-            // Assuming event_type 36 uses similar fields
-            //dialog->field_538.assign(std::to_string(float1).c_str());
-            //dialog->field_5B4.assign(std::to_string(float2).c_str());
-            //dialog->field_630.assign(str1->c_str());
-            //dialog->field_634 = bool1;           
-
-            // Skip the original "if (v10 <= 0x58)" section by jumping to the re-entry point
             regs.eip = 0x00408131;
         }*/
     }
 };
 
+// save fields back to event struct after hitting OK on properties window, in CDedLevel__OpenEventPropertiesInternal
 CodeInjection open_event_properties_internal_patch2{
     0x0040821C, [](auto& regs) {
         using namespace asm_regs;
@@ -752,51 +696,39 @@ CodeInjection open_event_properties_internal_patch2{
             return;
         }
 
-        //xlog::warn("2 DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
-        //xlog::warn(
-        //    "2 DedEvent: type={}, delay={}, int1={}, int2={}, float1={}, float2={}, bool1={}, bool2={}, str1={}, str2={}",
-        //    event->event_type, event->delay, event->int1, event->int2, event->float1, event->float2, event->bool1,
-        //    event->bool2, event->str1.c_str(), event->str2.c_str());
-        //xlog::warn("2 template_id value: {}", template_id);
+        // SetVar, template 257
+        if (event->event_type == 89) {
+            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
 
-
-        // current state: values saved to rfl. not read during level creation
-        // investigate sub_4848D0
-        if (event->event_type == 89 && template_id == 222) {
-            xlog::warn("2 Handling template ID 222");            
-
-            xlog::warn("field_EFC.m_pchData: {}", dialog->field_EFC.m_pchData ? dialog->field_EFC.m_pchData : "null");
-
-
-            const char* fieldEFCValue = dialog->field_EFC;
-            if (!fieldEFCValue || strlen(fieldEFCValue) == 0) {
-                xlog::error("2 field_EFC is empty or null");
+            if (!str1_field_value || strlen(str1_field_value) == 0) {
+                xlog::error("field is empty or null");
             }
             else {
-                event->str1.assign_0(fieldEFCValue);
-                xlog::warn("2 str1 after assign_0: {}", event->str1.cstr());
+                event->str1.assign_0(str1_field_value);
+                xlog::warn("str1 after assign: {}", event->str1.cstr());
             }
 
-            int fieldF00Value = dialog->field_F00;
+            regs.eip = 0x00408A79;
+        }
 
-            //event->bool1 = reinterpret_cast<bool>(&dialog->field_F00);
+        // HUD_Message, template 257
+        if (event->event_type == 94) {
+            // Treat the field_1724 at offset 804 as a CString
+            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
 
-            event->bool1 = fieldF00Value != 0;
-
-            xlog::warn("2 bool1: {}", event->bool1);
-
-
-            // reinterpret_cast<CString*>(&dialog->field_EFC)->operator=(v21);
-            // const char* v21 = event->str1.cstr();
-            //dialog->field_F00 = event->bool1;
+            if (!str1_field_value || strlen(str1_field_value) == 0) {
+                xlog::error("field is empty or null");
+            }
+            else {
+                event->str1.assign_0(str1_field_value);
+                xlog::warn("str1 after assign: {}", event->str1.cstr());
+            }
 
             regs.eip = 0x00408A79;
-        }        
+        }
+        
     }
 };
-
-
-
 
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
@@ -810,8 +742,6 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     xlog::warn("Initializing extended event names redirection...");
 
-    //AsmWriter(0x00407828).jmp(0x0040782E); // OpenEventPropertiesInternal remove max lookup 58h// probably doesnt matter
-
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + custom events
     debug_event_names(); // debug logging
@@ -820,23 +750,22 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     get_event_type_redirect_event_names.install(); // replace reference to event_names with new extended array
     event_names_injection.install(); // when opening event properties, use new extended array for event look up
 
-    // not finished
-    open_event_properties_patch.install(); // set template IDs for AF events (works)
-    open_event_properties_internal_patch.install(); // handle values for AF events in templates (maybe working?)
-    open_event_properties_internal_patch2.install(); // handle saving values for AF events from templates (not working)
+    // handle event properties windows for AF events
+    open_event_properties_patch.install(); // set template IDs for AF events
+    open_event_properties_internal_patch.install(); // handle values for AF events in templates
+    open_event_properties_internal_patch2.install(); // handle saving values for AF events from templates
 
     // set new end address for event array loops that use new extended array
     AsmWriter(0x004617FC).cmp(asm_regs::edi,
         reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // OnInitDialog
     AsmWriter(0x004516C2).cmp(asm_regs::esi,
-        reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // get_event_type_from_class_name  
+        reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // get_event_type_from_class_name
 
     verify_event_names(); // debug logging
 
     // Allow Set_Liquid_Depth to appear in the Events list
     // Original code omits that event by name, it now omits a dummy name
     AsmWriter(0x004440B4).push("_dummy");
-
 
     // Stop editor console window from turning red due to legacy geometry limits
     AsmWriter(0x0043A544).jmp(0x0043A546); // verticies exceeded limit
@@ -864,8 +793,8 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Stop adding faces to "fix ps2 tiling" when the surface UVs tile a lot
     AsmWriter(0x0043A0A5).jmp(0x0043A0CC); // stop splitting movers
     AsmWriter(0x0043A098).nop(5); // stop spliting faces at build time
-    AsmWriter(0x0043A08D).nop(5);          // don't print "Fixing up texture uvs for ps2..." in output window
-    AsmWriter(0x0043A0E4).nop(5); // don't print "Has to add X faces to fix ps2 tiling" in output window
+    AsmWriter(0x0043A08D).nop(5); // don't print "Fixing up texture uvs for ps2..." in output window
+    AsmWriter(0x0043A0E4).nop(5); // don't print "Had to add X faces to fix ps2 tiling" in output window
 
     // Change command for Play Level action to use Dash Faction launcher
     static std::string launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;
