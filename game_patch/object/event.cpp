@@ -18,50 +18,10 @@ bool event_debug_enabled;
 
 namespace rf
 {
-
-    std::optional<rf::SetVarEventParts> parse_event_name(const std::string& name)
-    {
-        // Check for auto_activate (! prefix)
-        bool auto_activate = !name.empty() && name[0] == '!';
-
-        // Remove the exclamation mark if present
-        std::string adjusted_name = auto_activate ? name.substr(1) : name;
-
-        xlog::warn("auto? {}, name = {}", auto_activate, adjusted_name);
-
-        // Check if the name starts with "SetVar_"
-        const std::string prefix = "SetVar_";
-        if (adjusted_name.compare(0, prefix.size(), prefix) != 0) {
-            // Name doesn't start with "SetVar_", return no match
-            return std::nullopt;
-        }
-
-        // Remove "SetVar_" from the beginning
-        adjusted_name = adjusted_name.substr(prefix.size());
-
-        // Find the '=' to separate var_name and value
-        size_t equal_pos = adjusted_name.find('=');
-        if (equal_pos == std::string::npos) {
-            // Invalid format if '=' is missing
-            return std::nullopt;
-        }
-
-        // Extract var_name and value
-        std::string var_name = adjusted_name.substr(0, equal_pos);
-        std::string value = adjusted_name.substr(equal_pos + 1);
-
-        xlog::warn("auto? {}, name = {}, value = {}", auto_activate, var_name, value);
-
-        // Return the parsed components
-        return rf::SetVarEventParts{auto_activate, var_name, value};
-    }
-
-
-    // handler storage
+    // event var handler storage
     std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
         Event::variable_handler_storage = {};
-
-} // namespace rf
+}
 
 CodeInjection switch_model_event_custom_mesh_patch{
     0x004BB921,
@@ -418,7 +378,6 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
 // decide if a specific event type should forward messages
 CodeInjection event_type_forwards_messages_patch{
     0x004B8C44, [](auto& regs) {
-        // Convert regs.eax to EventType
         auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
         auto& result = regs.al;
 
@@ -549,46 +508,48 @@ rf::EventHUDMessage* event_hud_message_create(const rf::Vector3* pos, std::strin
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
         int event_type = static_cast<int>(regs.ebp);
-        rf::Vector3* pos = regs.edx;
-        xlog::warn("reading event type {}, pos: x={}, y={}, z={}", event_type, pos->x, pos->y, pos->z);
 
-        // event parameters
-        rf::String* class_name = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
-        rf::String* script_name = reinterpret_cast<rf::String*>(regs.esp + 0x54);
-        rf::String* str1 = reinterpret_cast<rf::String*>(regs.esp + 0x44);
-        rf::String* str2 = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
-        int int1 = *reinterpret_cast<int*>(regs.esp - 0x24);
-        int int2 = *reinterpret_cast<int*>(regs.esp - 0x18);
+        if (event_type > 89) { // only handle AF events, stock events handled by original code
+            rf::Vector3* pos = regs.edx;
+            // Note: we don't need to handle delay - later part of level_read_events handles that
 
-        xlog::warn("class_name: {}", class_name->c_str());
-        xlog::warn("script_name: {}", script_name->c_str());
-        xlog::warn("str1: {}", str1->c_str());
-        xlog::warn("str2: {}", str2->c_str());
-        xlog::warn("int1: {}", int1);
-        xlog::warn("int2: {}", int2);        
+            // accessible event parameters
+            rf::String* class_name = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
+            rf::String* script_name = reinterpret_cast<rf::String*>(regs.esp + 0x54);
+            rf::String* str1 = reinterpret_cast<rf::String*>(regs.esp + 0x44);
+            rf::String* str2 = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
+            int int1 = *reinterpret_cast<int*>(regs.esp - 0x24);
+            int int2 = *reinterpret_cast<int*>(regs.esp - 0x18);
 
-        // SetVar
-        if (event_type == 90) {
+            xlog::warn(
+                "Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, int2: {}",
+                event_type, class_name->c_str(), script_name->c_str(), str1->c_str(), str2->c_str(), int1, int2);
 
-            rf::Event* this_event = event_setvar_create(pos, script_name->c_str(), str1->c_str());
-            regs.eax = this_event; // set eax to created event so level_read_events can continue to work with it
+
+            switch (event_type) {
+                case 90: { // SetVar
+                    rf::Event* this_event = event_setvar_create(pos, script_name->c_str(), str1->c_str());
+                    regs.eax = this_event; // set eax to created event so level_read_events can continue to use it
+                    break;
+                }
+                case 94: { // Difficulty_Gate
+                    rf::Event* this_event = event_difficulty_gate_create(pos, int1); // dummy values
+                    regs.eax = this_event;
+                    break;
+                }
+                case 95: { // HUD_Message
+                    rf::Event* this_event = event_hud_message_create(pos, str1->c_str());
+                    regs.eax = this_event;
+                    break;
+                }
+                default: { // fallback for AF events that don't need specific factories (no configurable params)
+                    rf::Event* this_event = rf::event_create(pos, event_type);
+                    regs.eax = this_event;
+                    break;
+                }
+            }
+
             regs.eip = 0x00462915; // made the event, set stack pointer after jump table
-        }
-
-        // Difficulty_Gate
-        if (event_type == 94) {
-            
-            rf::Event* this_event = event_difficulty_gate_create(pos, int1); // dummy values
-            regs.eax = this_event;
-            regs.eip = 0x00462915;
-        }
-
-        // HUD_Message
-        if (event_type == 95) {
-
-            rf::Event* this_event = event_hud_message_create(pos, str1->c_str());
-            regs.eax = this_event;
-            regs.eip = 0x00462915;
         }
     }
 };

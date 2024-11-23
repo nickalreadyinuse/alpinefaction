@@ -26,7 +26,7 @@ namespace rf
         int event_flags;
         bool delayed_msg;
 
-        // handler storage, defined in event.vpp
+        // handler storage, defined in event.cpp
         static std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
             variable_handler_storage;
 
@@ -34,7 +34,7 @@ namespace rf
         // safe to override, but include call to base struct initialize for var handler registration
         virtual void initialize()
         {
-            register_variable_handlers();
+            register_variable_handlers(); // possibly codeinjection this into the stock init function?
             AddrCaller{0x004B8CD0}.this_call(this);
         };
 
@@ -99,7 +99,7 @@ namespace rf
     public:
         virtual void apply_var(const std::string& var_name, const std::string& value)
         {
-            auto it = variable_handler_storage.find(this); // Access handlers by `this`
+            auto it = variable_handler_storage.find(this);
             if (it != variable_handler_storage.end()) {
                 auto& handlers = it->second;
                 auto handler_it = handlers.find(var_name);
@@ -123,93 +123,40 @@ namespace rf
     };
     static_assert(sizeof(Event) == 0x2B8);
 
-    // used for SetVar events only
-    struct SetVarEventParts
-    {
-        bool auto_activate;
-        std::string var_name;
-        std::string value;
-    };
-
-    std::optional<SetVarEventParts> parse_event_name(const std::string& name); // defined in event.cpp
-
     // custom event structs
     // id 90
     struct EventSetVar : Event
     {
-        bool fired = false;
-        std::optional<std::string> var_name;
+        std::string var_name;
         std::optional<std::string> var_value;
 
         void turn_on() override
         {
-            xlog::warn("Activating UID {}, var_name: {}", this->uid, var_name.value_or(""));
             this->activate(this->trigger_handle, this->triggered_by_handle, true);
-        }
-
-        void process() override
-        {
-            // xlog::warn("Processing UID {}", this->uid);
-
-            /* if (fired || (this->name.empty() || this->name[0] != '!')) {
-                return; // Skip processing if already fired or manual activation is required
-            }
-
-            // Check if all linked events are initialized and have handlers registered
-            bool all_handlers_registered = true;
-            for (int link_handle : this->links) {
-                rf::Object* obj = rf::obj_from_handle(link_handle);
-                if (obj && obj->type == OT_EVENT) {
-                    auto* linked_event = static_cast<rf::Event*>(obj);
-
-                    // Check if the linked event has registered handlers in the static storage
-                    if (Event::variable_handler_storage.find(linked_event) == Event::variable_handler_storage.end()) {
-                        xlog::warn("Linked event UID {} has not registered handlers", linked_event->uid);
-                        all_handlers_registered = false;
-                        break;
-                    }
-                }
-                else {
-                    xlog::warn("Linked handle {} is not a valid Event", link_handle);
-                }
-            }
-
-            if (!all_handlers_registered) {
-                xlog::warn("UID {}: Not all linked events have registered handlers", this->uid);
-                return;
-            }
-
-            xlog::warn("Activating UID {}", this->uid);
-            this->activate(this->trigger_handle, this->triggered_by_handle, true);
-            fired = true;*/
         }
 
         void do_activate(int trigger_handle, int triggered_by_handle, bool on) override
         {
-            // Ensure var_name is present; error out if it's not
-            if (!var_name) {
-                xlog::error("Event UID {} has no var_name defined!", this->uid);
+            if (var_name.empty()) {
+                xlog::error("SetVar event with UID {} has no var_name defined!", this->uid);
                 return;
             }
 
-            std::string value = var_value.value_or(""); // Use empty string if var_value is not defined
+            std::string value = var_value.value_or("");
 
-            xlog::info("Activating event UID {} with var_name: '{}' and value: '{}'", this->uid, *var_name, value);
+            xlog::info("Activating event UID {} with var_name: '{}' and value: '{}'", this->uid, var_name, value);
 
             for (int link_handle : this->links) {
                 rf::Object* obj = rf::obj_from_handle(link_handle);
                 if (obj && obj->type == OT_EVENT) {
                     rf::Event* linked_event = static_cast<rf::Event*>(obj);
                     try {
-                        linked_event->apply_var(*var_name, value); // Pass by reference
+                        linked_event->apply_var(var_name, value);
                     }
                     catch (const std::exception& ex) {
-                        xlog::error("Failed to apply var_name={} with value={} to linked event UID={} - {}", *var_name,
+                        xlog::error("Failed to apply var_name={} with value={} to linked event UID={} - {}", var_name,
                                     value, linked_event->uid, ex.what());
                     }
-                }
-                else {
-                    xlog::warn("Skipping invalid or non-Event linked object with handle {}", link_handle);
                 }
             }
         }
@@ -312,7 +259,6 @@ namespace rf
     struct EventDifficultyGate : Event
     {
         rf::GameDifficultyLevel difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
-        //bool should_apply_underwater = false;
 
         void register_variable_handlers() override
         {
@@ -326,7 +272,7 @@ namespace rf
                 xlog::warn("apply_var: Set difficulty to {} for EventDifficultyGate", difficulty_value);
             };
 
-            // handler reg template (not used)
+            // bool reg template (not used, delete when a real bool exists)
             //handlers["should_apply_underwater"] = [](Event* event, const std::string& value) {
             //    auto* gate_event = static_cast<EventDifficultyGate*>(event);
             //    gate_event->should_apply_underwater = (value == "true");

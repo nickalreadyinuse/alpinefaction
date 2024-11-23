@@ -452,7 +452,6 @@ CodeInjection texture_name_buffer_overflow_injection2{
 };
 
 // Custom event support
-//constexpr uintptr_t event_names_original_addr = 0x00578B78;
 constexpr int original_event_count = 89;
 constexpr int new_event_count = 8; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
@@ -738,7 +737,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + AF events
-    debug_event_names(); // debug logging
+    //debug_event_names(); // debug logging
 
     // assign extended events array
     OnInitDialog_redirect_event_names.install(); // replace reference to event_names with new extended array
@@ -756,7 +755,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     AsmWriter(0x004516C2).cmp(asm_regs::esi,
         reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // get_event_type_from_class_name
 
-    verify_event_names(); // debug logging
+    //verify_event_names(); // debug logging
 
     // Allow Set_Liquid_Depth to appear in the Events list
     // Original code omits that event by name, it now omits a dummy name

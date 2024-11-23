@@ -5,31 +5,20 @@
 #include <mbstring.h>
 #include <algorithm>
 
-
-struct CCmdTarget_mbrs
-{
-    // Placeholder struct for baseclass members
-    //char placeholder[0x18];
-};
-
 struct CWnd_mbrs
 {
-    char padding1[0x18]; // Offset to m_hWnd
-    HWND m_hWnd;         // Handle to the window
-    char padding2[0x1C]; // Remaining padding to make the size correct
+    char padding1[0x18];
+    HWND m_hWnd; // window handle
+    char padding2[0x1C];
 };
 static_assert(sizeof(CWnd_mbrs) == 0x38, "CWnd_mbrs size mismatch!");
 
-
-
 struct CWnd
 {
-    int _vft;     // Virtual function table pointer (int, not a pointer type)
-    CWnd_mbrs _d; // Member variables of `CWnd`
+    int _vft;
+    CWnd_mbrs _d;
 };
 static_assert(sizeof(CWnd) == 0x3C, "CWnd size mismatch!");
-
-
 
 struct CComboBox : public CWnd
 {
@@ -47,13 +36,8 @@ struct CDataExchange
 	BOOL m_bEditLastControl;
 };
 
-//static auto sub_52C9A0 = reinterpret_cast<int(__stdcall*)(char*, int)>(0x0052C9A0); // formatting function for cstring
-
-static auto GetBuffer = reinterpret_cast<void*(__thiscall*)(void*, int)>(0x0052FE42);
-static auto ReleaseBuffer = reinterpret_cast<void(__thiscall*)(void*, int)>(0x0052FE91);
-
-int __stdcall sub_52C9A0_fmt(char* Format, int a2);
-
+//static auto GetBuffer = reinterpret_cast<void*(__thiscall*)(void*, int)>(0x0052FE42);
+//static auto ReleaseBuffer = reinterpret_cast<void(__thiscall*)(void*, int)>(0x0052FE91);
 
 struct CString
 {
@@ -106,169 +90,22 @@ struct CString
         return m_pchData ? m_pchData : "";
     }
 
-    /* bool operator!=(const char* s) const
-    {
-        return !(*this == s);
-    }*/
-
-    int Format(const char* Format, ...)
-    {
-        xlog::warn("Calling sub_52C9A0_fmt with Format=%s", Format);
-        
-        va_list args;
-        va_start(args, Format);
-
-        xlog::warn("Arguments passed to sub_52C9A0_fmt=%d", reinterpret_cast<int>(args));
-
-        int result = sub_52C9A0_fmt(const_cast<char*>(Format), reinterpret_cast<int>(args));
-
-        va_end(args);
-        return result;
-    }
-
     void* GetBuffer(int bufferSize)
     {
         // Allocate a new buffer
-        delete[] m_pchData;                   // Free existing buffer
-        m_pchData = new char[bufferSize + 1]; // +1 for null terminator
+        delete[] m_pchData;
+        m_pchData = new char[bufferSize + 1];
         return m_pchData;
     }
 
-    // ReleaseBuffer: Finalize the string and optionally set its length
     void ReleaseBuffer(int newLength)
     {
         if (newLength == -1) {
-            newLength = strlen(m_pchData); // Automatically determine length
+            newLength = strlen(m_pchData);
         }
-        m_pchData[newLength] = '\0'; // Ensure null-termination
+        m_pchData[newLength] = '\0';
     }
-
-
-    /* void Format(const char* fmt, ...)
-    {
-        va_list args;
-        va_start(args, fmt);
-
-        size_t size = vsnprintf(nullptr, 0, fmt, args) + 1;
-        va_end(args);
-
-        delete[] m_pchData;
-        m_pchData = new char[size];
-
-        va_start(args, fmt);
-        vsnprintf(m_pchData, size, fmt, args);
-        va_end(args);
-    }*/
 };
-
-inline int __stdcall sub_52C9A0_fmt(char* Format, int a2)
-{
-    // Local variables
-    CString* targetString = nullptr;
-    unsigned char* formatCursor = reinterpret_cast<unsigned char*>(Format);
-    va_list args = reinterpret_cast<va_list>(a2); // Cast a2 back to va_list
-    int totalLength = 0;
-
-    while (*formatCursor) {
-        // Check for format specifiers (%)
-        if (*formatCursor != '%' || (*(++formatCursor) == '%')) {
-            // Non-format character or escaped %%
-            totalLength += _mbclen(formatCursor);
-        }
-        else {
-            // Handle format specifier
-            int width = 0, precision = 0;
-            int sizeModifier = 0; // e.g., for "l", "h", or "I64"
-            int isWideChar = 0;
-
-            // Parse flags
-            while (*formatCursor == '#' || *formatCursor == '-' || *formatCursor == '+' || *formatCursor == '0' ||
-                   *formatCursor == ' ') {
-                totalLength += 2; // Assume these flags add length
-                ++formatCursor;
-            }
-
-            // Parse width
-            if (*formatCursor == '*') {
-                width = va_arg(args, int);
-                ++formatCursor;
-            }
-            else if (isdigit(*formatCursor)) {
-                width = atoi(reinterpret_cast<const char*>(formatCursor));
-                while (isdigit(*formatCursor)) ++formatCursor;
-            }
-
-            // Parse precision
-            if (*formatCursor == '.') {
-                ++formatCursor;
-                if (*formatCursor == '*') {
-                    precision = va_arg(args, int);
-                    ++formatCursor;
-                }
-                else if (isdigit(*formatCursor)) {
-                    precision = atoi(reinterpret_cast<const char*>(formatCursor));
-                    while (isdigit(*formatCursor)) ++formatCursor;
-                }
-            }
-
-            // Parse size modifiers (e.g., "l", "h", "I64")
-            if (!strncmp(reinterpret_cast<const char*>(formatCursor), "I64", 3)) {
-                sizeModifier = 0x40000;
-                formatCursor += 3;
-            }
-            else if (*formatCursor == 'l') {
-                sizeModifier = 0x20000;
-                ++formatCursor;
-            }
-            else if (*formatCursor == 'h') {
-                sizeModifier = 0x10000;
-                ++formatCursor;
-            }
-
-            // Parse format type (e.g., 'd', 's', 'f', etc.)
-            char formatType = *formatCursor++;
-            switch (formatType) {
-            case 'd':
-            case 'i':
-                va_arg(args, int);
-                totalLength += std::max(width, 11); // Assuming int max length is 11 characters
-                break;
-            case 'f':
-                va_arg(args, double);
-                totalLength += std::max(width, precision + 6); // Precision + extra space for decimal
-                break;
-            case 's': {
-                const char* str = va_arg(args, const char*);
-                totalLength += strlen(str);
-                break;
-            }
-            case 'S': {
-                const wchar_t* wstr = va_arg(args, const wchar_t*);
-                totalLength += wcslen(wstr);
-                break;
-            }
-            case 'c':
-                va_arg(args, int);
-                totalLength += 1;
-                break;
-            default:
-                // Handle unsupported format specifiers
-                break;
-            }
-        }
-    }
-
-    // Allocate buffer for the resulting formatted string
-    targetString = reinterpret_cast<CString*>(reinterpret_cast<void*>(args));
-    targetString->GetBuffer(totalLength);
-    vsprintf(targetString->m_pchData, Format, args); // Format the string into the buffer
-    targetString->ReleaseBuffer(-1);                 // Finalize the buffer
-
-    return totalLength;
-}
-
-
-
 
 inline HWND WndToHandle(CWnd* wnd)
 {
@@ -329,9 +166,9 @@ static_assert(sizeof(Matrix3) == 0x24, "Matrix3 size mismatch!");
 template<typename T>
 struct VArray
 {
-    int size;     // Number of elements currently stored
-    int capacity; // Total capacity of the array
-    T* data_ptr;  // Pointer to the actual data
+    int size;
+    int capacity;
+    T* data_ptr;
 
     // Default constructor
     VArray() : size(0), capacity(0), data_ptr(nullptr) {}
@@ -467,31 +304,20 @@ struct VString
         other.max_len = 0;
         other.buf = nullptr;
     }
-
-    /* VString& operator=(VString&& other) noexcept
-    {
-        if (this != &other) {
-            max_len = other.max_len;
-            buf = other.buf;
-            other.max_len = 0;
-            other.buf = nullptr;
-        }
-        return *this;
-    }*/
 };
 static_assert(sizeof(VString) == 0x8, "VString size mismatch!");
 
 struct Color
 {
-    uint8_t r; // Red channel
-    uint8_t g; // Green channel
-    uint8_t b; // Blue channel
-    uint8_t a; // Alpha channel (transparency)
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
 
-    // Default constructor (opaque black by default)
+    // default
     Color() : r(0), g(0), b(0), a(255) {}
 
-    // Constructor with parameters
+    // constructor
     Color(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha = 255) : r(red), g(green), b(blue), a(alpha) {}
 };
 static_assert(sizeof(Color) == 0x4, "Color size mismatch!");
@@ -533,7 +359,7 @@ struct DedEvent : DedObject
     float float2;
     bool bool1;
     bool bool2;
-    char padding[2]; // needed?
+    char padding[2];
     VString str1;
     VString str2;
 };
@@ -551,10 +377,6 @@ struct CDialog
     CDialog_mbrs _d;
 };
 static_assert(sizeof(CDialog) == 0x5C, "CDialog size mismatch!");
-
-
-
-
 
 struct CEdit : CWnd
 {
@@ -741,8 +563,6 @@ static_assert(sizeof(CEventDialog) == 0x23FC, "CEventDialog size mismatch!");
 static_assert(offsetof(CEventDialog, field_5C) == 0x5C, "field_5C offset mismatch!");
 static_assert(offsetof(CEventDialog, field_98) == 0x98, "field_98 offset mismatch!");
 static_assert(offsetof(CEventDialog, field_1724) == 0x1724, "field_1724 offset mismatch!");
-
-
 
 // console is still broken
 //static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
