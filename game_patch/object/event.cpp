@@ -270,6 +270,9 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Fixed_Delay") {
             return 101;
         }
+        else if (*name == "Add_Link") {
+            return 102;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -331,6 +334,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 101:
             return allocate_custom_event(static_cast<rf::EventFixedDelay*>(nullptr));
+
+        case 102:
+            return allocate_custom_event(static_cast<rf::EventAddLink*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -421,6 +427,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 102: {
+            auto* custom_event = static_cast<rf::EventAddLink*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -435,7 +447,8 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::Difficulty_Gate,
     rf::EventType::Sequence,
     rf::EventType::Clear_Queued,
-    rf::EventType::Remove_Link
+    rf::EventType::Remove_Link,
+    rf::EventType::Add_Link
 };
 
 // decide if a specific event type should forward messages

@@ -122,6 +122,12 @@ namespace rf
     };
     static_assert(sizeof(Event) == 0x2B8);
 
+    static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
+    static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
+    static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
+    static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
+    static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
+
     // custom event structs
     // id 90
     struct EventSetVar : Event
@@ -503,6 +509,28 @@ namespace rf
     // id 101
     struct EventFixedDelay : Event {}; // no allocations needed
 
+    // id 102
+    struct EventAddLink : Event
+    {
+        void turn_on() override
+        {
+            xlog::warn("Turning on EventAddLink UID {}", this->uid);
+
+            if (this->links.empty()) {
+                xlog::warn("Event UID {} has no links to process.", this->uid);
+                return;
+            }
+
+            int source_link_handle = this->links[0];
+
+            for (size_t i = 1; i < this->links.size(); ++i) {
+                int target_link_handle = this->links[i];
+                event_add_link(source_link_handle, target_link_handle);
+                xlog::warn("Added link from source UID {} to target UID {}.", source_link_handle, target_link_handle);
+            }
+        }
+    };
+
     enum class EventType : int
     {
         Attack = 1,
@@ -605,7 +633,8 @@ namespace rf
 		Sequence,
         Clear_Queued,
 		Remove_Link,
-        Fixed_Delay
+        Fixed_Delay,
+        Add_Link
     };
 
     // int to EventType
@@ -619,13 +648,4 @@ namespace rf
     {
         return static_cast<int>(eventType);
     }
-
-    static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
-    static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
-    static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
-    //static auto& event_destructor = addr_as_ref<void(rf::Event*, char flags)>(0x004BEF50); // probably crashes, unneeded
-    static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
-    static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
-    
-
 }

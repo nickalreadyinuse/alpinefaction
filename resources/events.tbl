@@ -389,4 +389,7 @@ $RFE Level1:      "AF_Utility"
 $Event Name:      "Remove_Link"
 $RFE Level1:      "AF_Utility"
 
+$Event Name:      "Add_Link"
+$RFE Level1:      "AF_Utility"
+
 #End
