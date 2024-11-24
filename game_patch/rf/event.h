@@ -128,6 +128,64 @@ namespace rf
     static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
     static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
 
+    struct PersistentGoalEvent
+    {
+        rf::String name;
+        int initial_count;
+        int count;
+
+        void reset_to_initial()
+        {
+            count = initial_count;
+        }
+
+        void increment(int value = 1)
+        {
+            count += value;
+        }
+
+        void decrement(int value = 1)
+        {
+            count -= value;
+        }
+
+        bool eq(int value) const
+        {
+            return count == value;
+        }
+
+        bool neq(int value) const
+        {
+            return count != value;
+        }
+
+        bool gt(int value) const
+        {
+            return count > value;
+        }
+
+        bool lt(int value) const
+        {
+            return count < value;
+        }
+
+        void div(int divisor)
+        {
+            if (divisor != 0) {
+                count /= divisor;
+            }
+            else {
+                xlog::error("Couldn't divide persistent goal '{}' by zero.", name);
+            }
+        }
+
+        void mul(int multiplier)
+        {
+            count *= multiplier;
+        }
+    };
+    static_assert(sizeof(PersistentGoalEvent) == 0x10);
+
     // custom event structs
     // id 90
     struct EventSetVar : Event
@@ -276,13 +334,6 @@ namespace rf
                 gate_event->difficulty = static_cast<rf::GameDifficultyLevel>(difficulty_value);
                 xlog::warn("apply_var: Set difficulty to {} for EventDifficultyGate", difficulty_value);
             };
-
-            // bool reg template (not used, delete when a real bool exists)
-            //handlers["should_apply_underwater"] = [](Event* event, const std::string& value) {
-            //    auto* gate_event = static_cast<EventDifficultyGate*>(event);
-            //    gate_event->should_apply_underwater = (value == "true");
-            //    xlog::warn("apply_var: Set should_apply_underwater to {}", gate_event->should_apply_underwater);
-            //};
         }
 
         void turn_on() override
@@ -531,6 +582,51 @@ namespace rf
         }
     };
 
+    // id 103
+    struct EventValidGate : Event
+    {
+        int check_uid = -1;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["check_uid"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventValidGate*>(event);
+                this_event->check_uid = std::stoi(value);
+                xlog::warn("apply_var: Set check_uid to {} for EventValidGate UID={}", this_event->check_uid,
+                           this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            rf::Object* obj = rf::obj_lookup_from_uid(check_uid);
+
+            if (check_uid == -1 ||
+                !obj ||
+                obj->type == rf::OT_CORPSE ||
+                (obj->type == rf::OT_ENTITY && rf::entity_from_handle(obj->handle)->life <= 0)) { // if entity, alive
+                return;
+            }
+
+            activate_links(this->trigger_handle, this->triggered_by_handle, true);
+        }
+
+        void turn_off() override
+        {
+            rf::Object* obj = rf::obj_lookup_from_uid(check_uid);
+
+            if (check_uid == -1 || !obj || obj->type == rf::OT_CORPSE ||
+                (obj->type == rf::OT_ENTITY && rf::entity_from_handle(obj->handle)->life <= 0)) { // if entity, alive
+                return;
+            }
+
+            activate_links(this->trigger_handle, this->triggered_by_handle, false);
+        }
+    };
+
     enum class EventType : int
     {
         Attack = 1,
@@ -634,7 +730,8 @@ namespace rf
         Clear_Queued,
 		Remove_Link,
         Fixed_Delay,
-        Add_Link
+        Add_Link,
+        Valid_Gate
     };
 
     // int to EventType

@@ -273,6 +273,9 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Add_Link") {
             return 102;
         }
+        else if (*name == "Valid_Gate") {
+            return 103;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -337,6 +340,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 102:
             return allocate_custom_event(static_cast<rf::EventAddLink*>(nullptr));
+
+        case 103:
+            return allocate_custom_event(static_cast<rf::EventValidGate*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -433,6 +439,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 103: {
+            auto* custom_event = static_cast<rf::EventValidGate*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -448,7 +460,8 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::Sequence,
     rf::EventType::Clear_Queued,
     rf::EventType::Remove_Link,
-    rf::EventType::Add_Link
+    rf::EventType::Add_Link,
+    rf::EventType::Valid_Gate
 };
 
 // decide if a specific event type should forward messages
@@ -622,6 +635,20 @@ rf::EventRemoveLink* event_remove_link_create(const rf::Vector3* pos, bool remov
     return event;
 }
 
+// factory for Valid_Gate events
+rf::EventValidGate* event_valid_gate_create(const rf::Vector3* pos, int check_uid)
+{
+    rf::Event* base_event = rf::event_create(pos, 103);
+    rf::EventValidGate* event = dynamic_cast<rf::EventValidGate*>(base_event);
+
+    if (event) {
+        // set check_uid
+        event->check_uid = check_uid;
+    }
+
+    return event;
+}
+
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
@@ -686,7 +713,12 @@ CodeInjection level_read_events_patch {
                     break;
                 }
                 case 100: { // Remove_Link
-                    rf::Event* this_event = event_remove_link_create(pos, bool1); // need to find bool1
+                    rf::Event* this_event = event_remove_link_create(pos, bool1);
+                    regs.eax = this_event;
+                    break;
+                }
+                case 103: { // Valid_Gate
+                    rf::Event* this_event = event_valid_gate_create(pos, int1);
                     regs.eax = this_event;
                     break;
                 }
@@ -707,9 +739,9 @@ CodeInjection event_activate_fixed_delay{
     [](auto& regs) {
         rf::Event* event = regs.esi;
 
-        if (event->event_type == 101 && event->delay_timestamp.valid()) { // Fixed_Delay
+        if (event->event_type == 101 && event->delay_timestamp.valid()) { // Fixed_Delay is active
             rf::console::print("Ignoring message request in active {} event ({})", event->name, event->uid);
-            regs.eip = 0x004B8C35;
+            regs.eip = 0x004B8C35; // jump to return
         }
     }
 };
@@ -723,8 +755,7 @@ void apply_event_patches()
     event_deallocate_hook.install(); // unload AF events at level end
     event_type_forwards_messages_patch.install(); // handle AF events that shouldn't forward messages by default
     level_read_events_patch.install(); // assign factories for AF events
-    event_activate_fixed_delay.install(); // handle activations for Fixed_Delay event (id 101)
-    
+    event_activate_fixed_delay.install(); // handle activations for Fixed_Delay event (id 101)    
 
     // Improve player teleport behaviour
     event_player_teleport_on_hook.install();
