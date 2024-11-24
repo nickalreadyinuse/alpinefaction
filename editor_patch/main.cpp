@@ -453,7 +453,7 @@ CodeInjection texture_name_buffer_overflow_injection2{
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 10; // must be 1 higher than actual count
+constexpr int new_event_count = 13; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -468,6 +468,9 @@ const char* additional_event_names[new_event_count] = {
     "Play_Video",
     "Set_Level_Hardness",
     "Sequence",
+    "Clear_Queued",
+    "Remove_Link",
+    "Fixed_Delay",
     "_dummy"
 };
 
@@ -602,6 +605,10 @@ CodeInjection open_event_properties_patch{
                 case 96: // Set_Level_Hardness
                     template_id = 311;
                     break;
+
+                case 99: // Remove_Link
+                    template_id = 291;
+                    break;
             }
 
             xlog::info("Using template ID {} for event type {}", template_id, event_type);
@@ -689,6 +696,16 @@ CodeInjection open_event_properties_internal_patch{
 
             const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
             xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
+
+            regs.eip = 0x00408131;
+        }
+
+        // Remove_Link, template 291
+        if (event->event_type == 99) {
+
+            dialog->field_14F4 = event->bool1;
+
+            xlog::info("Assigned field_14F4: {}", dialog->field_14F4);
 
             regs.eip = 0x00408131;
         }
@@ -784,8 +801,20 @@ CodeInjection open_event_properties_internal_patch2{
 
             regs.eip = 0x00408A79;
         }
+
+        // Remove_Link, template 291
+        if (event->event_type == 99) {
+
+            event->bool1 = dialog->field_14F4 != 0;
+
+            xlog::warn("bool1: {}", event->bool1);
+
+            regs.eip = 0x00408A79;
+        }
     }
 };
+
+// weird ctrl+P seems to work differently than right click properties
 
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {

@@ -541,7 +541,7 @@ struct CEventDialog : CDialog
     int field_14E8;
     int field_14EC;
     int field_14F0;
-    int field_14F4;
+    int field_14F4; // used as bool1 in template 291
     CStatic field_14F8[2];
     CEdit field_1570[2];
     CString field_15E8[2];

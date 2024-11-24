@@ -261,6 +261,15 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Sequence") {
             return 98;
         }
+        else if (*name == "Clear_Queued") {
+            return 99;
+        }
+        else if (*name == "Remove_Link") {
+            return 100;
+        }
+        else if (*name == "Fixed_Delay") {
+            return 101;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -313,6 +322,15 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 98:
             return allocate_custom_event(static_cast<rf::EventSequence*>(nullptr));
+
+        case 99:
+            return allocate_custom_event(static_cast<rf::EventClearQueued*>(nullptr));
+
+        case 100:
+            return allocate_custom_event(static_cast<rf::EventRemoveLink*>(nullptr));
+
+        case 101:
+            return allocate_custom_event(static_cast<rf::EventFixedDelay*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -385,6 +403,24 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 99: {
+            auto* custom_event = static_cast<rf::EventClearQueued*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 100: {
+            auto* custom_event = static_cast<rf::EventRemoveLink*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 101: {
+            auto* custom_event = static_cast<rf::EventFixedDelay*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -397,7 +433,9 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::SetVar,
     rf::EventType::Switch_Random,
     rf::EventType::Difficulty_Gate,
-    rf::EventType::Sequence
+    rf::EventType::Sequence,
+    rf::EventType::Clear_Queued,
+    rf::EventType::Remove_Link
 };
 
 // decide if a specific event type should forward messages
@@ -557,6 +595,20 @@ rf::EventSetLevelHardness* event_set_level_hardness_create(const rf::Vector3* po
     return event;
 }
 
+// factory for Remove_Link events
+rf::EventRemoveLink* event_remove_link_create(const rf::Vector3* pos, bool remove_all)
+{
+    rf::Event* base_event = rf::event_create(pos, 100);
+    rf::EventRemoveLink* event = dynamic_cast<rf::EventRemoveLink*>(base_event);
+
+    if (event) {
+        // set remove_all
+        event->remove_all = remove_all;
+    }
+
+    return event;
+}
+
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
@@ -573,10 +625,25 @@ CodeInjection level_read_events_patch {
             rf::String* str2 = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
             int int1 = *reinterpret_cast<int*>(regs.esp - 0x24);
             int int2 = *reinterpret_cast<int*>(regs.esp - 0x18);
+            bool bool1 = *reinterpret_cast<int*>(regs.esp + 0x18);
+
+            /* for (uintptr_t offset = 0x00; offset <= 0x500; offset += 4) {
+                uintptr_t current_address = regs.esp - 0x100 + offset;
+                int value_at_address = *reinterpret_cast<int*>(current_address); // Interpret as int
+
+                xlog::warn("Memory at [esp + {:#04X}]: Address=0x{:08X}, Value={}", offset, current_address,
+                           value_at_address);
+
+                // Check if the value matches the expected value (e.g., 2)
+                if (value_at_address == 0) {
+                    xlog::info("Found expected value at offset: {:#04X}, Address: 0x{:08X}", offset,
+                               current_address);
+                }
+            }*/
 
             xlog::warn(
-                "Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, int2: {}",
-                event_type, class_name->c_str(), script_name->c_str(), str1->c_str(), str2->c_str(), int1, int2);
+                "Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, int2: {}, bool1: {}",
+                event_type, class_name->c_str(), script_name->c_str(), str1->c_str(), str2->c_str(), int1, int2, bool1);
 
 
             switch (event_type) {
@@ -605,6 +672,11 @@ CodeInjection level_read_events_patch {
                     regs.eax = this_event;
                     break;
                 }
+                case 100: { // Remove_Link
+                    rf::Event* this_event = event_remove_link_create(pos, bool1); // need to find bool1
+                    regs.eax = this_event;
+                    break;
+                }
                 default: { // fallback for AF events that don't need specific factories (no configurable params)
                     rf::Event* this_event = rf::event_create(pos, event_type);
                     regs.eax = this_event;
@@ -613,6 +685,18 @@ CodeInjection level_read_events_patch {
             }
 
             regs.eip = 0x00462915; // made the event, set stack pointer after jump table
+        }
+    }
+};
+
+CodeInjection event_activate_fixed_delay{
+    0x004B8B91,
+    [](auto& regs) {
+        rf::Event* event = regs.esi;
+
+        if (event->event_type == 101 && event->delay_timestamp.valid()) { // Fixed_Delay
+            rf::console::print("Ignoring message request in active {} event ({})", event->name, event->uid);
+            regs.eip = 0x004B8C35;
         }
     }
 };
@@ -626,6 +710,8 @@ void apply_event_patches()
     event_deallocate_hook.install(); // unload AF events at level end
     event_type_forwards_messages_patch.install(); // handle AF events that shouldn't forward messages by default
     level_read_events_patch.install(); // assign factories for AF events
+    event_activate_fixed_delay.install(); // handle activations for Fixed_Delay event (id 101)
+    
 
     // Improve player teleport behaviour
     event_player_teleport_on_hook.install();

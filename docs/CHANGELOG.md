@@ -58,7 +58,7 @@ Version 1.0.0
 - Stop faces being added to "fix PS2 tiling" at build time in editor
 - Stop mover brushes being split to "fix PS2 tiling" in editor
 - Add framework for real-time modification of defined event properties
-- Add custom events `SetVar`, `Difficulty_Gate`, `HUD_Message`, `Play_Video`, `Set_Level_Hardness`, `Sequence`
+- Add custom events `SetVar`, `Difficulty_Gate`, `HUD_Message`, `Play_Video`, `Set_Level_Hardness`, `Sequence`, `Clear_Queued`, `Remove_Link`, `Fixed_Delay`
 
 
 

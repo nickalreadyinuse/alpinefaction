@@ -56,7 +56,38 @@ namespace rf
             return &elements[num];
         }
 
-        void add(T element);        
+        void add(T element);
+
+        void clear()
+        {
+            num = 0;
+        }
+
+        void erase(int index)
+        {
+            if (index < 0 || index >= num) {
+                return; // Invalid index, do nothing
+            }
+
+            // Shift elements to the left to overwrite the erased element
+            for (int i = index; i < num - 1; ++i) {
+                elements[i] = elements[i + 1];
+            }
+
+            --num; // Reduce the size
+        }
+
+        template<typename Predicate>
+        void erase_if(Predicate pred)
+        {
+            int new_size = 0;
+            for (int i = 0; i < num; ++i) {
+                if (!pred(elements[i])) {
+                    elements[new_size++] = elements[i];
+                }
+            }
+            num = new_size;
+        }
     };
     static_assert(sizeof(VArray<>) == 0xC);
 

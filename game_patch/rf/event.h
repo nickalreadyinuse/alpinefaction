@@ -59,16 +59,15 @@ namespace rf
             AddrCaller{0x004B8CE0}.this_call(this);
         };
 
-        // do not directly override activate and activate_links, override `do_`. Base game does not allocate these
+        // game does not allocate - only usable in new code
         virtual void activate(int trigger_handle, int triggered_by_handle, bool on)
         {
-            // call the overridable function, using default if not overridden
             do_activate(trigger_handle, triggered_by_handle, on);
         }
-    
+
+        // game does not allocate - only usable in new code
         virtual void activate_links(int trigger_handle, int triggered_by_handle, bool on)
         {
-            // call the overridable function, using default if not overridden
             do_activate_links(trigger_handle, triggered_by_handle, on);
         }
 
@@ -434,6 +433,76 @@ namespace rf
         }
     };
 
+    // id 99
+    struct EventClearQueued : Event
+    {
+        void turn_on() override
+        {
+            for (size_t i = 0; i < this->links.size(); ++i) {
+                int link_handle = this->links[i];
+                rf::Object* obj = rf::obj_from_handle(link_handle);
+
+                if (obj && obj->type == OT_EVENT) {
+                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                    linked_event->delay_timestamp.invalidate();
+                    linked_event->delayed_msg = 0;
+                    xlog::warn("Cleared queue for event UID {} at index {}.", linked_event->uid, i);
+                }                
+            }
+        }
+    };
+
+    // id 100
+    struct EventRemoveLink : Event
+    {
+        bool remove_all = 0;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["remove_all"] = [](Event* event, const std::string& value) {
+                auto* gate_event = static_cast<EventRemoveLink*>(event);
+                gate_event->remove_all = (value == "true");
+                xlog::warn("apply_var: Set remove_all to {}", gate_event->remove_all);
+            };
+        }
+
+        void turn_on() override
+        {
+            xlog::warn("Turning on EventRemoveLink UID {}", this->uid);
+
+            for (size_t i = 0; i < this->links.size(); ++i) {
+                int link_handle = this->links[i];
+                rf::Object* obj = rf::obj_from_handle(link_handle);
+
+                if (obj && obj->type == OT_EVENT) {
+                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+
+                    if (remove_all) {
+                        linked_event->links.clear();
+                        xlog::warn("Removed all links from event UID {} linked at index {}.", linked_event->uid, i);
+                    }
+                    else {
+                        // Remove only the links between events in this->links
+                        linked_event->links.erase_if([this](int inner_link_handle) {
+                            return std::find(this->links.begin(), this->links.end(), inner_link_handle) !=
+                                   this->links.end();
+                        });
+                        xlog::warn("Removed links between EventRemoveLink UID {} and other linked events.", this->uid);
+                    }
+                }
+                else {
+                    xlog::warn("Invalid or non-event object at link index {}.", i);
+                }
+            }
+        }
+    };
+
+    // id 101
+    struct EventFixedDelay : Event {}; // no allocations needed
+
     enum class EventType : int
     {
         Attack = 1,
@@ -533,7 +602,10 @@ namespace rf
         HUD_Message,
         Play_Video,
         Set_Level_Hardness,
-		Sequence
+		Sequence,
+        Clear_Queued,
+		Remove_Link,
+        Fixed_Delay
     };
 
     // int to EventType

@@ -323,21 +323,15 @@ $RFE Level1:      "Special"
 #End
 
 // ------------------------------------------------
-// Custom Events in Alpine Faction
+// General Events in Alpine Faction
 // ------------------------------------------------
 
-#Alpine
+#AlpineGeneral
 
 $Event Name:      "Clone_Entity"
 $RFE Level1:      "AF_General"
 
 $Event Name:      "Set_Player_World_Collide"
-$RFE Level1:      "AF_General"
-
-$Event Name:      "Switch_Random"
-$RFE Level1:      "AF_General"
-
-$Event Name:      "Difficulty_Gate"
 $RFE Level1:      "AF_General"
 
 $Event Name:      "HUD_Message"
@@ -349,8 +343,25 @@ $RFE Level1:      "AF_General"
 $Event Name:      "Set_Level_Hardness"
 $RFE Level1:      "AF_General"
 
+#End
+
+// ------------------------------------------------
+// Flow Control Events in Alpine Faction
+// ------------------------------------------------
+
+#AplineFlow
+
 $Event Name:      "Sequence"
-$RFE Level1:      "AF_General"
+$RFE Level1:      "AF_Flow"
+
+$Event Name:      "Switch_Random"
+$RFE Level1:      "AF_Flow"
+
+$Event Name:      "Difficulty_Gate"
+$RFE Level1:      "AF_Flow"
+
+$Event Name:      "Fixed_Delay"
+$RFE Level1:      "AF_Flow"
 
 #End
 
@@ -370,6 +381,12 @@ $RFE Level1:      "AF_General"
 // =========================
 
 $Event Name:      "SetVar"
+$RFE Level1:      "AF_Utility"
+
+$Event Name:      "Clear_Queued"
+$RFE Level1:      "AF_Utility"
+
+$Event Name:      "Remove_Link"
 $RFE Level1:      "AF_Utility"
 
 #End
