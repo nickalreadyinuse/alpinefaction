@@ -453,7 +453,7 @@ CodeInjection texture_name_buffer_overflow_injection2{
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 15; // must be 1 higher than actual count
+constexpr int new_event_count = 17; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -473,6 +473,8 @@ const char* additional_event_names[new_event_count] = {
     "Fixed_Delay",
     "Add_Link",
     "Valid_Gate",
+    "Goal_Math",
+    "Goal_Gate",
     "_dummy"
 };
 
@@ -615,6 +617,14 @@ CodeInjection open_event_properties_patch{
                 case 102: // Valid_Gate
                     template_id = 311;
                     break;
+
+                case 103: // Goal_Math
+                    template_id = 251;
+                    break;
+
+                case 104: // Goal_Gate
+                    template_id = 251;
+                    break;
             }
 
             xlog::info("Using template ID {} for event type {}", template_id, event_type);
@@ -725,6 +735,29 @@ CodeInjection open_event_properties_internal_patch{
 
             const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
             xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
+
+            regs.eip = 0x00408131;
+        }
+
+        // Goal_Math and Goal_Gate, template 251
+        if (event->event_type == 103 || event->event_type == 104) {
+            int int1_value = event->int1;
+            int int2_value = event->int2;
+
+            char int1_as_str[32];
+            char int2_as_str[32];
+
+            std::snprintf(int1_as_str, sizeof(int1_as_str), "%d", int1_value);
+            std::snprintf(int2_as_str, sizeof(int2_as_str), "%d", int2_value);
+
+            reinterpret_cast<CString*>(&dialog->field_15E8[0])->operator=(int1_as_str);
+            reinterpret_cast<CString*>(&dialog->field_15E8[1])->operator=(int2_as_str);
+
+            const char* str1_value = event->str1.cstr();
+            const char* str2_value = event->str2.cstr();
+
+            reinterpret_cast<CString*>(&dialog->field_16E0[0])->operator=(str1_value);
+            reinterpret_cast<CString*>(&dialog->field_16E0[1])->operator=(str2_value);
 
             regs.eip = 0x00408131;
         }
@@ -841,6 +874,33 @@ CodeInjection open_event_properties_internal_patch2{
             else {
                 event->int1 = std::atoi(int1_field_value);
                 xlog::warn("int1 after assign: {}", event->int1);
+            }
+
+            regs.eip = 0x00408A79;
+        }
+
+        // Goal_Math and Goal_Gate, template 251
+        if (event->event_type == 103 || event->event_type == 104) {
+            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_15E8[0])->c_str();
+            const char* int2_field_value = reinterpret_cast<const CString*>(&dialog->field_15E8[1])->c_str();
+
+            if (int1_field_value && strlen(int1_field_value) > 0) {
+                event->int1 = std::atoi(int1_field_value);
+            }
+
+            if (int2_field_value && strlen(int2_field_value) > 0) {
+                event->int2 = std::atoi(int2_field_value);
+            }
+
+            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_16E0[0])->c_str();
+            const char* str2_field_value = reinterpret_cast<const CString*>(&dialog->field_16E0[1])->c_str();
+
+            if (str1_field_value && strlen(str1_field_value) > 0) {
+                event->str1.assign_0(str1_field_value);
+            }
+
+            if (str2_field_value && strlen(str2_field_value) > 0) {
+                event->str2.assign_0(str2_field_value);
             }
 
             regs.eip = 0x00408A79;

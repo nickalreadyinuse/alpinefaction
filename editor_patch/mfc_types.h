@@ -36,9 +36,6 @@ struct CDataExchange
 	BOOL m_bEditLastControl;
 };
 
-//static auto GetBuffer = reinterpret_cast<void*(__thiscall*)(void*, int)>(0x0052FE42);
-//static auto ReleaseBuffer = reinterpret_cast<void(__thiscall*)(void*, int)>(0x0052FE91);
-
 struct CString
 {
     char* m_pchData;
@@ -278,7 +275,7 @@ struct VString
     // Original "cstr" function to get the buffer as a C-style string
     const char* cstr()
     {
-        static AddrCaller cstrCaller{0x004B6810}; // Address of String::cstr
+        static AddrCaller cstrCaller{0x004B6810};
         return cstrCaller.this_call<const char*>(this);
     }
 

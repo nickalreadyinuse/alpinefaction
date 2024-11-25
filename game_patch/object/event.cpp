@@ -276,6 +276,12 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Valid_Gate") {
             return 103;
         }
+        else if (*name == "Goal_Math") {
+            return 104;
+        }
+        else if (*name == "Goal_Gate") {
+            return 105;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -343,6 +349,12 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 103:
             return allocate_custom_event(static_cast<rf::EventValidGate*>(nullptr));
+
+        case 104:
+            return allocate_custom_event(static_cast<rf::EventGoalMath*>(nullptr));
+
+        case 105:
+            return allocate_custom_event(static_cast<rf::EventGoalGate*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -445,6 +457,18 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 104: {
+            auto* custom_event = static_cast<rf::EventGoalMath*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 105: {
+            auto* custom_event = static_cast<rf::EventGoalGate*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -461,7 +485,8 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::Clear_Queued,
     rf::EventType::Remove_Link,
     rf::EventType::Add_Link,
-    rf::EventType::Valid_Gate
+    rf::EventType::Valid_Gate,
+    rf::EventType::Goal_Gate
 };
 
 // decide if a specific event type should forward messages
@@ -649,6 +674,40 @@ rf::EventValidGate* event_valid_gate_create(const rf::Vector3* pos, int check_ui
     return event;
 }
 
+// factory for Goal_Math events
+rf::EventGoalMath* event_goal_math_create(
+    const rf::Vector3* pos, std::string goal, std::string operation, int value, int value2)
+{
+    rf::Event* base_event = rf::event_create(pos, 104);
+    rf::EventGoalMath* event = dynamic_cast<rf::EventGoalMath*>(base_event);
+
+    if (event) {
+        event->goal = goal;
+        event->operation = operation;
+        event->value = value;
+        event->value2 = value2;
+    }
+
+    return event;
+}
+
+// factory for Goal_Gate events
+rf::EventGoalGate* event_goal_gate_create(
+    const rf::Vector3* pos, std::string goal, std::string test_type, int value, int value2)
+{
+    rf::Event* base_event = rf::event_create(pos, 105);
+    rf::EventGoalGate* event = dynamic_cast<rf::EventGoalGate*>(base_event);
+
+    if (event) {
+        event->goal = goal;
+        event->test_type = test_type;
+        event->value = value;
+        event->value2 = value2;
+    }
+
+    return event;
+}
+
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
@@ -719,6 +778,16 @@ CodeInjection level_read_events_patch {
                 }
                 case 103: { // Valid_Gate
                     rf::Event* this_event = event_valid_gate_create(pos, int1);
+                    regs.eax = this_event;
+                    break;
+                }
+                case 104: { // Goal_Math
+                    rf::Event* this_event = event_goal_math_create(pos, str1->c_str(), str2->c_str(), int1, int2);
+                    regs.eax = this_event;
+                    break;
+                }
+                case 105: { // Goal_Gate
+                    rf::Event* this_event = event_goal_gate_create(pos, str1->c_str(), str2->c_str(), int1, int2);
                     regs.eax = this_event;
                     break;
                 }

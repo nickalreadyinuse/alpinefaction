@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <optional>
+#include <cstddef>
 #include "object.h"
 #include "level.h"
 #include "misc.h"
@@ -120,71 +121,41 @@ namespace rf
             }
         }
     };
-    static_assert(sizeof(Event) == 0x2B8);
+    static_assert(sizeof(Event) == 0x2B8); // 0x2B5 in original code
 
-    static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
-    static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
-    static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
-    static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
-    static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
+    struct GenericEvent : Event
+    {
+        char event_specific_data[21]; // 24 in original code, adjust per new event struct size
+    };
+    static_assert(sizeof(GenericEvent) == 0x2D0, "GenericEvent size is incorrect!");
 
     struct PersistentGoalEvent
     {
         rf::String name;
         int initial_count;
         int count;
-
-        void reset_to_initial()
-        {
-            count = initial_count;
-        }
-
-        void increment(int value = 1)
-        {
-            count += value;
-        }
-
-        void decrement(int value = 1)
-        {
-            count -= value;
-        }
-
-        bool eq(int value) const
-        {
-            return count == value;
-        }
-
-        bool neq(int value) const
-        {
-            return count != value;
-        }
-
-        bool gt(int value) const
-        {
-            return count > value;
-        }
-
-        bool lt(int value) const
-        {
-            return count < value;
-        }
-
-        void div(int divisor)
-        {
-            if (divisor != 0) {
-                count /= divisor;
-            }
-            else {
-                xlog::error("Couldn't divide persistent goal '{}' by zero.", name);
-            }
-        }
-
-        void mul(int multiplier)
-        {
-            count *= multiplier;
-        }
     };
     static_assert(sizeof(PersistentGoalEvent) == 0x10);
+
+    /* struct EventGoalCreate : Event
+    {
+        int initial_count;                                    // Offset 0x2B5
+        int complete_count_unused;                            // Offset 0x2B9
+        int count;                                            // Offset 0x2BD
+        char is_persistent;                                   // Offset 0x2C1
+    };
+    static_assert(sizeof(EventGoalCreate) == 0x2C6, "EventGoalCreate struct size mismatch!");*/
+
+
+
+    static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
+    static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
+    static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
+    static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
+    static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
+    static auto& event_find_named_event = addr_as_ref<GenericEvent*(String* name)>(0x004BD740);
+    static auto& event_lookup_persistent_goal_event = addr_as_ref<PersistentGoalEvent*(const char* name)>(0x004B8680);
+
 
     // custom event structs
     // id 90
@@ -627,6 +598,343 @@ namespace rf
         }
     };
 
+    // id 104
+    struct EventGoalMath : Event
+    {
+        std::optional<std::string> goal;
+        std::optional<std::string> operation;
+        std::optional<int> value;
+        std::optional<int> value2;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["goal"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalMath*>(event);
+                this_event->goal = value;
+                xlog::warn("apply_var: Set goal to '{}' for EventGoalMath UID={}", this_event->goal->c_str(),
+                           this_event->uid);
+            };
+
+            handlers["operation"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalMath*>(event);
+                this_event->operation = value;
+                xlog::warn("apply_var: Set operation to '{}' for EventGoalMath UID={}", this_event->operation->c_str(),
+                           this_event->uid);
+            };
+
+            handlers["value"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalMath*>(event);
+                this_event->value = std::stoi(value);
+                xlog::warn("apply_var: Set value to {} for EventGoalMath UID={}", this_event->value.value_or(1),
+                           this_event->uid);
+            };
+
+            handlers["value2"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalMath*>(event);
+                this_event->value2 = std::stoi(value);
+                xlog::warn("apply_var: Set value2 to {} for EventGoalMath UID={}", this_event->value2.value_or(1),
+                           this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            xlog::warn("Turning on EventGoalMath UID {}", this->uid);
+
+            if (!goal.has_value() || !operation.has_value()) {
+                return;
+            }
+
+            int effective_value = value.value_or(1); // Default value of 1 if not specified
+            int effective_value2 = value2.value_or(effective_value); // Default to same as value if not specified
+            String effective_goal = goal.value_or("").c_str();
+
+
+            // find level goal
+            GenericEvent* named_event = event_find_named_event(&effective_goal);
+
+            int* goal_count_ptr = nullptr;
+            int* goal_initial_ptr = nullptr;
+            if (named_event) {
+                goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]); // 11 in original code
+                goal_initial_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[0]);
+            }
+
+            // find persistent goal
+            PersistentGoalEvent* persist_event = event_lookup_persistent_goal_event(effective_goal);
+
+            if (!persist_event && !named_event) {
+                xlog::error("Did not find a level or persistent goal named '{}'", effective_goal);
+                return;
+            }
+
+            if (goal_count_ptr) {
+                xlog::warn("Level goal count before operation: {}, initial: {}", *goal_count_ptr, *goal_initial_ptr);
+            }
+
+            if (persist_event) {
+                xlog::warn("Persistent goal '{}', count: {}, initial count: {}", persist_event->name,
+                           persist_event->count, persist_event->initial_count);
+            }
+
+            // Determine the operation
+            const std::string& op = operation.value();
+            auto apply_operation = [&](int& goal_count, int initial_value) {
+                if (op == "add") {
+                    goal_count += effective_value;
+                }
+                else if (op == "sub") {
+                    goal_count -= effective_value;
+                }
+                else if (op == "mul") {
+                    goal_count *= effective_value;
+                }
+                else if (op == "div") {
+                    if (effective_value != 0) {
+                        goal_count /= effective_value;
+                    }
+                    else {
+                        xlog::error("Division by zero attempted in EventGoalMath UID {}", this->uid);
+                    }
+                }
+                else if (op == "rdiv") {
+                    if (goal_count != 0) {
+                        goal_count = effective_value / goal_count;
+                    }
+                    else {
+                        xlog::error("Division by zero attempted in reverse divide operation for EventGoalMath UID {}",
+                                    this->uid);
+                    }
+                }
+                else if (op == "set") {
+                    goal_count = effective_value;
+                }
+                else if (op == "mod") {
+                    if (effective_value != 0) {
+                        goal_count %= effective_value;
+                    }
+                    else {
+                        xlog::error("Modulo by zero attempted in EventGoalMath UID {}", this->uid);
+                    }
+                }
+                else if (op == "pow") {
+                    if (effective_value >= 0) {
+                        goal_count = static_cast<int>(std::pow(goal_count, effective_value));
+                    }
+                    else {
+                        xlog::error("Negative exponent {} not allowed in EventGoalMath UID {}", effective_value,
+                                    this->uid);
+                    }
+                }
+                else if (op == "neg") {
+                    goal_count = -goal_count;
+                }
+                else if (op == "abs") {
+                    goal_count = std::abs(goal_count);
+                }
+                else if (op == "clamp") {
+                    goal_count = std::clamp(goal_count, effective_value, effective_value2);
+                }
+                else if (op == "max") {
+                    goal_count = std::max(goal_count, effective_value);
+                }
+                else if (op == "min") {
+                    goal_count = std::min(goal_count, effective_value);
+                }
+                else if (op == "reset") {
+                    goal_count = initial_value;
+                }
+                else {
+                    xlog::error("Unknown operation '{}' in EventGoalMath UID {}", op, this->uid);
+                }
+            };
+
+            // apply to persistent goal
+            if (persist_event) {
+                xlog::warn(
+                    "Applying operation '{}' with value '{}', value2 '{}', to persistent goal '{}'", op, effective_value, effective_value2, persist_event->name);
+
+                apply_operation(persist_event->count, persist_event->initial_count);
+            }
+
+            // apply to level goal
+            if (goal_count_ptr) {
+                xlog::warn("Applying operation '{}' with value '{}', value2 '{}', to level goal '{}'", op, effective_value,
+                           effective_value2, effective_goal);
+
+                apply_operation(*goal_count_ptr, *goal_initial_ptr);
+            }
+
+            // Log final values
+            if (persist_event) {
+                xlog::warn("Persistent goal '{}', new count: {}, initial count: {}", persist_event->name,
+                           persist_event->count, persist_event->initial_count);
+            }
+
+            if (goal_count_ptr) {
+                xlog::warn("Level goal count after operation: {}", *goal_count_ptr);
+            }
+        }
+    };
+
+    // id 105
+    struct EventGoalGate : Event
+    {
+        std::optional<std::string> goal;
+        std::optional<std::string> test_type;
+        std::optional<int> value;
+        std::optional<int> value2;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["goal"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalGate*>(event);
+                this_event->goal = value;
+                xlog::warn("apply_var: Set goal to '{}' for EventGoalGate UID={}", this_event->goal->c_str(),
+                           this_event->uid);
+            };
+
+            handlers["test_type"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalGate*>(event);
+                this_event->test_type = value;
+                xlog::warn("apply_var: Set test_type to '{}' for EventGoalGate UID={}", this_event->test_type->c_str(),
+                           this_event->uid);
+            };
+
+            handlers["value"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalGate*>(event);
+                this_event->value = std::stoi(value);
+                xlog::warn("apply_var: Set value to {} for EventGoalGate UID={}", this_event->value.value_or(1),
+                           this_event->uid);
+            };
+
+            handlers["value2"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventGoalGate*>(event);
+                this_event->value2 = std::stoi(value);
+                xlog::warn("apply_var: Set value2 to {} for EventGoalGate UID={}", this_event->value2.value_or(1),
+                           this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            xlog::warn("Turning on EventGoalGate UID {}", this->uid);
+
+            if (!goal.has_value() || !test_type.has_value()) {
+                return;
+            }
+
+            int effective_value = value.value_or(0); // Default value to 0 if not specified
+            int effective_value2 = value2.value_or(effective_value); // Default to same as value if not specified
+            String effective_goal = goal.value_or("").c_str();
+
+            // find level goal
+            GenericEvent* named_event = event_find_named_event(&effective_goal);
+
+            int* goal_count_ptr = nullptr;
+            int* goal_initial_ptr = nullptr;
+            if (named_event) {
+                goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]); // 11 in original code
+                goal_initial_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[0]);
+            }
+
+            // find persistent goal
+            PersistentGoalEvent* persist_event = event_lookup_persistent_goal_event(effective_goal);
+
+            if (!persist_event && !named_event) {
+                xlog::error("Did not find a level or persistent goal named '{}'", effective_goal);
+                return;
+            }
+
+            int current_value = 0;
+            int initial_value = 0;
+            if (goal_count_ptr) {
+                current_value = *goal_count_ptr;
+                initial_value = goal_initial_ptr ? *goal_initial_ptr : 0;
+            }
+            else if (persist_event) {
+                current_value = persist_event->count;
+                initial_value = persist_event->initial_count;
+            }
+
+            xlog::warn("Current goal value for '{}': {}, Initial value: {}", effective_goal, current_value,
+                       initial_value);
+
+            const std::string& test = test_type.value();
+            bool pass = false;
+
+
+            if (test == "equal") {
+                pass = (current_value == effective_value);
+            }
+            else if (test == "nequal") {
+                pass = (current_value != effective_value);
+            }
+            else if (test == "gt") {
+                pass = (current_value > effective_value);
+            }
+            else if (test == "lt") {
+                pass = (current_value < effective_value);
+            }
+            else if (test == "geq") {
+                pass = (current_value >= effective_value);
+            }
+            else if (test == "leq") {
+                pass = (current_value <= effective_value);
+            }
+            else if (test == "between") {
+                pass = (current_value >= effective_value && current_value <= effective_value2);
+            }
+            else if (test == "odd") {
+                pass = (current_value % 2 != 0);
+            }
+            else if (test == "even") {
+                pass = (current_value % 2 == 0);
+            }
+            else if (test == "divisible") {
+                if (effective_value != 0) {
+                    pass = (current_value % effective_value == 0);
+                }
+                else {
+                    xlog::error("Division by zero in divisible test for EventGoalGate UID {}", this->uid);
+                }
+            }
+            else if (test == "ltinit") {
+                pass = (current_value < initial_value);
+            }
+            else if (test == "gtinit") {
+                pass = (current_value > initial_value);
+            }
+            else if (test == "leinit") {
+                pass = (current_value <= initial_value);
+            }
+            else if (test == "geinit") {
+                pass = (current_value >= initial_value);
+            }
+            else if (test == "eqinit") {
+                pass = (current_value == initial_value);
+            }
+            else {
+                xlog::error("Unknown test type '{}' in EventGoalGate UID {}", test, this->uid);
+            }
+
+            // Log test result
+            if (pass) {
+                xlog::warn("Test '{}' passed for EventGoalGate UID {}", test, this->uid);
+                activate_links(this->trigger_handle, this->triggered_by_handle, true);
+            }
+            else {
+                xlog::warn("Test '{}' failed for EventGoalGate UID {}", test, this->uid);
+            }
+        }
+    };
+
     enum class EventType : int
     {
         Attack = 1,
@@ -731,7 +1039,9 @@ namespace rf
 		Remove_Link,
         Fixed_Delay,
         Add_Link,
-        Valid_Gate
+        Valid_Gate,
+        Goal_Math,
+        Goal_Gate
     };
 
     // int to EventType

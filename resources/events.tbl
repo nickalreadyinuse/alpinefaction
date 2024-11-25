@@ -366,6 +366,9 @@ $RFE Level1:      "AF_Flow"
 $Event Name:      "Valid_Gate"
 $RFE Level1:      "AF_Flow"
 
+$Event Name:      "Goal_Gate"
+$RFE Level1:      "AF_Flow"
+
 #End
 
 // ------------------------------------------------
@@ -393,6 +396,9 @@ $Event Name:      "Remove_Link"
 $RFE Level1:      "AF_Utility"
 
 $Event Name:      "Add_Link"
+$RFE Level1:      "AF_Utility"
+
+$Event Name:      "Goal_Math"
 $RFE Level1:      "AF_Utility"
 
 #End
