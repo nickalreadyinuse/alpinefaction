@@ -417,8 +417,28 @@ CodeInjection all_table_files_loaded_injection{
     }
 };
 
+CodeInjection level_read_header_patch{
+    0x004615BF, [](auto& regs) {
+        int version = regs.eax;
+        xlog::debug("Attempting to load level with version: {}", version);
+
+        // only needs to handle 300+, < 40 and 201 - 299 are denied by original code
+        if (version >= 300 && version <= MAXIMUM_RFL_VERSION) {
+            regs.eip = 0x004615DF;
+        }
+    }
+};
+
 void misc_init()
 {
+    // Allow game to load rfl files with supported versions
+    level_read_header_patch.install();
+
+    // Display a more informative message to user if they try to load an unsupported rfl
+    static char new_unsupported_version_message[] =
+        "Unsupported version (%d).\nVisit https://redfaction.help to find the latest client version.\n";
+    AsmWriter{0x004615C6}.push(reinterpret_cast<int32_t>(new_unsupported_version_message));
+
     // Window title (client and server)
     write_mem_ptr(0x004B2790, PRODUCT_NAME);
     write_mem_ptr(0x004B27A4, PRODUCT_NAME);

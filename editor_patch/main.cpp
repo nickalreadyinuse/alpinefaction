@@ -946,11 +946,22 @@ CodeInjection open_event_properties_internal_patch2{
 
 // weird ctrl+P seems to work differently than right click properties
 
+CodeInjection LoadSaveLevel_patch{
+    0x0041CD20, [](auto& regs) {
+        int* version = reinterpret_cast<int*>(regs.esi + 0x54);
+        *version = MAXIMUM_RFL_VERSION; // set rfl version saved to file
+        regs.eip = 0x0041CD27; // skip version being set to 200 by original code
+    }
+};
+
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 {
     InitLogging();
     InitCrashHandler();
-    
+
+    // Use new version for saved rfls
+    LoadSaveLevel_patch.install();
+
     //console_open();
     //xlog::warn("console visible? {}", console_is_visible());
     //console_print_cmd_list();

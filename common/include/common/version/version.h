@@ -21,6 +21,11 @@
 #define VERSION_TYPE           VERSION_TYPE_DEV
 #define VERSION_TYPE_REVISION  1
 
+// Increment only when absolutely necessary! (will break level compatibility for older clients)
+// Stock RF1 uses versions 156 - 200. RF2 uses version 295
+// AF can load levels with version 40 - 200 or 300 - MAXIMUM_RFL_VERSION
+#define MAXIMUM_RFL_VERSION    300
+
 // clang-format on
 
 #if VERSION_TYPE == VERSION_TYPE_DEV

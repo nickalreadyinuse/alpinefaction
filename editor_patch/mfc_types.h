@@ -561,6 +561,17 @@ static_assert(offsetof(CEventDialog, field_5C) == 0x5C, "field_5C offset mismatc
 static_assert(offsetof(CEventDialog, field_98) == 0x98, "field_98 offset mismatch!");
 static_assert(offsetof(CEventDialog, field_1724) == 0x1724, "field_1724 offset mismatch!");
 
+struct VFile
+{
+    int DirId;
+    char bExists;
+    char szFilename[259];
+    void* pPackfileEntry;
+    int bCdFile;
+    int open_file_index;
+};
+static_assert(sizeof(VFile) == 0x114);
+
 // console is still broken
 //static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
 //static auto& console_open = addr_as_ref<char()>(0x004D66A0);
