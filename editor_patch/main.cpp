@@ -453,7 +453,7 @@ CodeInjection texture_name_buffer_overflow_injection2{
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 17; // must be 1 higher than actual count
+constexpr int new_event_count = 19; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -475,6 +475,8 @@ const char* additional_event_names[new_event_count] = {
     "Valid_Gate",
     "Goal_Math",
     "Goal_Gate",
+    "Environment_Gate",
+    "Inside_Gate",
     "_dummy"
 };
 
@@ -625,6 +627,14 @@ CodeInjection open_event_properties_patch{
                 case 104: // Goal_Gate
                     template_id = 251;
                     break;
+
+                case 105: // Environment_Gate
+                    template_id = 257;
+                    break;
+
+                case 106: // Inside_Gate
+                    template_id = 311;
+                    break;
             }
 
             xlog::info("Using template ID {} for event type {}", template_id, event_type);
@@ -726,8 +736,8 @@ CodeInjection open_event_properties_internal_patch{
             regs.eip = 0x00408131;
         }
 
-        // Valid_Gate, template 311
-        if (event->event_type == 102) {
+        // Valid_Gate and Inside_Gate, template 311
+        if (event->event_type == 102 || event->event_type == 106) {
             int int_value = event->int1;
             char int_as_str[32];
             std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
@@ -758,6 +768,17 @@ CodeInjection open_event_properties_internal_patch{
 
             reinterpret_cast<CString*>(&dialog->field_16E0[0])->operator=(str1_value);
             reinterpret_cast<CString*>(&dialog->field_16E0[1])->operator=(str2_value);
+
+            regs.eip = 0x00408131;
+        }
+
+        // Environment_Gate, template 257
+        if (event->event_type == 105) {
+            const char* str1 = event->str1.cstr();
+            char* field_1724_offset = &dialog->field_1724[804];
+            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
+
+            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
 
             regs.eip = 0x00408131;
         }
@@ -864,8 +885,8 @@ CodeInjection open_event_properties_internal_patch2{
             regs.eip = 0x00408A79;
         }
 
-        // Valid_Gate, template 311
-        if (event->event_type == 102) {
+        // Valid_Gate and Inside_Gate, template 311
+        if (event->event_type == 102 || event->event_type == 106) {
             const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
 
             if (!int1_field_value || strlen(int1_field_value) == 0) {
@@ -901,6 +922,21 @@ CodeInjection open_event_properties_internal_patch2{
 
             if (str2_field_value && strlen(str2_field_value) > 0) {
                 event->str2.assign_0(str2_field_value);
+            }
+
+            regs.eip = 0x00408A79;
+        }
+
+        // Environment_Gate, template 257
+        if (event->event_type == 105) {
+            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
+
+            if (!str1_field_value || strlen(str1_field_value) == 0) {
+                xlog::error("field is empty or null");
+            }
+            else {
+                event->str1.assign_0(str1_field_value);
+                xlog::warn("str1 after assign: {}", event->str1.cstr());
             }
 
             regs.eip = 0x00408A79;

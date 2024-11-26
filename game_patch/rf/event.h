@@ -8,8 +8,10 @@
 #include "object.h"
 #include "level.h"
 #include "misc.h"
+#include "multi.h"
 #include "hud.h"
 #include "entity.h"
+#include "trigger.h"
 #include "../main/main.h"
 #include "player/player.h"
 #include "os/timestamp.h"
@@ -935,6 +937,155 @@ namespace rf
         }
     };
 
+    // id 106
+    struct EventEnvironmentGate : Event
+    {
+        std::optional<std::string> environment;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["environment"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventEnvironmentGate*>(event);
+                this_event->environment = value;
+                xlog::warn("apply_var: Set environment to '{}' for EventEnvironmentGate UID={}", this_event->environment->c_str(),
+                           this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            xlog::warn("Turning on EventEnvironmentGate UID {}", this->uid);
+
+            if (!environment.has_value()) {
+                return;
+            }
+
+            const std::string& test = environment.value();
+            bool pass = false;
+
+            if (test == "multi") {
+                pass = rf::is_multi;
+            }
+            else if (test == "single") {
+                pass = !rf::is_multi;
+            }
+            else if(test == "server") {
+                pass = (rf::is_server || rf::is_dedicated_server);
+            }
+            else if(test == "dedicated") {
+                pass = rf::is_dedicated_server;
+            }
+            else if (test == "client") {
+                pass = (!rf::is_server && !rf::is_dedicated_server);
+            }
+            else {
+                xlog::error("Unknown environment test '{}' for EventEnvironmentGate UID {}", test, this->uid);
+            }
+
+            if (pass) {
+                xlog::warn("Test '{}' passed for EventEnvironmentGate UID {}", test, this->uid);
+                activate_links(this->trigger_handle, this->triggered_by_handle, true);
+            }
+            else {
+                xlog::warn("Test '{}' failed for EventEnvironmentGate UID {}", test, this->uid);
+            }
+        }
+    };
+
+    // id 107
+    struct EventInsideGate : Event
+    {
+        int check_uid = -1;
+        std::optional<int> test_uid;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers(); // Include base handlers
+
+            auto& handlers = variable_handler_storage[this];
+            handlers["check_uid"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventInsideGate*>(event);
+                this_event->check_uid = std::stoi(value);
+                xlog::warn("apply_var: Set check_uid to {} for EventInsideGate UID={}", this_event->check_uid,
+                           this_event->uid);
+            };
+
+            handlers["test_uid"] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventInsideGate*>(event);
+                this_event->test_uid = std::stoi(value);
+                xlog::warn("apply_var: Set test_uid to {} for EventInsideGate UID={}", this_event->test_uid.value_or(-1),
+                           this_event->uid);
+            };
+        }
+
+        void turn_on() override
+        {
+            Object* obj = obj_lookup_from_uid(check_uid);
+            GRoom* room = level_room_from_uid(check_uid);
+
+            int obj_handle_to_test = -1;
+
+            if (test_uid.has_value() && test_uid.value() > 0) {
+                xlog::warn("test_uid has value");
+                Object* obj_to_test = obj_lookup_from_uid(test_uid.value_or(-1));
+
+                if (obj_to_test) {
+                    xlog::warn("test_uid is using {}", obj_to_test->name);
+                    obj_handle_to_test = obj_to_test->handle;
+                }
+            }
+            else {
+                obj_handle_to_test = triggered_by_handle;
+            }
+
+            Object* triggered_by_obj = obj_from_handle(obj_handle_to_test);            
+
+            if (check_uid == -1 || !triggered_by_obj || (!obj && !room)) {
+                return;
+            }
+
+            xlog::warn("object being tested is {}, UID {}", triggered_by_obj->name, triggered_by_obj->uid);
+
+            bool pass = false;
+
+            if (obj && obj->type == OT_TRIGGER) {
+                Trigger* trigger = static_cast<Trigger*>(obj);
+
+                xlog::warn("Trigger UID {} is type {}", check_uid, trigger->type);
+
+                switch (trigger->type) {
+                case 0: // sphere shape trigger
+                    pass = trigger_inside_bounding_sphere(trigger, triggered_by_obj);
+                    break;
+
+                case 1: // box shape trigger
+                    pass = trigger_inside_bounding_box(trigger, triggered_by_obj);
+                    break;
+
+                default:
+                    xlog::warn("Unknown trigger type {} for EventInsideGate UID {}", trigger->type, this->uid);
+                }
+            }
+            else if (room) { // handle room test
+                xlog::warn("tested object's room is {}, test room is {}", triggered_by_obj->room->uid, room->uid);
+                if (room && triggered_by_obj->room == room) {
+                    pass = true;
+                }
+            }
+
+            if (pass) {
+                xlog::warn("Test passed for EventInsideGate UID {}", this->uid);
+                activate_links(this->trigger_handle, this->triggered_by_handle, true);
+            }
+            else {
+                xlog::warn("Test failed for EventInsideGate UID {}", this->uid);
+            }
+        }
+    };
+
     enum class EventType : int
     {
         Attack = 1,
@@ -1041,7 +1192,9 @@ namespace rf
         Add_Link,
         Valid_Gate,
         Goal_Math,
-        Goal_Gate
+        Goal_Gate,
+        Environment_Gate,
+        Inside_Gate
     };
 
     // int to EventType

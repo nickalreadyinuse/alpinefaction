@@ -282,6 +282,12 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
         else if (*name == "Goal_Gate") {
             return 105;
         }
+        else if (*name == "Environment_Gate") {
+            return 106;
+        }
+        else if (*name == "Inside_Gate") {
+            return 107;
+        }
 
         // stock events
         return event_lookup_type_hook.call_target(name);
@@ -355,6 +361,12 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
 
         case 105:
             return allocate_custom_event(static_cast<rf::EventGoalGate*>(nullptr));
+
+        case 106:
+            return allocate_custom_event(static_cast<rf::EventEnvironmentGate*>(nullptr));
+
+        case 107:
+            return allocate_custom_event(static_cast<rf::EventInsideGate*>(nullptr));
 
         default: // stock events
             return event_allocate_hook.call_target(event_type);
@@ -469,6 +481,18 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             return;
         }
 
+        case 106: {
+            auto* custom_event = static_cast<rf::EventEnvironmentGate*>(eventp);
+            delete custom_event;
+            return;
+        }
+
+        case 107: {
+            auto* custom_event = static_cast<rf::EventInsideGate*>(eventp);
+            delete custom_event;
+            return;
+        }
+
         default: // stock events
             event_deallocate_hook.call_target(eventp);
             break;
@@ -486,7 +510,9 @@ static const std::unordered_set<rf::EventType> forward_exempt_ids = {
     rf::EventType::Remove_Link,
     rf::EventType::Add_Link,
     rf::EventType::Valid_Gate,
-    rf::EventType::Goal_Gate
+    rf::EventType::Goal_Gate,
+    rf::EventType::Environment_Gate,
+    rf::EventType::Inside_Gate
 };
 
 // decide if a specific event type should forward messages
@@ -708,6 +734,34 @@ rf::EventGoalGate* event_goal_gate_create(
     return event;
 }
 
+// factory for Environment_Gate events
+rf::EventEnvironmentGate* event_environment_gate_create(const rf::Vector3* pos, std::string environment)
+{
+    rf::Event* base_event = rf::event_create(pos, 106);
+    rf::EventEnvironmentGate* event = dynamic_cast<rf::EventEnvironmentGate*>(base_event);
+
+    if (event) {
+        // set environment
+        event->environment = environment;
+    }
+
+    return event;
+}
+
+// factory for Inside_Gate events
+rf::EventInsideGate* event_inside_gate_create(const rf::Vector3* pos, int check_uid)
+{
+    rf::Event* base_event = rf::event_create(pos, 107);
+    rf::EventInsideGate* event = dynamic_cast<rf::EventInsideGate*>(base_event);
+
+    if (event) {
+        // set check_uid
+        event->check_uid = check_uid;
+    }
+
+    return event;
+}
+
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
@@ -791,6 +845,16 @@ CodeInjection level_read_events_patch {
                     regs.eax = this_event;
                     break;
                 }
+                case 106: { // Environment_Gate
+                    rf::Event* this_event = event_environment_gate_create(pos, str1->c_str());
+                    regs.eax = this_event;
+                    break;
+                }
+                case 107: { // Inside_Gate
+                    rf::Event* this_event = event_inside_gate_create(pos, int1);
+                    regs.eax = this_event;
+                    break;
+                }
                 default: { // fallback for AF events that don't need specific factories (no configurable params)
                     rf::Event* this_event = rf::event_create(pos, event_type);
                     regs.eax = this_event;
@@ -817,6 +881,9 @@ CodeInjection event_activate_fixed_delay{
 
 void apply_event_patches()
 {
+    // allow event activation from triggers in multiplayer (EXPERIMENTAL - probably should be tied to rfl ver, possibly also a blacklist of sp-only event IDs)
+    AsmWriter(0x004C038A).jmp(0x004C03C2);
+
     // Support custom events    
     AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID (params specified)
     event_lookup_type_hook.install(); // define AF event IDs
@@ -827,7 +894,7 @@ void apply_event_patches()
     event_activate_fixed_delay.install(); // handle activations for Fixed_Delay event (id 101)    
 
     // Improve player teleport behaviour
-    event_player_teleport_on_hook.install();
+    // event_player_teleport_on_hook.install(); // disabled until teleport bug fixed
 
     // Allow custom mesh (not used in clutter.tbl or items.tbl) in Switch_Model event
     switch_model_event_custom_mesh_patch.install();

@@ -2,6 +2,8 @@
 #include <xlog/xlog.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
+#include <patch_common/AsmWriter.h>
+#include <patch_common/CodeInjection.h>
 #include <common/utils/list-utils.h>
 #include "../rf/object.h"
 #include "../rf/item.h"
@@ -190,8 +192,23 @@ ConsoleCommand2 fullbright_models_cmd{
     "Set all meshes to render fullbright. In multiplayer, this is only available if the server allows it.",
 };
 
+CodeInjection LevelLight__load_patch{ // not done, intended to fix dynamic lights
+    0x0045F500, [](auto& regs) {
+        rf::LevelLight* level_light = regs.edi;
+        //xlog::warn("Light: {}", light->n);
+
+
+    }
+};
+
 void obj_light_apply_patch()
 {
+
+    // Allow dynamic lights in levels
+    AsmWriter(0x0045F4F7).jmp(0x0045F510);
+    //LevelLight__load_patch.install();
+
+
     // Fix/improve items and clutters static lighting calculation: fix matrices being zero and use static lights
     obj_light_calculate_hook.install();
     obj_light_alloc_hook.install();

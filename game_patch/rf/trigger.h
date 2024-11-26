@@ -35,4 +35,8 @@ namespace rf
         ubyte trigger_team;
     };
     static_assert(sizeof(Trigger) == 0x30C);
-}
+
+    static auto& trigger_inside_bounding_box = addr_as_ref<bool(Trigger*, Object*)>(0x004C0A80);
+    static auto& trigger_inside_bounding_sphere = addr_as_ref<bool(Trigger*, Object*)>(0x004BF620);
+
+    }
