@@ -59,7 +59,9 @@ Multiplayer:
 Level/mod development:
 * DDS texture support
 * OGG audio support
-* New events for use in maps
+* Many new event scripting objects for use crafting logic in maps
+* Support for dynamic lights in maps
+* Removed legacy PS2 compatibility measures that resulted in decreased map performance
 * Access for many hardcoded settings to be customized in mods
 * Support for custom HUDs and translation packs as clientside mods
 * Ability to use custom meshes in multiplayer
@@ -108,7 +110,7 @@ Alpine Faction additionally supports the following command line options:
 
 Problems
 --------
-If your antivirus software detects Alpine Faction malicious, you may need to explicitly allow it to run.
+If your antivirus software detects Alpine Faction as malicious, you may need to explicitly allow it to run.
 While Alpine Faction is safe to use, many antivirus vendors wrongly flag new programs as malicious/suspicious.
 If you do not trust officially provided Alpine Faction distributions, you can review the code and compile it yourself.
 
