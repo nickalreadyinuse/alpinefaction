@@ -1,4 +1,3 @@
-========================
 Alpine Faction Changelog
 ========================
 
@@ -63,10 +62,11 @@ Version 1.0.0
 - Allow `Super Health` and `Super Armor` in single player
 - Make level editor save files with new rfl version, and display a warning when opening files with older versions
 - Make game load level files up to current AF version
+- Add support for dynamic lights in levels
 
 
 
-======================
+
 Dash Faction Changelog
 ======================
 
