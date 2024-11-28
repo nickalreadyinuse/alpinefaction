@@ -35,6 +35,8 @@ constexpr size_t max_texture_name_len = 31;
 HMODULE g_module;
 bool g_skip_wnd_set_text = false;
 
+static bool g_is_saving_af_version = true; // TODO: way to control this var (reg?)
+
 static const auto g_editor_app = reinterpret_cast<std::byte*>(0x006F9DA0);
 static auto& g_main_frame = addr_as_ref<std::byte*>(0x006F9E68);
 
@@ -55,6 +57,11 @@ HWND GetMainFrameHandle()
 {
     auto* main_frame = struct_field_ref<CWnd*>(g_editor_app, 0xC8);
     return WndToHandle(main_frame);
+}
+
+bool get_is_saving_af_version()
+{
+    return g_is_saving_af_version;
 }
 
 void OpenLevel(const char* level_path)
@@ -954,46 +961,73 @@ CodeInjection LoadSaveLevel_patch{
     }
 };
 
-extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
-{
-    InitLogging();
-    InitCrashHandler();
+CodeInjection LoadSaveLevel_patch2{
+    0x0041CDAA, [](auto& regs) {
+        int* version = regs.edi;
 
+        if (*version < 300) {
+            char message[512];
+            int current_version = *version;
+            int new_version = MAXIMUM_RFL_VERSION;
+
+            std::snprintf(
+                message, sizeof(message),
+                "IMPORTANT: This level file was constructed using an older version of the level editor."
+                "\n\n"
+                "The current version of this level file is %d."
+                "\n\n"
+                "Due to newly added features and capabilities that are not compatible with legacy client versions, "
+                "the Alpine Faction Level Editor saves level files using version %d."
+                "\n\n"
+                "If you resave this file, it will be converted to version %d, "
+                "and it will no longer be playable on legacy client versions.",
+                current_version, new_version, new_version);
+
+            MessageBoxA(0, message, "Legacy Level File", MB_OK | MB_ICONWARNING);
+        }
+    }
+};
+
+void apply_af_level_editor_changes()
+{
     // Use new version for saved rfls
     LoadSaveLevel_patch.install();
+    LoadSaveLevel_patch2.install();
 
-    //console_open();
-    //xlog::warn("console visible? {}", console_is_visible());
-    //console_print_cmd_list();
-    //console_init(1);
+    // console_open();
+    // xlog::warn("console visible? {}", console_is_visible());
+    // console_print_cmd_list();
+    // console_init(1);
 
-    xlog::warn("Initializing extended event names redirection...");
+    //xlog::warn("Initializing extended event names redirection...");
 
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + AF events
-    //debug_event_names(); // debug logging
+    // debug_event_names(); // debug logging
 
     // assign extended events array
-    OnInitDialog_redirect_event_names.install(); // replace reference to event_names with new extended array
+    OnInitDialog_redirect_event_names.install();   // replace reference to event_names with new extended array
     get_event_type_redirect_event_names.install(); // replace reference to event_names with new extended array
     event_names_injection.install(); // when opening event properties, use new extended array for event look up
 
     // handle event properties windows for AF events
-    open_event_properties_patch.install(); // set template IDs for AF events
-    open_event_properties_internal_patch.install(); // handle values for AF events in templates
+    open_event_properties_patch.install();           // set template IDs for AF events
+    open_event_properties_internal_patch.install();  // handle values for AF events in templates
     open_event_properties_internal_patch2.install(); // handle saving values for AF events from templates
 
     // set new end address for event array loops that use new extended array
-    AsmWriter(0x004617FC).cmp(asm_regs::edi,
-        reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // OnInitDialog
-    AsmWriter(0x004516C2).cmp(asm_regs::esi,
-        reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // get_event_type_from_class_name
+    AsmWriter(0x004617FC)
+        .cmp(asm_regs::edi,
+             reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // OnInitDialog
+    AsmWriter(0x004516C2)
+        .cmp(asm_regs::esi,
+             reinterpret_cast<uintptr_t>( &extended_event_names[total_event_count - 1])); // get_event_type_from_class_name
 
-    //verify_event_names(); // debug logging
+    // verify_event_names(); // debug logging
 
     // Allow Set_Liquid_Depth to appear in the Events list
     // Original code omits that event by name, it now omits a dummy name
-    AsmWriter(0x004440B4).push("_dummy");
+    AsmWriter(0x004440B4).push("_dummy");  
 
     // Stop editor console window from turning red due to legacy geometry limits
     AsmWriter(0x0043A544).jmp(0x0043A546); // verticies exceeded limit
@@ -1001,12 +1035,12 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     AsmWriter(0x0043A530).jmp(0x0043A546); // faces exceeded limit
 
     // Remove legacy geometry maximums from build output window
-    static char new_faces_string[] = "Faces: %d\n"; // Replace "Faces: %d/%d\n"
-    static char new_face_vertices_string[] = "Face Vertices: %d\n"; // Replace "Face Vertices: %d/%d\n"
-    static char new_vertices_string[] = "Vertices: %d\n"; // Replace "Vertices: %d/%d\n"
-    AsmWriter(0x0043A4A3).push(reinterpret_cast<int32_t>(new_faces_string)); // faces
+    static char new_faces_string[] = "Faces: %d\n";                                  // Replace "Faces: %d/%d\n"
+    static char new_face_vertices_string[] = "Face Vertices: %d\n";                  // Replace "Face Vertices: %d/%d\n"
+    static char new_vertices_string[] = "Vertices: %d\n";                            // Replace "Vertices: %d/%d\n"
+    AsmWriter(0x0043A4A3).push(reinterpret_cast<int32_t>(new_faces_string));         // faces
     AsmWriter(0x0043A4C7).push(reinterpret_cast<int32_t>(new_face_vertices_string)); // face verts
-    AsmWriter(0x0043A4EB).push(reinterpret_cast<int32_t>(new_vertices_string)); // verts
+    AsmWriter(0x0043A4EB).push(reinterpret_cast<int32_t>(new_vertices_string));      // verts
 
     // Remove "You must rebuild geometry before leaving group mode"
     AsmWriter(0x0042645E).jmp(0x00426486);
@@ -1020,9 +1054,20 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     // Stop adding faces to "fix ps2 tiling" when the surface UVs tile a lot
     AsmWriter(0x0043A0A5).jmp(0x0043A0CC); // stop splitting movers
-    AsmWriter(0x0043A098).nop(5); // stop spliting faces at build time
-    AsmWriter(0x0043A08D).nop(5); // don't print "Fixing up texture uvs for ps2..." in output window
-    AsmWriter(0x0043A0E4).nop(5); // don't print "Had to add X faces to fix ps2 tiling" in output window
+    AsmWriter(0x0043A098).nop(5);          // stop spliting faces at build time
+    AsmWriter(0x0043A08D).nop(5);          // don't print "Fixing up texture uvs for ps2..." in output window
+    AsmWriter(0x0043A0E4).nop(5);          // don't print "Had to add X faces to fix ps2 tiling" in output window
+}
+
+extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
+{
+    InitLogging();
+    InitCrashHandler();
+
+    // Apply AF-specific changes only if legacy mode isn't active
+    if (get_is_saving_af_version()) {
+        apply_af_level_editor_changes();
+    }      
 
     // Change command for Play Level action to use Dash Faction launcher
     static std::string launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;

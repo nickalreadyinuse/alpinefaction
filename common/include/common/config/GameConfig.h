@@ -54,11 +54,11 @@ struct GameConfig
 
     enum ClampMode
     {
-        AUTOMATIC,
-        CLASSIC,
-        FULL,
+        ALPINEONLY,
+        COMMUNITY,
+        ALL,
     };
-    CfgVar<ClampMode> clamp_mode = AUTOMATIC;
+    CfgVar<ClampMode> clamp_mode = ALPINEONLY;
 
     CfgVar<bool> high_scanner_res = true;
     CfgVar<bool> high_monitor_res = true;

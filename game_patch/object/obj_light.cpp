@@ -5,6 +5,7 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/CodeInjection.h>
 #include <common/utils/list-utils.h>
+#include "../misc/misc.h"
 #include "../rf/object.h"
 #include "../rf/item.h"
 #include "../rf/level.h"
@@ -178,6 +179,7 @@ ConsoleCommand2 muzzle_flash_cmd{
     },
     "Toggle muzzle flash dynamic lights",
 };
+
 ConsoleCommand2 fullbright_models_cmd{
     "r_meshfullbright",
     []() {
@@ -192,22 +194,20 @@ ConsoleCommand2 fullbright_models_cmd{
     "Set all meshes to render fullbright. In multiplayer, this is only available if the server allows it.",
 };
 
-CodeInjection LevelLight__load_patch{ // not done, intended to fix dynamic lights
-    0x0045F500, [](auto& regs) {
-        rf::LevelLight* level_light = regs.edi;
-        //xlog::warn("Light: {}", light->n);
-
-
+CodeInjection dynamic_light_load_patch{
+    0x0045F500,
+    [](auto& regs) {
+        // Note will crash dedicated servers
+        if (!rf::is_dedicated_server && af_rfl_version(rf::level.version)) {
+            regs.eip = 0x0045F507;
+        }
     }
 };
 
 void obj_light_apply_patch()
 {
-
     // Allow dynamic lights in levels
-    AsmWriter(0x0045F4F7).jmp(0x0045F510);
-    //LevelLight__load_patch.install();
-
+    dynamic_light_load_patch.install(); // in LevelLight__load
 
     // Fix/improve items and clutters static lighting calculation: fix matrices being zero and use static lights
     obj_light_calculate_hook.install();

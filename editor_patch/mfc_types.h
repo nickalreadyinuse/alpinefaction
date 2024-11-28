@@ -572,6 +572,8 @@ struct VFile
 };
 static_assert(sizeof(VFile) == 0x114);
 
+bool get_is_saving_af_version();
+
 // console is still broken
 //static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
 //static auto& console_open = addr_as_ref<char()>(0x004D66A0);

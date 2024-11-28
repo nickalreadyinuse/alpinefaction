@@ -2,9 +2,11 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
+#include <common/version/version.h>
 #include <xlog/xlog.h>
 #include <cassert>
 #include <unordered_set>
+#include "../misc/misc.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
 #include "../rf/entity.h"
@@ -879,10 +881,41 @@ CodeInjection event_activate_fixed_delay{
     }
 };
 
+static const std::unordered_set<rf::EventType> multiplayer_blocked_event_types = {
+    rf::EventType::Load_Level,
+    rf::EventType::Endgame,
+    rf::EventType::Play_Video, // AF
+    rf::EventType::Defuse_Nuke,
+    rf::EventType::Drop_Point_Marker,
+    rf::EventType::Go_Undercover,
+    rf::EventType::Win_PS2_Demo
+};
+
+CodeInjection trigger_activate_linked_objects_patch{
+    0x004C0383, [](auto& regs) {
+        rf::Object* event_obj = regs.esi;
+        rf::Event* event = static_cast<rf::Event*>(event_obj);
+
+        xlog::warn("triggered event name: {}, uid: {}, type: {}", event->name, event->uid, event->event_type);
+
+        // original code does not allow triggers to activate events in multiplayer
+        // on AF, this is limited to a blocked list of events that would be problematic in multiplayer
+
+        if (af_rfl_version(rf::level.version)) {
+            if (multiplayer_blocked_event_types.find(static_cast<rf::EventType>(event->event_type)) ==
+                multiplayer_blocked_event_types.end()) {
+                regs.eip = 0x004C03C2; // allow activation if not in blocklist
+            }
+        }
+    }
+};
+
 void apply_event_patches()
 {
     // allow event activation from triggers in multiplayer (EXPERIMENTAL - probably should be tied to rfl ver, possibly also a blacklist of sp-only event IDs)
-    AsmWriter(0x004C038A).jmp(0x004C03C2);
+    //AsmWriter(0x004C038A).jmp(0x004C03C2);
+
+    trigger_activate_linked_objects_patch.install();
 
     // Support custom events    
     AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID (params specified)

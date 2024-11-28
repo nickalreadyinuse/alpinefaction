@@ -57,6 +57,11 @@ bool tc_mod_is_loaded()
     return rf::mod_param.found();
 }
 
+bool af_rfl_version(int version)
+{
+    return version >= 300 && version <= MAXIMUM_RFL_VERSION;
+}
+
 CodeInjection critical_error_hide_main_wnd_patch{
     0x0050BA90,
     []() {
@@ -429,14 +434,79 @@ CodeInjection level_read_header_patch{
     }
 };
 
+CodeInjection fog_near_clip_patch{
+    0x00431F38, [](auto& regs) {
+
+        rf::gr_set_near_clip(rf::level.distance_fog_near_clip);
+    }
+};
+
+CodeInjection level_read_geometry_header_patch{
+    0x00461A62, [](auto& regs) {
+
+        write_mem<float>(0x00646018, 1120403456.0f);
+    }
+};
+
+CallHook<void(char, char, char, char, float, float)>
+    gr_fog_set_hook{
+    0x00431F4B,
+    [](char mode, char r, char g, char b, float fog_near, float fog_far) {
+        r = rf::level.distance_fog_color.red;
+        g = rf::level.distance_fog_color.green;
+        b = rf::level.distance_fog_color.blue;
+        fog_near = rf::level.distance_fog_near_clip;
+        fog_far = rf::level.distance_fog_far_clip;
+
+        gr_fog_set_hook.call_target(mode, r, g, b, fog_near, fog_far);
+    }
+};
+
+CallHook<void(float)>
+    gr_set_far_clip_hook{
+    0x00431F33,
+    [](float dist) {
+        dist = rf::level.distance_fog_far_clip;
+        gr_set_far_clip_hook.call_target(dist);
+    }
+};
+
 void misc_init()
 {
-    // Allow game to load rfl files with supported versions
+    //AsmWriter(0x0046E4AA).nop(5); // stop ai = 0 in MP
+
+
+
+    // Allow loading of rfl files with supported AF-specific versions
     level_read_header_patch.install();
+
+    // fog experimentation - attempting to stop fp weapon cutoff. Success when using static values but not when rfl has specified values
+    //fog_near_clip_patch.install();
+    //gr_fog_set_hook.install();
+    //gr_set_far_clip_hook.install();
+    //AsmWriter{0x00461A5C}.nop(6);
+    //level_read_geometry_header_patch.install();
+    //AsmWriter(0x00461A5C).nop(6);
+
+
+
+    static float walkable_slope_threshold = 0.5f;
+    uintptr_t walkable_slope_threshold_address = reinterpret_cast<uintptr_t>(&walkable_slope_threshold);
+
+    AsmWriter(0x004A0A82).fcomp<float>(AsmRegMem(walkable_slope_threshold_address));
+
+
+
+
+
+
+
+
+    //AsmWriter{0x004B629D}.push(0x80); // 128 entities in savegame block
 
     // Display a more informative message to user if they try to load an unsupported rfl
     static char new_unsupported_version_message[] =
-        "Unsupported version (%d).\nVisit https://redfaction.help to find the latest client version.\n";
+        "Unsupported version (%d).\nVisit https://redfaction.help to find a compatible client version.\n";
     AsmWriter{0x004615C6}.push(reinterpret_cast<int32_t>(new_unsupported_version_message));
 
     // Window title (client and server)

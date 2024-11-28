@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../main/main.h"
+#include "../misc/misc.h"
 #include "../rf/geometry.h"
 #include "../rf/level.h"
 #include "../rf/mover.h"
@@ -233,16 +234,10 @@ CodeInjection level_load_lightmaps_color_conv_patch{
         rf::gr::LockInfo lock;
         if (!rf::gr::lock(lightmap->bm_handle, 0, &lock, rf::gr::LOCK_WRITE_ONLY))
             return;
-        // apply clamp to Volition maps. Most Volition rfls ver = 180, community-made rfl all = 200
-        if (g_game_config.clamp_mode == GameConfig::AUTOMATIC && rf::level.version < 200) {
-            xlog::debug("Applying lightmap clamping to official Volition map");
-            for (int i = 0; i < lightmap->w * lightmap->h * 3; ++i)
-                lightmap->buf[i] = std::max(lightmap->buf[i], (uint8_t)(4 << 3)); // 32
-        }
-
-        // apply clamp to maps made before Sept 8, 2024 @ 00:00:00 UTC
-        else if (g_game_config.clamp_mode == GameConfig::CLASSIC && rf::level.level_timestamp < 1725753600) {
-            xlog::debug("Applying lightmap clamping to map made before 8/9/24");
+        // apply clamping if needed
+        if ((g_game_config.clamp_mode == GameConfig::ALPINEONLY && rf::level.version < 300) ||
+            (g_game_config.clamp_mode == GameConfig::COMMUNITY && rf::level.version < 200)) {
+            xlog::debug("Applying lightmap clamping");
             for (int i = 0; i < lightmap->w * lightmap->h * 3; ++i)
                 lightmap->buf[i] = std::max(lightmap->buf[i], (uint8_t)(4 << 3)); // 32
         }
@@ -260,24 +255,24 @@ ConsoleCommand2 lighting_color_range_cmd{
     "lighting_color_range", [] (std::optional<std::string> range_arg)
     {
         GameConfig::ClampMode new_mode;
-        if (range_arg == "automatic" || range_arg == "auto" || range_arg == "0") {
-            new_mode = GameConfig::ClampMode::AUTOMATIC;
+        if (range_arg == "alpine" || range_arg == "af" || range_arg == "alpineonly" || range_arg == "0") {
+            new_mode = GameConfig::ClampMode::ALPINEONLY;
         }
-        else if (range_arg == "classic" || range_arg == "1") {
-            new_mode = GameConfig::ClampMode::CLASSIC;
+        else if (range_arg == "community" || range_arg == "custom" || range_arg == "1") {
+            new_mode = GameConfig::ClampMode::COMMUNITY;
         }
-        else if (range_arg == "full" || range_arg == "2") {
-            new_mode = GameConfig::ClampMode::FULL;
+        else if (range_arg == "all" || range_arg == "2") {
+            new_mode = GameConfig::ClampMode::ALL;
         }
         else {
-            rf::console::printf("Invalid option. Valid options are auto, classic, full");
+            rf::console::printf("Invalid option. Valid options are alpineonly, community, all");
             return;
         }
         g_game_config.clamp_mode = new_mode;
         g_game_config.save();
         rf::console::printf("Lighting color range set to %s", range_arg.value().c_str());
     },
-    "Set lighting color range. Valid options are auto, classic, full. Only affects levels loaded after usage of this command.",
+    "Set lighting color range. Valid options are alpineonly, community, all. Only affects levels loaded after usage of this command.",
     "lighting_color_range [option]",
 };
 

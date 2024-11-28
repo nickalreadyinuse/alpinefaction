@@ -514,6 +514,24 @@ public:
     template<typename T>
     AsmWriter& fmul(const AsmRegMem& src_rm);
 
+    template<typename T>
+    AsmWriter& fcomp(const AsmRegMem& src_rm)
+    {
+        if constexpr (std::is_same<T, float>::value) {
+            write<u8>(0xD8);
+        }
+        else if constexpr (std::is_same<T, double>::value) {
+            write<u8>(0xDC);
+        }
+        else {
+            static_assert(std::is_same<T, float>::value || std::is_same<T, double>::value,
+                          "fcomp supports only float or double");
+        }
+        write_mod_rm(src_rm, 3);
+        return *this;
+    }
+
+
 private:
     uintptr_t m_addr, m_end_addr;
 

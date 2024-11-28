@@ -15,5 +15,7 @@ namespace rf
     static auto& geomod_shape_shutdown = addr_as_ref<void()>(0x00437460);
     static auto& bink_play = addr_as_ref<char*(const char* filename)>(0x00520A90);
     static auto& g_multi_damage_modifier = addr_as_ref<float>(0x0059F7E0);
+    static auto& gr_set_near_clip = addr_as_ref<void(float dist)>(0x005180A0);
+    static auto& multi_powerup_destroy_all = addr_as_ref<void()>(0x0047FE00); // used in multi_init
 
 }

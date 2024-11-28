@@ -207,9 +207,9 @@ bool is_valid_enum_value<GameConfig::WndMode>(int value)
 template<>
 bool is_valid_enum_value<GameConfig::ClampMode>(int value)
 {
-    return value == GameConfig::AUTOMATIC
-        || value == GameConfig::CLASSIC
-        || value == GameConfig::FULL;
+    return value == GameConfig::ALPINEONLY
+        || value == GameConfig::COMMUNITY
+        || value == GameConfig::ALL;
 }
 
 template<>

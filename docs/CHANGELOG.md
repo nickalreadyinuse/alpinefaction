@@ -60,6 +60,9 @@ Version 1.0.0
 - Add framework for real-time modification of defined event properties
 - Add custom events `SetVar`, `Difficulty_Gate`, `HUD_Message`, `Play_Video`, `Set_Level_Hardness`, `Sequence`, `Clear_Queued`, `Remove_Link`, `Fixed_Delay`, `Add_Link`, `Valid_Gate`
 - Add goal (variable) logic events `Goal_Math` and `Goal_Gate`
+- Allow `Super Health` and `Super Armor` in single player
+- Make level editor save files with new rfl version, and display a warning when opening files with older versions
+- Make game load level files up to current AF version
 
 
 
