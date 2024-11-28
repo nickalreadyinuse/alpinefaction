@@ -2,6 +2,7 @@
 
 #include "math/vector.h"
 #include "os/timestamp.h"
+#include "os/array.h"
 #include "gr/gr.h"
 
 namespace rf
@@ -148,5 +149,50 @@ struct ParticleEmitter
     }
 };
 static_assert(sizeof(ParticleEmitter) == 0x158);
+
+struct BoltInfo
+{
+    float life;
+    void* bez;
+    VArray<int> wander_points; // unsure of member type
+    Vector3 control1;
+    Vector3 control2;
+    Vector3 wander1;
+    Vector3 wander2;
+};
+static_assert(sizeof(BoltInfo) == 0x44);
+
+struct BoltEmitter
+{
+    int uid;
+    int parent_handle;
+    int target_uid;
+    int target_handle;
+    Vector3 source_pos;
+    Vector3 source_dir;
+    Vector3 target_pos;
+    Vector3 target_dir;
+    float thickness;
+    float min_spawn_delay;
+    float max_spawn_delay;
+    float min_life;
+    float max_life;
+    float jitter;
+    bool active;
+    char padding[3];
+    int emitter_flags;
+    int bitmap_handle;
+    int num_frames;
+    Color bolt_color;
+    GRoom* room;
+    BoltInfo bolts[4];
+    Timestamp spawn_timer;
+    float source_dir_mag;
+    float target_dir_mag;
+};
+static_assert(sizeof(BoltEmitter) == 0x18C);
+
+static auto& level_get_particle_emitter_from_uid = addr_as_ref<ParticleEmitter*(int uid)>(0x0045D630);
+static auto& level_get_bolt_emitter_from_uid = addr_as_ref<BoltEmitter*(int uid)>(0x0045D680);
 
 }

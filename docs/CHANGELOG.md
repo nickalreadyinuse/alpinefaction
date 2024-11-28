@@ -63,6 +63,7 @@ Version 1.0.0
 - Make level editor save files with new rfl version, and display a warning when opening files with older versions
 - Make game load level files up to current AF version
 - Add support for dynamic lights in levels
+- Add `Anchor_Marker` event to allow level designers to anchor dynamic lights, particle emitters, and push regions to movers
 
 
 

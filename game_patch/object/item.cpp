@@ -68,7 +68,6 @@ CodeInjection game_level_init_pre_patch{
     0x00435BDC, [](auto& regs) {
 
         if (!rf::is_multi) {
-            xlog::warn("init powerups");
             rf::multi_powerup_destroy_all();
         }
     }
@@ -76,7 +75,7 @@ CodeInjection game_level_init_pre_patch{
 
 void item_do_patch()
 {
-    // allow picking up powerups in SP - super health and super armour working. amp/invuln TBD
+    // allow picking up powerups in SP
     AsmWriter(0x0045AAFD).jmp(0x0045AB11); // allow item_touch_multi_amp in SP
     AsmWriter(0x0048012B).jmp(0x00480135); // allow multi_powerup_add in SP
     game_level_init_pre_patch.install();   // initialize powerup vars in SP

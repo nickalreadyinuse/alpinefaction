@@ -1086,6 +1086,9 @@ namespace rf
         }
     };
 
+    // id 108
+    struct EventAnchorMarker : Event {}; // no allocations needed
+
     // Do not use this enum for RED - original game events use a different order entirely in RED
     // AF events in RED use the same order, but RED IDs are all 1 less than game IDs
     enum class EventType : int
@@ -1179,7 +1182,7 @@ namespace rf
         Defuse_Nuke,
         When_Life_Reaches,
         When_Armor_Reaches,
-        SetVar, // 90
+        SetVar, // 89
         Clone_Entity,
         Set_Player_World_Collide,
         Switch_Random,
@@ -1196,7 +1199,8 @@ namespace rf
         Goal_Math,
         Goal_Gate,
         Environment_Gate,
-        Inside_Gate
+        Inside_Gate,
+        Anchor_Marker
     };
 
     // int to EventType

@@ -103,4 +103,6 @@ namespace rf
     static auto snd_pc_load_hint = addr_as_ref<int(int handle, bool skip_data_loading, bool is_bluebeard_btz)>(0x00543760);
     static auto snd_pc_is_ds3d_enabled = addr_as_ref<bool()>(0x00544750);
     static auto snd_pc_calculate_pan = addr_as_ref<float(const Vector3& pos)>(0x00543EA0);
+
+    static auto& level_get_ambient_sound_from_uid = addr_as_ref<AmbientSound*(int uid)>(0x0045AFE0);
 }

@@ -4,10 +4,14 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/StaticBufferResizePatch.h>
 #include <xlog/xlog.h>
+#include "../rf/gr/gr_light.h"
+#include "../rf/sound/sound.h"
 #include "../rf/object.h"
 #include "../rf/clutter.h"
 #include "../rf/multi.h"
+#include "../rf/event.h"
 #include "../rf/level.h"
+#include "../rf/particle_emitter.h"
 #include "../rf/geometry.h"
 #include "../rf/math/ix.h"
 #include "object.h"
@@ -219,8 +223,49 @@ CodeInjection object_find_room_optimization{
     },
 };
 
+CodeInjection mover_process_post_patch{
+    0x0046A98C,
+    [](auto& regs) {
+        rf::Object* object = regs.ecx;
+
+        if (object && object->type == rf::OT_EVENT) {
+            rf::Event* event = static_cast<rf::Event*>(object);
+
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker))
+            {            
+                for (const auto& linked_uid : event->links) {
+
+                    // light
+                    rf::gr::Light* light =static_cast<rf::gr::Light*>(
+                        rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)));
+                    if (light) {
+                        light->vec = event->pos;
+                    }
+
+                    // particle emitter
+                    rf::ParticleEmitter* emitter = static_cast<rf::ParticleEmitter*>(
+                        rf::level_get_particle_emitter_from_uid(linked_uid));
+                    if (emitter) {
+                        emitter->pos = event->pos;
+                    }
+
+                    // push region
+                    rf::PushRegion* push_region = static_cast<rf::PushRegion*>(
+                        rf::level_get_push_region_from_uid(linked_uid));
+                    if (push_region) {
+                        push_region->pos = event->pos;
+                    }
+                }
+            }
+        }
+    }
+};
+
 void object_do_patch()
 {
+    // Allow Anchor_Marker events to drag lights, particle emitters, and push regions on movers
+    mover_process_post_patch.install();
+
     // Log error when object cannot be created
     obj_create_hook.install();
 

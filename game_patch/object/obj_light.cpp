@@ -6,7 +6,10 @@
 #include <patch_common/CodeInjection.h>
 #include <common/utils/list-utils.h>
 #include "../misc/misc.h"
+#include "../rf/gr/gr_light.h"
 #include "../rf/object.h"
+#include "../rf/event.h"
+#include "../rf/mover.h"
 #include "../rf/item.h"
 #include "../rf/level.h"
 #include "../rf/clutter.h"

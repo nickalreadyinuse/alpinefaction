@@ -15,7 +15,22 @@ namespace rf
     struct LevelLight;
     struct GeoRegion;
     struct ClimbRegion;
-    struct PushRegion;
+
+    struct PushRegion
+    {
+        int shape;
+        int uid;
+        uint flags_and_turbulence;
+        Vector3 pos;
+        Matrix3 orient;
+        float radius_pow2;
+        Vector3 aabb_min;
+        Vector3 aabb_max;
+        Vector3 vExtents;
+        float strength;
+        bool is_enabled;
+    };
+    static_assert(sizeof(PushRegion) == 0x6C); // original is 0x69 due to 1 byte bool
 
     struct EmitterPair
     {
@@ -86,5 +101,6 @@ namespace rf
 
     static auto& level = addr_as_ref<LevelInfo>(0x00645FD8);
     static auto& level_filename_to_load = addr_as_ref<String>(0x00646140);
+    static auto& level_get_push_region_from_uid = addr_as_ref<PushRegion*(int uid)>(0x0045D6D0);
 
 }
