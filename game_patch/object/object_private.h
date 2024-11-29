@@ -2,6 +2,7 @@
 
 void cutscene_apply_patches();
 void apply_event_patches();
+void apply_alpine_events();
 void glare_patches_patches();
 void apply_weapon_patches();
 void trigger_apply_patches();

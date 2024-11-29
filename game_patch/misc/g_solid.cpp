@@ -487,8 +487,28 @@ CallHook<GSolid_SetAutotexture_Type> set_geo_crater_ppm_hook{
     }
 };
 
+// currently unused
+CallHook<void(rf::GSolid*, rf::GSolid*, rf::GBooleanOperation, bool, rf::Vector3*, rf::Matrix3*, rf::GSolid*,
+    rf::GBooleanOperation, float, float*, bool, rf::Vector3*, rf::Vector3*)> g_boolean_begin_hook{
+    0x00466D9D,
+        [](rf::GSolid* a, rf::GSolid* b, rf::GBooleanOperation op, bool verbose, rf::Vector3* b_pos,
+            rf::Matrix3* b_orient, rf::GSolid* other_solid, rf::GBooleanOperation other_op, float scale,
+            float* other_area, bool propagate_textures, rf::Vector3* a12, rf::Vector3* a13) {
+        
+        xlog::warn("g_boolean_begin hook called: verbose={}, scale={}, propagate_textures={}", verbose, scale, propagate_textures);
+        
+
+        // Call the original function
+        g_boolean_begin_hook.call_target(a, b, op, verbose, b_pos, b_orient, other_solid, other_op, scale, other_area, propagate_textures, a12, a13);
+    },
+};
+
+
 void g_solid_do_patch()
 {
+    // geomod experimental
+    // g_boolean_begin_hook.install();
+
     // Buffer overflows in solid_read
     // Note: Buffer size is 1024 but opcode allows only 1 byte size
     //       What is more important bm_load copies texture name to 32 bytes long buffers

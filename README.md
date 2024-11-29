@@ -61,12 +61,13 @@ Level/mod development:
 * OGG audio support
 * Many new event scripting objects for use crafting logic in maps
 * Support for dynamic lights in maps
+* Support for using dynamic lights, particle emitters, and push regions with movers
 * Removed legacy PS2 compatibility measures that resulted in decreased map performance
 * Access for many hardcoded settings to be customized in mods
 * Support for custom HUDs and translation packs as clientside mods
 * Ability to use custom meshes in multiplayer
 * Enhanced trigger options for multiplayer
-* Full color range lightmaps
+* Full color range lightmaps (removed lightmap clamping)
 * Support for custom BIK videos in mods
 * Many engine geometry and object limits raised or removed
 * Many level editor bug fixes and performance improvements

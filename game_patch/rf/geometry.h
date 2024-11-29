@@ -58,6 +58,18 @@ namespace rf
         FACE_INVISIBLE = 0x2000,
     };
 
+    enum class GBooleanOperation
+    {
+        BOP_ALL = 0x0,
+        BOP_UNION = 0x1,
+        BOP_INTERSECTION = 0x2,
+        BOP_DIFFERENCE = 0x3,
+        BOP_DIFFERENCE_PORTAL = 0x4,
+        BOP_PORTAL = 0x5,
+        BOP_LIQUID = 0x6,
+        BOP_UNION_NONE_FROM_B = 0x7,
+    };
+
     enum DecalFlags
     {
         DF_NEVER_DESTROY = 0x1,

@@ -14,7 +14,15 @@ namespace rf
     struct BoltEmitter;
     struct LevelLight;
     struct GeoRegion;
-    struct ClimbRegion;
+
+    struct ClimbRegion
+    {
+        int type;
+        Vector3 pos;
+        Matrix3 orient;
+        Vector3 extents;
+    };
+    static_assert(sizeof(ClimbRegion) == 0x40);
 
     struct PushRegion
     {
@@ -102,5 +110,7 @@ namespace rf
     static auto& level = addr_as_ref<LevelInfo>(0x00645FD8);
     static auto& level_filename_to_load = addr_as_ref<String>(0x00646140);
     static auto& level_get_push_region_from_uid = addr_as_ref<PushRegion*(int uid)>(0x0045D6D0);
+
+    //ClimbRegion* level_get_climb_region_from_uid(int uid);
 
 }

@@ -231,28 +231,24 @@ CodeInjection mover_process_post_patch{
         if (object && object->type == rf::OT_EVENT) {
             rf::Event* event = static_cast<rf::Event*>(object);
 
-            if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker))
-            {            
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker)) {
                 for (const auto& linked_uid : event->links) {
 
-                    // light
-                    rf::gr::Light* light =static_cast<rf::gr::Light*>(
-                        rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)));
-                    if (light) {
+                    // check for a light
+                    if (auto* light = static_cast<rf::gr::Light*>(
+                            rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)))) {
                         light->vec = event->pos;
                     }
 
-                    // particle emitter
-                    rf::ParticleEmitter* emitter = static_cast<rf::ParticleEmitter*>(
-                        rf::level_get_particle_emitter_from_uid(linked_uid));
-                    if (emitter) {
+                    // check for a particle emitter
+                    if (auto* emitter =
+                            static_cast<rf::ParticleEmitter*>(rf::level_get_particle_emitter_from_uid(linked_uid))) {
                         emitter->pos = event->pos;
                     }
 
-                    // push region
-                    rf::PushRegion* push_region = static_cast<rf::PushRegion*>(
-                        rf::level_get_push_region_from_uid(linked_uid));
-                    if (push_region) {
+                    // check for a push region
+                    if (auto* push_region =
+                            static_cast<rf::PushRegion*>(rf::level_get_push_region_from_uid(linked_uid))) {
                         push_region->pos = event->pos;
                     }
                 }
@@ -327,6 +323,7 @@ void object_do_patch()
     item_do_patch();
     cutscene_apply_patches();
     apply_event_patches();
+    apply_alpine_events(); // Support custom alpine events
     glare_patches_patches();
     apply_weapon_patches();
     trigger_apply_patches();

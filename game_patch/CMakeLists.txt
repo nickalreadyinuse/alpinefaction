@@ -143,9 +143,11 @@ set(SRCS
     os/os.h
     object/object.h
     object/object_private.h
+    object/event_alpine.h
     object/entity.cpp
     object/item.cpp
     object/event.cpp
+    object/event_alpine.cpp
     object/trigger.cpp
     object/weapon.cpp
     object/cutscene.cpp
