@@ -19,76 +19,44 @@
 
 namespace rf
 {
-    // event var handler storage
+    // var handler storage
     std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
         Event::variable_handler_storage = {};
-} // namespace rf
+}
 
 FunHook<int(const rf::String* name)> event_lookup_type_hook{
     0x004BD700,
     [](const rf::String* name) {
-        //xlog::warn("Looking up event with name: {}", name->c_str());
 
-        // Custom event name -> ID assignment
-        if (*name == "SetVar") {
-            return 89;
-        }
-        else if (*name == "Clone_Entity") {
-            return 90;
-        }
-        else if (*name == "Set_Player_World_Collide") {
-            return 91;
-        }
-        else if (*name == "Switch_Random") {
-            return 92;
-        }
-        else if (*name == "Difficulty_Gate") {
-            return 93;
-        }
-        else if (*name == "HUD_Message") {
-            return 94;
-        }
-        else if (*name == "Play_Video") {
-            return 95;
-        }
-        else if (*name == "Set_Level_Hardness") {
-            return 96;
-        }
-        else if (*name == "Sequence") {
-            return 97;
-        }
-        else if (*name == "Clear_Queued") {
-            return 98;
-        }
-        else if (*name == "Remove_Link") {
-            return 99;
-        }
-        else if (*name == "Fixed_Delay") {
-            return 100;
-        }
-        else if (*name == "Add_Link") {
-            return 101;
-        }
-        else if (*name == "Valid_Gate") {
-            return 102;
-        }
-        else if (*name == "Goal_Math") {
-            return 103;
-        }
-        else if (*name == "Goal_Gate") {
-            return 104;
-        }
-        else if (*name == "Environment_Gate") {
-            return 105;
-        }
-        else if (*name == "Inside_Gate") {
-            return 106;
-        }
-        else if (*name == "Anchor_Marker") {
-            return 107;
+        // map of alpine events and corresponding IDs
+        static const std::unordered_map<std::string_view, int> custom_event_ids{
+            {"SetVar", 100},
+            {"Clone_Entity", 101},
+            {"Set_Player_World_Collide", 102},
+            {"Switch_Random", 103},
+            {"Difficulty_Gate", 104},
+            {"HUD_Message", 105},
+            {"Play_Video", 106},
+            {"Set_Level_Hardness", 107},
+            {"Sequence", 108},
+            {"Clear_Queued", 109},
+            {"Remove_Link", 110},
+            {"Fixed_Delay", 111},
+            {"Add_Link", 112},
+            {"Valid_Gate", 113},
+            {"Goal_Math", 114},
+            {"Goal_Gate", 115},
+            {"Environment_Gate", 116},
+            {"Inside_Gate", 117},
+            {"Anchor_Marker", 118},
+        };
+
+        auto it = custom_event_ids.find(name->c_str());
+        if (it != custom_event_ids.end()) {
+            return it->second; // event ID
         }
 
-        // stock events
+        // handle stock events
         return event_lookup_type_hook.call_target(name);
     }
 };
@@ -96,83 +64,41 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
 FunHook<rf::Event*(int event_type)> event_allocate_hook{
     0x004B69D0,
     [](int event_type) {
-        auto allocate_custom_event = [](auto event_ptr_type) -> rf::Event* {
-            using EventType = std::remove_pointer_t<decltype(event_ptr_type)>;
-            auto* memory = operator new(sizeof(EventType));
-            if (!memory) {
-                xlog::error("Failed to allocate memory for event.");
-                return nullptr;
-            }
+        using AllocFunc = std::function<rf::Event*()>;
 
-            auto* custom_event = new (memory) EventType();
-            //xlog::warn("Allocating event: {}", typeid(EventType).name());
-            auto result = static_cast<rf::Event*>(custom_event);
-            result->initialize(); // run init void after creation, var handlers are set here
-            return result;
-            //return static_cast<rf::Event*>(custom_event);
+        // map of allocators
+        static const std::unordered_map<int, AllocFunc> event_allocators{
+            {100, []() { return new rf::EventSetVar(); }},
+            {101, []() { return new rf::EventCloneEntity(); }},
+            {102, []() { return new rf::EventSetCollisionPlayer(); }},
+            {103, []() { return new rf::EventSwitchRandom(); }},
+            {104, []() { return new rf::EventDifficultyGate(); }},
+            {105, []() { return new rf::EventHUDMessage(); }},
+            {106, []() { return new rf::EventPlayVideo(); }},
+            {107, []() { return new rf::EventSetLevelHardness(); }},
+            {108, []() { return new rf::EventSequence(); }},
+            {109, []() { return new rf::EventClearQueued(); }},
+            {110, []() { return new rf::EventRemoveLink(); }},
+            {111, []() { return new rf::EventFixedDelay(); }},
+            {112, []() { return new rf::EventAddLink(); }},
+            {113, []() { return new rf::EventValidGate(); }},
+            {114, []() { return new rf::EventGoalMath(); }},
+            {115, []() { return new rf::EventGoalGate(); }},
+            {116, []() { return new rf::EventEnvironmentGate(); }},
+            {117, []() { return new rf::EventInsideGate(); }},
+            {118, []() { return new rf::EventAnchorMarker(); }},
         };
 
-        switch (event_type) {
-        case 89:
-            return allocate_custom_event(static_cast<rf::EventSetVar*>(nullptr));
-
-        case 90:
-            return allocate_custom_event(static_cast<rf::EventCloneEntity*>(nullptr));
-
-        case 91:
-            return allocate_custom_event(static_cast<rf::EventSetCollisionPlayer*>(nullptr));
-
-        case 92:
-            return allocate_custom_event(static_cast<rf::EventSwitchRandom*>(nullptr));
-
-        case 93:
-            return allocate_custom_event(static_cast<rf::EventDifficultyGate*>(nullptr));
-
-        case 94:
-            return allocate_custom_event(static_cast<rf::EventHUDMessage*>(nullptr));
-
-        case 95:
-            return allocate_custom_event(static_cast<rf::EventPlayVideo*>(nullptr));
-
-        case 96:
-            return allocate_custom_event(static_cast<rf::EventSetLevelHardness*>(nullptr));
-
-        case 97:
-            return allocate_custom_event(static_cast<rf::EventSequence*>(nullptr));
-
-        case 98:
-            return allocate_custom_event(static_cast<rf::EventClearQueued*>(nullptr));
-
-        case 99:
-            return allocate_custom_event(static_cast<rf::EventRemoveLink*>(nullptr));
-
-        case 100:
-            return allocate_custom_event(static_cast<rf::EventFixedDelay*>(nullptr));
-
-        case 101:
-            return allocate_custom_event(static_cast<rf::EventAddLink*>(nullptr));
-
-        case 102:
-            return allocate_custom_event(static_cast<rf::EventValidGate*>(nullptr));
-
-        case 103:
-            return allocate_custom_event(static_cast<rf::EventGoalMath*>(nullptr));
-
-        case 104:
-            return allocate_custom_event(static_cast<rf::EventGoalGate*>(nullptr));
-
-        case 105:
-            return allocate_custom_event(static_cast<rf::EventEnvironmentGate*>(nullptr));
-
-        case 106:
-            return allocate_custom_event(static_cast<rf::EventInsideGate*>(nullptr));
-
-        case 107:
-            return allocate_custom_event(static_cast<rf::EventAnchorMarker*>(nullptr));
-
-        default: // stock events
-            return event_allocate_hook.call_target(event_type);
+        // find type and allocate
+        auto it = event_allocators.find(event_type);
+        if (it != event_allocators.end()) {
+            auto* event = it->second();
+            event->initialize();
+            return event;
         }
+
+        // handle stock events
+        return event_allocate_hook.call_target(event_type);
     }
 };
 
@@ -182,346 +108,245 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
         if (!eventp)
             return;
 
-        int event_type = eventp->event_type;
-        //xlog::warn("Deallocating event ID: {}", event_type);
+        // map of deallocators
+        static const std::unordered_map<int, std::function<void(rf::Event*)>> event_deallocators{
+            {100, [](rf::Event* e) { delete static_cast<rf::EventSetVar*>(e); }},
+            {101, [](rf::Event* e) { delete static_cast<rf::EventCloneEntity*>(e); }},
+            {102, [](rf::Event* e) { delete static_cast<rf::EventSetCollisionPlayer*>(e); }},
+            {103, [](rf::Event* e) { delete static_cast<rf::EventSwitchRandom*>(e); }},
+            {104, [](rf::Event* e) { delete static_cast<rf::EventDifficultyGate*>(e); }},
+            {105, [](rf::Event* e) { delete static_cast<rf::EventHUDMessage*>(e); }},
+            {106, [](rf::Event* e) { delete static_cast<rf::EventPlayVideo*>(e); }},
+            {107, [](rf::Event* e) { delete static_cast<rf::EventSetLevelHardness*>(e); }},
+            {108, [](rf::Event* e) { delete static_cast<rf::EventSequence*>(e); }},
+            {109, [](rf::Event* e) { delete static_cast<rf::EventClearQueued*>(e); }},
+            {110, [](rf::Event* e) { delete static_cast<rf::EventRemoveLink*>(e); }},
+            {111, [](rf::Event* e) { delete static_cast<rf::EventFixedDelay*>(e); }},
+            {112, [](rf::Event* e) { delete static_cast<rf::EventAddLink*>(e); }},
+            {113, [](rf::Event* e) { delete static_cast<rf::EventValidGate*>(e); }},
+            {114, [](rf::Event* e) { delete static_cast<rf::EventGoalMath*>(e); }},
+            {115, [](rf::Event* e) { delete static_cast<rf::EventGoalGate*>(e); }},
+            {116, [](rf::Event* e) { delete static_cast<rf::EventEnvironmentGate*>(e); }},
+            {117, [](rf::Event* e) { delete static_cast<rf::EventInsideGate*>(e); }},
+            {118, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarker*>(e); }},
+        };
 
-        // Handle custom event types
-        switch (event_type) {
-        case 89: {
-            auto* custom_event = static_cast<rf::EventSetVar*>(eventp);
-            delete custom_event;
-            return;
+        // find type and deallocate
+        auto it = event_deallocators.find(eventp->event_type);
+        if (it != event_deallocators.end()) {
+            // call deallocator
+            it->second(eventp);
         }
-
-        case 90: {
-            auto* custom_event = static_cast<rf::EventCloneEntity*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 91: {
-            auto* custom_event = static_cast<rf::EventSetCollisionPlayer*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 92: {
-            auto* custom_event = static_cast<rf::EventSwitchRandom*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 93: {
-            auto* custom_event = static_cast<rf::EventDifficultyGate*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 94: {
-            auto* custom_event = static_cast<rf::EventHUDMessage*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 95: {
-            auto* custom_event = static_cast<rf::EventPlayVideo*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 96: {
-            auto* custom_event = static_cast<rf::EventSetLevelHardness*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 97: {
-            auto* custom_event = static_cast<rf::EventSequence*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 98: {
-            auto* custom_event = static_cast<rf::EventClearQueued*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 99: {
-            auto* custom_event = static_cast<rf::EventRemoveLink*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 100: {
-            auto* custom_event = static_cast<rf::EventFixedDelay*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 101: {
-            auto* custom_event = static_cast<rf::EventAddLink*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 102: {
-            auto* custom_event = static_cast<rf::EventValidGate*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 103: {
-            auto* custom_event = static_cast<rf::EventGoalMath*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 104: {
-            auto* custom_event = static_cast<rf::EventGoalGate*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 105: {
-            auto* custom_event = static_cast<rf::EventEnvironmentGate*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 106: {
-            auto* custom_event = static_cast<rf::EventInsideGate*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        case 107: {
-            auto* custom_event = static_cast<rf::EventAnchorMarker*>(eventp);
-            delete custom_event;
-            return;
-        }
-
-        default: // stock events
+        else {
+            // handle stock events
             event_deallocate_hook.call_target(eventp);
-            break;
         }
     }
 };
 
-// alpine events that don't forward messages by default
-static const std::unordered_set<rf::EventType> forward_exempt_ids = {
-    rf::EventType::SetVar,
-    rf::EventType::Switch_Random,
-    rf::EventType::Difficulty_Gate,
-    rf::EventType::Sequence,
-    rf::EventType::Clear_Queued,
-    rf::EventType::Remove_Link,
-    rf::EventType::Add_Link,
-    rf::EventType::Valid_Gate,
-    rf::EventType::Goal_Gate,
-    rf::EventType::Environment_Gate,
-    rf::EventType::Inside_Gate
-};
+// decide if an event type forwards messages
+bool is_forward_exempt(rf::EventType event_type) {
+    static const std::unordered_set<rf::EventType> forward_exempt_ids{
+        rf::EventType::SetVar,
+        rf::EventType::Switch_Random,
+        rf::EventType::Difficulty_Gate,
+        rf::EventType::Sequence,
+        rf::EventType::Clear_Queued,
+        rf::EventType::Remove_Link,
+        rf::EventType::Add_Link,
+        rf::EventType::Valid_Gate,
+        rf::EventType::Goal_Gate,
+        rf::EventType::Environment_Gate,
+        rf::EventType::Inside_Gate
+    };
 
-// decide if a specific event type should forward messages
+    return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
+}
+
 CodeInjection event_type_forwards_messages_patch{
     0x004B8C44, [](auto& regs) {
         auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
-        auto& result = regs.al;
 
-        // Check if the event type is in forward_exempt_ids
-        if (forward_exempt_ids.find(event_type) != forward_exempt_ids.end()) {
-            result = false;
-            regs.eip = 0x004B8C5D;  // Jump to the address after the check
+        // stock events handled by original code
+        if (is_forward_exempt(event_type)) {
+            regs.al = false;
+            regs.eip = 0x004B8C5D;
         }
     }
 };
 
-// factory for SetVar events
-rf::EventSetVar* event_setvar_create(const rf::Vector3* pos, std::string script_name, std::string str1)
-{
-    rf::Event* base_event = rf::event_create(pos, 89);
-    rf::EventSetVar* event = dynamic_cast<rf::EventSetVar*>(base_event);
+using EventFactory = std::function<rf::Event*(const rf::EventCreateParams&)>;
 
-    if (event) {
-        // var_name
-        const std::string_view prefix = "SetVar_";
-        if (script_name.starts_with(prefix)) {
-            event->var_name = script_name.substr(prefix.size());
+static std::unordered_map<int, EventFactory> event_factories{
+    // SetVar Event
+    {
+        100, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 100);
+            auto* event = dynamic_cast<rf::EventSetVar*>(base_event);
+            if (event) {
+                xlog::warn("setvar");
+                const std::string_view prefix = "SetVar_";
+                if (params.script_name.starts_with(prefix)) {
+                    event->var_name = params.script_name.substr(prefix.size());
+                }
+                event->var_value = params.str1;
+            }
+            return event;
         }
-
-        // var_value
-        if (!str1.empty()) {
-            event->var_value = str1;
+    },
+    // Difficulty Gate Event
+    {
+        104, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 104);
+            auto* event = dynamic_cast<rf::EventDifficultyGate*>(base_event);
+            if (event) {
+                event->difficulty = static_cast<rf::GameDifficultyLevel>(params.int1);
+            }
+            return event;
         }
-    }
+    },
+    // HUD Message Event
+    {
+        105, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 105);
+            auto* event = dynamic_cast<rf::EventHUDMessage*>(base_event);
+            if (event) {
+                event->message = params.str1;
+            }
+            return event;
+        }
+    },
+    // Play Video Event
+    {
+        106, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 106);
+            auto* event = dynamic_cast<rf::EventPlayVideo*>(base_event);
+            if (event) {
+                event->filename = params.str1;
+            }
+            return event;
+        }
+    },
+    // Set Level Hardness Event
+    {
+        107, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 107);
+            auto* event = dynamic_cast<rf::EventSetLevelHardness*>(base_event);
+            if (event) {
+                event->hardness = params.int1;
+            }
+            return event;
+        }
+    },
+    // Remove Link Event
+    {
+        110, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 110);
+            auto* event = dynamic_cast<rf::EventRemoveLink*>(base_event);
+            if (event) {
+                event->remove_all = params.bool1;
+            }
+            return event;
+        }
+    },
+    // Valid Gate Event
+    {
+        113, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 113);
+            auto* event = dynamic_cast<rf::EventValidGate*>(base_event);
+            if (event) {
+                event->check_uid = params.int1;
+            }
+            return event;
+        }
+    },
+    // Goal Math Event
+    {
+        114, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 114);
+            auto* event = dynamic_cast<rf::EventGoalMath*>(base_event);
+            if (event) {
+                event->goal = params.str1;
+                event->operation = params.str2;
+                event->value = params.int1;
+                event->value2 = params.int2;
+            }
+            return event;
+        }
+    },
+    // Goal Gate Event
+    {
+        115, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 115);
+            auto* event = dynamic_cast<rf::EventGoalGate*>(base_event);
+            if (event) {
+                event->goal = params.str1;
+                event->test_type = params.str2;
+                event->value = params.int1;
+                event->value2 = params.int2;
+            }
+            return event;
+        }
+    },
+    // Environment Gate Event
+    {
+        116, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 116);
+            auto* event = dynamic_cast<rf::EventEnvironmentGate*>(base_event);
+            if (event) {
+                event->environment = params.str1;
+            }
+            return event;
+        }
+    },
+    // Inside Gate Event
+    {
+        117, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 117);
+            auto* event = dynamic_cast<rf::EventInsideGate*>(base_event);
+            if (event) {
+                event->check_uid = params.int1;
+            }
+            return event;
+        }
+    },
+    // Anchor Marker Event (no custom logic)
+    /* {
+        118, [](const rf::EventCreateParams& params) {
+            return rf::event_create(params.pos, 118);
+        }
+    }*/
+};
 
-    return event;
-}
-
-// factory for Difficulty_Gate events
-rf::EventDifficultyGate* event_difficulty_gate_create(const rf::Vector3* pos, int difficulty)
+rf::Event* create_event(int event_type, const rf::EventCreateParams& params)
 {
-    rf::Event* base_event = rf::event_create(pos, 93);
-    rf::EventDifficultyGate* event = dynamic_cast<rf::EventDifficultyGate*>(base_event);
-
-    if (event) {
-        // set difficulty
-        event->difficulty = static_cast<rf::GameDifficultyLevel>(difficulty);
+    auto it = event_factories.find(event_type);
+    if (it != event_factories.end()) {
+        return it->second(params);
     }
-
-    return event;
-}
-
-// factory for HUD_Message events
-rf::EventHUDMessage* event_hud_message_create(const rf::Vector3* pos, std::string message)
-{
-    rf::Event* base_event = rf::event_create(pos, 94);
-    rf::EventHUDMessage* event = dynamic_cast<rf::EventHUDMessage*>(base_event);
-
-    if (event) {
-        // set message
-        event->message = message;
-    }
-
-    return event;
-}
-
-// factory for Play_Video events
-rf::EventPlayVideo* event_play_video_create(const rf::Vector3* pos, std::string filename)
-{
-    rf::Event* base_event = rf::event_create(pos, 95);
-    rf::EventPlayVideo* event = dynamic_cast<rf::EventPlayVideo*>(base_event);
-
-    if (event) {
-        // set filename
-        event->filename = filename;
-    }
-
-    return event;
-}
-
-// factory for Set_Level_Hardness events
-rf::EventSetLevelHardness* event_set_level_hardness_create(const rf::Vector3* pos, int hardness)
-{
-    rf::Event* base_event = rf::event_create(pos, 96);
-    rf::EventSetLevelHardness* event = dynamic_cast<rf::EventSetLevelHardness*>(base_event);
-
-    if (event) {
-        // set hardness
-        event->hardness = hardness;
-    }
-
-    return event;
-}
-
-// factory for Remove_Link events
-rf::EventRemoveLink* event_remove_link_create(const rf::Vector3* pos, bool remove_all)
-{
-    rf::Event* base_event = rf::event_create(pos, 99);
-    rf::EventRemoveLink* event = dynamic_cast<rf::EventRemoveLink*>(base_event);
-
-    if (event) {
-        // set remove_all
-        event->remove_all = remove_all;
-    }
-
-    return event;
-}
-
-// factory for Valid_Gate events
-rf::EventValidGate* event_valid_gate_create(const rf::Vector3* pos, int check_uid)
-{
-    rf::Event* base_event = rf::event_create(pos, 102);
-    rf::EventValidGate* event = dynamic_cast<rf::EventValidGate*>(base_event);
-
-    if (event) {
-        // set check_uid
-        event->check_uid = check_uid;
-    }
-
-    return event;
-}
-
-// factory for Goal_Math events
-rf::EventGoalMath* event_goal_math_create(
-    const rf::Vector3* pos, std::string goal, std::string operation, int value, int value2)
-{
-    rf::Event* base_event = rf::event_create(pos, 103);
-    rf::EventGoalMath* event = dynamic_cast<rf::EventGoalMath*>(base_event);
-
-    if (event) {
-        event->goal = goal;
-        event->operation = operation;
-        event->value = value;
-        event->value2 = value2;
-    }
-
-    return event;
-}
-
-// factory for Goal_Gate events
-rf::EventGoalGate* event_goal_gate_create(
-    const rf::Vector3* pos, std::string goal, std::string test_type, int value, int value2)
-{
-    rf::Event* base_event = rf::event_create(pos, 104);
-    rf::EventGoalGate* event = dynamic_cast<rf::EventGoalGate*>(base_event);
-
-    if (event) {
-        event->goal = goal;
-        event->test_type = test_type;
-        event->value = value;
-        event->value2 = value2;
-    }
-
-    return event;
-}
-
-// factory for Environment_Gate events
-rf::EventEnvironmentGate* event_environment_gate_create(const rf::Vector3* pos, std::string environment)
-{
-    rf::Event* base_event = rf::event_create(pos, 105);
-    rf::EventEnvironmentGate* event = dynamic_cast<rf::EventEnvironmentGate*>(base_event);
-
-    if (event) {
-        // set environment
-        event->environment = environment;
-    }
-
-    return event;
-}
-
-// factory for Inside_Gate events
-rf::EventInsideGate* event_inside_gate_create(const rf::Vector3* pos, int check_uid)
-{
-    rf::Event* base_event = rf::event_create(pos, 106);
-    rf::EventInsideGate* event = dynamic_cast<rf::EventInsideGate*>(base_event);
-
-    if (event) {
-        // set check_uid
-        event->check_uid = check_uid;
-    }
-
-    return event;
+    // Default fallback for unsupported events
+    return rf::event_create(params.pos, event_type);
 }
 
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
         int event_type = static_cast<int>(regs.ebp);
-
-        if (event_type > 88) { // only handle AF events, stock events handled by original code
+        xlog::warn("attempting to make id {}", event_type);
+        if (event_type >= 100) { // only handle AF events, stock events handled by original code
+            xlog::warn("2attempting to make id {}", event_type);
             rf::Vector3* pos = regs.edx;
-            // Note: we don't need to handle delay - later part of level_read_events handles that
 
-            // accessible event parameters
-            rf::String* class_name = reinterpret_cast<rf::String*>(regs.esp + 0x5C);
-            rf::String* script_name = reinterpret_cast<rf::String*>(regs.esp + 0x54);
-            rf::String* str1 = reinterpret_cast<rf::String*>(regs.esp + 0x44);
-            rf::String* str2 = reinterpret_cast<rf::String*>(regs.esp + 0x4C);
-            int int1 = *reinterpret_cast<int*>(regs.esp - 0x24);
-            int int2 = *reinterpret_cast<int*>(regs.esp - 0x18);
-            bool bool1 = *reinterpret_cast<int*>(regs.esp + 0x18);
+            rf::EventCreateParams params{
+                pos,
+                *reinterpret_cast<rf::String*>(regs.esp + 0x5C), // class_name
+                *reinterpret_cast<rf::String*>(regs.esp + 0x54), // script_name
+                *reinterpret_cast<rf::String*>(regs.esp + 0x44), // str1
+                *reinterpret_cast<rf::String*>(regs.esp + 0x4C), // str2
+                *reinterpret_cast<int*>(regs.esp - 0x24),        // int1
+                *reinterpret_cast<int*>(regs.esp - 0x18),        // int2
+                *reinterpret_cast<bool*>(regs.esp + 0x18)        // bool1
+            };
 
             /* for (uintptr_t offset = 0x00; offset <= 0x500; offset += 4) {
                 uintptr_t current_address = regs.esp - 0x100 + offset;
@@ -537,73 +362,14 @@ CodeInjection level_read_events_patch {
                 }
             }*/
 
-            xlog::warn(
-                "Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, int2: {}, bool1: {}",
-                event_type, class_name->c_str(), script_name->c_str(), str1->c_str(), str2->c_str(), int1, int2, bool1);
+            xlog::warn("Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, "
+                       "int2: {}, bool1: {}",
+                       event_type, params.class_name, params.script_name, params.str1, params.str2, params.int1,
+                       params.int2, params.bool1);
 
 
-            switch (event_type) {
-                case 89: { // SetVar
-                    rf::Event* this_event = event_setvar_create(pos, script_name->c_str(), str1->c_str());
-                    regs.eax = this_event; // set eax to created event so level_read_events can continue to use it
-                    break;
-                }
-                case 93: { // Difficulty_Gate
-                    rf::Event* this_event = event_difficulty_gate_create(pos, int1);
-                    regs.eax = this_event;
-                    break;
-                }
-                case 94: { // HUD_Message
-                    rf::Event* this_event = event_hud_message_create(pos, str1->c_str());
-                    regs.eax = this_event;
-                    break;
-                }
-                case 95: { // Play_Video
-                    rf::Event* this_event = event_play_video_create(pos, str1->c_str());
-                    regs.eax = this_event;
-                    break;
-                }
-                case 96: { // Set_Level_Hardness
-                    rf::Event* this_event = event_set_level_hardness_create(pos, int1);
-                    regs.eax = this_event;
-                    break;
-                }
-                case 99: { // Remove_Link
-                    rf::Event* this_event = event_remove_link_create(pos, bool1);
-                    regs.eax = this_event;
-                    break;
-                }
-                case 102: { // Valid_Gate
-                    rf::Event* this_event = event_valid_gate_create(pos, int1);
-                    regs.eax = this_event;
-                    break;
-                }
-                case 103: { // Goal_Math
-                    rf::Event* this_event = event_goal_math_create(pos, str1->c_str(), str2->c_str(), int1, int2);
-                    regs.eax = this_event;
-                    break;
-                }
-                case 104: { // Goal_Gate
-                    rf::Event* this_event = event_goal_gate_create(pos, str1->c_str(), str2->c_str(), int1, int2);
-                    regs.eax = this_event;
-                    break;
-                }
-                case 105: { // Environment_Gate
-                    rf::Event* this_event = event_environment_gate_create(pos, str1->c_str());
-                    regs.eax = this_event;
-                    break;
-                }
-                case 106: { // Inside_Gate
-                    rf::Event* this_event = event_inside_gate_create(pos, int1);
-                    regs.eax = this_event;
-                    break;
-                }
-                default: { // fallback for AF events that don't need specific factories (no configurable params)
-                    rf::Event* this_event = rf::event_create(pos, event_type);
-                    regs.eax = this_event;
-                    break;
-                }
-            }
+            auto* this_event = create_event(event_type, params);
+            regs.eax = this_event; // Set EAX to created event so level_read_events can continue to use it
 
             regs.eip = 0x00462915; // made the event, set stack pointer after jump table
         }

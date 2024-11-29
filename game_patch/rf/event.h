@@ -147,11 +147,11 @@ namespace rf
     static auto& event_find_named_event = addr_as_ref<GenericEvent*(String* name)>(0x004BD740);
     static auto& event_lookup_persistent_goal_event = addr_as_ref<PersistentGoalEvent*(const char* name)>(0x004B8680);
 
-    // Do not use this enum for RED - original game events use a different order entirely in RED
-    // AF events in RED use the same order, but RED IDs are all 1 less than game IDs
+    // applies only to game, not level editor
+    // original game events use a different order entirely in level editor, AF events in RED use the same
     enum class EventType : int
     {
-        Play_Sound,
+        Play_Sound, // 0
         Slay_Object,
         Remove_Object,
         Invert,
@@ -240,7 +240,9 @@ namespace rf
         Defuse_Nuke,
         When_Life_Reaches,
         When_Armor_Reaches,
-        SetVar, // 89
+        Reverse_Mover, // 89
+        // 90 - 99 unused
+        SetVar = 100, // alpine events begin at type 100
         Clone_Entity,
         Set_Player_World_Collide,
         Switch_Random,

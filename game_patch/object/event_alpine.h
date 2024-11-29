@@ -19,6 +19,20 @@
 
 namespace rf
 {
+
+    struct EventCreateParams
+    {
+        const rf::Vector3* pos;
+        std::string class_name;
+        std::string script_name;
+        std::string str1;
+        std::string str2;
+        int int1;
+        int int2;
+        bool bool1;
+        // should support bool2, float1, float2, etc. eventually
+    };
+
     // start alpine event structs
     // id 90
     struct EventSetVar : Event

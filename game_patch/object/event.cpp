@@ -313,9 +313,9 @@ CodeInjection trigger_activate_linked_objects_patch{
         xlog::warn("triggered event name: {}, uid: {}, type: {}", event->name, event->uid, event->event_type);
 
         // original code does not allow triggers to activate events in multiplayer
-        // on AF, this is limited to a blocked list of events that would be problematic in multiplayer
+        // on AF levels, this is limited to a blocked list of events that would be problematic in multiplayer
 
-        if (1==1 || af_rfl_version(rf::level.version)) {
+        if (af_rfl_version(rf::level.version)) {
             if (multiplayer_blocked_event_types.find(static_cast<rf::EventType>(event->event_type)) ==
                 multiplayer_blocked_event_types.end()) {
                 regs.eip = 0x004C03C2; // allow activation if not in blocklist

@@ -572,6 +572,40 @@ struct VFile
 };
 static_assert(sizeof(VFile) == 0x114);
 
+// level editor alpine event IDs, separate from EventType in game
+enum class AlpineDedEventID : int
+{
+    SetVar = 89,
+    Clone_Entity,
+    Set_Player_World_Collide,
+    Switch_Random,
+    Difficulty_Gate,
+    HUD_Message,
+    Play_Video,
+    Set_Level_Hardness,
+    Sequence,
+    Clear_Queued,
+    Remove_Link,
+    Fixed_Delay,
+    Add_Link,
+    Valid_Gate,
+    Goal_Math,
+    Goal_Gate,
+    Environment_Gate,
+    Inside_Gate,
+    Anchor_Marker
+};
+
+constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept
+{
+    return static_cast<int>(event_id);
+}
+
+constexpr AlpineDedEventID int_to_af_ded_event(int event_id) noexcept
+{
+    return static_cast<AlpineDedEventID>(event_id);
+}
+
 bool get_is_saving_af_version();
 
 // console is still broken

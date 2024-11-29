@@ -592,57 +592,27 @@ CodeInjection get_event_type_redirect_event_names{
 CodeInjection open_event_properties_patch{
     0x00408D6D, [](auto& regs) {
         using namespace asm_regs;
-        // NOTE: all event IDs in editor are 1 less than event IDs in the game
         int event_type = static_cast<int>(regs.ecx);
 
-        if (event_type > 88) {
-            int template_id = 192; // default template
+        if (event_type > 88) { // only affect alpine events
+            static const std::unordered_map<int, int> event_to_template_map = {
+                {af_ded_event_to_int(AlpineDedEventID::SetVar), 257},
+                {af_ded_event_to_int(AlpineDedEventID::Difficulty_Gate), 311},
+                {af_ded_event_to_int(AlpineDedEventID::HUD_Message), 257},
+                {af_ded_event_to_int(AlpineDedEventID::Play_Video), 257},
+                {af_ded_event_to_int(AlpineDedEventID::Set_Level_Hardness), 311},
+                {af_ded_event_to_int(AlpineDedEventID::Remove_Link), 291},
+                {af_ded_event_to_int(AlpineDedEventID::Valid_Gate), 311},
+                {af_ded_event_to_int(AlpineDedEventID::Goal_Math), 251},
+                {af_ded_event_to_int(AlpineDedEventID::Goal_Gate), 251},
+                {af_ded_event_to_int(AlpineDedEventID::Environment_Gate), 257},
+                {af_ded_event_to_int(AlpineDedEventID::Inside_Gate), 311}
+            };
 
-            switch (event_type) {
-
-                case 89: // SetVar
-                    template_id = 257;
-                    break;
-
-                case 93: // Difficulty_Gate
-                    template_id = 311;
-                    break;
-
-                case 94: // HUD_Message
-                    template_id = 257;
-                    break;
-
-                case 95: // Play_Video
-                    template_id = 257;
-                    break;
-
-                case 96: // Set_Level_Hardness
-                    template_id = 311;
-                    break;
-
-                case 99: // Remove_Link
-                    template_id = 291;
-                    break;
-
-                case 102: // Valid_Gate
-                    template_id = 311;
-                    break;
-
-                case 103: // Goal_Math
-                    template_id = 251;
-                    break;
-
-                case 104: // Goal_Gate
-                    template_id = 251;
-                    break;
-
-                case 105: // Environment_Gate
-                    template_id = 257;
-                    break;
-
-                case 106: // Inside_Gate
-                    template_id = 311;
-                    break;
+            int template_id = 192; // default for alpine events without unique params
+            auto it = event_to_template_map.find(event_type);
+            if (it != event_to_template_map.end()) {
+                template_id = it->second;
             }
 
             xlog::info("Using template ID {} for event type {}", template_id, event_type);
@@ -667,127 +637,51 @@ CodeInjection open_event_properties_internal_patch{
             return;
         }
 
-        // debug logging
-        /* xlog::warn("DedEvent pointer address: {:#x}", reinterpret_cast<uintptr_t>(event));
-        xlog::warn(
-            "DedEvent: type={}, delay={}, int1={}, int2={}, float1={}, float2={}, bool1={}, bool2={}, str1={}, str2={}",
-            event->event_type, event->delay, event->int1, event->int2, event->float1, event->float2, event->bool1,
-            event->bool2, event->str1.c_str(), event->str2.c_str());
-        xlog::warn("template_id value: {}", template_id);*/
+        static const std::unordered_map<int, std::function<void(CEventDialog*, DedEvent*)>> handlers{
+            {af_ded_event_to_int(AlpineDedEventID::SetVar), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Difficulty_Gate), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::HUD_Message), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Play_Video), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Set_Level_Hardness), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Remove_Link), [](CEventDialog* dialog, DedEvent* event) {
+                dialog->field_14F4 = event->bool1;
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Valid_Gate), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Inside_Gate), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Goal_Math), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_15E8[0]).operator=(std::to_string(event->int1).c_str());
+                reinterpret_cast<CString&>(dialog->field_15E8[1]).operator=(std::to_string(event->int2).c_str());
+                reinterpret_cast<CString&>(dialog->field_16E0[0]).operator=(event->str1.cstr());
+                reinterpret_cast<CString&>(dialog->field_16E0[1]).operator=(event->str2.cstr());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Goal_Gate), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_15E8[0]).operator=(std::to_string(event->int1).c_str());
+                reinterpret_cast<CString&>(dialog->field_15E8[1]).operator=(std::to_string(event->int2).c_str());
+                reinterpret_cast<CString&>(dialog->field_16E0[0]).operator=(event->str1.cstr());
+                reinterpret_cast<CString&>(dialog->field_16E0[1]).operator=(event->str2.cstr());
+            }},
+            {af_ded_event_to_int(AlpineDedEventID::Environment_Gate), [](CEventDialog* dialog, DedEvent* event) {
+                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
+            }}
+        };
 
-        // SetVar, template 257
-        if (event->event_type == 89) {
-            const char* str1 = event->str1.cstr();
-            char* field_1724_offset = &dialog->field_1724[804]; // treat field_1724 as a CString starting at offset 804
-            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
-
-            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
-
-            regs.eip = 0x00408131;
-        }
-
-        // Difficulty_Gate, template 311
-        if (event->event_type == 93) {
-            int int_value = event->int1;
-            char int_as_str[32];
-            std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
-            reinterpret_cast<CString*>(&dialog->field_1724[3140])->operator=(int_as_str);
-
-            const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
-            xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
-
-            regs.eip = 0x00408131;
-        }
-
-        // HUD_Message, template 257
-        if (event->event_type == 94) {
-            const char* str1 = event->str1.cstr();            
-            char* field_1724_offset = &dialog->field_1724[804];
-            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
-
-            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
-
-            regs.eip = 0x00408131;
-        }
-
-        // Play_Video, template 257
-        if (event->event_type == 95) {
-            const char* str1 = event->str1.cstr();
-            char* field_1724_offset = &dialog->field_1724[804];
-            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
-
-            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
-
-            regs.eip = 0x00408131;
-        }
-
-        // Set_Level_Hardness, template 311
-        if (event->event_type == 96) {
-            int int_value = event->int1;
-            char int_as_str[32];
-            std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
-            reinterpret_cast<CString*>(&dialog->field_1724[3140])->operator=(int_as_str);
-
-            const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
-            xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
-
-            regs.eip = 0x00408131;
-        }
-
-        // Remove_Link, template 291
-        if (event->event_type == 99) {
-
-            dialog->field_14F4 = event->bool1;
-
-            xlog::info("Assigned field_14F4: {}", dialog->field_14F4);
-
-            regs.eip = 0x00408131;
-        }
-
-        // Valid_Gate and Inside_Gate, template 311
-        if (event->event_type == 102 || event->event_type == 106) {
-            int int_value = event->int1;
-            char int_as_str[32];
-            std::snprintf(int_as_str, sizeof(int_as_str), "%d", int_value);
-            reinterpret_cast<CString*>(&dialog->field_1724[3140])->operator=(int_as_str);
-
-            const char* assigned_str = reinterpret_cast<CString*>(&dialog->field_1724[3140])->c_str();
-            xlog::warn("Assigned int1 to field_1724[3140]: {}", assigned_str);
-
-            regs.eip = 0x00408131;
-        }
-
-        // Goal_Math and Goal_Gate, template 251
-        if (event->event_type == 103 || event->event_type == 104) {
-            int int1_value = event->int1;
-            int int2_value = event->int2;
-
-            char int1_as_str[32];
-            char int2_as_str[32];
-
-            std::snprintf(int1_as_str, sizeof(int1_as_str), "%d", int1_value);
-            std::snprintf(int2_as_str, sizeof(int2_as_str), "%d", int2_value);
-
-            reinterpret_cast<CString*>(&dialog->field_15E8[0])->operator=(int1_as_str);
-            reinterpret_cast<CString*>(&dialog->field_15E8[1])->operator=(int2_as_str);
-
-            const char* str1_value = event->str1.cstr();
-            const char* str2_value = event->str2.cstr();
-
-            reinterpret_cast<CString*>(&dialog->field_16E0[0])->operator=(str1_value);
-            reinterpret_cast<CString*>(&dialog->field_16E0[1])->operator=(str2_value);
-
-            regs.eip = 0x00408131;
-        }
-
-        // Environment_Gate, template 257
-        if (event->event_type == 105) {
-            const char* str1 = event->str1.cstr();
-            char* field_1724_offset = &dialog->field_1724[804];
-            reinterpret_cast<CString*>(field_1724_offset)->operator=(str1);
-
-            const char* assigned_value = reinterpret_cast<CString*>(field_1724_offset)->c_str();
-
+        auto it = handlers.find(event->event_type);
+        if (it != handlers.end()) {
+            it->second(dialog, event);
             regs.eip = 0x00408131;
         }
     }
@@ -807,146 +701,74 @@ CodeInjection open_event_properties_internal_patch2{
             return;
         }
 
-        // SetVar, template 257
-        if (event->event_type == 89) {
-            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
-
-            if (!str1_field_value || strlen(str1_field_value) == 0) {
-                xlog::error("field is empty or null");
+        auto assign_field = [](auto& dialog_field, auto& event_field, auto convert) {
+            const char* field_value = reinterpret_cast<const CString*>(&dialog_field)->c_str();
+            if (field_value && strlen(field_value) > 0) {
+                convert(event_field, field_value);
             }
             else {
-                event->str1.assign_0(str1_field_value);
-                xlog::warn("str1 after assign: {}", event->str1.cstr());
+                xlog::error("Field is empty or null");
             }
+        };
 
-            regs.eip = 0x00408A79;
-        }
+        auto assign_to_vstring = [](VString& vstring_field, const char* value) { vstring_field.assign_0(value); };
 
-        // Difficulty_Gate, template 311
-        if (event->event_type == 93) {
-            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
+        auto assign_to_int = [](int& int_field, const char* value) { int_field = std::atoi(value); };
 
-            if (!int1_field_value || strlen(int1_field_value) == 0) {
-                xlog::error("field is empty or null");
-            }
-            else {
-                event->int1 = std::atoi(int1_field_value);
-                xlog::warn("int1 after assign: {}", event->int1);
-            }
+        static const std::unordered_map<int, std::function<void(CEventDialog*, DedEvent*)>> handlers{
+            {af_ded_event_to_int(AlpineDedEventID::SetVar),
+             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Difficulty_Gate),
+             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::HUD_Message),
+             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Play_Video),
+             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Set_Level_Hardness),
+             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Remove_Link),
+             [](CEventDialog* dialog, DedEvent* event) { event->bool1 = dialog->field_14F4 != 0; }},
+            {af_ded_event_to_int(AlpineDedEventID::Valid_Gate),
+             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Inside_Gate),
+             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Goal_Math),
+             [&assign_field, &assign_to_int, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_15E8[0], event->int1, assign_to_int);
+                 assign_field(dialog->field_15E8[1], event->int2, assign_to_int);
+                 assign_field(dialog->field_16E0[0], event->str1, assign_to_vstring);
+                 assign_field(dialog->field_16E0[1], event->str2, assign_to_vstring);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Goal_Gate),
+             [&assign_field, &assign_to_int, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_15E8[0], event->int1, assign_to_int);
+                 assign_field(dialog->field_15E8[1], event->int2, assign_to_int);
+                 assign_field(dialog->field_16E0[0], event->str1, assign_to_vstring);
+                 assign_field(dialog->field_16E0[1], event->str2, assign_to_vstring);
+             }},
+            {af_ded_event_to_int(AlpineDedEventID::Environment_Gate),
+             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
+                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
+             }}
+        };
 
-            regs.eip = 0x00408A79;
-        }
-
-        // HUD_Message, template 257
-        if (event->event_type == 94) {
-            // Treat the field_1724 at offset 804 as a CString
-            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
-
-            if (!str1_field_value || strlen(str1_field_value) == 0) {
-                xlog::error("field is empty or null");
-            }
-            else {
-                event->str1.assign_0(str1_field_value);
-                xlog::warn("str1 after assign: {}", event->str1.cstr());
-            }
-
-            regs.eip = 0x00408A79;
-        }
-
-        // Play_Video, template 257
-        if (event->event_type == 95) {
-            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
-
-            if (!str1_field_value || strlen(str1_field_value) == 0) {
-                xlog::error("field is empty or null");
-            }
-            else {
-                event->str1.assign_0(str1_field_value);
-                xlog::warn("str1 after assign: {}", event->str1.cstr());
-            }
-
-            regs.eip = 0x00408A79;
-        }
-
-        // Set_Level_Hardness, template 311
-        if (event->event_type == 96) {
-            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
-
-            if (!int1_field_value || strlen(int1_field_value) == 0) {
-                xlog::error("field is empty or null");
-            }
-            else {
-                event->int1 = std::atoi(int1_field_value);
-                xlog::warn("int1 after assign: {}", event->int1);
-            }
-
-            regs.eip = 0x00408A79;
-        }
-
-        // Remove_Link, template 291
-        if (event->event_type == 99) {
-
-            event->bool1 = dialog->field_14F4 != 0;
-
-            xlog::warn("bool1: {}", event->bool1);
-
-            regs.eip = 0x00408A79;
-        }
-
-        // Valid_Gate and Inside_Gate, template 311
-        if (event->event_type == 102 || event->event_type == 106) {
-            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[3140])->c_str();
-
-            if (!int1_field_value || strlen(int1_field_value) == 0) {
-                xlog::error("field is empty or null");
-            }
-            else {
-                event->int1 = std::atoi(int1_field_value);
-                xlog::warn("int1 after assign: {}", event->int1);
-            }
-
-            regs.eip = 0x00408A79;
-        }
-
-        // Goal_Math and Goal_Gate, template 251
-        if (event->event_type == 103 || event->event_type == 104) {
-            const char* int1_field_value = reinterpret_cast<const CString*>(&dialog->field_15E8[0])->c_str();
-            const char* int2_field_value = reinterpret_cast<const CString*>(&dialog->field_15E8[1])->c_str();
-
-            if (int1_field_value && strlen(int1_field_value) > 0) {
-                event->int1 = std::atoi(int1_field_value);
-            }
-
-            if (int2_field_value && strlen(int2_field_value) > 0) {
-                event->int2 = std::atoi(int2_field_value);
-            }
-
-            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_16E0[0])->c_str();
-            const char* str2_field_value = reinterpret_cast<const CString*>(&dialog->field_16E0[1])->c_str();
-
-            if (str1_field_value && strlen(str1_field_value) > 0) {
-                event->str1.assign_0(str1_field_value);
-            }
-
-            if (str2_field_value && strlen(str2_field_value) > 0) {
-                event->str2.assign_0(str2_field_value);
-            }
-
-            regs.eip = 0x00408A79;
-        }
-
-        // Environment_Gate, template 257
-        if (event->event_type == 105) {
-            const char* str1_field_value = reinterpret_cast<const CString*>(&dialog->field_1724[804])->c_str();
-
-            if (!str1_field_value || strlen(str1_field_value) == 0) {
-                xlog::error("field is empty or null");
-            }
-            else {
-                event->str1.assign_0(str1_field_value);
-                xlog::warn("str1 after assign: {}", event->str1.cstr());
-            }
-
+        auto it = handlers.find(event->event_type);
+        if (it != handlers.end()) {
+            it->second(dialog, event);
             regs.eip = 0x00408A79;
         }
     }
