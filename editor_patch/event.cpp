@@ -277,244 +277,23 @@ void OpenAlpineEventProperties(DedEvent* dedEvent) {
     }
 }
 
-
-
-
 // set template, in CDedLevel__OpenEventProperties (needs cleanup)
 CodeInjection open_event_properties_patch{
     0x00408D6D, [](auto& regs) {
-        using namespace asm_regs;
-        int event_type = static_cast<int>(regs.ecx);
+        //using namespace asm_regs;
+        //int event_type = static_cast<int>(regs.ecx);
         DedEvent* event = regs.ebx;
-
         xlog::warn("opening properties on event {}, type {}", event->class_name.c_str(), event->event_type);
 
-        if (event_type > 88) { // only affect alpine events
-
+        if (event->event_type > 88) { // only redirect alpine events
             OpenAlpineEventProperties(event);
-
-            //return;
             regs.eip = 0x00408F34;
-
-            /* static const std::unordered_map<int, int> event_to_template_map = {
-                {af_ded_event_to_int(AlpineDedEventID::SetVar), 257},
-                {af_ded_event_to_int(AlpineDedEventID::Difficulty_Gate), 311},
-                {af_ded_event_to_int(AlpineDedEventID::HUD_Message), 257},
-                {af_ded_event_to_int(AlpineDedEventID::Play_Video), 257},
-                {af_ded_event_to_int(AlpineDedEventID::Set_Level_Hardness), 311},
-                {af_ded_event_to_int(AlpineDedEventID::Remove_Link), 291},
-                {af_ded_event_to_int(AlpineDedEventID::Valid_Gate), 311},
-                {af_ded_event_to_int(AlpineDedEventID::Goal_Math), 251},
-                {af_ded_event_to_int(AlpineDedEventID::Goal_Gate), 251},
-                {af_ded_event_to_int(AlpineDedEventID::Environment_Gate), 257},
-                {af_ded_event_to_int(AlpineDedEventID::Inside_Gate), 311},
-                {af_ded_event_to_int(AlpineDedEventID::Set_Difficulty), 311},
-                {af_ded_event_to_int(AlpineDedEventID::Set_Fog_Far_Clip), 311},
-                {af_ded_event_to_int(AlpineDedEventID::AF_When_Dead), 283},
-                {af_ded_event_to_int(AlpineDedEventID::Gametype_Gate), 257},
-            };
-
-            int template_id = 192; // default for alpine events without unique params
-            auto it = event_to_template_map.find(event_type);
-            if (it != event_to_template_map.end()) {
-                template_id = it->second;
-            }
-
-            xlog::info("Using template ID {} for event type {}", template_id, event_type);
-
-            regs.eax = template_id;
-            regs.eip = 0x00408F27;*/
         }
     }
 };
-
-// set up template and populate fields from event struct, in CDedLevel__OpenEventPropertiesInternal (not used)
-CodeInjection open_event_properties_internal_patch{
-    0x00407828, [](auto& regs) {
-        using namespace asm_regs;
-
-        CEventDialog* dialog = reinterpret_cast<CEventDialog*>(regs.ebp - 0x2408);
-        DedEvent* event = *reinterpret_cast<DedEvent**>(regs.ebp + 8);
-        int template_id = *reinterpret_cast<int*>(regs.ebp + 0x0C);
-
-        if (!dialog || !event) {
-            xlog::error("Invalid dialog or event pointer!");
-            return;
-        }
-
-        static const std::unordered_map<int, std::function<void(CEventDialog*, DedEvent*)>> handlers{
-            {af_ded_event_to_int(AlpineDedEventID::SetVar), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Difficulty_Gate), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::HUD_Message), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Play_Video), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Set_Level_Hardness), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Remove_Link), [](CEventDialog* dialog, DedEvent* event) {
-                dialog->field_14F4 = event->bool1;
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Valid_Gate), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Inside_Gate), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Goal_Math), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_15E8[0]).operator=(std::to_string(event->int1).c_str());
-                reinterpret_cast<CString&>(dialog->field_15E8[1]).operator=(std::to_string(event->int2).c_str());
-                reinterpret_cast<CString&>(dialog->field_16E0[0]).operator=(event->str1.cstr());
-                reinterpret_cast<CString&>(dialog->field_16E0[1]).operator=(event->str2.cstr());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Goal_Gate), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_15E8[0]).operator=(std::to_string(event->int1).c_str());
-                reinterpret_cast<CString&>(dialog->field_15E8[1]).operator=(std::to_string(event->int2).c_str());
-                reinterpret_cast<CString&>(dialog->field_16E0[0]).operator=(event->str1.cstr());
-                reinterpret_cast<CString&>(dialog->field_16E0[1]).operator=(event->str2.cstr());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Environment_Gate), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Set_Difficulty), [](CEventDialog* dialog, DedEvent* event) {
-                 reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Set_Fog_Far_Clip), [](CEventDialog* dialog, DedEvent* event) {
-                 reinterpret_cast<CString&>(dialog->field_1724[3140]).operator=(std::to_string(event->int1).c_str());
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::AF_When_Dead), [](CEventDialog* dialog, DedEvent* event) {
-                dialog->field_1724[1756] = event->bool1;
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Gametype_Gate), [](CEventDialog* dialog, DedEvent* event) {
-                reinterpret_cast<CString&>(dialog->field_1724[804]).operator=(event->str1.cstr());
-                //dialog->field_348 = event->bool1;
-            }},
-        };
-
-        auto it = handlers.find(event->event_type);
-        if (it != handlers.end()) {
-            it->second(dialog, event);
-            regs.eip = 0x00408131;
-        }
-    }
-};
-
-// save fields back to event struct after hitting OK on properties window, in CDedLevel__OpenEventPropertiesInternal (not used)
-CodeInjection open_event_properties_internal_patch2{
-    0x0040821C, [](auto& regs) {
-        using namespace asm_regs;
-
-        CEventDialog* dialog = reinterpret_cast<CEventDialog*>(regs.ebp - 0x2408);
-        DedEvent* event = *reinterpret_cast<DedEvent**>(regs.ebp + 8);
-        int template_id = *reinterpret_cast<int*>(regs.ebp + 0x0C);
-
-        if (!dialog || !event) {
-            xlog::error("Invalid dialog or event pointer!");
-            return;
-        }
-
-        auto assign_field = [](auto& dialog_field, auto& event_field, auto convert) {
-            const char* field_value = reinterpret_cast<const CString*>(&dialog_field)->c_str();
-            if (field_value && strlen(field_value) > 0) {
-                convert(event_field, field_value);
-            }
-            else {
-                xlog::error("Field is empty or null");
-            }
-        };
-
-        auto assign_to_vstring = [](VString& vstring_field, const char* value) { vstring_field.assign_0(value); };
-
-        auto assign_to_int = [](int& int_field, const char* value) { int_field = std::atoi(value); };
-
-        static const std::unordered_map<int, std::function<void(CEventDialog*, DedEvent*)>> handlers{
-            {af_ded_event_to_int(AlpineDedEventID::SetVar),
-             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Difficulty_Gate),
-             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::HUD_Message),
-             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Play_Video),
-             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Set_Level_Hardness),
-             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Remove_Link),
-             [](CEventDialog* dialog, DedEvent* event) {
-                event->bool1 = dialog->field_14F4 != 0;
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Valid_Gate),
-             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Inside_Gate),
-             [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Goal_Math),
-             [&assign_field, &assign_to_int, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_15E8[0], event->int1, assign_to_int);
-                 assign_field(dialog->field_15E8[1], event->int2, assign_to_int);
-                 assign_field(dialog->field_16E0[0], event->str1, assign_to_vstring);
-                 assign_field(dialog->field_16E0[1], event->str2, assign_to_vstring);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Goal_Gate),
-             [&assign_field, &assign_to_int, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_15E8[0], event->int1, assign_to_int);
-                 assign_field(dialog->field_15E8[1], event->int2, assign_to_int);
-                 assign_field(dialog->field_16E0[0], event->str1, assign_to_vstring);
-                 assign_field(dialog->field_16E0[1], event->str2, assign_to_vstring);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Environment_Gate),
-             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
-             }},
-            {af_ded_event_to_int(AlpineDedEventID::Set_Difficulty),
-            [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
-                assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Set_Fog_Far_Clip),
-            [&assign_field, &assign_to_int](CEventDialog* dialog, DedEvent* event) {
-                assign_field(dialog->field_1724[3140], event->int1, assign_to_int);
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::AF_When_Dead),
-             [](CEventDialog* dialog, DedEvent* event) { event->bool1 = dialog->field_1724[1756] != 0;
-            }},
-            {af_ded_event_to_int(AlpineDedEventID::Gametype_Gate),
-             [&assign_field, &assign_to_vstring](CEventDialog* dialog, DedEvent* event) {
-                 assign_field(dialog->field_1724[804], event->str1, assign_to_vstring);
-                 //event->bool1 = dialog->field_348 != 0;
-             }},
-        };
-
-        auto it = handlers.find(event->event_type);
-        if (it != handlers.end()) {
-            it->second(dialog, event);
-            regs.eip = 0x00408A79;
-        }
-    }
-};
-
 
 void ApplyEventsPatches()
 {
-    // xlog::warn("Initializing extended event names redirection...");
-
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + AF events
     // debug_event_names(); // debug logging
@@ -525,23 +304,16 @@ void ApplyEventsPatches()
     event_names_injection.install(); // when opening event properties, use new extended array for event look up
 
     // handle event properties windows for AF events
-    open_event_properties_patch.install(); // set template IDs for AF events
-    // open_event_properties_internal_patch.install();  // handle values for AF events in templates
-    // open_event_properties_internal_patch2.install(); // handle saving values for AF events from templates
-    // CEventDialog_DoDataExchange_patch.install();
+    open_event_properties_patch.install(); // redirect AF events to new properties dialog
 
     // set new end address for event array loops that use new extended array
-    AsmWriter(0x004617FC)
-        .cmp(asm_regs::edi,
-             reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1])); // OnInitDialog
-    AsmWriter(0x004516C2)
-        .cmp(asm_regs::esi,
-             reinterpret_cast<uintptr_t>(
-                 &extended_event_names[total_event_count - 1])); // get_event_type_from_class_name
+    AsmWriter(0x004617FC) // OnInitDialog
+        .cmp(asm_regs::edi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
+    AsmWriter(0x004516C2) // get_event_type_from_class_name
+        .cmp(asm_regs::esi, reinterpret_cast<uintptr_t>(&extended_event_names[total_event_count - 1]));
 
     // verify_event_names(); // debug logging
 
-    // Allow Set_Liquid_Depth to appear in the Events list
-    // Original code omits that event by name, it now omits a dummy name
+    // Make Set_Liquid_Depth show in events panel, Original code omits that event by name
     AsmWriter(0x004440B4).push("_dummy");
 }
