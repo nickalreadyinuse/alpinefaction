@@ -72,12 +72,12 @@ enum FieldType
     FIELD_STR2 = 1010
 };
 
-
-
 // Field configuration for each event_type
 struct FieldConfig
 {
-    std::string windowTitle;
+    //std::string windowTitle = "";
     std::vector<FieldType> fieldsToShow;
     std::map<FieldType, std::string> fieldLabels;
 };
+
+static auto OpenLinksDialog = reinterpret_cast<void(__thiscall*)(void* this_)>(0x004073D0);

@@ -562,6 +562,16 @@ static_assert(offsetof(CEventDialog, field_5C) == 0x5C, "field_5C offset mismatc
 static_assert(offsetof(CEventDialog, field_98) == 0x98, "field_98 offset mismatch!");
 static_assert(offsetof(CEventDialog, field_1724) == 0x1724, "field_1724 offset mismatch!");
 
+struct CDedLevel
+{
+    char padding_before_selection[0x298];
+    VArray<int> selection;
+    char padding_after_selection[0x608 - (0x298 + 0xC)];
+};
+
+// static_assert(offsetof(CDedLevel, selection) == 0x298, "Selection field offset mismatch!");
+static_assert(sizeof(CDedLevel) == 0x608, "CDedLevel size mismatch!");
+
 struct VFile
 {
     int DirId;
@@ -574,6 +584,8 @@ struct VFile
 static_assert(sizeof(VFile) == 0x114);
 
 bool get_is_saving_af_version();
+
+
 
 //static auto DDX_Control = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CWnd*)>(0x005394EF);
 //static auto DDX_Text = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CString*)>(0x0053929C);

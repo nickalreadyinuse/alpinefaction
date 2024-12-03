@@ -65,8 +65,4 @@
 #define IDC_EDIT_STR2 1010
 #define IDOK 1
 #define IDCANCEL 2
-
-
-
-
-
+#define ID_LINKS 3
