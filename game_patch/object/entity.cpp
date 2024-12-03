@@ -244,27 +244,50 @@ ConsoleCommand2 testlink_cmd{
     "dbg_make_link",
 };
 
-// initialize new AiInfo field used in `entity_damage` to store if on death, the last damage dealt was explosive
-CodeInjection ai_init_ai_info_injection{
-    0x00403022,
+// avoids gibbing if gore level is too low or if this specific corpse shouldn't gib
+CodeInjection corpse_damage_patch{
+    0x00417C6A,
     [](auto& regs) {
-        rf::AiInfo* aip = regs.esi;
-        if (aip) {
-            aip->explosive_last_damage = false;
+        rf::Corpse* cp = regs.esi;
+
+        //xlog::warn("corpse {} {} {}", cp->uid, cp->corpse_pose_name, cp->corpse_flags);
+
+        if (rf::game_get_gore_level() < 2 ||
+            cp->corpse_flags & 0x400 ||         // drools_slime (used by snakes)
+            cp->corpse_flags & 0x4)             // custom_state_anim (used by sea creature)
+        {
+            regs.eip = 0x00417C97;
         }
     }
 };
 
-bool consider_gibs() {
-    return g_game_config.gibs && !rf::is_multi;
-}
+// avoids playing pain sounds for gibbing entities
+CodeInjection entity_damage_gib_no_pain_sound_patch {
+    0x0041A51F,
+    [](auto& regs) {        
+        rf::Entity* ep = regs.esi;
+        //float pain_sound_volume = regs.eax;
+        if (ep->entity_flags & 0x80) {
+            //pain_sound_volume = 0.0f;
+            xlog::warn("nosound");
+            regs.eip = 0x0041A550;
+        }
+    }
+};
+
+/* CodeInjection entity_damage_gib_no_pain_sound_patch{
+    0x0041A548,
+    [](auto& regs) {        
+        rf::Entity* ep = regs.esi;
+        float pain_sound_volume = regs.eax;
+        if (ep->entity_flags & 0x80) {
+            pain_sound_volume = 0.0f;
+        }
+    }
+};*/
 
 FunHook<void(int)> entity_blood_throw_gibs_hook{
     0x0042E3C0, [](int handle) {
-        if (!consider_gibs()) {
-            return;
-        }
-
         rf::Object* objp = rf::obj_from_handle(handle);
 
         if (!objp) {
@@ -305,37 +328,20 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
     }
 };
 
-CodeInjection entity_damage_explosive_death_injection{
-    0x0041A413,
-    [](auto& regs) {        
-        rf::Entity* ep = regs.esi;
-        int damage_type = regs.ebp;
-        ep->ai.explosive_last_damage = (damage_type == 3); // track if death was from explosive damage
-    }
-};
-
-CodeInjection entity_dying_frame_explode_injection{
-    0x0041EE4C,
-    [](auto& regs) {
-        rf::Entity* ep = regs.esi;
-        // using body temp > 90 (from entity.tbl class) as the determining factor for if an entity should gib
-        // in stock game, this includes only humanoid enemies and reeper/baby reeper
-        // in mods, this lets the mod author control which of their mod's entities gib
-        if (consider_gibs() && ep && ep->ai.explosive_last_damage && ep->info->body_temp >= 90.0f) {
-            ep->death_anim_index = -1; // no death anim needed if entity is gibbing
-            regs.eip = 0x0041EE55; // gib entity
+ConsoleCommand2 cl_gorelevel_cmd{
+    "cl_gorelevel",
+    [](std::optional<int> gore_setting) {
+        if (gore_setting.has_value()) {
+            rf::game_set_gore_level(gore_setting.value_or(1));
+            rf::console::print("Set gore level to {}", rf::game_get_gore_level());
         }
+        else {
+            rf::console::print("Gore level is {}", rf::game_get_gore_level());
+        }
+        
     },
-};
-
-ConsoleCommand2 gibs_cmd{
-    "cl_gibs",
-    []() {
-        g_game_config.gibs = !g_game_config.gibs;
-        g_game_config.save();
-        rf::console::print("Gibs are {}.", g_game_config.gibs ? "enabled" : "disabled");
-    },
-    "Make enemies and corpses explode into chunks from explosives (single player only)",
+    "Set gore level from 0 (minimal gore) to 2 (maximum gore).",
+    "cl_gorelevel [level]"
 };
 
 // no idea
@@ -456,11 +462,10 @@ void entity_do_patch()
     entity_process_pre_hide_riot_shield_injection.install();
 
 	// Restore cut stock game feature for entities and corpses exploding into chunks
-    ai_init_ai_info_injection.install();
 	entity_blood_throw_gibs_hook.install();
-    entity_damage_explosive_death_injection.install();
-    entity_dying_frame_explode_injection.install();
+    corpse_damage_patch.install();
+    entity_damage_gib_no_pain_sound_patch.install();
 
     // Commands
-    gibs_cmd.register_cmd();
+    cl_gorelevel_cmd.register_cmd();
 }

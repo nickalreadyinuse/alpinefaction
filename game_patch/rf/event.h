@@ -144,8 +144,13 @@ namespace rf
     static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
     static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
     static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
+    static auto& event_signal_on =
+        addr_as_ref<void(int link_handle, int trigger_handle, int triggered_by_handle)>(0x004B65C0);
+    static auto& event_signal_off =
+        addr_as_ref<void(int link_handle, int trigger_handle, int triggered_by_handle, bool skip_movers)>(0x004B6640);
     static auto& event_find_named_event = addr_as_ref<GenericEvent*(String* name)>(0x004BD740);
     static auto& event_lookup_persistent_goal_event = addr_as_ref<PersistentGoalEvent*(const char* name)>(0x004B8680);
+    static auto& event_list = addr_as_ref<VArray<Event*>>(0x00856470);
 
     // applies only to game, not level editor
     // original game events use a different order entirely in level editor, AF events in RED use the same
@@ -260,7 +265,13 @@ namespace rf
         Goal_Gate,
         Environment_Gate,
         Inside_Gate,
-        Anchor_Marker
+        Anchor_Marker,
+        Force_Unhide,
+        Set_Difficulty,
+        Set_Fog_Far_Clip,
+        AF_When_Dead,
+        Gametype_Gate,
+        When_Picked_Up
     };
 
     // int to EventType
@@ -274,4 +285,8 @@ namespace rf
     {
         return static_cast<int>(eventType);
     }
+
+    std::vector<rf::Event*> find_all_events_by_type(rf::EventType event_type);
+    void activate_all_events_of_type(rf::EventType event_type, int trigger_handle, int triggered_by_handle, bool on);
+
 }

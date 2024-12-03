@@ -4,7 +4,7 @@
 #include <patch_common/FunHook.h>
 #include "multi_scoreboard.h"
 #include "../multi/multi.h"
-#include "../misc/dashoptions.h"
+#include "../misc/alpine_options.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/multi.h"
@@ -47,9 +47,9 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
     int cur_y = y;
     if (!dry_run) {
         rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xFF);
-        // load custom scoreboard logo from dashoptions.tbl if specified
+        // load custom scoreboard logo from af_options if specified
         static int score_rflogo_bm = rf::bm::load(
-            get_option_or_default<std::string>(DashOptionID::ScoreboardLogo, "score_rflogo.tga").c_str(), -1, false);
+            get_option_or_default<std::string>(AlpineOptionID::ScoreboardLogo, "score_rflogo.tga").c_str(), -1, false);
         rf::gr::bitmap(score_rflogo_bm, x_center - 170, cur_y);
     }
     cur_y += 30;

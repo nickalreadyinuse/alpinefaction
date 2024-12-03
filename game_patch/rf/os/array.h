@@ -88,6 +88,28 @@ namespace rf
             }
             num = new_size;
         }
+
+        template<typename Predicate>
+        requires std::is_invocable_r_v<bool, Predicate, T>
+        [[nodiscard]] bool contains(Predicate pred) const
+        {
+            for (int i = 0; i < num; ++i) {
+                if (pred(elements[i])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        [[nodiscard]] bool contains(const T& value) const
+        {
+            for (int i = 0; i < num; ++i) {
+                if (elements[i] == value) {
+                    return true;
+                }
+            }
+            return false;
+        }
     };
     static_assert(sizeof(VArray<>) == 0xC);
 

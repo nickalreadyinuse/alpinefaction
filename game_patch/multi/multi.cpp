@@ -369,8 +369,27 @@ void multi_init_player(rf::Player* player)
     multi_kill_init_player(player);
 }
 
+CodeInjection multi_powerup_add_nano_patch { // unfinished and disabled, look at multi_powerup_add
+    0x004801B4,
+    [](auto& regs) {
+        rf::Player* pp = regs.edi;
+        xlog::warn("hooked, player {}", pp->name);
+        int powerup_type = regs.ebp;
+        xlog::warn("put: {}", powerup_type);
+        rf::Entity* ep = rf::entity_from_handle(pp->entity_handle);
+        xlog::warn("hooked, entity {}, flags {}", ep->name, ep->entity_flags2);
+        ep->entity_flags2 |= 0x00080000;
+        xlog::warn("hooked, entity {}, flags {}", ep->name, ep->entity_flags2);
+        
+
+    },
+};
+
 void multi_do_patch()
 {
+    //multi_powerup_add_nano_patch.install();
+    //AsmWriter(0x00480032).cmp(asm_regs::esi, 0x0059EF50); // nanoshield
+
     multi_limbo_init.install();
     multi_start_injection.install();
 

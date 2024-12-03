@@ -418,6 +418,8 @@ namespace rf
     static auto& entity_is_flying = addr_as_ref<bool(Entity* ep)>(0x0042A060);
     static auto& entity_on_ground = addr_as_ref<bool(Entity* ep)>(0x0042A0D0);
     static auto& entity_can_swim = addr_as_ref<bool(Entity* ep)>(0x00427FF0);
+    static auto& entity_headlamp_turn_on = addr_as_ref<void(Entity* ep)>(0x00429560);
+    static auto& entity_headlamp_turn_off = addr_as_ref<void(Entity* ep)>(0x004294A0);
     static auto& entity_update_liquid_status = addr_as_ref<void(Entity* ep)>(0x00429100);
     static auto& entity_is_playing_action_animation = addr_as_ref<bool(Entity* entity, int action)>(0x00428D10);
     static auto& entity_set_next_state_anim = addr_as_ref<void(Entity* entity, int state, float transition_time)>(0x0042A580);

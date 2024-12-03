@@ -47,7 +47,7 @@
 #define NET_IFINDEX_UNSPECIFIED 0
 #endif
 
-int g_update_rate = 30;
+int g_update_rate = 120; // up from 30
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 
@@ -970,7 +970,7 @@ ConsoleCommand2 update_rate_cmd{
         if (update_rate) {
             if (rf::is_server) {
                 // By default server-side update-rate is set to 1/0.085 ~= 12, don't allow lower values
-                g_update_rate = std::clamp(update_rate.value(), 12, 60);
+                g_update_rate = std::clamp(update_rate.value(), 12, 240); // up from 60
                 if (g_update_rate > 30) {
                     static rf::Color yellow{255, 255, 0, 255};
                     rf::console::output(
@@ -980,7 +980,7 @@ ConsoleCommand2 update_rate_cmd{
             }
             else {
                 // By default client-side update-rate is set to 20, don't allow lower values
-                g_update_rate = std::clamp(update_rate.value(), 20, 60);
+                g_update_rate = std::clamp(update_rate.value(), 20, 240); // up from 60
             }
         }
         rf::console::print("Update rate per second: {}", g_update_rate);

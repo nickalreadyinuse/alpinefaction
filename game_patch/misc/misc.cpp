@@ -13,7 +13,7 @@
 #include <string>
 #include <algorithm>
 #include <sstream>
-#include "dashoptions.h"
+#include "alpine_options.h"
 #include "misc.h"
 #include "../sound/sound.h"
 #include "../os/console.h"
@@ -490,13 +490,6 @@ void misc_init()
 
 
 
-    static float walkable_slope_threshold = 0.5f;
-    uintptr_t walkable_slope_threshold_address = reinterpret_cast<uintptr_t>(&walkable_slope_threshold);
-
-    AsmWriter(0x004A0A82).fcomp<float>(AsmRegMem(walkable_slope_threshold_address));
-
-
-
 
 
 
@@ -614,7 +607,7 @@ void misc_init()
     // Add level name to "-- Level Initializing --" message
     level_init_pre_console_output_hook.install();
 
-    // Load dashoptionstbl
+    // Load alpine_options files (alpine_options.cpp)
     all_table_files_loaded_injection.install();
 
     // Apply patches from other files

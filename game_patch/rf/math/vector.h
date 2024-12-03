@@ -162,6 +162,14 @@ namespace rf
             return x * x + y * y + z * z;
         }
 
+        float distance_to(const Vector3& other) const
+        {
+            float dx = other.x - x;
+            float dy = other.y - y;
+            float dz = other.z - z;
+            return std::sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
         void normalize()
         {
             *this /= len();
@@ -181,4 +189,5 @@ namespace rf
 
     static auto& vec2_zero_vector = addr_as_ref<Vector2>(0x0173C370);
     static auto& vec_dist_squared = addr_as_ref<float(const rf::Vector3*, const rf::Vector3*)>(0x004FAF00);
-}
+    static auto& vec_dist_approx = addr_as_ref<float(const rf::Vector3*, const rf::Vector3*)>(0x004FAF30);
+    }

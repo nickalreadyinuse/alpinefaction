@@ -4,6 +4,7 @@
 #include "../math/matrix.h"
 #include "../math/plane.h"
 #include "../os/string.h"
+#include "../math/vector.h"
 
 namespace rf
 {
@@ -108,6 +109,12 @@ namespace rf::gr
     static auto& light_filter_set_solid = addr_as_ref<int(GSolid *s, bool include_dynamic, bool include_static)>(0x004D9DD0);
     static auto& light_filter_reset = addr_as_ref<void()>(0x004D9FA0);
     static auto& light_get_ambient = addr_as_ref<void(float *r, float *g, float *b)>(0x004D8D10);
+    static auto& light_alloc = addr_as_ref<int(bool dynamic)>(0x004D8E10);
+    static auto& gr_light_create_spotlight =
+        addr_as_ref<int(rf::Vector3* pos, rf::Vector3* dir, float fov1, float fov2, float r2, float intensity, float r,
+                        float g, float b, bool dynamic, rf::gr::LightShadowcastCondition shadow_condition, float atten,
+                        int atten_algo, bool sq_fov_falloff)>(0x004D8F80);
+
 
     static auto& num_relevant_lights = addr_as_ref<int>(0x00C9687C);
     static auto& relevant_lights = addr_as_ref<Light*[1100]>(0x00C4D588);

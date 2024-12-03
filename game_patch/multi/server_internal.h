@@ -26,8 +26,6 @@ struct SpawnProtectionConfig
 struct VoteConfig
 {
     bool enabled = false;
-    // int min_voters = 1;
-    // int min_percentage = 50;
     int time_limit_seconds = 60;
 };
 
@@ -185,7 +183,7 @@ extern MatchInfo g_match_info;
 
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);
-std::set<rf::Player*> get_current_player_list(bool include_browsers);
+std::vector<rf::Player*> get_current_player_list(bool include_browsers);
 std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_input);
 bool is_player_in_match(rf::Player* player);
 bool is_player_ready(rf::Player* player);

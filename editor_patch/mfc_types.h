@@ -393,6 +393,7 @@ struct CButton : CWnd
 };
 static_assert(sizeof(CButton) == 0x3C, "CButton size mismatch!");
 
+// can probably (hopefully) be deleted now, waiting to confirm
 struct CEventDialog : CDialog
 {
     // Base class fields
@@ -551,7 +552,7 @@ struct CEventDialog : CDialog
     char field_23E8;
     char field_23E9;
     char padding1[2];
-    int field_23EC;
+    int field_23EC; // stores template id
     int field_23F0;
     int field_23F4;
     int field_23F8;
@@ -572,41 +573,16 @@ struct VFile
 };
 static_assert(sizeof(VFile) == 0x114);
 
-// level editor alpine event IDs, separate from EventType in game
-enum class AlpineDedEventID : int
-{
-    SetVar = 89,
-    Clone_Entity,
-    Set_Player_World_Collide,
-    Switch_Random,
-    Difficulty_Gate,
-    HUD_Message,
-    Play_Video,
-    Set_Level_Hardness,
-    Sequence,
-    Clear_Queued,
-    Remove_Link,
-    Fixed_Delay,
-    Add_Link,
-    Valid_Gate,
-    Goal_Math,
-    Goal_Gate,
-    Environment_Gate,
-    Inside_Gate,
-    Anchor_Marker
-};
-
-constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept
-{
-    return static_cast<int>(event_id);
-}
-
-constexpr AlpineDedEventID int_to_af_ded_event(int event_id) noexcept
-{
-    return static_cast<AlpineDedEventID>(event_id);
-}
-
 bool get_is_saving_af_version();
+
+//static auto DDX_Control = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CWnd*)>(0x005394EF);
+//static auto DDX_Text = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CString*)>(0x0053929C);
+//static auto DDX_Check = *reinterpret_cast<int(__stdcall*)(CDataExchange*, int, int*)>(0x005392EE);
+
+//static auto& DDX_Control = addr_as_ref<void(__stdcall)(CDataExchange*, int, CWnd*)>(0x005394EF);
+//static auto& DDX_Text = addr_as_ref<void(__stdcall)(CDataExchange*, int, CString*)>(0x0053929C);
+//static auto& DDX_Check = addr_as_ref<int(__stdcall)(CDataExchange*, int, int*)>(0x005392EE);
+
 
 // console is still broken
 //static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);

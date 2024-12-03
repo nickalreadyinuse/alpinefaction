@@ -49,7 +49,6 @@ Version 1.0.0
 - Lower minimum character count for console tab complete to 1
 - Add `$DF GunGame` option in dedicated server config
 - Add framework in game and editor for custom events
-- Add custom events `Clone_Entity`, `Set_Player_World_Collide`, and `Switch_Random`
 - Add stock event `Set_Liquid_Depth` to editor objects list
 - Remove `You must rebuild geometry before X` warnings in editor
 - Stop editor output window from turning red when map exceeds legacy RF geometry limits
@@ -57,13 +56,37 @@ Version 1.0.0
 - Stop faces being added to "fix PS2 tiling" at build time in editor
 - Stop mover brushes being split to "fix PS2 tiling" in editor
 - Add framework for real-time modification of defined event properties
-- Add custom events `SetVar`, `Difficulty_Gate`, `HUD_Message`, `Play_Video`, `Set_Level_Hardness`, `Sequence`, `Clear_Queued`, `Remove_Link`, `Fixed_Delay`, `Add_Link`, `Valid_Gate`
-- Add goal (variable) logic events `Goal_Math` and `Goal_Gate`
 - Allow `Super Health` and `Super Armor` in single player
 - Make level editor save files with new rfl version, and display a warning when opening files with older versions
 - Make game load level files up to current AF version
 - Add support for dynamic lights in levels
-- Add `Anchor_Marker` event to allow level designers to anchor dynamic lights, particle emitters, and push regions to movers
+- Add custom Alpine events:
+    - `SetVar`
+    - `Clone_Entity`
+    - `Set_Player_World_Collide`
+    - `Switch_Random`
+    - `Difficulty_Gate`
+    - `HUD_Message`
+    - `Play_Video`
+    - `Set_Level_Hardness`
+    - `Sequence`
+    - `Clear_Queued`
+    - `Remove_Link`
+    - `Fixed_Delay`
+    - `Add_Link`
+    - `Valid_Gate`
+    - `Goal_Math`
+    - `Goal_Gate`
+    - `Environment_Gate`
+    - `Inside_Gate`
+    - `Anchor_Marker`
+    - `Force_Unhide`
+    - `Set_Difficulty`
+    - `Set_Fog_Far_Clip`
+    - `AF_When_Dead`
+    - `Gametype_Gate`
+    - `When_Picked_Up`
+- Moved placement for new `dedicated_server.txt` lines to above `$Map` lines
 
 
 

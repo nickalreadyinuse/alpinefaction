@@ -8,11 +8,12 @@
 #include "../rf/weapon.h"
 #include "../rf/hud.h"
 #include "../rf/input.h"
+#include "../rf/gr/gr_light.h"
 #include "../rf/os/os.h"
 #include "../rf/os/frametime.h"
 #include "../os/console.h"
 #include "../main/main.h"
-#include "../misc/dashoptions.h"
+#include "../misc/alpine_options.h"
 #include "../multi/multi.h"
 #include "../multi/server_internal.h"
 #include "../hud/multi_spectate.h"
@@ -92,12 +93,12 @@ bool should_swap_weapon_alt_fire(rf::Player* player)
     }
 
     if (g_game_config.swap_assault_rifle_controls &&
-        !get_option_or_default<bool>(DashOptionID::IgnoreSwapAssaultRifleControls, false) &&
+        !get_option_or_default<bool>(AlpineOptionID::IgnoreSwapAssaultRifleControls, false) &&
         entity->ai.current_primary_weapon == rf::assault_rifle_weapon_type)
         return true;
 
     if (g_game_config.swap_grenade_controls &&
-        !get_option_or_default<bool>(DashOptionID::IgnoreSwapGrenadeControls, false) &&
+        !get_option_or_default<bool>(AlpineOptionID::IgnoreSwapGrenadeControls, false) &&
         entity->ai.current_primary_weapon == rf::grenade_weapon_type)
         return true;
 
@@ -160,7 +161,7 @@ ConsoleCommand2 swap_assault_rifle_controls_cmd{
         g_game_config.save();
         rf::console::print("Swap assault rifle controls: {}",
                      g_game_config.swap_assault_rifle_controls ? "enabled" : "disabled");
-        if (get_option_or_default<bool>(DashOptionID::IgnoreSwapAssaultRifleControls, false)) {
+        if (get_option_or_default<bool>(AlpineOptionID::IgnoreSwapAssaultRifleControls, false)) {
             rf::console::print("Note: This setting is disabled in the {} mod and will have no effect.",
                 rf::mod_param.get_arg());
         }   
@@ -175,7 +176,7 @@ ConsoleCommand2 swap_grenade_controls_cmd{
         g_game_config.save();
         rf::console::print("Swap grenade controls: {}",
                      g_game_config.swap_grenade_controls ? "enabled" : "disabled");
-        if (get_option_or_default<bool>(DashOptionID::IgnoreSwapGrenadeControls, false)) {
+        if (get_option_or_default<bool>(AlpineOptionID::IgnoreSwapGrenadeControls, false)) {
             rf::console::print("Note: This setting is disabled in the {} mod and will have no effect.",
                 rf::mod_param.get_arg());
         }   
@@ -308,8 +309,45 @@ CodeInjection sr_load_player_weapon_anims_injection{
     },
 };
 
+float map_range(float value, float old_min, float old_max, float new_min, float new_max)
+{
+    value = std::max(old_min, std::min(value, old_max));
+    return ((value - old_min) / (old_max - old_min)) * (new_max - new_min) + new_min;
+}
+
+CodeInjection player_move_flashlight_light_patch {
+    0x004A6B0D,
+    [](auto& regs) {
+        rf::Vector3* pDest2 = static_cast<rf::Vector3*>(regs.ecx);
+        rf::Entity* ep = rf::local_player_entity;
+        rf::Vector3 eye_pos = ep->eye_pos;
+
+        float dist = eye_pos.distance_to(*pDest2);
+        regs.eax = *reinterpret_cast<float*>(0x005A0108) * sqrt(dist); // scale light radius
+
+        float mapped_dist = map_range(dist, 0.0f, *reinterpret_cast<float*>(0x005A0100), 1.0f, 0.05f);
+        *reinterpret_cast<float*>(0x005A00FC) = 0.8f * mapped_dist; // scale light intensity
+    },
+};
+
+void update_player_flashlight() {
+    *reinterpret_cast<float*>(0x005A0108) = 3.5f;   // radius (default 3.0)
+    //*reinterpret_cast<float*>(0x005A00FC) = 0.8f;  // intensity (default 1.0)
+    *reinterpret_cast<float*>(0x005A0100) = 20.0f;  // max range (default 12.0)
+    AsmWriter(0x004A6AF3).push(2);                  // attenuation algo (default 0)
+
+    // warm yellow to loosely emulate an incandescent lightbulb
+    AsmWriter{0x004A6B03}.push(0x3F7A3D71);         // r (new 0.9804, default 1.0)
+    AsmWriter{0x004A6AFE}.push(0x3F718F5C);         // g (new 0.9412, default 1.0)
+    AsmWriter{0x004A6AF9}.push(0x3F490FDB);         // b (new 0.7843, default 1.0)
+}
+
 void player_do_patch()
 {
+    // modernize player flashlight somewhat, fix flicking issues
+    update_player_flashlight();
+    player_move_flashlight_light_patch.install();
+
     // general hooks
     player_create_hook.install();
     player_destroy_hook.install();

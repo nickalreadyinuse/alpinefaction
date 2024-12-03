@@ -22,7 +22,18 @@ namespace rf
     // var handler storage
     std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
         Event::variable_handler_storage = {};
-}
+
+    void activate_all_events_of_type(rf::EventType event_type, int trigger_handle, int triggered_by_handle, bool on)
+    {
+        auto event_list = rf::find_all_events_by_type(event_type);
+        for (auto* event : event_list) {
+            if (event) {
+                event->activate(trigger_handle, triggered_by_handle, on);
+            }
+        }
+    }
+
+} // namespace rf
 
 FunHook<int(const rf::String* name)> event_lookup_type_hook{
     0x004BD700,
@@ -49,6 +60,12 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
             {"Environment_Gate", 116},
             {"Inside_Gate", 117},
             {"Anchor_Marker", 118},
+            {"Force_Unhide", 119},
+            {"Set_Difficulty", 120},
+            {"Set_Fog_Far_Clip", 121},
+            {"AF_When_Dead", 122},
+            {"Gametype_Gate", 123},
+            {"When_Picked_Up", 124},
         };
 
         auto it = custom_event_ids.find(name->c_str());
@@ -87,6 +104,12 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
             {116, []() { return new rf::EventEnvironmentGate(); }},
             {117, []() { return new rf::EventInsideGate(); }},
             {118, []() { return new rf::EventAnchorMarker(); }},
+            {119, []() { return new rf::EventForceUnhide(); }},
+            {120, []() { return new rf::EventSetDifficulty(); }},
+            {121, []() { return new rf::EventSetFogFarClip(); }},
+            {122, []() { return new rf::EventAFWhenDead(); }},
+            {123, []() { return new rf::EventGametypeGate(); }},
+            {124, []() { return new rf::EventWhenPickedUp(); }},
         };
 
         // find type and allocate
@@ -129,6 +152,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             {116, [](rf::Event* e) { delete static_cast<rf::EventEnvironmentGate*>(e); }},
             {117, [](rf::Event* e) { delete static_cast<rf::EventInsideGate*>(e); }},
             {118, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarker*>(e); }},
+            {119, [](rf::Event* e) { delete static_cast<rf::EventForceUnhide*>(e); }},
+            {120, [](rf::Event* e) { delete static_cast<rf::EventSetDifficulty*>(e); }},
+            {121, [](rf::Event* e) { delete static_cast<rf::EventSetFogFarClip*>(e); }},
+            {122, [](rf::Event* e) { delete static_cast<rf::EventAFWhenDead*>(e); }},
+            {123, [](rf::Event* e) { delete static_cast<rf::EventGametypeGate*>(e); }},
+            {124, [](rf::Event* e) { delete static_cast<rf::EventWhenPickedUp*>(e); }},
         };
 
         // find type and deallocate
@@ -157,7 +186,10 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Valid_Gate,
         rf::EventType::Goal_Gate,
         rf::EventType::Environment_Gate,
-        rf::EventType::Inside_Gate
+        rf::EventType::Inside_Gate,
+        rf::EventType::AF_When_Dead,
+        rf::EventType::Gametype_Gate,
+        rf::EventType::When_Picked_Up
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
@@ -184,7 +216,6 @@ static std::unordered_map<int, EventFactory> event_factories{
             auto* base_event = rf::event_create(params.pos, 100);
             auto* event = dynamic_cast<rf::EventSetVar*>(base_event);
             if (event) {
-                xlog::warn("setvar");
                 const std::string_view prefix = "SetVar_";
                 if (params.script_name.starts_with(prefix)) {
                     event->var_name = params.script_name.substr(prefix.size());
@@ -200,7 +231,7 @@ static std::unordered_map<int, EventFactory> event_factories{
             auto* base_event = rf::event_create(params.pos, 104);
             auto* event = dynamic_cast<rf::EventDifficultyGate*>(base_event);
             if (event) {
-                event->difficulty = static_cast<rf::GameDifficultyLevel>(params.int1);
+                event->difficulty = params.int1;
             }
             return event;
         }
@@ -299,7 +330,7 @@ static std::unordered_map<int, EventFactory> event_factories{
             return event;
         }
     },
-    // Inside Gate Event
+    // Inside_Gate
     {
         117, [](const rf::EventCreateParams& params) {
             auto* base_event = rf::event_create(params.pos, 117);
@@ -310,12 +341,50 @@ static std::unordered_map<int, EventFactory> event_factories{
             return event;
         }
     },
-    // Anchor Marker Event (no custom logic)
-    /* {
-        118, [](const rf::EventCreateParams& params) {
-            return rf::event_create(params.pos, 118);
+    // Set_Difficulty
+    {
+        120, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 120);
+            auto* event = dynamic_cast<rf::EventSetDifficulty*>(base_event);
+            if (event) {
+                event->difficulty = params.int1;
+            }
+            return event;
         }
-    }*/
+    },
+    // Set_Fog_Far_Clip
+    {
+        121, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 121);
+            auto* event = dynamic_cast<rf::EventSetFogFarClip*>(base_event);
+            if (event) {
+                event->far_clip = params.int1;
+            }
+            return event;
+        }
+    },
+    // AF_When_Dead
+    {
+        122, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 122);
+            auto* event = dynamic_cast<rf::EventAFWhenDead*>(base_event);
+            if (event) {
+                event->any_dead = params.bool1;
+            }
+            return event;
+        }
+    },
+    // Gametype_Gate
+    {
+        123, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, 123);
+            auto* event = dynamic_cast<rf::EventGametypeGate*>(base_event);
+            if (event) {
+                event->gametype = params.str1;
+            }
+            return event;
+        }
+    },
 };
 
 rf::Event* create_event(int event_type, const rf::EventCreateParams& params)
@@ -332,9 +401,8 @@ rf::Event* create_event(int event_type, const rf::EventCreateParams& params)
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
         int event_type = static_cast<int>(regs.ebp);
-        xlog::warn("attempting to make id {}", event_type);
+
         if (event_type >= 100) { // only handle AF events, stock events handled by original code
-            xlog::warn("2attempting to make id {}", event_type);
             rf::Vector3* pos = regs.edx;
 
             rf::EventCreateParams params{
@@ -369,7 +437,7 @@ CodeInjection level_read_events_patch {
 
 
             auto* this_event = create_event(event_type, params);
-            regs.eax = this_event; // Set EAX to created event so level_read_events can continue to use it
+            regs.eax = this_event; // set eax to created event so level_read_events can continue to use it
 
             regs.eip = 0x00462915; // made the event, set stack pointer after jump table
         }

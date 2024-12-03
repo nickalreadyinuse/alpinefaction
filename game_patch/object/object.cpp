@@ -14,6 +14,7 @@
 #include "../rf/particle_emitter.h"
 #include "../rf/geometry.h"
 #include "../rf/math/ix.h"
+#include "../rf/gameseq.h"
 #include "object.h"
 #include "object_private.h"
 
@@ -234,6 +235,12 @@ CodeInjection mover_process_post_patch{
             if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker)) {
                 for (const auto& linked_uid : event->links) {
 
+                    // check for an object - Note objects store handles in link int rather than UID
+                    if (auto* obj =
+                            static_cast<rf::Object*>(rf::obj_from_handle(linked_uid))) {
+                        obj->pos = event->pos;
+                    }
+
                     // check for a light
                     if (auto* light = static_cast<rf::gr::Light*>(
                             rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)))) {
@@ -257,8 +264,69 @@ CodeInjection mover_process_post_patch{
     }
 };
 
+CodeInjection obj_flag_dead_patch{
+    0x0048AB46,
+    [](auto& regs) {
+        rf::Object* obj = regs.eax;
+        xlog::warn("checking object UID {}, name {}", obj->uid, obj->name);        
+    },
+};
+
+//unused
+FunHook<void(rf::Object*)> obj_flag_dead_hook{
+    0x00489FC0,
+    [](rf::Object* objp) {
+        if (rf::gameseq_in_gameplay &&
+            (objp->type == rf::ObjectType::OT_CLUTTER || objp->type == rf::ObjectType::OT_ENTITY)) {
+            xlog::warn("checking object UID {}, name {}", objp->uid, objp->name);
+            auto event_list = rf::find_all_events_by_type(rf::EventType::Difficulty_Gate);
+            for (auto* event : event_list) {
+                if (event) {
+                    xlog::info("Event UID: {}", event->uid);
+                    event->activate(-1, objp->uid, true);
+                }
+            }
+        }
+
+        obj_flag_dead_hook.call_target(objp);
+    },
+};
+
+FunHook<void(rf::Entity*)> entity_on_dead_hook{
+    0x00418F80,
+    [](rf::Entity* ep) {
+        xlog::warn("killing entity UID {}, name {}", ep->uid, ep->name);
+
+        if (!rf::is_multi) {
+            rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, ep->handle, -1, true);
+        }
+
+        entity_on_dead_hook.call_target(ep);
+    },
+};
+
+CallHook<void(rf::Object*)> obj_flag_dead_clutter_hook{
+    {
+        0x0040FE31,
+        0x00410208,
+        0x0041009F,
+        0x004101F4
+    },
+    [](rf::Object* objp) {
+        xlog::warn("killing clutter UID {}, name {}", objp->uid, objp->name);
+
+        rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, objp->handle, -1, true);
+
+        obj_flag_dead_clutter_hook.call_target(objp);
+    },
+};
+
 void object_do_patch()
 {
+    //obj_flag_dead_hook.install();
+    entity_on_dead_hook.install();
+    obj_flag_dead_clutter_hook.install();
+
     // Allow Anchor_Marker events to drag lights, particle emitters, and push regions on movers
     mover_process_post_patch.install();
 

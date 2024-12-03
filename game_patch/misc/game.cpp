@@ -126,7 +126,7 @@ static ConsoleCommand2 screenshot_cmd{
     "screenshot",
     []() {
         auto game_print_screen = addr_as_ref<void(char* filename)>(0x004366E0);
-
+        //rf::entity_headlamp_turn_on(rf::local_player_entity);
         char buf[MAX_PATH];
         game_print_screen(buf);
         rf::console::print("Screenshot saved in {}", buf);

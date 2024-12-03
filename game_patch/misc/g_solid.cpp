@@ -507,7 +507,7 @@ CallHook<void(rf::GSolid*, rf::GSolid*, rf::GBooleanOperation, bool, rf::Vector3
 void g_solid_do_patch()
 {
     // geomod experimental
-    // g_boolean_begin_hook.install();
+    g_boolean_begin_hook.install();
 
     // Buffer overflows in solid_read
     // Note: Buffer size is 1024 but opcode allows only 1 byte size

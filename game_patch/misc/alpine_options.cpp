@@ -1,4 +1,4 @@
-#include "dashoptions.h"
+#include "alpine_options.h"
 #include <patch_common/CallHook.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CodeInjection.h>
@@ -30,7 +30,7 @@
 
 //namespace fs = std::filesystem;
 
-DashOptionsConfig g_dash_options_config;
+AlpineOptionsConfig g_alpine_options_config;
 
 // trim leading and trailing whitespace
 std::string trim(const std::string& str, bool remove_quotes = false)
@@ -94,36 +94,37 @@ std::optional<OptionValue> parse_bool(const std::string& value) {
 
 // master list of options: mapped to option ID, associated tbl, and parser
 const std::unordered_map<std::string, OptionMetadata> option_metadata = {
-    {"$Scoreboard Logo", {DashOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp
-    {"$Default Geomod Mesh", {DashOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$Driller Double Geomod Mesh", {DashOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$Driller Single Geomod Mesh", {DashOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$APC Geomod Mesh", {DashOptionID::GeomodMesh_APC, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$Default Geomod Smoke Emitter", {DashOptionID::GeomodEmitter_Default, "af_game.tbl", parse_string}},
-    {"$Driller Geomod Smoke Emitter", {DashOptionID::GeomodEmitter_Driller, "af_game.tbl", parse_string}},
-    {"$Ice Geomod Texture", {DashOptionID::GeomodTexture_Ice, "af_game.tbl", parse_string}},
-    {"$First Level Filename", {DashOptionID::FirstLevelFilename, "af_game.tbl", parse_string}},
-    {"$Training Level Filename", {DashOptionID::TrainingLevelFilename, "af_game.tbl", parse_string}},
-    {"$Disable Multiplayer Button", {DashOptionID::DisableMultiplayerButton, "af_ui.tbl", parse_bool}},
-    {"$Disable Singleplayer Buttons", {DashOptionID::DisableSingleplayerButtons, "af_ui.tbl", parse_bool}},
-    {"$Use Base Game Players Config", {DashOptionID::UseStockPlayersConfig, "af_game.tbl", parse_bool}},
-    {"$Ignore Swap Assault Rifle Controls", {DashOptionID::IgnoreSwapAssaultRifleControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
-    {"$Ignore Swap Grenade Controls", {DashOptionID::IgnoreSwapGrenadeControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
-    {"$Assault Rifle Ammo Counter Color", {DashOptionID::AssaultRifleAmmoColor, "af_client.tbl", parse_color}},
-    {"$Precision Rifle Scope Color", {DashOptionID::PrecisionRifleScopeColor, "af_client.tbl", parse_color}},
-    {"$Sniper Rifle Scope Color", {DashOptionID::SniperRifleScopeColor, "af_client.tbl", parse_color}},
-    {"$Rail Driver Fire Glow Color", {DashOptionID::RailDriverFireGlowColor, "af_client.tbl", parse_color}},
-    {"$Rail Driver Fire Flash Color", {DashOptionID::RailDriverFireFlashColor, "af_client.tbl", parse_color}},
-    {"$Summoner Trailer Button Action", {DashOptionID::SumTrailerButtonAction, "af_ui.tbl", parse_int}},
-    {"+Summoner Trailer Button URL", {DashOptionID::SumTrailerButtonURL, "af_ui.tbl", parse_string}},
-    {"+Summoner Trailer Button Bink Filename", {DashOptionID::SumTrailerButtonBikFile, "af_ui.tbl", parse_string}},
-    {"$Player Entity Type", {DashOptionID::PlayerEntityType, "af_game.tbl", parse_string, true}},
-    {"$Player Undercover Suit Entity Type", {DashOptionID::PlayerSuitEntityType, "af_game.tbl", parse_string}},
-    {"$Player Undercover Scientist Entity Type", {DashOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}},
-    {"$Fall Damage Land Multiplier", {DashOptionID::FallDamageLandMultiplier, "af_game.tbl", parse_float, true}},
-    {"$Fall Damage Slam Multiplier", {DashOptionID::FallDamageSlamMultiplier, "af_game.tbl", parse_float, true}},
-    {"$Multiplayer Walk Speed", {DashOptionID::MultiplayerWalkSpeed, "af_game.tbl", parse_float, true}},
-    {"$Multiplayer Crouch Walk Speed", {DashOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float, true}}
+    {"$Scoreboard Logo", {AlpineOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp
+    {"$Default Geomod Mesh", {AlpineOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$Driller Double Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$Driller Single Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$APC Geomod Mesh", {AlpineOptionID::GeomodMesh_APC, "af_game.tbl", parse_string}}, // unsupported currently
+    {"$Default Geomod Smoke Emitter", {AlpineOptionID::GeomodEmitter_Default, "af_game.tbl", parse_string}},
+    {"$Driller Geomod Smoke Emitter", {AlpineOptionID::GeomodEmitter_Driller, "af_game.tbl", parse_string}},
+    {"$Ice Geomod Texture", {AlpineOptionID::GeomodTexture_Ice, "af_game.tbl", parse_string}},
+    {"$First Level Filename", {AlpineOptionID::FirstLevelFilename, "af_game.tbl", parse_string}},
+    {"$Training Level Filename", {AlpineOptionID::TrainingLevelFilename, "af_game.tbl", parse_string}},
+    {"$Disable Multiplayer Button", {AlpineOptionID::DisableMultiplayerButton, "af_ui.tbl", parse_bool}},
+    {"$Disable Singleplayer Buttons", {AlpineOptionID::DisableSingleplayerButtons, "af_ui.tbl", parse_bool}},
+    {"$Use Base Game Players Config", {AlpineOptionID::UseStockPlayersConfig, "af_game.tbl", parse_bool}},
+    {"$Ignore Swap Assault Rifle Controls", {AlpineOptionID::IgnoreSwapAssaultRifleControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
+    {"$Ignore Swap Grenade Controls", {AlpineOptionID::IgnoreSwapGrenadeControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
+    {"$Assault Rifle Ammo Counter Color", {AlpineOptionID::AssaultRifleAmmoColor, "af_client.tbl", parse_color}},
+    {"$Precision Rifle Scope Color", {AlpineOptionID::PrecisionRifleScopeColor, "af_client.tbl", parse_color}},
+    {"$Sniper Rifle Scope Color", {AlpineOptionID::SniperRifleScopeColor, "af_client.tbl", parse_color}},
+    {"$Rail Driver Fire Glow Color", {AlpineOptionID::RailDriverFireGlowColor, "af_client.tbl", parse_color}},
+    {"$Rail Driver Fire Flash Color", {AlpineOptionID::RailDriverFireFlashColor, "af_client.tbl", parse_color}},
+    {"$Summoner Trailer Button Action", {AlpineOptionID::SumTrailerButtonAction, "af_ui.tbl", parse_int}},
+    {"+Summoner Trailer Button URL", {AlpineOptionID::SumTrailerButtonURL, "af_ui.tbl", parse_string}},
+    {"+Summoner Trailer Button Bink Filename", {AlpineOptionID::SumTrailerButtonBikFile, "af_ui.tbl", parse_string}},
+    {"$Player Entity Type", {AlpineOptionID::PlayerEntityType, "af_game.tbl", parse_string, true}},
+    {"$Player Undercover Suit Entity Type", {AlpineOptionID::PlayerSuitEntityType, "af_game.tbl", parse_string}},
+    {"$Player Undercover Scientist Entity Type", {AlpineOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}},
+    {"$Fall Damage Land Multiplier", {AlpineOptionID::FallDamageLandMultiplier, "af_game.tbl", parse_float, true}},
+    {"$Fall Damage Slam Multiplier", {AlpineOptionID::FallDamageSlamMultiplier, "af_game.tbl", parse_float, true}},
+    {"$Multiplayer Walk Speed", {AlpineOptionID::MultiplayerWalkSpeed, "af_game.tbl", parse_float, true}},
+    {"$Multiplayer Crouch Walk Speed", {AlpineOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float, true}},
+    {"$Walkable Slope Threshold", {AlpineOptionID::WalkableSlopeThreshold, "af_game.tbl", parse_float}}
 };
 
 void open_url(const std::string& url)
@@ -147,7 +148,7 @@ void open_url(const std::string& url)
 CallHook<void(int, int, int, int)> fpgun_ar_ammo_digit_color_hook{
     0x004ABC03,
     [](int red, int green, int blue, int alpha) {
-        auto ar_ammo_color = get_option_value<uint32_t>(DashOptionID::AssaultRifleAmmoColor);
+        auto ar_ammo_color = get_option_value<uint32_t>(AlpineOptionID::AssaultRifleAmmoColor);
         std::tie(red, green, blue, alpha) = extract_color_components(ar_ammo_color);
         fpgun_ar_ammo_digit_color_hook.call_target(red, green, blue, alpha);
     }
@@ -155,7 +156,7 @@ CallHook<void(int, int, int, int)> fpgun_ar_ammo_digit_color_hook{
 
 CallHook<void(int, int, int, int)> precision_rifle_scope_color_hook{
     0x004AC850, [](int red, int green, int blue, int alpha) {
-        auto pr_scope_color = get_option_value<uint32_t>(DashOptionID::PrecisionRifleScopeColor);
+        auto pr_scope_color = get_option_value<uint32_t>(AlpineOptionID::PrecisionRifleScopeColor);
         std::tie(red, green, blue, alpha) = extract_color_components(pr_scope_color);
         precision_rifle_scope_color_hook.call_target(red, green, blue, alpha);
     }
@@ -163,7 +164,7 @@ CallHook<void(int, int, int, int)> precision_rifle_scope_color_hook{
 
 CallHook<void(int, int, int, int)> sniper_rifle_scope_color_hook{
     0x004AC458, [](int red, int green, int blue, int alpha) {
-        auto sr_scope_color = get_option_value<uint32_t>(DashOptionID::SniperRifleScopeColor);
+        auto sr_scope_color = get_option_value<uint32_t>(AlpineOptionID::SniperRifleScopeColor);
         std::tie(red, green, blue, alpha) = extract_color_components(sr_scope_color);
         sniper_rifle_scope_color_hook.call_target(red, green, blue, alpha);
     }
@@ -171,7 +172,7 @@ CallHook<void(int, int, int, int)> sniper_rifle_scope_color_hook{
 
 CallHook<void(int, int, int, int)> rail_gun_fire_glow_hook{
     0x004AC00E, [](int red, int green, int blue, int alpha) {
-        auto rail_glow_color = get_option_value<uint32_t>(DashOptionID::RailDriverFireGlowColor);
+        auto rail_glow_color = get_option_value<uint32_t>(AlpineOptionID::RailDriverFireGlowColor);
         std::tie(red, green, blue, alpha) = extract_color_components(rail_glow_color);
         rail_gun_fire_glow_hook.call_target(red, green, blue, alpha);
     }
@@ -179,7 +180,7 @@ CallHook<void(int, int, int, int)> rail_gun_fire_glow_hook{
 
 CallHook<void(int, int, int, int)> rail_gun_fire_flash_hook{
     0x004AC04A, [](int red, int green, int blue, int alpha) {
-        auto rail_flash_color = get_option_value<uint32_t>(DashOptionID::RailDriverFireFlashColor);
+        auto rail_flash_color = get_option_value<uint32_t>(AlpineOptionID::RailDriverFireFlashColor);
         std::tie(red, green, blue, std::ignore) = extract_color_components(rail_flash_color);
         rail_gun_fire_flash_hook.call_target(red, green, blue, alpha);
     }
@@ -197,7 +198,7 @@ int handle_geomod_shape_create(const char* filename, const std::optional<std::st
 // Set default geo mesh
 CallHook<int(const char*)> default_geomod_shape_create_hook{
     0x004374CF, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_Default);
+        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_Default);
         return default_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
@@ -205,7 +206,7 @@ CallHook<int(const char*)> default_geomod_shape_create_hook{
 // Set driller double geo mesh
 CallHook<int(const char*)> driller_double_geomod_shape_create_hook{
     0x004374D9, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_DrillerDouble);
+        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_DrillerDouble);
         return driller_double_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
@@ -213,7 +214,7 @@ CallHook<int(const char*)> driller_double_geomod_shape_create_hook{
 // Set driller single geo mesh
 CallHook<int(const char*)> driller_single_geomod_shape_create_hook{
     0x004374E3, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_DrillerSingle);
+        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_DrillerSingle);
         return driller_single_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
@@ -221,7 +222,7 @@ CallHook<int(const char*)> driller_single_geomod_shape_create_hook{
 // Set APC geo mesh
 CallHook<int(const char*)> apc_geomod_shape_create_hook{
     0x004374ED, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodMesh_APC);
+        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_APC);
         return apc_geomod_shape_create_hook.call_target(modded_filename.c_str());
     }
 };
@@ -229,9 +230,9 @@ CallHook<int(const char*)> apc_geomod_shape_create_hook{
 void apply_geomod_mesh_patch()
 {
     
-    /* if (g_dash_options_config.geomodmesh_default.has_value()) {
+    /* if (g_alpine_options_config.geomodmesh_default.has_value()) {
         AsmWriter(0x00437543).call(0x004ECED0);
-        const char filename = g_dash_options_config.geomodmesh_default->c_str();
+        const char filename = g_alpine_options_config.geomodmesh_default->c_str();
         xlog::warn("set geo mesh to {}", filename);
         static const char NEW_GEOMESH_FILENAME[] = "NewFile.v3d";
 
@@ -241,18 +242,18 @@ void apply_geomod_mesh_patch()
 
 
     /*// array of geomod mesh options
-    std::array<std::pair<DashOptionID, void (*)()>, 4> geomod_mesh_hooks = {
-        {{DashOptionID::GeomodMesh_Default, [] { default_geomod_shape_create_hook.install(); }},
-         {DashOptionID::GeomodMesh_DrillerDouble, [] { driller_double_geomod_shape_create_hook.install(); }},
-         {DashOptionID::GeomodMesh_DrillerSingle, [] { driller_single_geomod_shape_create_hook.install(); }},
-         {DashOptionID::GeomodMesh_APC, [] { apc_geomod_shape_create_hook.install(); }}
+    std::array<std::pair<AlpineOptionID, void (*)()>, 4> geomod_mesh_hooks = {
+        {{AlpineOptionID::GeomodMesh_Default, [] { default_geomod_shape_create_hook.install(); }},
+         {AlpineOptionID::GeomodMesh_DrillerDouble, [] { driller_double_geomod_shape_create_hook.install(); }},
+         {AlpineOptionID::GeomodMesh_DrillerSingle, [] { driller_single_geomod_shape_create_hook.install(); }},
+         {AlpineOptionID::GeomodMesh_APC, [] { apc_geomod_shape_create_hook.install(); }}
         }};
 
     bool any_option_loaded = false;
 
     // install only the hooks for the ones that were set
     for (const auto& [option_id, install_fn] : geomod_mesh_hooks) {
-        if (g_dash_options_config.is_option_loaded(option_id)) {
+        if (g_alpine_options_config.is_option_loaded(option_id)) {
             install_fn();
             any_option_loaded = true;
         }
@@ -297,7 +298,7 @@ FunHook<void()> geomod_shape_init_hook{
 // Override default geomod smoke emitter
 CallHook<int(const char*)> default_geomod_emitter_get_index_hook{
     0x00437150, [](const char* emitter_name) -> int {
-        auto modded_emitter_name = get_option_value<std::string>(DashOptionID::GeomodEmitter_Default);
+        auto modded_emitter_name = get_option_value<std::string>(AlpineOptionID::GeomodEmitter_Default);
         return default_geomod_emitter_get_index_hook.call_target(modded_emitter_name.c_str());
     }
 };
@@ -305,7 +306,7 @@ CallHook<int(const char*)> default_geomod_emitter_get_index_hook{
 // Override driller geomod smoke emitter
 CallHook<int(const char*)> driller_geomod_emitter_get_index_hook{
     0x0043715F, [](const char* emitter_name) -> int {
-        auto modded_emitter_name = get_option_value<std::string>(DashOptionID::GeomodEmitter_Driller);
+        auto modded_emitter_name = get_option_value<std::string>(AlpineOptionID::GeomodEmitter_Driller);
         return driller_geomod_emitter_get_index_hook.call_target(modded_emitter_name.c_str());
     }
 };
@@ -317,7 +318,7 @@ CallHook<int(const char*, int, bool)> ice_geo_crater_bm_load_hook {
         0x00466BEF, // crater
     },
     [](const char* filename, int path_id, bool generate_mipmaps) -> int {
-        auto modded_filename = get_option_value<std::string>(DashOptionID::GeomodTexture_Ice);
+        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodTexture_Ice);
         return ice_geo_crater_bm_load_hook.call_target(modded_filename.c_str(), path_id, generate_mipmaps);
     }
 };
@@ -326,7 +327,7 @@ CallHook<int(const char*, int, bool)> ice_geo_crater_bm_load_hook {
 CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_slam_hook{
     0x0049DE39,
     [](rf::Entity* entity, float rel_vel) {
-        float damage_multiplier = get_option_or_default<float>(DashOptionID::FallDamageSlamMultiplier, 1.0f);
+        float damage_multiplier = get_option_or_default<float>(AlpineOptionID::FallDamageSlamMultiplier, 1.0f);
         float adjusted_rel_vel = rel_vel * damage_multiplier;
 
         xlog::warn("New slam damage value is {}", adjusted_rel_vel);
@@ -339,7 +340,7 @@ CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_slam_hook{
 CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_land_hook{
     0x004A0C28,
     [](rf::Entity* entity, float rel_vel) {
-        float damage_multiplier = get_option_or_default<float>(DashOptionID::FallDamageLandMultiplier, 1.0f);
+        float damage_multiplier = get_option_or_default<float>(AlpineOptionID::FallDamageLandMultiplier, 1.0f);
         float adjusted_rel_vel = rel_vel * damage_multiplier;
 
         xlog::warn("New land damage value is {}", adjusted_rel_vel);
@@ -351,7 +352,7 @@ CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_land_hook{
 // Override first level filename for new game menu
 CallHook<void(const char*)> first_load_level_hook{
     0x00443B15, [](const char* level_name) {
-        auto new_level_name = get_option_value<std::string>(DashOptionID::FirstLevelFilename);
+        auto new_level_name = get_option_value<std::string>(AlpineOptionID::FirstLevelFilename);
         first_load_level_hook.call_target(new_level_name.c_str());
     }
 };
@@ -359,7 +360,7 @@ CallHook<void(const char*)> first_load_level_hook{
 // Override training level filename for new game menu
 CallHook<void(const char*)> training_load_level_hook{
     0x00443A85, [](const char* level_name) {
-        auto new_level_name = get_option_value<std::string>(DashOptionID::TrainingLevelFilename);
+        auto new_level_name = get_option_value<std::string>(AlpineOptionID::TrainingLevelFilename);
         training_load_level_hook.call_target(new_level_name.c_str());
     }
 };
@@ -368,12 +369,12 @@ CallHook<void(const char*)> training_load_level_hook{
 FunHook<void(int, int)> extras_summoner_trailer_click_hook{
     0x0043EC80, [](int x, int y) {
         xlog::debug("Summoner trailer button clicked");
-        int action = get_option_value<int>(DashOptionID::SumTrailerButtonAction);
+        int action = get_option_value<int>(AlpineOptionID::SumTrailerButtonAction);
 
         switch (action) {
             case 1: { // Open URL
-                if (g_dash_options_config.is_option_loaded(DashOptionID::SumTrailerButtonURL)) {
-                    auto url = get_option_value<std::string>(DashOptionID::SumTrailerButtonURL);
+            if (g_alpine_options_config.is_option_loaded(AlpineOptionID::SumTrailerButtonURL)) {
+                    auto url = get_option_value<std::string>(AlpineOptionID::SumTrailerButtonURL);
                     open_url(url);
                 }
                 break;
@@ -381,7 +382,7 @@ FunHook<void(int, int)> extras_summoner_trailer_click_hook{
             case 2: // Disable button
                 break;
             default: { // Play Bink video
-                auto trailer_path = get_option_value<std::string>(DashOptionID::SumTrailerButtonBikFile);
+                auto trailer_path = get_option_value<std::string>(AlpineOptionID::SumTrailerButtonBikFile);
                 xlog::debug("Playing BIK file: {}", trailer_path);
                 rf::snd_pause(true);
                 rf::bink_play(trailer_path.c_str());
@@ -394,7 +395,7 @@ FunHook<void(int, int)> extras_summoner_trailer_click_hook{
 
 void handle_summoner_trailer_button()
 {
-    int action = get_option_value<int>(DashOptionID::SumTrailerButtonAction);
+    int action = get_option_value<int>(AlpineOptionID::SumTrailerButtonAction);
     if (action != -1) {
         if (action == 3) {
             // Action 3: Remove the button
@@ -415,57 +416,57 @@ void apply_af_options_patches()
     // ===========================
     // af_client.tbl
     // ===========================
-    if (g_dash_options_config.is_option_loaded(DashOptionID::AssaultRifleAmmoColor)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::AssaultRifleAmmoColor)) {
         fpgun_ar_ammo_digit_color_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::PrecisionRifleScopeColor)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PrecisionRifleScopeColor)) {
         precision_rifle_scope_color_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::SniperRifleScopeColor)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::SniperRifleScopeColor)) {
         sniper_rifle_scope_color_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::RailDriverFireGlowColor)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::RailDriverFireGlowColor)) {
         rail_gun_fire_glow_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::RailDriverFireFlashColor)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::RailDriverFireFlashColor)) {
         rail_gun_fire_flash_hook.install();
     }
 
     // ===========================
     // af_game.tbl
     // ===========================
-    if (g_dash_options_config.is_option_loaded(DashOptionID::UseStockPlayersConfig) &&
-        std::get<bool>(g_dash_options_config.options[DashOptionID::UseStockPlayersConfig])) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::UseStockPlayersConfig) &&
+        std::get<bool>(g_alpine_options_config.options[AlpineOptionID::UseStockPlayersConfig])) {
         AsmWriter(0x004A8F99).jmp(0x004A9010);
         AsmWriter(0x004A8DCC).jmp(0x004A8E53);
     }    
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Default)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::GeomodEmitter_Default)) {
         default_geomod_emitter_get_index_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodEmitter_Driller)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::GeomodEmitter_Driller)) {
         driller_geomod_emitter_get_index_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::GeomodTexture_Ice)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::GeomodTexture_Ice)) {
         ice_geo_crater_bm_load_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::FirstLevelFilename)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::FirstLevelFilename)) {
         first_load_level_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::TrainingLevelFilename)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::TrainingLevelFilename)) {
         training_load_level_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerEntityType)) {
-        static std::string new_entity_type = get_option_value<std::string>(DashOptionID::PlayerEntityType);
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerEntityType)) {
+        static std::string new_entity_type = get_option_value<std::string>(AlpineOptionID::PlayerEntityType);
         AsmWriter(0x0046D687).push(new_entity_type.c_str()); // multi_start
         AsmWriter(0x004706A2).push(new_entity_type.c_str()); // multi_respawn_bot
         AsmWriter(0x00480860).push(new_entity_type.c_str()); // multi_spawn_player_server_side
@@ -473,50 +474,62 @@ void apply_af_options_patches()
         AsmWriter(0x004B003F).push(new_entity_type.c_str()); // player_undercover_init
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerScientistEntityType)) {
-        static std::string new_sci_entity_type = get_option_value<std::string>(DashOptionID::PlayerScientistEntityType);
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerScientistEntityType)) {
+        static std::string new_sci_entity_type = get_option_value<std::string>(AlpineOptionID::PlayerScientistEntityType);
         AsmWriter(0x004B0058).push(new_sci_entity_type.c_str()); // player_undercover_init
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::PlayerSuitEntityType)) {
-        static std::string new_suit_entity_type = get_option_value<std::string>(DashOptionID::PlayerSuitEntityType);
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerSuitEntityType)) {
+        static std::string new_suit_entity_type = get_option_value<std::string>(AlpineOptionID::PlayerSuitEntityType);
         AsmWriter(0x004B0049).push(new_suit_entity_type.c_str()); // player_undercover_init
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::FallDamageSlamMultiplier)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::FallDamageSlamMultiplier)) {
         physics_calc_fall_damage_slam_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::FallDamageLandMultiplier)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::FallDamageLandMultiplier)) {
         physics_calc_fall_damage_land_hook.install();
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::MultiplayerWalkSpeed)) {
-        float multiplayer_walk_speed = get_option_or_default<float>(DashOptionID::MultiplayerWalkSpeed, 9.0f);
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiplayerWalkSpeed)) {
+        float multiplayer_walk_speed = get_option_or_default<float>(AlpineOptionID::MultiplayerWalkSpeed, 9.0f);
         rf::multiplayer_walk_speed = multiplayer_walk_speed;
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::MultiplayerCrouchWalkSpeed)) {
-        float multiplayer_crouch_walk_speed = get_option_or_default<float>(DashOptionID::MultiplayerCrouchWalkSpeed, 7.0f);
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiplayerCrouchWalkSpeed)) {
+        float multiplayer_crouch_walk_speed = get_option_or_default<float>(AlpineOptionID::MultiplayerCrouchWalkSpeed, 7.0f);
         rf::multiplayer_crouch_walk_speed = multiplayer_crouch_walk_speed;
     }
+
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::WalkableSlopeThreshold)) {
+        static float walkable_slope_threshold = get_option_or_default<float>(AlpineOptionID::WalkableSlopeThreshold, 0.5f);
+        //uintptr_t walkable_slope_threshold_address = reinterpret_cast<uintptr_t>(&walkable_slope_threshold);
+        AsmWriter(0x004A0A82).fcomp<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&walkable_slope_threshold)));
+    }
+
+
+    //static float walkable_slope_threshold = 0.5f;
+    //uintptr_t walkable_slope_threshold_address = reinterpret_cast<uintptr_t>(&walkable_slope_threshold);
+
+    
 
     // ===========================
     // af_ui.tbl
     // ===========================
-    if (g_dash_options_config.is_option_loaded(DashOptionID::DisableMultiplayerButton) &&
-        std::get<bool>(g_dash_options_config.options[DashOptionID::DisableMultiplayerButton])) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::DisableMultiplayerButton) &&
+        std::get<bool>(g_alpine_options_config.options[AlpineOptionID::DisableMultiplayerButton])) {
         AsmWriter(0x0044391F).nop(5); // Disable multiplayer button
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::DisableSingleplayerButtons) &&
-        std::get<bool>(g_dash_options_config.options[DashOptionID::DisableSingleplayerButtons])) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::DisableSingleplayerButtons) &&
+        std::get<bool>(g_alpine_options_config.options[AlpineOptionID::DisableSingleplayerButtons])) {
         AsmWriter(0x00443906).nop(5); // Disable save button
         AsmWriter(0x004438ED).nop(5); // Disable load button
         AsmWriter(0x004438D4).nop(5); // Disable new game button
     }
 
-    if (g_dash_options_config.is_option_loaded(DashOptionID::SumTrailerButtonAction)) {
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::SumTrailerButtonAction)) {
         handle_summoner_trailer_button();
     }
 
@@ -533,8 +546,8 @@ void apply_af_options_patches()
 
 void load_single_af_options_file(const std::string& file_name)
 {
-    auto dashoptions_file = std::make_unique<rf::File>();
-    if (dashoptions_file->open(file_name.c_str()) != 0) {
+    auto af_options_file = std::make_unique<rf::File>();
+    if (af_options_file->open(file_name.c_str()) != 0) {
         //xlog::warn("Could not open {}", file_name);
         return;
     }
@@ -545,13 +558,13 @@ void load_single_af_options_file(const std::string& file_name)
     std::string buffer(2048, '\0');
     int bytes_read;
 
-    while ((bytes_read = dashoptions_file->read(&buffer[0], buffer.size() - 1)) > 0) {
+    while ((bytes_read = af_options_file->read(&buffer[0], buffer.size() - 1)) > 0) {
         buffer.resize(bytes_read); // Adjust buffer to actual bytes read
         file_content += buffer;
         buffer.resize(2048, '\0'); // Reset buffer size for next read
     }
 
-    dashoptions_file->close();
+    af_options_file->close();
 
     // Process file content line-by-line
     std::istringstream file_stream(file_content);
@@ -606,8 +619,8 @@ void load_single_af_options_file(const std::string& file_name)
             const auto& metadata = meta_it->second;
             auto parsed_value = metadata.parse_function(option_value);
             if (parsed_value) {
-                g_dash_options_config.options[metadata.id] = *parsed_value;
-                g_dash_options_config.options_loaded[static_cast<std::size_t>(metadata.id)] = true;
+                g_alpine_options_config.options[metadata.id] = *parsed_value;
+                g_alpine_options_config.options_loaded[static_cast<std::size_t>(metadata.id)] = true;
                 xlog::warn("Parsed and applied option {}: {}", option_name, option_value);
                 xlog::warn("Option ID {} marked as loaded", static_cast<std::size_t>(metadata.id));
             }
@@ -649,7 +662,7 @@ void load_af_options_config()
             config_files.insert(metadata.filename);
         }
 
-        // Now load the rest of the dashoptions files
+        // Now load the rest of the af_options files
         for (const auto& file_name : config_files) {
             load_single_af_options_file(file_name);
         }
@@ -657,7 +670,7 @@ void load_af_options_config()
 
     xlog::warn("Loaded options:");
     for (std::size_t i = 0; i < option_count; ++i) {
-        if (g_dash_options_config.options_loaded[i]) {
+        if (g_alpine_options_config.options_loaded[i]) {
             //xlog::warn("Option {} is loaded", i);
         }
         else {

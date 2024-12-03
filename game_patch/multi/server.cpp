@@ -73,18 +73,10 @@ bool g_is_overtime = false;
 
 void parse_vote_config(const char* vote_name, VoteConfig& config, rf::Parser& parser)
 {
-    std::string vote_option_name = std::format("$DF {}:", vote_name);
+    std::string vote_option_name = std::format("${}:", vote_name);
     if (parser.parse_optional(vote_option_name.c_str())) {
         config.enabled = parser.parse_bool();
-        rf::console::print("DF {}: {}", vote_name, config.enabled ? "true" : "false");
-
-        // if (parser.ParseOptional("+Min Voters:")) {
-        //     config.min_voters = parser.ParseUInt();
-        // }
-
-        // if (parser.ParseOptional("+Min Percentage:")) {
-        //     config.min_percentage = parser.ParseUInt();
-        // }
+        rf::console::print("{}: {}", vote_name, config.enabled ? "true" : "false");
 
         if (parser.parse_optional("+Time Limit:")) {
             config.time_limit_seconds = parser.parse_uint();
@@ -103,7 +95,7 @@ void load_additional_server_config(rf::Parser& parser)
     parse_vote_config("Vote Previous", g_additional_server_config.vote_previous, parser);
     parse_vote_config("Vote Match", g_additional_server_config.vote_match, parser);
 
-    if (parser.parse_optional("$DF Spawn Protection Enabled:")) {
+    if (parser.parse_optional("$Spawn Protection Enabled:")) {
         g_additional_server_config.spawn_protection.enabled = parser.parse_bool();
         if (parser.parse_optional("+Duration:")) {
             g_additional_server_config.spawn_protection.duration = parser.parse_uint();
@@ -113,7 +105,7 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (parser.parse_optional("$DF Player Respawn Logic:")) {
+    if (parser.parse_optional("$Player Respawn Logic:")) {
         if (parser.parse_optional("+Respect Team Spawns:")) {
             g_additional_server_config.new_spawn_logic.respect_team_spawns = parser.parse_bool();
         }
@@ -139,31 +131,31 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (parser.parse_optional("$DF Spawn Protection Duration:")) {
+    if (parser.parse_optional("$Spawn Protection Duration:")) {
         g_additional_server_config.spawn_protection_duration_ms = parser.parse_uint();
     }
 
-    if (parser.parse_optional("$DF Desired Player Count:")) {
+    if (parser.parse_optional("$Desired Player Count:")) {
         g_additional_server_config.desired_player_count = parser.parse_int();
     }
 
-    if (parser.parse_optional("$DF Spawn Health:")) {
+    if (parser.parse_optional("$Spawn Health:")) {
         g_additional_server_config.spawn_life = {parser.parse_float()};
     }
 
-    if (parser.parse_optional("$DF Spawn Armor:")) {
+    if (parser.parse_optional("$Spawn Armor:")) {
         g_additional_server_config.spawn_armor = {parser.parse_float()};
     }
 
-    if (parser.parse_optional("$DF Use SP Damage Calculation:")) {
+    if (parser.parse_optional("$Use SP Damage Calculation:")) {
         g_additional_server_config.use_sp_damage_calculation = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF CTF Flag Return Time:")) {
+    if (parser.parse_optional("$CTF Flag Return Time:")) {
         g_additional_server_config.ctf_flag_return_time_ms = {parser.parse_int()};
     }
 
-    if (parser.parse_optional("$DF GunGame:")) {
+    if (parser.parse_optional("$GunGame:")) {
         g_additional_server_config.gungame.enabled = parser.parse_bool();
         if (parser.parse_optional("+Dynamic Progression:")) {
             g_additional_server_config.gungame.dynamic_progression = parser.parse_bool();
@@ -176,15 +168,14 @@ void load_additional_server_config(rf::Parser& parser)
             int final_weapon_level = parser.parse_int();
             g_additional_server_config.gungame.final_level = std::make_pair(final_kill_level, final_weapon_level);
         }
-        while(parser.parse_optional("+Level:"))
-        {
+        while (parser.parse_optional("+Level:")) {
             int kill_level = parser.parse_int();
             int weapon_level = parser.parse_int();
             g_additional_server_config.gungame.levels.emplace_back(kill_level, weapon_level);
         }
     }
 
-    if (parser.parse_optional("$DF Hitsounds:")) {
+    if (parser.parse_optional("$Hitsounds:")) {
         g_additional_server_config.hit_sounds.enabled = parser.parse_bool();
         if (parser.parse_optional("+Sound ID:")) {
             g_additional_server_config.hit_sounds.sound_id = parser.parse_uint();
@@ -194,7 +185,7 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (parser.parse_optional("$DF Critical Hits:")) {
+    if (parser.parse_optional("$Critical Hits:")) {
         g_additional_server_config.critical_hits.enabled = parser.parse_bool();
         if (parser.parse_optional("+Attacker Sound ID:")) {
             g_additional_server_config.critical_hits.sound_id = parser.parse_uint();
@@ -215,7 +206,7 @@ void load_additional_server_config(rf::Parser& parser)
             g_additional_server_config.critical_hits.dynamic_damage_for_max_bonus = parser.parse_float();
         }
     }
-    if (parser.parse_optional("$DF Weapon Stay Exemptions:")) {
+    if (parser.parse_optional("$Weapon Stay Exemptions:")) {
         g_additional_server_config.weapon_stay_exemptions.enabled = parser.parse_bool();
         if (parser.parse_optional("+Flamethrower:")) {
             g_additional_server_config.weapon_stay_exemptions.flamethrower = parser.parse_bool();
@@ -261,7 +252,7 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    while (parser.parse_optional("$DF Item Replacement:")) {
+    while (parser.parse_optional("$Item Replacement:")) {
         rf::String old_item;
         rf::String new_item;
         parser.parse_string(&old_item);
@@ -269,21 +260,21 @@ void load_additional_server_config(rf::Parser& parser)
         g_additional_server_config.item_replacements.insert({old_item.c_str(), new_item.c_str()});
     }
 
-    while (parser.parse_optional("$DF Item Respawn Time Override:")) {
+    while (parser.parse_optional("$Item Respawn Time Override:")) {
         rf::String item_name;
         parser.parse_string(&item_name);
         auto new_time = parser.parse_uint();
         g_additional_server_config.item_respawn_time_overrides.insert({item_name.c_str(), new_time});
     }
 
-    if (parser.parse_optional("$DF Weapon Items Give Full Ammo:")) {
+    if (parser.parse_optional("$Weapon Items Give Full Ammo:")) {
         g_additional_server_config.weapon_items_give_full_ammo = parser.parse_bool();
         if (parser.parse_optional("+Infinite Magazines:")) {
             g_additional_server_config.weapon_infinite_magazines = parser.parse_bool();
         }
     }
 
-    if (parser.parse_optional("$DF Default Player Weapon:")) {
+    if (parser.parse_optional("$Default Player Weapon:")) {
         rf::String default_weapon;
         parser.parse_string(&default_weapon);
         g_additional_server_config.default_player_weapon = default_weapon.c_str();
@@ -300,31 +291,31 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (parser.parse_optional("$DF Anticheat Level:")) {
+    if (parser.parse_optional("$Anticheat Level:")) {
         g_additional_server_config.anticheat_level = parser.parse_int();
     }
 
-    if (parser.parse_optional("$DF Semi Auto Minimum Fire Wait:")) {
+    if (parser.parse_optional("$Semi Auto Minimum Fire Wait:")) {
         g_additional_server_config.click_limiter_fire_wait = parser.parse_int();
     }
 
-    if (parser.parse_optional("$DF Require Client Mod:")) {
+    if (parser.parse_optional("$Require Client Mod:")) {
         g_additional_server_config.require_client_mod = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Player Damage Modifier:")) {
+    if (parser.parse_optional("$Player Damage Modifier:")) {
         g_additional_server_config.player_damage_modifier = parser.parse_float();
     }
 
-    if (parser.parse_optional("$DF Saving Enabled:")) {
+    if (parser.parse_optional("$Saving Enabled:")) {
         g_additional_server_config.saving_enabled = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF UPnP Enabled:")) {
+    if (parser.parse_optional("$UPnP Enabled:")) {
         g_additional_server_config.upnp_enabled = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Force Player Character:")) {
+    if (parser.parse_optional("$Force Player Character:")) {
         rf::String character_name;
         parser.parse_string(&character_name);
         int character_num = rf::multi_find_character(character_name.c_str());
@@ -336,40 +327,40 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (parser.parse_optional("$DF Max FOV:")) {
+    if (parser.parse_optional("$Max FOV:")) {
         float max_fov = parser.parse_float();
         if (max_fov > 0.0f) {
             g_additional_server_config.max_fov = {max_fov};
         }
     }
 
-    if (parser.parse_optional("$DF Dynamic Rotation:")) {
+    if (parser.parse_optional("$Dynamic Rotation:")) {
         g_additional_server_config.dynamic_rotation = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Allow Fullbright Meshes:")) {
+    if (parser.parse_optional("$Allow Fullbright Meshes:")) {
         g_additional_server_config.allow_fullbright_meshes = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Allow Lightmaps Only Mode:")) {
+    if (parser.parse_optional("$Allow Lightmaps Only Mode:")) {
         g_additional_server_config.allow_lightmaps_only = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Allow Disable Screenshake:")) {
+    if (parser.parse_optional("$Allow Disable Screenshake:")) {
         g_additional_server_config.allow_disable_screenshake = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Send Player Stats Message:")) {
+    if (parser.parse_optional("$Send Player Stats Message:")) {
         g_additional_server_config.stats_message_enabled = parser.parse_bool();
     }
 
-    if (parser.parse_optional("$DF Welcome Message:")) {
+    if (parser.parse_optional("$Welcome Message:")) {
         rf::String welcome_message;
         parser.parse_string(&welcome_message);
         g_additional_server_config.welcome_message = welcome_message.c_str();
     }
 
-    if (parser.parse_optional("$DF Kill Reward:")) {
+    if (parser.parse_optional("$Kill Reward:")) {
         if (parser.parse_optional("+Effective Health:")) {
             g_additional_server_config.kill_reward_effective_health = {parser.parse_float()};
         }
@@ -387,7 +378,7 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (parser.parse_optional("$DF Overtime Enabled:")) {
+    if (parser.parse_optional("$Overtime Enabled:")) {
         g_additional_server_config.overtime.enabled = parser.parse_bool();
         if (parser.parse_optional("+Duration:")) {
             g_additional_server_config.overtime.additional_time = parser.parse_uint();
@@ -397,9 +388,10 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
-    if (!parser.parse_optional("$Name:") && !parser.parse_optional("#End")) {
+    // testing moving new options above $Map lines
+    /* if (!parser.parse_optional("$Name:") && !parser.parse_optional("#End")) {
         parser.error("end of server configuration");
-    }
+    }*/
 }
 
 // memory addresses for weapon stay exemption indexes
@@ -471,7 +463,8 @@ void initialize_weapon_stay_exemptions()
 }
 
 CodeInjection dedicated_server_load_config_patch{
-    0x0046E216,
+    //0x0046E216,
+    0x0046E103, // above $Map lines
     [](auto& regs) {
         auto& parser = *reinterpret_cast<rf::Parser*>(regs.esp - 4 + 0x4C0 - 0x470);
         load_additional_server_config(parser);
@@ -502,7 +495,7 @@ CodeInjection dedicated_server_load_config_patch{
         std::string wnd_name;
         wnd_name.append(rf::netgame.name.c_str());
         wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
-        SetWindowTextA(rf::main_wnd, wnd_name.c_str());
+        SetWindowTextA(rf::main_wnd, wnd_name.c_str()); 
     },
 };
 
@@ -845,6 +838,21 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             }
         }
 
+        //xlog::warn("entity flags {}, {}, {}, {}, {}", damaged_ep->entity_flags, damaged_ep->entity_flags2, damaged_ep->info->flags, damaged_ep->info->flags2, damaged_ep->name);
+
+        // should entity gib?
+        if (damaged_ep->life < -100.0f &&
+            damage_type == 3 &&                         // explosive
+            damaged_ep->material == 3 &&                // flesh
+            rf::game_get_gore_level() >= 2 &&
+            !(damaged_ep->entity_flags & 0x2000000) &&  // custom_corpse (used by snakes and sea creature)
+            !(damaged_ep->entity_flags & 0x1) &&        // dying
+            !(damaged_ep->entity_flags & 0x1000) &&     // in_water
+            !(damaged_ep->entity_flags & 0x2000))       // eye_under_water
+        {
+            damaged_ep->entity_flags |= 0x80;
+        }
+
         float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
 
         if (rf::is_server && is_pvp_damage && real_damage > 0.0f) {
@@ -1016,20 +1024,23 @@ static bool check_player_ac_status([[maybe_unused]] rf::Player* player)
     return true;
 }
 
-std::set<rf::Player*> get_current_player_list(bool include_browsers)
+std::vector<rf::Player*> get_current_player_list(bool include_browsers)
 {
-    std::set<rf::Player*> player_list;
-    auto linked_player_list = SinglyLinkedList{rf::player_list};
+    std::vector<rf::Player*> player_list;
+
+    SinglyLinkedList<rf::Player> linked_player_list{rf::player_list};
 
     for (auto& player : linked_player_list) {
-        if (include_browsers ||
-            !(get_player_additional_data(&player).is_browser || ends_with(player.name, " (Bot)"))) {
-            player_list.insert(&player);
+        auto additional_data = get_player_additional_data(&player);
+
+        if (include_browsers || !(additional_data.is_browser || ends_with(player.name, " (Bot)"))) {
+            player_list.push_back(&player);
         }
     }
 
     return player_list;
 }
+
 
 bool is_player_ready(rf::Player* player)
 {
@@ -1252,18 +1263,6 @@ std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_inp
     bool is_valid = rf::get_file_checksum(level_name.c_str()) != 0;
 
     return {is_valid, level_name};
-}
-
-// count players who are not bots or browsers
-int count_real_players()
-{
-    auto player_list = SinglyLinkedList{rf::player_list};
-    const std::string bot_suffix = " (Bot)";
-
-    return std::count_if(player_list.begin(), player_list.end(), [&](rf::Player& player) {
-        rf::Entity* entity = rf::entity_from_handle(player.entity_handle);
-        return entity && !get_player_additional_data(&player).is_browser && !ends_with(player.name, bot_suffix);
-    });
 }
 
 // Function to count total spawned players (including bots and humans)
@@ -1503,7 +1502,7 @@ FunHook<void()> multi_check_for_round_end_hook{
         else {
             switch (game_type) {
             case rf::NG_TYPE_DM: {
-                auto current_players = get_current_player_list(false);
+                auto current_players = get_current_player_list(true);
 
                 if (current_players.empty())
                     break;

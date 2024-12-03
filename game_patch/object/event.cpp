@@ -3,9 +3,12 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
 #include <common/version/version.h>
+#include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
 #include <cassert>
 #include <unordered_set>
+#include <algorithm>
+#include <format>
 #include "../misc/misc.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
@@ -24,6 +27,25 @@ bool event_debug_enabled;
     std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
         Event::variable_handler_storage = {};
 }*/
+
+namespace rf
+{
+    std::vector<rf::Event*> find_all_events_by_type(rf::EventType event_type)
+    {
+        rf::VArray<rf::Event*> event_list = rf::event_list;
+        std::vector<rf::Event*> matching_events;
+
+        for (int i = 0; i < event_list.size(); ++i) {
+            auto* event = event_list[i];
+            if (event && event->event_type == rf::event_type_to_int(event_type)) {
+                matching_events.push_back(event);
+            }
+        }
+
+        return matching_events;
+    }
+
+} // namespace rf
 
 CodeInjection switch_model_event_custom_mesh_patch{
     0x004BB921,
@@ -227,6 +249,8 @@ ConsoleCommand2 debug_event_msg_cmd{
     "dbg_events",
     []() {
         event_debug_enabled = !event_debug_enabled;
+
+        //auto all_events = find_all_events_by_type(rf::EventType::Difficulty_Gate); // test
     }
 };
 
@@ -324,8 +348,78 @@ CodeInjection trigger_activate_linked_objects_patch{
     }
 };
 
+CodeInjection event_headlamp_state_on_patch{
+    0x004B92EE, [](auto& regs) {
+        rf::Event* event = regs.eax;
+
+        if (af_rfl_version(rf::level.version) && event->links.empty())
+        {
+            rf::entity_headlamp_turn_on(rf::local_player_entity);
+        }
+    }
+};
+
+CodeInjection event_headlamp_state_off_patch {
+    0x004BA0EE, [](auto& regs) {
+        rf::Event* event = regs.eax;
+
+        if (af_rfl_version(rf::level.version) && event->links.empty())
+        {
+            rf::entity_headlamp_turn_off(rf::local_player_entity);
+        }
+    }
+};
+
+void event_holster_player_weapon_turn_off()
+{
+    if (rf::local_player_entity) {
+        rf::local_player_entity->entity_flags &= ~0x800;
+    }
+}
+
+void event_holster_weapon_turn_off(rf::Event* event)
+{
+    if (!event) {
+        return;
+    }
+
+    for (int link : event->links) {
+        rf::Entity* ep = static_cast<rf::Entity*>(rf::entity_from_handle(link));
+        if (ep) {
+            ep->entity_flags &= ~0x800;
+        }
+    }
+}
+
+CodeInjection Event__turn_off_redirector_patch {
+    0x004B9F80, [](auto& regs) {
+
+        if (af_rfl_version(rf::level.version)) {
+
+            rf::Event* event = regs.ecx;
+            xlog::warn("event turned off {}, {}, {}", event->name, event->uid, event->event_type);
+
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Holster_Player_Weapon)) {
+                event_holster_player_weapon_turn_off();
+                regs.eip = 0x004BA008;
+            }
+
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Holster_Weapon)) {
+                event_holster_weapon_turn_off(event);
+                regs.eip = 0x004BA008;
+            }
+        }
+    }
+};
+
 void apply_event_patches()
 {
+    Event__turn_off_redirector_patch.install();
+
+    // allow player flashlights (af levels)
+    event_headlamp_state_on_patch.install();
+    event_headlamp_state_off_patch.install();
+
     // allow event activation from triggers in multiplayer (af levels)
     trigger_activate_linked_objects_patch.install();
 

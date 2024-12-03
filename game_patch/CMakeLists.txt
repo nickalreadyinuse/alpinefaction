@@ -171,8 +171,8 @@ set(SRCS
     misc/camera.cpp
     misc/ui.cpp
     misc/game.cpp
-    misc/dashoptions.h
-    misc/dashoptions.cpp
+    misc/alpine_options.h
+    misc/alpine_options.cpp
     sound/sound.cpp
     sound/sound.h
     sound/sound_ds.cpp

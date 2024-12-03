@@ -343,6 +343,15 @@ $RFE Level1:      "AF_General"
 $Event Name:      "Set_Level_Hardness"
 $RFE Level1:      "AF_General"
 
+$Event Name:      "Force_Unhide"
+$RFE Level1:      "AF_General"
+
+$Event Name:      "Set_Difficulty"
+$RFE Level1:      "AF_General"
+
+$Event Name:      "Set_Fog_Far_Clip"
+$RFE Level1:      "AF_General"
+
 #End
 
 // ------------------------------------------------
@@ -373,6 +382,9 @@ $Event Name:      "Environment_Gate"
 $RFE Level1:      "AF_Flow"
 
 $Event Name:      "Inside_Gate"
+$RFE Level1:      "AF_Flow"
+
+$Event Name:      "Gametype_Gate"
 $RFE Level1:      "AF_Flow"
 
 #End
@@ -409,5 +421,19 @@ $RFE Level1:      "AF_Utility"
 
 $Event Name:      "Anchor_Marker"
 $RFE Level1:      "AF_Utility"
+
+#End
+
+// ------------------------------------------------
+// Catalyst Events in Alpine Faction
+// ------------------------------------------------
+
+#AplineCatalysts
+
+$Event Name:      "AF_When_Dead"
+$RFE Level1:      "AF_Catalysts"
+
+$Event Name:      "When_Picked_Up"
+$RFE Level1:      "AF_Catalysts"
 
 #End
