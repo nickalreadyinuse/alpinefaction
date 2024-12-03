@@ -1,5 +1,8 @@
 #pragma once
 
+#include <map>
+#include <vector>
+#include <string>
 
 struct AlpineEventDialog
 {
@@ -54,3 +57,27 @@ constexpr AlpineDedEventID int_to_af_ded_event(int event_id) noexcept
 {
     return static_cast<AlpineDedEventID>(event_id);
 }
+
+enum FieldType
+{
+    FIELD_SCRIPT_NAME = 1001,
+    FIELD_DELAY = 1002,
+    FIELD_INT1 = 1003,
+    FIELD_INT2 = 1004,
+    FIELD_FLOAT1 = 1005,
+    FIELD_FLOAT2 = 1006,
+    FIELD_BOOL1 = 1007,
+    FIELD_BOOL2 = 1008,
+    FIELD_STR1 = 1009,
+    FIELD_STR2 = 1010
+};
+
+
+
+// Field configuration for each event_type
+struct FieldConfig
+{
+    std::string windowTitle;
+    std::vector<FieldType> fieldsToShow;
+    std::map<FieldType, std::string> fieldLabels;
+};
