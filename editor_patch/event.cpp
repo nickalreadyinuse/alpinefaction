@@ -40,7 +40,7 @@ std::unique_ptr<const char*[]> extended_event_names; // array to hold original +
 
 // master list of new events, last one is dummy for counting (ignore)
 const char* additional_event_names[new_event_count] = {
-    "SetVar",
+    "Set_Variable",
     "Clone_Entity",
     "Set_Player_World_Collide",
     "Switch_Random",
@@ -187,34 +187,169 @@ bool is_valid_float(const std::string& str, float& outValue)
 }
 
 
-// temporary storage of currently active alpine event
+// temporary storage of currently active alpine event and level
 DedEvent* currentDedEvent = nullptr;
-CDedLevel* currentDedLevel = nullptr;
+CDedLevel* currentDedLevel = nullptr; // used by links dialog
 
 std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
-    {AlpineDedEventID::SetVar, {
-        {FIELD_STR1, FIELD_STR2},
+    {AlpineDedEventID::Set_Variable, {
+        {FIELD_INT1, FIELD_INT2, FIELD_FLOAT1, FIELD_BOOL1, FIELD_STR1},
         {
-            {FIELD_STR1, "Variable to change:"},
-            {FIELD_STR2, "New value:"},
+            {FIELD_INT1, "Variable handle:"},
+            {FIELD_INT2, "Value for int1 or int2:"},
+            {FIELD_FLOAT1, "Value for delay, float1, or float2:"},
+            {FIELD_BOOL1, "Value for bool1 or bool2:"},
+            {FIELD_STR1, "Value for str1 or str2:"}
+        },
+        {
+            {FIELD_INT1,
+                {
+                    "delay",
+                    "int1",
+                    "int2",
+                    "float1",
+                    "float2",
+                    "bool1",
+                    "bool2",
+                    "str1",
+                    "str2"
+                }
+            }
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Clone_Entity, {
+        {FIELD_BOOL1},
+        {
+            {FIELD_BOOL1, "Ignore item drop (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Switch_Random, {
+        {FIELD_BOOL1},
+        {
+            {FIELD_BOOL1, "No repeats until all used (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Difficulty_Gate, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Difficulty (int1):"}
+        },
+        {
+            {FIELD_INT1,
+            {"Easy", "Medium", "Hard", "Impossible"}}
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::HUD_Message, {
+        {FIELD_STR1, FIELD_FLOAT1},
+        {
+            {FIELD_STR1, "Message text (str1):"},
+            {FIELD_FLOAT1, "Duration (float1):"}
+        }
+    }},
+    {AlpineDedEventID::Play_Video, {
+        {FIELD_STR1},
+        {
+            {FIELD_STR1, "Video filename (str1):"}
+        }
+    }},
+    {AlpineDedEventID::Set_Level_Hardness, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Hardness (int1):"}
+        }
+    }},
+    {AlpineDedEventID::Sequence, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Next index to activate (int1):"}
         }
     }},
     {AlpineDedEventID::Goal_Gate, {
-        {FIELD_STR1, FIELD_STR2, FIELD_INT1, FIELD_INT2},
+        {FIELD_STR1, FIELD_INT1, FIELD_INT2},
         {
-            {FIELD_STR1, "Goal to check:"},
-            {FIELD_STR2, "Test to perform:"},
-            {FIELD_INT1, "First value:"},
-            {FIELD_INT2, "Second value:"},
+            {FIELD_STR1, "Goal to test (str1):"},
+            {FIELD_INT1, "Test to run (int1):"},
+            {FIELD_INT2, "Value to test against (int2):"}
+        },
+        {
+            {FIELD_INT1,
+                {"Equal to",
+                "Not equal to",
+                "Greater than",
+                "Less than",
+                "Greater than or equal to",
+                "Less than or equal to",
+                "Is odd",
+                "Is even",
+                "Divisible by",
+                "Less than initial value",
+                "Greater than initial value",
+                "Less or equal initial value",
+                "Greater or equal initial value",
+                "Equal to initial value"
+                }
+            }
+        },
+        {
+            {FIELD_INT1, true}
         }
     }},
-    {AlpineDedEventID::Clone_Entity, { // just for testing, this needs no vars
-        {FIELD_FLOAT1},
+    {AlpineDedEventID::Remove_Link, {
+        {FIELD_BOOL1},
         {
-            {FIELD_FLOAT1, "Goal to check:"},
+            {FIELD_BOOL1, "Purge all links (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Add_Link, {
+        {FIELD_INT1, FIELD_BOOL1},
+        {
+            {FIELD_INT1, "Source event UID (int1):"},
+            {FIELD_BOOL1, "Link inbound (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Valid_Gate, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Object UID to test (int1):"}
+        }
+    }},
+    {AlpineDedEventID::Goal_Math, {
+        {FIELD_STR1, FIELD_INT1, FIELD_INT2},
+        {
+            {FIELD_STR1, "Goal to edit (str1):"},
+            {FIELD_INT1, "Operation to perform (int1):"},
+            {FIELD_INT2, "Value to use for operation (int2):"}
+        },
+        {
+            {FIELD_INT1,
+                {"Add to goal",
+                "Subtract from goal",
+                "Multiply by goal",
+                "Divide goal by",
+                "Divide by goal",
+                "Set goal to",
+                "Modulus goal",
+                "Raise goal to power",
+                "Negate goal",
+                "Absolute value of goal",
+                "Max of goal and value",
+                "Min of goal and value",
+                "Reset goal to initial value"
+                }
+            }
+        },
+        {
+            {FIELD_INT1, true}
         }
     }},
 };
+
 
 void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::string& className)
 {
@@ -222,7 +357,7 @@ void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::s
     TEXTMETRIC tm;
     GetTextMetrics(hdc, &tm);
     int controlHeight = tm.tmHeight + 8; // Base control height on font metrics
-    int labelWidth = 120;
+    int labelWidth = 160;
     int fieldWidth = 160;
     int xLabel = 10;
     int xField = xLabel + labelWidth + 10;
@@ -230,22 +365,22 @@ void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::s
 
     HFONT hDefaultFont = (HFONT)SendMessage(hwndDlg, WM_GETFONT, 0, 0);
 
-    // Add "Class Name" field
+    // class name
     {
         std::string label = "Class Name:";
-        HWND hLabel = CreateWindowA("STATIC", label.c_str(), WS_VISIBLE | WS_CHILD, xLabel, yOffset, labelWidth,
+        HWND hLabel = CreateWindowA("STATIC", label.c_str(), WS_VISIBLE | WS_CHILD, xLabel, yOffset + 4, labelWidth,
                                     controlHeight, hwndDlg, nullptr, nullptr, nullptr);
 
         SendMessage(hLabel, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
 
-        HWND hField = CreateWindowA("STATIC", className.c_str(), WS_VISIBLE | WS_CHILD, xField, yOffset, fieldWidth,
+        HWND hField = CreateWindowA("STATIC", className.c_str(), WS_VISIBLE | WS_CHILD, xField, yOffset + 4, fieldWidth,
                                     controlHeight, hwndDlg, nullptr, nullptr, nullptr);
 
         SendMessage(hField, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
         yOffset += controlHeight + 10; // Increment vertical spacing
     }
 
-    // Include mandatory fields
+    // script name and delay
     std::vector<FieldType> allFields = {FIELD_SCRIPT_NAME, FIELD_DELAY};
     allFields.insert(allFields.end(), config.fieldsToShow.begin(), config.fieldsToShow.end());
 
@@ -255,25 +390,49 @@ void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::s
         if (field == FIELD_SCRIPT_NAME)
             label = "Script Name:";
         if (field == FIELD_DELAY)
-            label = "Delay:";
+            label = "Delay (delay):";
 
         // Create label
-        HWND hLabel = CreateWindowA("STATIC", label.c_str(), WS_VISIBLE | WS_CHILD, xLabel, yOffset, labelWidth,
+        HWND hLabel = CreateWindowA("STATIC", label.c_str(), WS_VISIBLE | WS_CHILD, xLabel, yOffset + 4, labelWidth,
                                     controlHeight, hwndDlg, nullptr, nullptr, nullptr);
 
         SendMessage(hLabel, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
 
-
         // Create the control
         HWND hField;
-        if (field == FIELD_BOOL1 || field == FIELD_BOOL2) {
-            hField = CreateWindowW(L"BUTTON",L"", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX | WS_TABSTOP , xField, yOffset, 20,
-                                   controlHeight, hwndDlg, reinterpret_cast<HMENU>(field), nullptr, nullptr);
+        if (config.dropdownItems.count(field)) {
+            // Create dropdown for fields with dropdown items
+            hField =
+                CreateWindowW(L"COMBOBOX", L"", WS_VISIBLE | WS_CHILD | CBS_DROPDOWNLIST | WS_TABSTOP, xField, yOffset,
+                              fieldWidth, controlHeight * 5, hwndDlg, reinterpret_cast<HMENU>(field), nullptr, nullptr);
+
+            // Add dropdown items
+            const auto& items = config.dropdownItems.at(field);
+            for (size_t i = 0; i < items.size(); ++i) {
+                std::string itemText;
+                if (config.dropdownSaveIndex.count(field) && config.dropdownSaveIndex.at(field)) {
+                    // Format as "INDEX : LABEL" when saving index
+                    itemText = std::to_string(i) + " : " + items[i];
+                }
+                else {
+                    // Use the label directly otherwise
+                    itemText = items[i];
+                }
+                SendMessage(hField, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(itemText.c_str()));
+            }
+
+        }
+        else if (field == FIELD_BOOL1 || field == FIELD_BOOL2) {
+            // Create checkbox for boolean fields
+            hField =
+                CreateWindowW(L"BUTTON", L"", WS_VISIBLE | WS_CHILD | BS_AUTOCHECKBOX | WS_TABSTOP, xField, yOffset, 20,
+                              controlHeight, hwndDlg, reinterpret_cast<HMENU>(field), nullptr, nullptr);
         }
         else {
-            hField =
-                CreateWindowW(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL | WS_TABSTOP , xField, yOffset,
-                              fieldWidth, controlHeight, hwndDlg, reinterpret_cast<HMENU>(field), nullptr, nullptr);
+            // Create edit box for other fields
+            hField = CreateWindowW(L"EDIT", L"", WS_VISIBLE | WS_CHILD | WS_BORDER | ES_AUTOHSCROLL | WS_TABSTOP,
+                                   xField, yOffset, fieldWidth, controlHeight, hwndDlg, reinterpret_cast<HMENU>(field),
+                                   nullptr, nullptr);
         }
 
         SendMessage(hField, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
@@ -281,25 +440,25 @@ void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::s
         yOffset += controlHeight + 10;
     }
 
-    // Add OK and Cancel buttons
-    int buttonWidth = 70;
+    // Add OK, Cancel, and Links buttons
+    int buttonWidth = 80;
     int buttonHeight = 25;
     int xOK = xLabel;
     int xCancel = xField + fieldWidth - buttonWidth;
-    int xLinks = (xOK + xCancel - 50) / 2; // Position "Links" button in between
+    int xLinks = (xOK + xCancel) / 2 - 20; // Adjusted to your original specifications
 
-    HWND hOKButton = CreateWindowW(L"BUTTON", L"Save", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WS_TABSTOP , xOK, yOffset, buttonWidth,
-                                   buttonHeight, hwndDlg, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
+    HWND hOKButton = CreateWindowW(L"BUTTON", L"Save", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WS_TABSTOP, xOK, yOffset,
+                                   buttonWidth, buttonHeight, hwndDlg, reinterpret_cast<HMENU>(IDOK), nullptr, nullptr);
     SendMessage(hOKButton, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
 
     HWND hCancelButton =
-        CreateWindowW(L"BUTTON", L"Cancel", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WS_TABSTOP , xCancel, yOffset, buttonWidth,
-                      buttonHeight, hwndDlg, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
+        CreateWindowW(L"BUTTON", L"Cancel", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WS_TABSTOP, xCancel, yOffset,
+                      buttonWidth, buttonHeight, hwndDlg, reinterpret_cast<HMENU>(IDCANCEL), nullptr, nullptr);
     SendMessage(hCancelButton, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
 
     HWND hLinksButton =
-        CreateWindowA("BUTTON", "Save + Edit Links", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WS_TABSTOP, xLinks, yOffset,
-                      120, buttonHeight, hwndDlg, reinterpret_cast<HMENU>(ID_LINKS), nullptr, nullptr);
+        CreateWindowA("BUTTON", "Save + Edit Links", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON | WS_TABSTOP, xLinks,
+                      yOffset, 120, buttonHeight, hwndDlg, reinterpret_cast<HMENU>(ID_LINKS), nullptr, nullptr);
     SendMessage(hLinksButton, WM_SETFONT, (WPARAM)hDefaultFont, TRUE);
 
     yOffset += buttonHeight + 40;
@@ -311,11 +470,13 @@ void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::s
     SetWindowPos(hwndDlg, HWND_TOPMOST, 0, 0, dialogWidth, dialogHeight, SWP_NOMOVE | SWP_NOZORDER);
 }
 
-void SaveCurrentFields(HWND hwndDlg) {
-    if (!currentDedEvent) return;
+void SaveCurrentFields(HWND hwndDlg)
+{
+    if (!currentDedEvent)
+        return;
 
     FieldConfig config = eventFieldConfigs[int_to_af_ded_event(currentDedEvent->event_type)];
-    char buffer[256];
+    char buffer[256]; // Buffer for dropdown and edit field values
 
     xlog::info("Saving dialog for event_type: {}", currentDedEvent->event_type);
 
@@ -333,54 +494,107 @@ void SaveCurrentFields(HWND hwndDlg) {
 
     // Save specific fields
     for (FieldType field : config.fieldsToShow) {
-        switch (field) {
-        case FIELD_INT1:
-            currentDedEvent->int1 = GetDlgItemInt(hwndDlg, FIELD_INT1, nullptr, TRUE);
-            xlog::info("Saved Int1: {}", currentDedEvent->int1);
-            break;
-        case FIELD_INT2:
-            currentDedEvent->int2 = GetDlgItemInt(hwndDlg, FIELD_INT2, nullptr, TRUE);
-            xlog::info("Saved Int2: {}", currentDedEvent->int2);
-            break;
-        case FIELD_FLOAT1:
-            GetDlgItemTextA(hwndDlg, FIELD_FLOAT1, buffer, sizeof(buffer));
-            float float1Value;
-            if (is_valid_float(buffer, float1Value)) {
-                currentDedEvent->float1 = float1Value;
-                xlog::info("Saved Float1: {}", currentDedEvent->float1);
+        if (config.dropdownItems.count(field)) {
+            // Handle dropdown fields
+            HWND hDropdown = GetDlgItem(hwndDlg, field);
+            int selectedIndex = SendMessage(hDropdown, CB_GETCURSEL, 0, 0); // Get selected index
+
+            if (selectedIndex != CB_ERR) {
+                if (config.dropdownSaveIndex.count(field) && config.dropdownSaveIndex.at(field)) {
+                    // Save the index directly
+                    switch (field) {
+                    case FIELD_INT1:
+                        currentDedEvent->int1 = selectedIndex;
+                        xlog::info("Saved Int1 as index: {}", currentDedEvent->int1);
+                        break;
+                    case FIELD_INT2:
+                        currentDedEvent->int2 = selectedIndex;
+                        xlog::info("Saved Int2 as index: {}", currentDedEvent->int2);
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                else {
+                    // Save the value based on dropdown item text
+                    SendMessage(hDropdown, CB_GETLBTEXT, selectedIndex, (LPARAM)buffer);
+                    switch (field) {
+                    case FIELD_INT1:
+                        currentDedEvent->int1 = std::stoi(buffer);
+                        xlog::info("Saved Int1 as value: {}", currentDedEvent->int1);
+                        break;
+                    case FIELD_INT2:
+                        currentDedEvent->int2 = std::stoi(buffer);
+                        xlog::info("Saved Int2 as value: {}", currentDedEvent->int2);
+                        break;
+                    case FIELD_STR1:
+                        currentDedEvent->str1.assign_0(buffer);
+                        xlog::info("Saved Str1: {}", currentDedEvent->str1.c_str());
+                        break;
+                    case FIELD_STR2:
+                        currentDedEvent->str2.assign_0(buffer);
+                        xlog::info("Saved Str2: {}", currentDedEvent->str2.c_str());
+                        break;
+                    default:
+                        break;
+                    }
+                }
             }
-            break;
-        case FIELD_FLOAT2:
-            GetDlgItemTextA(hwndDlg, FIELD_FLOAT2, buffer, sizeof(buffer));
-            float float2Value;
-            if (is_valid_float(buffer, float2Value)) {
-                currentDedEvent->float2 = float2Value;
-                xlog::info("Saved Float2: {}", currentDedEvent->float2);
+
+        }
+        else {
+            // Handle non-dropdown fields
+            switch (field) {
+            case FIELD_INT1:
+                currentDedEvent->int1 = GetDlgItemInt(hwndDlg, FIELD_INT1, nullptr, TRUE);
+                xlog::info("Saved Int1: {}", currentDedEvent->int1);
+                break;
+            case FIELD_INT2:
+                currentDedEvent->int2 = GetDlgItemInt(hwndDlg, FIELD_INT2, nullptr, TRUE);
+                xlog::info("Saved Int2: {}", currentDedEvent->int2);
+                break;
+            case FIELD_FLOAT1:
+                GetDlgItemTextA(hwndDlg, FIELD_FLOAT1, buffer, sizeof(buffer));
+                if (is_valid_float(buffer, delayValue)) {
+                    currentDedEvent->float1 = delayValue;
+                    xlog::info("Saved Float1: {}", currentDedEvent->float1);
+                }
+                break;
+            case FIELD_FLOAT2:
+                GetDlgItemTextA(hwndDlg, FIELD_FLOAT2, buffer, sizeof(buffer));
+                if (is_valid_float(buffer, delayValue)) {
+                    currentDedEvent->float2 = delayValue;
+                    xlog::info("Saved Float2: {}", currentDedEvent->float2);
+                }
+                break;
+            case FIELD_BOOL1:
+                currentDedEvent->bool1 = IsDlgButtonChecked(hwndDlg, FIELD_BOOL1) == BST_CHECKED;
+                xlog::info("Saved Bool1: {}", currentDedEvent->bool1);
+                break;
+            case FIELD_BOOL2:
+                currentDedEvent->bool2 = IsDlgButtonChecked(hwndDlg, FIELD_BOOL2) == BST_CHECKED;
+                xlog::info("Saved Bool2: {}", currentDedEvent->bool2);
+                break;
+            case FIELD_STR1:
+                GetDlgItemTextA(hwndDlg, FIELD_STR1, buffer, sizeof(buffer));
+                currentDedEvent->str1.assign_0(buffer);
+                xlog::info("Saved Str1: {}", currentDedEvent->str1.c_str());
+                break;
+            case FIELD_STR2:
+                GetDlgItemTextA(hwndDlg, FIELD_STR2, buffer, sizeof(buffer));
+                currentDedEvent->str2.assign_0(buffer);
+                xlog::info("Saved Str2: {}", currentDedEvent->str2.c_str());
+                break;
+            default:
+                break;
             }
-            break;
-        case FIELD_BOOL1:
-            currentDedEvent->bool1 = IsDlgButtonChecked(hwndDlg, FIELD_BOOL1) == BST_CHECKED;
-            xlog::info("Saved Bool1: {}", currentDedEvent->bool1);
-            break;
-        case FIELD_BOOL2:
-            currentDedEvent->bool2 = IsDlgButtonChecked(hwndDlg, FIELD_BOOL2) == BST_CHECKED;
-            xlog::info("Saved Bool2: {}", currentDedEvent->bool2);
-            break;
-        case FIELD_STR1:
-            GetDlgItemTextA(hwndDlg, FIELD_STR1, buffer, sizeof(buffer));
-            currentDedEvent->str1.assign_0(buffer);
-            xlog::info("Saved Str1: {}", currentDedEvent->str1.c_str());
-            break;
-        case FIELD_STR2:
-            GetDlgItemTextA(hwndDlg, FIELD_STR2, buffer, sizeof(buffer));
-            currentDedEvent->str2.assign_0(buffer);
-            xlog::info("Saved Str2: {}", currentDedEvent->str2.c_str());
-            break;
-        default:
-            break;
         }
     }
 }
+
+
+
+
 
 INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -391,54 +605,112 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         if (currentDedEvent) {
             FieldConfig config = eventFieldConfigs[int_to_af_ded_event(currentDedEvent->event_type)];
 
-            xlog::info("Opening dialog for event_type: {}", currentDedEvent->event_type);            
+            xlog::info("Opening dialog for event_type: {}", currentDedEvent->event_type);
 
             // Set dialog title
             std::string title = generate_window_title(currentDedEvent);
             SetWindowTextA(hwndDlg, title.c_str());
 
-            // Create dynamic controls, passing class_name
+            // Create dynamic controls (already populates dropdowns)
             CreateDynamicControls(hwndDlg, config, currentDedEvent->class_name.c_str());
 
             // Populate mandatory fields
             SetDlgItemTextA(hwndDlg, FIELD_SCRIPT_NAME, currentDedEvent->script_name.c_str());
             SetDlgItemTextA(hwndDlg, FIELD_DELAY, std::to_string(currentDedEvent->delay).c_str());
 
-            // Populate specific fields
+            // Populate fields, including dropdowns
             for (FieldType field : config.fieldsToShow) {
-                switch (field) {
-                case FIELD_INT1:
-                    SetDlgItemInt(hwndDlg, FIELD_INT1, currentDedEvent->int1, TRUE);
-                    break;
-                case FIELD_INT2:
-                    SetDlgItemInt(hwndDlg, FIELD_INT2, currentDedEvent->int2, TRUE);
-                    break;
-                case FIELD_FLOAT1:
-                    SetDlgItemTextA(hwndDlg, FIELD_FLOAT1, std::to_string(currentDedEvent->float1).c_str());
-                    break;
-                case FIELD_FLOAT2:
-                    SetDlgItemTextA(hwndDlg, FIELD_FLOAT2, std::to_string(currentDedEvent->float2).c_str());
-                    break;
-                case FIELD_BOOL1:
-                    CheckDlgButton(hwndDlg, FIELD_BOOL1, currentDedEvent->bool1 ? BST_CHECKED : BST_UNCHECKED);
-                    break;
-                case FIELD_BOOL2:
-                    CheckDlgButton(hwndDlg, FIELD_BOOL2, currentDedEvent->bool2 ? BST_CHECKED : BST_UNCHECKED);
-                    break;
-                case FIELD_STR1:
-                    SetDlgItemTextA(hwndDlg, FIELD_STR1, currentDedEvent->str1.c_str());
-                    break;
-                case FIELD_STR2:
-                    SetDlgItemTextA(hwndDlg, FIELD_STR2, currentDedEvent->str2.c_str());
-                    break;
-                default:
-                    break;
-                    //xlog::warn("Unhandled field type in WM_INITDIALOG: {}", field);
+                HWND hField = GetDlgItem(hwndDlg, field);
+                if (!hField)
+                    continue; // Skip if control does not exist
+
+                if (config.dropdownItems.count(field)) {
+                    // Handle dropdowns
+                    if (config.dropdownSaveIndex.count(field) && config.dropdownSaveIndex.at(field)) {
+                        // Use index to populate dropdown selection
+                        int currentIndex = 0;
+                        switch (field) {
+                        case FIELD_INT1:
+                            currentIndex = currentDedEvent->int1;
+                            break;
+                        case FIELD_INT2:
+                            currentIndex = currentDedEvent->int2;
+                            break;
+                        default:
+                            continue;
+                        }
+                        SendMessage(hField, CB_SETCURSEL, currentIndex, 0);
+                    }
+                    else {
+                        // Match value to dropdown item
+                        std::string currentValue;
+                        switch (field) {
+                        case FIELD_INT1:
+                            currentValue = std::to_string(currentDedEvent->int1);
+                            break;
+                        case FIELD_INT2:
+                            currentValue = std::to_string(currentDedEvent->int2);
+                            break;
+                        case FIELD_STR1:
+                            currentValue = currentDedEvent->str1.c_str();
+                            break;
+                        case FIELD_STR2:
+                            currentValue = currentDedEvent->str2.c_str();
+                            break;
+                        default:
+                            continue;
+                        }
+
+                        // Find and select the index in the dropdown that matches the current value
+                        int index = SendMessage(hField, CB_FINDSTRINGEXACT, -1, (LPARAM)currentValue.c_str());
+                        if (index != CB_ERR) {
+                            SendMessage(hField, CB_SETCURSEL, index, 0);
+                        }
+                        else {
+                            SendMessage(hField, CB_SETCURSEL, 0, 0); // Default to the first item
+                        }
+                    }
+
+                }
+                else {
+                    // Handle non-dropdown fields
+                    switch (field) {
+                    case FIELD_INT1:
+                        SetDlgItemInt(hwndDlg, FIELD_INT1, currentDedEvent->int1, TRUE);
+                        break;
+                    case FIELD_INT2:
+                        SetDlgItemInt(hwndDlg, FIELD_INT2, currentDedEvent->int2, TRUE);
+                        break;
+                    case FIELD_FLOAT1:
+                        SetDlgItemTextA(hwndDlg, FIELD_FLOAT1, std::to_string(currentDedEvent->float1).c_str());
+                        break;
+                    case FIELD_FLOAT2:
+                        SetDlgItemTextA(hwndDlg, FIELD_FLOAT2, std::to_string(currentDedEvent->float2).c_str());
+                        break;
+                    case FIELD_BOOL1:
+                        CheckDlgButton(hwndDlg, FIELD_BOOL1, currentDedEvent->bool1 ? BST_CHECKED : BST_UNCHECKED);
+                        break;
+                    case FIELD_BOOL2:
+                        CheckDlgButton(hwndDlg, FIELD_BOOL2, currentDedEvent->bool2 ? BST_CHECKED : BST_UNCHECKED);
+                        break;
+                    case FIELD_STR1:
+                        SetDlgItemTextA(hwndDlg, FIELD_STR1, currentDedEvent->str1.c_str());
+                        break;
+                    case FIELD_STR2:
+                        SetDlgItemTextA(hwndDlg, FIELD_STR2, currentDedEvent->str2.c_str());
+                        break;
+                    default:
+                        break;
+                    }
                 }
             }
         }
         return TRUE;
     }
+
+
+
+
 
     case WM_COMMAND: {
         if (LOWORD(wParam) == IDOK && currentDedEvent)

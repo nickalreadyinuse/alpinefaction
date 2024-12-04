@@ -395,16 +395,7 @@ $RFE Level1:      "AF_Flow"
 
 #AplineUtility
 
-// =========================
-// == SetVar syntax guide ==
-// =========================
-// SetVar_VARNAME
-// =========================
-// Use VARNAME to name the
-// variable that is set
-// =========================
-
-$Event Name:      "SetVar"
+$Event Name:      "Set_Variable"
 $RFE Level1:      "AF_Utility"
 
 $Event Name:      "Clear_Queued"

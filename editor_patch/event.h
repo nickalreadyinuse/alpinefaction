@@ -21,7 +21,7 @@ struct AlpineEventDialog
 // level editor alpine event IDs, separate from EventType in game
 enum class AlpineDedEventID : int
 {
-    SetVar = 89,
+    Set_Variable = 89,
     Clone_Entity,
     Set_Player_World_Collide,
     Switch_Random,
@@ -75,9 +75,10 @@ enum FieldType
 // Field configuration for each event_type
 struct FieldConfig
 {
-    //std::string windowTitle = "";
     std::vector<FieldType> fieldsToShow;
     std::map<FieldType, std::string> fieldLabels;
+    std::map<FieldType, std::vector<std::string>> dropdownItems;
+    std::map<FieldType, bool> dropdownSaveIndex;
 };
 
 static auto OpenLinksDialog = reinterpret_cast<void(__thiscall*)(void* this_)>(0x004073D0);

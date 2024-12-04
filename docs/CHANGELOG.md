@@ -61,7 +61,7 @@ Version 1.0.0
 - Make game load level files up to current AF version
 - Add support for dynamic lights in levels
 - Add custom Alpine events:
-    - `SetVar`
+    - `Set_Variable`
     - `Clone_Entity`
     - `Set_Player_World_Collide`
     - `Switch_Random`

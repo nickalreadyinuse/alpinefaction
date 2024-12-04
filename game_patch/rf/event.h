@@ -18,6 +18,34 @@
 
 namespace rf
 {
+    enum class SetVarOpts : int
+    {
+        delay,
+        int1,
+        int2,
+        float1,
+        float2,
+        bool1,
+        bool2,
+        str1,
+        str2
+    };
+}
+
+namespace std
+{
+    template<>
+    struct hash<rf::SetVarOpts> // Allow SetVarOpts as a key in std::unordered_map
+    {
+        std::size_t operator()(const rf::SetVarOpts& opt) const noexcept
+        {
+            return static_cast<std::size_t>(opt);
+        }
+    };
+} // namespace std
+
+namespace rf
+{
     struct Event : Object
     {
         int event_type;
@@ -30,8 +58,10 @@ namespace rf
         bool delayed_msg;
 
         // handler storage, defined in event.cpp
-        static std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
+        static std::unordered_map<const Event*, std::unordered_map<rf::SetVarOpts, std::function<void(Event*, const std::string&)>>>
             variable_handler_storage;
+
+
 
         // register variable handlers (AF new) plus default event initialization (does nothing)
         // safe to override, but include call to base struct initialize for var handler registration
@@ -92,36 +122,39 @@ namespace rf
         virtual void register_variable_handlers()
         {
             auto& handlers = variable_handler_storage[this];
-            handlers["delay"] = [](Event* event, const std::string& value) {
+
+            handlers[SetVarOpts::delay] = [](Event* event, const std::string& value) {
                 event->delay_seconds = std::stof(value);
-                xlog::warn("apply_var: delay set to {}", event->delay_seconds);
+                xlog::info("apply_var: delay set to {}", event->delay_seconds);
             };
         }
 
     public:
-        virtual void apply_var(const std::string& var_name, const std::string& value)
+        void apply_var(SetVarOpts var, const std::string& value)
         {
             auto it = variable_handler_storage.find(this);
             if (it != variable_handler_storage.end()) {
                 auto& handlers = it->second;
-                auto handler_it = handlers.find(var_name);
+                auto handler_it = handlers.find(var);
                 if (handler_it != handlers.end()) {
                     try {
                         handler_it->second(this, value);
                     }
                     catch (const std::exception& ex) {
-                        xlog::error("apply_var: Failed to set var_name={} with value={} - {}", var_name, value,
+                        xlog::error("apply_var: Failed to set var={} with value={} - {}", static_cast<int>(var), value,
                                     ex.what());
                     }
                 }
                 else {
-                    xlog::warn("apply_var: Unsupported var_name={} for Event", var_name);
+                    xlog::warn("apply_var: Unsupported var={} for Event", static_cast<int>(var));
                 }
             }
             else {
                 xlog::warn("apply_var: No handlers registered for Event");
             }
         }
+
+
     };
     static_assert(sizeof(Event) == 0x2B8); // 0x2B5 in original code
 
@@ -247,7 +280,7 @@ namespace rf
         When_Armor_Reaches,
         Reverse_Mover, // 89
         // 90 - 99 unused
-        SetVar = 100, // alpine events begin at type 100
+        Set_Variable = 100, // alpine events begin at 100
         Clone_Entity,
         Set_Player_World_Collide,
         Switch_Random,
