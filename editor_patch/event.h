@@ -32,7 +32,7 @@ enum class AlpineDedEventID : int
     Sequence,
     Clear_Queued,
     Remove_Link,
-    Fixed_Delay,
+    Route_Node,
     Add_Link,
     Valid_Gate,
     Goal_Math,

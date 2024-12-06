@@ -51,7 +51,7 @@ const char* additional_event_names[new_event_count] = {
     "Sequence",
     "Clear_Queued",
     "Remove_Link",
-    "Fixed_Delay",
+    "Route_Node",
     "Add_Link",
     "Valid_Gate",
     "Goal_Math",
@@ -306,6 +306,27 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             {FIELD_BOOL1, "Purge all links (bool1):"}
         }
     }},
+    {AlpineDedEventID::Route_Node, {
+        {FIELD_INT1, FIELD_BOOL1, FIELD_BOOL2},
+        {
+            {FIELD_INT1, "Node behavior (int1):"},
+            {FIELD_BOOL1, "Non-retriggerable delay (bool1):"},
+            {FIELD_BOOL2, "Clear trigger info (bool2):"}
+        },
+        {
+            {FIELD_INT1,
+                {"Pass through",
+                "Drop",
+                "Invert",
+                "Force on",
+                "Force off"
+                }
+            }
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
     {AlpineDedEventID::Add_Link, {
         {FIELD_INT1, FIELD_BOOL1},
         {
@@ -334,7 +355,7 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
                 "Divide goal by",
                 "Divide by goal",
                 "Set goal to",
-                "Modulus goal",
+                "Modulo goal by",
                 "Raise goal to power",
                 "Negate goal",
                 "Absolute value of goal",

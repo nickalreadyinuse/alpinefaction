@@ -204,6 +204,7 @@ CodeInjection entity_process_pre_hide_riot_shield_injection{
     },
 };
 
+// in EventSpawnObject__turn_on
 CodeInjection entity_create_hook{
     0x004BC180,  // Address right after the call to entity_create
     [](BaseCodeInjection::Regs& regs) {
@@ -261,7 +262,7 @@ CodeInjection corpse_damage_patch{
     }
 };
 
-// avoids playing pain sounds for gibbing entities
+// avoids playing pain sounds for gibbing entities (broken atm)
 CodeInjection entity_damage_gib_no_pain_sound_patch {
     0x0041A51F,
     [](auto& regs) {        
@@ -291,7 +292,7 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
         rf::Object* objp = rf::obj_from_handle(handle);
 
         if (!objp) {
-            return; // invalid object
+            return;
         }
 
         int explode_vclip_index = rf::vclip_lookup("bloodsplat");
@@ -331,16 +332,21 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
 ConsoleCommand2 cl_gorelevel_cmd{
     "cl_gorelevel",
     [](std::optional<int> gore_setting) {
-        if (gore_setting.has_value()) {
-            rf::game_set_gore_level(gore_setting.value_or(1));
-            rf::console::print("Set gore level to {}", rf::game_get_gore_level());
+        if (gore_setting) {
+            if (*gore_setting >= 0 && *gore_setting <= 2) {
+                rf::game_set_gore_level(*gore_setting);
+                rf::console::print("Set gore level to {}", rf::game_get_gore_level());
+            }
+            else {
+                rf::console::print("Invalid gore level specified. Allowed range is 0 (minimal) to 2 (maximum).");
+            }
         }
         else {
             rf::console::print("Gore level is {}", rf::game_get_gore_level());
         }
         
     },
-    "Set gore level from 0 (minimal gore) to 2 (maximum gore).",
+    "Set gore level.",
     "cl_gorelevel [level]"
 };
 
@@ -401,11 +407,22 @@ CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookD{
     }
 };
 
+// experimenting with nanoshield, not working, disabled
+CodeInjection player_create_entity_nano_patch {
+    0x004A4207,
+    [](auto& regs) {        
+        rf::Entity* ep = regs.ebx;
+        xlog::warn("object: {}, type {}", ep->name, static_cast<int>(ep->type));
+
+        ep->nano_shield_info->nano_shield_vfx_handle = rf::vmesh_create_anim_fx("NanoShieldConstant.vfx", 0);
+    }
+};
 
 void entity_do_patch()
 {
     testlink_cmd.register_cmd();
     entity_create_hook.install();
+    //player_create_entity_nano_patch.install(); // nanoshield experiment
     //physics_calc_fall_damage_hook.install();
     //physics_calc_fall_damage_hookB.install();
     //physics_calc_fall_damage_hookC.install();

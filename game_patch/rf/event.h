@@ -184,6 +184,7 @@ namespace rf
     static auto& event_find_named_event = addr_as_ref<GenericEvent*(String* name)>(0x004BD740);
     static auto& event_lookup_persistent_goal_event = addr_as_ref<PersistentGoalEvent*(const char* name)>(0x004B8680);
     static auto& event_list = addr_as_ref<VArray<Event*>>(0x00856470);
+    static auto& event_type_forwards_messages = addr_as_ref<bool(int event_type)>(0x004B8C40);
 
     // applies only to game, not level editor
     // original game events use a different order entirely in level editor, AF events in RED use the same
@@ -291,7 +292,7 @@ namespace rf
 		Sequence,
         Clear_Queued,
 		Remove_Link,
-        Fixed_Delay,
+        Route_Node,
         Add_Link,
         Valid_Gate,
         Goal_Math,

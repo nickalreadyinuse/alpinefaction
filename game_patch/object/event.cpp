@@ -414,25 +414,15 @@ CodeInjection Event__turn_off_redirector_patch {
 
 void apply_event_patches()
 {
+    // allow Holster_Player_Weapon and Holster_Weapon to be turned off (af levels)
     Event__turn_off_redirector_patch.install();
 
-    // allow player flashlights (af levels)
+    // allow player flashlights via Headlamp_State (af levels)
     event_headlamp_state_on_patch.install();
     event_headlamp_state_off_patch.install();
 
     // allow event activation from triggers in multiplayer (af levels)
     trigger_activate_linked_objects_patch.install();
-
-    // alpine event stuff
-    /*
-    AsmWriter(0x004B68A3).jmp(0x004B68A9); // make event_create process events with any ID (params specified)
-    event_lookup_type_hook.install(); // define AF event IDs
-    event_allocate_hook.install(); // load AF events at level start
-    event_deallocate_hook.install(); // unload AF events at level end
-    event_type_forwards_messages_patch.install(); // handle AF events that shouldn't forward messages by default
-    level_read_events_patch.install(); // assign factories for AF events
-    event_activate_fixed_delay.install(); // handle activations for Fixed_Delay event
-    */
 
     // Improve player teleport behaviour
     // event_player_teleport_on_hook.install(); // disabled until teleport bug fixed

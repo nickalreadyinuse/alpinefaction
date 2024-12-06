@@ -15,6 +15,7 @@
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/os/console.h"
+#include "../rf/os/timestamp.h"
 #include "../os/console.h"
 
 namespace rf
@@ -56,7 +57,7 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
             {"Sequence", 108},
             {"Clear_Queued", 109},
             {"Remove_Link", 110},
-            {"Fixed_Delay", 111},
+            {"Route_Node", 111},
             {"Add_Link", 112},
             {"Valid_Gate", 113},
             {"Goal_Math", 114},
@@ -100,7 +101,7 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
             {108, []() { return new rf::EventSequence(); }},
             {109, []() { return new rf::EventClearQueued(); }},
             {110, []() { return new rf::EventRemoveLink(); }},
-            {111, []() { return new rf::EventFixedDelay(); }},
+            {111, []() { return new rf::EventRouteNode(); }},
             {112, []() { return new rf::EventAddLink(); }},
             {113, []() { return new rf::EventValidGate(); }},
             {114, []() { return new rf::EventGoalMath(); }},
@@ -148,7 +149,7 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             {108, [](rf::Event* e) { delete static_cast<rf::EventSequence*>(e); }},
             {109, [](rf::Event* e) { delete static_cast<rf::EventClearQueued*>(e); }},
             {110, [](rf::Event* e) { delete static_cast<rf::EventRemoveLink*>(e); }},
-            {111, [](rf::Event* e) { delete static_cast<rf::EventFixedDelay*>(e); }},
+            {111, [](rf::Event* e) { delete static_cast<rf::EventRouteNode*>(e); }},
             {112, [](rf::Event* e) { delete static_cast<rf::EventAddLink*>(e); }},
             {113, [](rf::Event* e) { delete static_cast<rf::EventValidGate*>(e); }},
             {114, [](rf::Event* e) { delete static_cast<rf::EventGoalMath*>(e); }},
@@ -318,6 +319,19 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             return event;
         }
     },
+    // Route_Node
+    {
+        rf::EventType::Route_Node, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Route_Node));
+            auto* event = dynamic_cast<rf::EventRouteNode*>(base_event);
+            if (event) {
+                event->behaviour = static_cast<rf::RouteNodeBehavior>(params.int1);
+                event->fixed = params.bool1;
+                event->clear_trigger_info = params.bool2;
+            }
+            return event;
+        }
+    },
     // Add_Link
     {
         rf::EventType::Add_Link, [](const rf::EventCreateParams& params) {
@@ -482,15 +496,63 @@ CodeInjection level_read_events_patch {
     }
 };
 
-CodeInjection event_activate_fixed_delay{
-    0x004B8B91,
+CodeInjection event_activate_route_node{
+    0x004B8B97,
     [](auto& regs) {
         rf::Event* event = regs.esi;
 
-        // check if a Fixed_Delay is active
-        if (event->event_type == rf::event_type_to_int(rf::EventType::Fixed_Delay) && event->delay_timestamp.valid()) { 
-            xlog::debug("Ignoring message request in active {} event ({})", event->name, event->uid);
-            regs.eip = 0x004B8C35;
+        // verify it's a Route_Node
+        if (event->event_type == rf::event_type_to_int(rf::EventType::Route_Node)) {
+            auto* delay_event = reinterpret_cast<rf::EventRouteNode*>(event);
+            bool on = *reinterpret_cast<bool*>(regs.esp + 0x18);
+            bool proceed = true;
+
+            // mode = drop, or mode = fixed + existing delay
+            if (delay_event->behaviour == rf::RouteNodeBehavior::drop ||
+                (delay_event->fixed && event->delay_timestamp.valid())) {
+                xlog::debug("Ignoring message request in {} ({})", event->name, event->uid); // would be nice to use dbg_events
+                proceed = false; // ignoring message, stop
+            }
+
+            // calculate desired on/off state
+            bool real_on = false;
+            switch (delay_event->behaviour) {
+                case rf::RouteNodeBehavior::force_on:
+                    real_on = true;
+                    break;
+                case rf::RouteNodeBehavior::force_off:
+                    real_on = false;
+                    break;
+                case rf::RouteNodeBehavior::invert:
+                    real_on = !on;
+                    break;
+                case rf::RouteNodeBehavior::pass:
+                default:
+                    real_on = on;
+                    break;
+            }
+
+            // handle clearing trigger info, doing it here ensures it's maintained when process handles it after delay
+            if (delay_event->clear_trigger_info) {
+                delay_event->trigger_handle = -1;
+                delay_event->triggered_by_handle = -1;
+            }
+
+            if (proceed && delay_event->delay_seconds > 0.0f) {
+                delay_event->delay_timestamp.set(static_cast<int>(delay_event->delay_seconds * 1000));
+                delay_event->delayed_msg = real_on;
+                proceed = false; // set delay, stop
+            }
+
+            // activate here if no delay, activation happens in process if there is a delay
+            // Note this doesn't call turn_on or turn_off - unneeded since this event does nothing,
+            // but turn_on or turn_off is called if its activated via process (original code)
+            if (proceed) {
+                delay_event->delay_timestamp.invalidate();
+                delay_event->activate_links(delay_event->trigger_handle, delay_event->triggered_by_handle, real_on);
+            }
+
+            regs.eip = 0x004B8C35; // skip to end of function
         }
     }
 };
@@ -503,5 +565,5 @@ void apply_alpine_events()
     event_deallocate_hook.install();              // unload AF events at level end
     event_type_forwards_messages_patch.install(); // handle AF events that shouldn't forward messages by default
     level_read_events_patch.install();            // assign factories for AF events
-    event_activate_fixed_delay.install();         // handle activations for Fixed_Delay event
+    event_activate_route_node.install();         // handle activations for Route_Node event
 }

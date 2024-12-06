@@ -369,26 +369,93 @@ void multi_init_player(rf::Player* player)
     multi_kill_init_player(player);
 }
 
+FunHook<void(rf::Entity*)> entity_set_nano_flag_hook{
+    0x0042D270,
+    [](rf::Entity* ep) {
+
+        ep->armor = std::fmax(ep->armor, 100.0f);
+        ep->entity_flags2 |= 0x80000; // nano pickup flag
+        ep->info->flags |= 0x2000000; // nano shield flag
+        rf::entity_make_fly(ep);
+        rf::obj_emit_sound2(ep, ep->pos, 37, 1.5, 0); // sound 38
+    },
+};
+
+FunHook<void(rf::Entity*)> entity_remove_nano_flag_hook{
+    0x0042D280,
+    [](rf::Entity* ep) {
+
+        ep->armor = std::fmax(ep->armor, 100.0f);
+        ep->entity_flags2 &= ~0x80000; // nano pickup flag
+        ep->info->flags &= ~0x2000000; // nano shield flag
+        rf::entity_make_freefall(ep);
+        //rf::obj_emit_sound2(ep, ep->pos, 37, 1.5, 0); // sound 38
+    },
+};
+
 CodeInjection multi_powerup_add_nano_patch { // unfinished and disabled, look at multi_powerup_add
-    0x004801B4,
+    0x004801C6,
     [](auto& regs) {
         rf::Player* pp = regs.edi;
         xlog::warn("hooked, player {}", pp->name);
-        int powerup_type = regs.ebp;
+        int powerup_type = regs.ecx;
         xlog::warn("put: {}", powerup_type);
-        rf::Entity* ep = rf::entity_from_handle(pp->entity_handle);
+        rf::Entity* ep = regs.eax;
         xlog::warn("hooked, entity {}, flags {}", ep->name, ep->entity_flags2);
-        ep->entity_flags2 |= 0x00080000;
-        xlog::warn("hooked, entity {}, flags {}", ep->name, ep->entity_flags2);
+        rf::entity_set_nano_flag(ep);
+        //ep->info->flags |= 0x2000000;
+        xlog::warn("hooked, entity {}, flags {}, has nano? {}", ep->name, ep->entity_flags2, rf::entity_has_nano_shield(ep));
+        xlog::warn("infoflags1 {}, infoflags2 {}", ep->info->flags, ep->info->flags2);
         
 
     },
 };
 
+CodeInjection multi_powerup_remove_nano_patch {
+    0x0048029E,
+    [](auto& regs) {
+        rf::Player* pp = regs.edi;
+        xlog::warn("hooked, player {}", pp->name);
+        int powerup_type = regs.ecx;
+        xlog::warn("removing: {}", powerup_type);
+        rf::Entity* ep = regs.eax;
+        xlog::warn("hooked for remove, entity {}, flags {}", ep->name, ep->entity_flags2);
+        if (powerup_type == 4)
+        {
+            rf::entity_remove_nano_flag(ep);
+        }
+        xlog::warn("hooked, entity {}, flags {}, has nano? {}", ep->name, ep->entity_flags2, rf::entity_has_nano_shield(ep));
+        xlog::warn("infoflags1 {}, infoflags2 {}", ep->info->flags, ep->info->flags2);
+    },
+};
+
+CodeInjection multi_powerup_remove_all_for_player_nano_patch {
+    0x0048039A,
+    [](auto& regs) {
+        int powerup_type = regs.esi;
+        xlog::warn("removing all: {}", powerup_type);
+        rf::Entity* ep = regs.ebp;
+        xlog::warn("hooked for remove, entity {}, flags {}", ep->name, ep->entity_flags2);
+        if (powerup_type == 4)
+        {
+            rf::entity_remove_nano_flag(ep);
+        }
+        xlog::warn("hooked, entity {}, flags {}, has nano? {}", ep->name, ep->entity_flags2, rf::entity_has_nano_shield(ep));
+        xlog::warn("infoflags1 {}, infoflags2 {}", ep->info->flags, ep->info->flags2);
+    },
+};
+
 void multi_do_patch()
 {
+    //entity_set_nano_flag_hook.install();
+    //entity_remove_nano_flag_hook.install();
     //multi_powerup_add_nano_patch.install();
-    //AsmWriter(0x00480032).cmp(asm_regs::esi, 0x0059EF50); // nanoshield
+    //multi_powerup_remove_nano_patch.install();
+    //multi_powerup_remove_all_for_player_nano_patch.install();
+    //AsmWriter(0x00480032).cmp(asm_regs::esi, 0x0059EF50); // nanoshield force (dont use)
+    //AsmWriter(0x004210CC).jmp(0x00421108); // nano shield vfx remove
+    //AsmWriter(0x004222DF).jmp(0x00422315); // nano shield vfx remove
+    //AsmWriter(0x00422ACA).jmp(0x00422AD0); // force all entities to have shield
 
     multi_limbo_init.install();
     multi_start_injection.install();

@@ -59,6 +59,13 @@ namespace rf
         int field_30;
     };
 
+    struct NanoShieldInfo
+    {
+        float original_max_vel;
+        VMesh *nano_shield_vfx_handle;
+    };
+    static_assert(sizeof(NanoShieldInfo) == 0x8);
+
     struct ObjSkinInfo
     {
         String name;
@@ -271,7 +278,7 @@ namespace rf
         int engine_rev_sound_handle;
         VMesh *primary_warmup_vfx_handle;
         VMesh *cockpit_vfx_handle;
-        int nano_shield;
+        NanoShieldInfo *nano_shield_info;
         int damage_sound_instance;
         MoveMode *move_mode;
         Matrix3 *move_parent_orient;
@@ -415,11 +422,16 @@ namespace rf
     static auto& entity_fire_init_bones = addr_as_ref<bool(EntityFireInfo *efi, Object *objp)>(0x0042EB20);
     static auto& entity_is_swimming = addr_as_ref<bool(Entity* ep)>(0x0042A0A0);
     static auto& entity_is_falling = addr_as_ref<bool(Entity* ep)>(0x0042A020);
+    static auto& entity_make_freefall = addr_as_ref<void(Entity* ep)>(0x004281A0);
     static auto& entity_is_flying = addr_as_ref<bool(Entity* ep)>(0x0042A060);
+    static auto& entity_make_fly = addr_as_ref<void(Entity* ep)>(0x00428130);
     static auto& entity_on_ground = addr_as_ref<bool(Entity* ep)>(0x0042A0D0);
     static auto& entity_can_swim = addr_as_ref<bool(Entity* ep)>(0x00427FF0);
     static auto& entity_headlamp_turn_on = addr_as_ref<void(Entity* ep)>(0x00429560);
     static auto& entity_headlamp_turn_off = addr_as_ref<void(Entity* ep)>(0x004294A0);
+    static auto& entity_set_nano_flag = addr_as_ref<void(Entity* ep)>(0x0042D270);
+    static auto& entity_remove_nano_flag = addr_as_ref<void(Entity* ep)>(0x0042D280);
+    static auto& entity_has_nano_shield = addr_as_ref<bool(Entity* ep)>(0x0042CCA0);
     static auto& entity_update_liquid_status = addr_as_ref<void(Entity* ep)>(0x00429100);
     static auto& entity_is_playing_action_animation = addr_as_ref<bool(Entity* entity, int action)>(0x00428D10);
     static auto& entity_set_next_state_anim = addr_as_ref<void(Entity* entity, int state, float transition_time)>(0x0042A580);

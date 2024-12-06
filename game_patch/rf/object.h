@@ -130,6 +130,8 @@ namespace rf
     static auto& obj_is_player = addr_as_ref<bool(Object* obj)>(0x004895D0);
     static auto& obj_hide = addr_as_ref<void(Object* obj)>(0x0048A570);
     static auto& obj_unhide = addr_as_ref<void(Object* obj)>(0x0048A660);
+    static auto& obj_emit_sound2 = addr_as_ref<int(
+        Object* objp, Vector3 pos, int sound_handle, float vol_scale, float pan)>(0x0048A9C0);
 
     static auto& obj_light_free = addr_as_ref<void()>(0x0048B370);
     static auto& obj_light_alloc = addr_as_ref<void()>(0x0048B1D0);

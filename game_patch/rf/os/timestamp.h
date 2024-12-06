@@ -13,9 +13,9 @@ namespace rf
             return AddrCaller{0x004FA3F0}.this_call<bool>(this);
         }
 
-        void set(int value_ms)
+        int set(int value_ms)
         {
-            AddrCaller{0x004FA360}.this_call(this, value_ms);
+            return AddrCaller{0x004FA360}.this_call<int>(this, value_ms);
         }
 
         [[nodiscard]] bool valid() const

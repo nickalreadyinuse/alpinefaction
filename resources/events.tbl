@@ -369,7 +369,7 @@ $RFE Level1:      "AF_Flow"
 $Event Name:      "Difficulty_Gate"
 $RFE Level1:      "AF_Flow"
 
-$Event Name:      "Fixed_Delay"
+$Event Name:      "Route_Node"
 $RFE Level1:      "AF_Flow"
 
 $Event Name:      "Valid_Gate"
