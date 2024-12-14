@@ -21,28 +21,35 @@
 
 bool event_debug_enabled;
 
-/* namespace rf
-{
-    // event var handler storage
-    std::unordered_map<const Event*, std::unordered_map<std::string, std::function<void(Event*, const std::string&)>>>
-        Event::variable_handler_storage = {};
-}*/
-
 namespace rf
 {
-    std::vector<rf::Event*> find_all_events_by_type(rf::EventType event_type)
+    std::vector<Event*> find_all_events_by_type(EventType event_type)
     {
-        rf::VArray<rf::Event*> event_list = rf::event_list;
-        std::vector<rf::Event*> matching_events;
+        VArray<Event*> full_event_list = event_list;
+        std::vector<Event*> matching_event_list;
 
-        for (int i = 0; i < event_list.size(); ++i) {
-            auto* event = event_list[i];
-            if (event && event->event_type == rf::event_type_to_int(event_type)) {
-                matching_events.push_back(event);
+        for (int i = 0; i < full_event_list.size(); ++i) {
+            auto* event = full_event_list[i];
+            if (event && event->event_type == event_type_to_int(event_type)) {
+                matching_event_list.push_back(event);
             }
         }
 
-        return matching_events;
+        return matching_event_list;
+    }
+
+    bool check_if_event_is_type(Event* event, EventType type)
+    {
+        return type == static_cast<EventType>(event->event_type);
+    }
+
+    bool check_if_object_is_event_type(Object* object, EventType type)
+    {
+        if (!object || object->type != OT_EVENT) {
+            return false;
+        }
+        Event* event = static_cast<Event*>(object);
+        return type == static_cast<EventType>(event->event_type);
     }
 
 } // namespace rf

@@ -76,22 +76,27 @@ CodeInjection game_level_init_pre_patch{
     }
 };
 
-FunHook<void(rf::Item*, rf::Entity*, bool, int)> item_pickup_hook{
-    0x00459560,
-    [](rf::Item* item, rf::Entity* ep, bool do_los_check, int allow_multi) {
-        // can't reliably work in multi
-        if (!rf::is_multi && ep == rf::local_player_entity) {
-            xlog::warn("player tried to pick up item {}, uid {}, handle {}", item->name, item->uid, item->handle);
-            rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, -1, true);
-        } // todo: verify this doesnt trigger every frame if player can't pick up item
+CodeInjection item_pickup_patch {
+    0x004597BA, [](auto& regs) {
 
-        item_pickup_hook.call_target(item, ep, do_los_check, allow_multi);
-    },
+        bool picked_up = regs.eax != -1;
+
+        if (picked_up && !rf::is_multi)
+        {
+            rf::Item* item = regs.esi;
+            rf::Entity* entity = regs.edi;
+            if (item && entity && entity == rf::local_player_entity) {
+                xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
+                rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
+            }
+        }
+    }
 };
 
 void item_do_patch()
 {
-    item_pickup_hook.install();
+    // activate When_Picked_Up events
+    item_pickup_patch.install();
 
     // allow picking up powerups in SP // todo: restrict to Alpine levels
     AsmWriter(0x0045AAFD).jmp(0x0045AB11); // allow item_touch_multi_amp in SP

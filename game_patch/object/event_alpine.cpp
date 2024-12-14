@@ -24,13 +24,9 @@ namespace rf
     std::unordered_map<const Event*, std::unordered_map<SetVarOpts, std::function<void(Event*, const std::string&)>>>
     Event::variable_handler_storage = {};
 
-
-
-
-
-    void activate_all_events_of_type(rf::EventType event_type, int trigger_handle, int triggered_by_handle, bool on)
+    void activate_all_events_of_type(EventType event_type, int trigger_handle, int triggered_by_handle, bool on)
     {
-        auto event_list = rf::find_all_events_by_type(event_type);
+        auto event_list = find_all_events_by_type(event_type);
         for (auto* event : event_list) {
             if (event) {
                 event->activate(trigger_handle, triggered_by_handle, on);
@@ -71,6 +67,11 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
             {"AF_When_Dead", 122},
             {"Gametype_Gate", 123},
             {"When_Picked_Up", 124},
+            {"Set_Skybox", 125},
+            {"Set_Life", 126},
+            {"Set_Debris", 127},
+            {"Set_Fog_Color", 128},
+            {"Set_Entity_Flag", 129},
         };
 
         auto it = custom_event_ids.find(name->c_str());
@@ -115,6 +116,11 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
             {122, []() { return new rf::EventAFWhenDead(); }},
             {123, []() { return new rf::EventGametypeGate(); }},
             {124, []() { return new rf::EventWhenPickedUp(); }},
+            {125, []() { return new rf::EventSetSkybox(); }},
+            {126, []() { return new rf::EventSetLife(); }},
+            {127, []() { return new rf::EventSetDebris(); }},
+            {128, []() { return new rf::EventSetFogColor(); }},
+            {129, []() { return new rf::EventSetEntityFlag(); }},
         };
 
         // find type and allocate
@@ -163,6 +169,11 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
             {122, [](rf::Event* e) { delete static_cast<rf::EventAFWhenDead*>(e); }},
             {123, [](rf::Event* e) { delete static_cast<rf::EventGametypeGate*>(e); }},
             {124, [](rf::Event* e) { delete static_cast<rf::EventWhenPickedUp*>(e); }},
+            {125, [](rf::Event* e) { delete static_cast<rf::EventSetSkybox*>(e); }},
+            {126, [](rf::Event* e) { delete static_cast<rf::EventSetLife*>(e); }},
+            {127, [](rf::Event* e) { delete static_cast<rf::EventSetDebris*>(e); }},
+            {128, [](rf::Event* e) { delete static_cast<rf::EventSetFogColor*>(e); }},
+            {129, [](rf::Event* e) { delete static_cast<rf::EventSetEntityFlag*>(e); }},
         };
 
         // find type and deallocate
@@ -194,7 +205,8 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Inside_Gate,
         rf::EventType::AF_When_Dead,
         rf::EventType::Gametype_Gate,
-        rf::EventType::When_Picked_Up
+        rf::EventType::When_Picked_Up,
+        rf::EventType::Set_Entity_Flag
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
@@ -258,7 +270,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Difficulty_Gate));
             auto* event = dynamic_cast<rf::EventDifficultyGate*>(base_event);
             if (event) {
-                event->difficulty = params.int1;
+                event->difficulty = static_cast<rf::GameDifficultyLevel>(params.int1);
             }
             return event;
         }
@@ -363,7 +375,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             if (event) {
                 event->goal = params.str1;
                 event->operation = static_cast<rf::GoalMathOperation>(params.int1);
-                event->value = params.int2;
+                event->operation_value = params.int2;
             }
             return event;
         }
@@ -376,7 +388,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             if (event) {
                 event->goal = params.str1;
                 event->test_type = static_cast<rf::GoalGateTests>(params.int1);
-                event->value = params.int2;
+                event->test_value = params.int2;
             }
             return event;
         }
@@ -387,7 +399,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Environment_Gate));
             auto* event = dynamic_cast<rf::EventEnvironmentGate*>(base_event);
             if (event) {
-                event->environment = params.str1;
+                event->environment = static_cast<rf::EnvironmentGateTests>(params.int1);
             }
             return event;
         }
@@ -409,7 +421,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Difficulty));
             auto* event = dynamic_cast<rf::EventSetDifficulty*>(base_event);
             if (event) {
-                event->difficulty = params.int1;
+                event->difficulty = static_cast<rf::GameDifficultyLevel>(params.int1);
             }
             return event;
         }
@@ -442,7 +454,69 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories{
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Gametype_Gate));
             auto* event = dynamic_cast<rf::EventGametypeGate*>(base_event);
             if (event) {
-                event->gametype = params.str1;
+                event->gametype = static_cast<rf::NetGameType>(params.int1);
+            }
+            return event;
+        }
+    },
+    // Set_Skybox
+    {
+        rf::EventType::Set_Skybox, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Skybox));
+            auto* event = dynamic_cast<rf::EventSetSkybox*>(base_event);
+            if (event) {
+                event->new_sky_room_uid = params.int1;
+                event->new_sky_room_anchor_uid = params.int2;
+                event->relative_position = params.bool1;
+                event->position_scale = params.float1;
+            }
+            return event;
+        }
+    },
+    // Set_Life
+    {
+        rf::EventType::Set_Life, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Life));
+            auto* event = dynamic_cast<rf::EventSetLife*>(base_event);
+            if (event) {
+                event->new_life = params.int1;
+            }
+            return event;
+        }
+    },
+    // Set_Debris
+    {
+        rf::EventType::Set_Debris, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Debris));
+            auto* event = dynamic_cast<rf::EventSetDebris*>(base_event);
+            if (event) {
+                event->debris_filename = params.str1;
+                event->debris_sound_set = params.str2;
+                event->explode_anim_vclip = params.int1;
+                event->explode_anim_radius = params.float1;
+                event->debris_velocity = params.float2;
+            }
+            return event;
+        }
+    },
+    // Set_Fog_Color
+    {
+        rf::EventType::Set_Fog_Color, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Fog_Color));
+            auto* event = dynamic_cast<rf::EventSetFogColor*>(base_event);
+            if (event) {
+                event->fog_color = params.str1;
+            }
+            return event;
+        }
+    },
+    // Set_Entity_Flag
+    {
+        rf::EventType::Set_Entity_Flag, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Entity_Flag));
+            auto* event = dynamic_cast<rf::EventSetEntityFlag*>(base_event);
+            if (event) {
+                event->flag = static_cast<rf::SetEntityFlagOption>(params.int1);
             }
             return event;
         }

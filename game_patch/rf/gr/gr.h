@@ -1,6 +1,8 @@
 #pragma once
 
 #include <patch_common/MemUtils.h>
+#include <string>
+#include <sstream>
 #include "../bmpman.h"
 #include "../os/vtypes.h"
 #include "../math/vector.h"
@@ -36,6 +38,25 @@ namespace rf::gr
             ubyte a = has_alpha ? (hex_color & 0xFF) : 255;
 
             return Color(r, g, b, a);
+        }
+
+        static Color from_rgb_string(const std::string& rgb_string, ubyte alpha = 255)
+        {
+            // remove < and > if present (for compatibility with format from level properties)
+            std::string cleaned_string = rgb_string;
+            if (rgb_string.front() == '<' && rgb_string.back() == '>') {
+                cleaned_string = rgb_string.substr(1, rgb_string.size() - 2);
+            }
+
+            std::istringstream stream(cleaned_string);
+            std::string component;
+            ubyte values[3] = {0};
+
+            for (int i = 0; i < 3 && std::getline(stream, component, ','); ++i) {
+                values[i] = static_cast<ubyte>(std::stoi(component));
+            }
+
+            return Color(values[0], values[1], values[2], alpha);
         }
     };
 

@@ -434,13 +434,6 @@ CodeInjection level_read_header_patch{
     }
 };
 
-CodeInjection fog_near_clip_patch{
-    0x00431F38, [](auto& regs) {
-
-        rf::gr_set_near_clip(rf::level.distance_fog_near_clip);
-    }
-};
-
 CodeInjection level_read_geometry_header_patch{
     0x00461A62, [](auto& regs) {
 
@@ -448,33 +441,12 @@ CodeInjection level_read_geometry_header_patch{
     }
 };
 
-CallHook<void(char, char, char, char, float, float)>
-    gr_fog_set_hook{
-    0x00431F4B,
-    [](char mode, char r, char g, char b, float fog_near, float fog_far) {
-        r = rf::level.distance_fog_color.red;
-        g = rf::level.distance_fog_color.green;
-        b = rf::level.distance_fog_color.blue;
-        fog_near = rf::level.distance_fog_near_clip;
-        fog_far = rf::level.distance_fog_far_clip;
-
-        gr_fog_set_hook.call_target(mode, r, g, b, fog_near, fog_far);
-    }
-};
-
-CallHook<void(float)>
-    gr_set_far_clip_hook{
-    0x00431F33,
-    [](float dist) {
-        dist = rf::level.distance_fog_far_clip;
-        gr_set_far_clip_hook.call_target(dist);
-    }
-};
-
 void misc_init()
 {
     //AsmWriter(0x0046E4AA).nop(5); // stop ai = 0 in MP
 
+    //gr_set_far_clip_hook.install();
+    //AsmWriter{0x0051806F}.jmp(0x00518083); // stops far clip from derendering geometry covered by fog, buggy
 
 
     // Allow loading of rfl files with supported AF-specific versions
@@ -483,7 +455,6 @@ void misc_init()
     // fog experimentation - attempting to stop fp weapon cutoff. Success when using static values but not when rfl has specified values
     //fog_near_clip_patch.install();
     //gr_fog_set_hook.install();
-    //gr_set_far_clip_hook.install();
     //AsmWriter{0x00461A5C}.nop(6);
     //level_read_geometry_header_patch.install();
     //AsmWriter(0x00461A5C).nop(6);

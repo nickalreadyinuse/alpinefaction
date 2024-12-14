@@ -321,8 +321,43 @@ CallHook<void(rf::Object*)> obj_flag_dead_clutter_hook{
     },
 };
 
+/* CodeInjection clutter_damage_patch{
+    0x00410270,
+    [](auto& regs) {
+        //rf::Clutter* damaged_cp = regs.esi;
+        rf::Clutter* damaged_cp = reinterpret_cast<rf::Clutter*>(regs.esp + 0x10 + 0x4);
+        //xlog::warn("Damaged {}, info index {}, shield ID {}", damaged_cp->name, damaged_cp->info_index, addr_as_ref<int>(0x004103C6));
+        xlog::warn("Damaged {}, info index {}, shield ID", damaged_cp->name, damaged_cp->info_index);
+        //rf::Object* obj = regs.eax;
+        /* if (rf::is_multi) {
+            xlog::warn("multi");
+            //regs.eip = 0x004103C6;
+            return;
+        }
+
+        //0x005AFB78
+        //xlog::warn("Not multi");        
+    },
+};*/
+
+FunHook<void(rf::Clutter*, float, int, int, rf::PCollisionOut*)> clutter_damage_hook{
+    0x00410270,
+    [](rf::Clutter* damaged_cp, float damage, int responsible_entity_handle, int damage_type, rf::PCollisionOut* collide_out) {
+
+        if (rf::is_multi && damaged_cp->name == "riot_shield") {
+            xlog::warn("damaged {}, info index {}", damaged_cp->name, damaged_cp->info_index);
+            return;
+        }
+
+        clutter_damage_hook.call_target(damaged_cp, damage, responsible_entity_handle, damage_type, collide_out);
+    },
+};
+
 void object_do_patch()
 {
+    clutter_damage_hook.install();
+    //clutter_damage_patch.install();
+
     //obj_flag_dead_hook.install();
     entity_on_dead_hook.install();
     obj_flag_dead_clutter_hook.install();

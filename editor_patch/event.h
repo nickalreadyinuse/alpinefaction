@@ -45,7 +45,12 @@ enum class AlpineDedEventID : int
     Set_Fog_Far_Clip,
     AF_When_Dead,
     Gametype_Gate,
-    When_Picked_Up
+    When_Picked_Up,
+    Set_Skybox,
+    Set_Life,
+    Set_Debris,
+    Set_Fog_Color,
+    Set_Entity_Flag
 };
 
 constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept

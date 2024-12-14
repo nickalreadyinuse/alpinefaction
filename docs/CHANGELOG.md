@@ -59,7 +59,7 @@ Version 1.0.0
 - Allow `Super Health` and `Super Armor` in single player
 - Make level editor save files with new rfl version, and display a warning when opening files with older versions
 - Make game load level files up to current AF version
-- Add support for dynamic lights in levels
+- Add support for dynamic lights in in Alpine levels
 - Add custom Alpine events:
     - `Set_Variable`
     - `Clone_Entity`
@@ -87,6 +87,10 @@ Version 1.0.0
     - `Gametype_Gate`
     - `When_Picked_Up`
 - Moved placement for new `dedicated_server.txt` lines to above `$Map` lines
+- Make `Headlamp_State` affect player (flashlight) if it has no links in Alpine levels
+- Add support for turning off `Holster_Weapon` and `Holster_Player_Weapon` to draw holstered weapon in Alpine levels
+- Allow events to be triggered normally in multiplayer maps in Alpine levels
+- Added denylist for events that would cause serious problems if triggered in multiplayer
 
 
 

@@ -16,6 +16,16 @@ namespace rf
 
         bool operator==(const Vector3& other) const = default;
 
+        void get_sum(Vector3* out_vec, const Vector3* other)
+        {
+            AddrCaller{0x0040A030}.this_call(this, out_vec, other);
+        }
+
+        void get_scaled(Vector3* out_result, float scale)
+        {
+            AddrCaller{0x0040A070}.this_call(this, out_result, scale);
+        }
+
         [[nodiscard]] Vector3 cross(const Vector3& other) const
         {
             return Vector3{

@@ -305,7 +305,12 @@ namespace rf
         Set_Fog_Far_Clip,
         AF_When_Dead,
         Gametype_Gate,
-        When_Picked_Up
+        When_Picked_Up,
+        Set_Skybox,
+        Set_Life,
+        Set_Debris,
+        Set_Fog_Color,
+        Set_Entity_Flag
     };
 
     // int to EventType
@@ -321,6 +326,8 @@ namespace rf
     }
 
     std::vector<rf::Event*> find_all_events_by_type(rf::EventType event_type);
+    bool check_if_event_is_type(rf::Event* event, rf::EventType type);
+    bool check_if_object_is_event_type(rf::Object* object, rf::EventType type);
     void activate_all_events_of_type(rf::EventType event_type, int trigger_handle, int triggered_by_handle, bool on);
 
 }

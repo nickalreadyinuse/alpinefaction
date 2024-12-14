@@ -5,7 +5,42 @@
 
 namespace rf
 {
-    struct ClutterInfo;
+
+    struct ClutterInfo
+    {
+        String cls_name;
+        String v3d_filename;
+        String corpse_class_name;
+        String debris_filename;
+        String debris_sound_set;
+        VArray<int> emitter_list;
+        float emitter_life;
+        int v3d_type;
+        float life;
+        float radius;
+        ObjectUseFunction use;
+        float use_radius;
+        int material;
+        int sound;
+        int use_sound;
+        int explode_anim_vclip;
+        float explode_anim_radius;
+        float explode_damage;
+        Vector3 explode_offset;
+        Timestamp timer_70;
+        int flags;
+        float debris_velocity;
+        int glare;
+        int rod_glare;
+        FArray<int, 4> corona_props;
+        int light_prop;
+        float damage_type_factors[11];
+        VArray<int> skins;
+        VArray<int> skins_glare_effect;
+        int screen_width;
+        int screen_height;
+    };
+    static_assert(sizeof(ClutterInfo) == 0xE8);
 
     struct Clutter : Object
     {

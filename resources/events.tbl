@@ -352,6 +352,21 @@ $RFE Level1:      "AF_General"
 $Event Name:      "Set_Fog_Far_Clip"
 $RFE Level1:      "AF_General"
 
+$Event Name:      "Set_Skybox"
+$RFE Level1:      "AF_General"
+
+$Event Name:      "Set_Life"
+$RFE Level1:      "AF_General"
+
+$Event Name:      "Set_Debris"
+$RFE Level1:      "AF_General"
+
+$Event Name:      "Set_Fog_Color"
+$RFE Level1:      "AF_General"
+
+$Event Name:      "Set_Entity_Flag"
+$RFE Level1:      "AF_General"
+
 #End
 
 // ------------------------------------------------

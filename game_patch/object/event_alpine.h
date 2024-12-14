@@ -14,18 +14,19 @@
 #include "../rf/hud.h"
 #include "../rf/entity.h"
 #include "../rf/mover.h"
+#include "../rf/clutter.h"
 #include "../rf/trigger.h"
 #include "../main/main.h"
 #include "../rf/player/player.h"
 #include "../rf/os/timestamp.h"
 
-
+void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale);
 
 namespace rf
 {
     struct EventCreateParams
     {
-        const rf::Vector3* pos;
+        const Vector3* pos;
         std::string class_name;
         std::string script_name;
         std::string str1;
@@ -82,6 +83,48 @@ namespace rf
         force_off
     };
 
+    enum class EnvironmentGateTests : int
+    {
+        multi,
+        single,
+        server,
+        dedicated,
+        client
+    };
+
+    enum class GoalInsideCheckSubject : int
+    {
+        player,
+        triggered_by,
+        all_linked,
+        any_linked
+    };
+
+    enum class SetEntityFlagOption : int
+    {
+        boarded,
+        cower,
+        question_unarmed,
+        fade_corpse_immediately,
+        dont_hum,
+        no_shadow,
+        perfect_aim,
+        permanent_corpse,
+        always_relevant, // todo: test and confirm this works
+        always_face_player,
+        only_attack_player,
+        deaf,
+        ignore_terrain
+    };
+
+    enum class SetClutterFlagOption : int
+    {
+        collide_weapon,
+        collide_object,
+        has_alpha,
+        is_switch
+    };
+
     // start alpine event structs
     // id 100
     struct EventSetVar : Event
@@ -104,9 +147,9 @@ namespace rf
             }
 
             for (int link_handle : this->links) {
-                rf::Object* obj = rf::obj_from_handle(link_handle);
+                Object* obj = obj_from_handle(link_handle);
                 if (obj && obj->type == OT_EVENT) {
-                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                    Event* linked_event = static_cast<Event*>(obj);
 
                     try {
                         switch (var) {
@@ -165,11 +208,11 @@ namespace rf
             for (int i = 0; i < this->links.size(); ++i) {
 
                 int link = this->links[i];
-                rf::Object* obj = rf::obj_from_handle(link);
+                Object* obj = obj_from_handle(link);
                 if (obj) {
-                    rf::Entity* entity = static_cast<rf::Entity*>(obj);
-                    rf::Entity* new_entity =
-                        rf::entity_create(entity->info_index, entity->name, -1, pos, entity->orient, 0, -1);
+                    Entity* entity = static_cast<Entity*>(obj);
+                    Entity* new_entity =
+                        entity_create(entity->info_index, entity->name, -1, pos, entity->orient, 0, -1);
                     new_entity->entity_flags = entity->entity_flags;
                     new_entity->pos = entity->pos;
                     new_entity->entity_flags2 = entity->entity_flags2;
@@ -206,11 +249,11 @@ namespace rf
     {
         void turn_on() override
         {
-            rf::local_player->collides_with_world = true;
+            local_player->collides_with_world = true;
         }
         void turn_off() override
         {
-            rf::local_player->collides_with_world = false;
+            local_player->collides_with_world = false;
         }
     };
 
@@ -222,7 +265,7 @@ namespace rf
 
         void register_variable_handlers() override
         {
-            Event::register_variable_handlers(); // Include base handlers
+            Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
@@ -237,9 +280,8 @@ namespace rf
                 return;
             }
 
-            // Handle "no_repeats" logic
             if (no_repeats) {
-                // Filter out already used handles
+                // filter out already used handles
                 std::vector<int> available_handles;
                 for (const int link_handle : this->links) {
                     if (std::find(used_handles.begin(), used_handles.end(), link_handle) == used_handles.end()) {
@@ -247,51 +289,32 @@ namespace rf
                     }
                 }
 
-                // If no available handles remain, reset used_handles and start fresh
+                // no available handles remain, reset used_handles and start fresh
                 if (available_handles.empty()) {
                     used_handles.clear();
 
-                    // Start fresh with all links
                     for (int link_handle : this->links) {
                         available_handles.push_back(link_handle);
                     } 
                 }
 
-                // Select a random link from the available ones
+                // select a random link
                 std::uniform_int_distribution<int> dist(0, available_handles.size() - 1);
                 int random_index = dist(g_rng);
                 int link_handle = available_handles[random_index];
 
-                // Add selected handle to used_handles
+                // add to used_handles
                 used_handles.push_back(link_handle);
 
                 event_signal_on(link_handle, this->trigger_handle, this->triggered_by_handle);
-
-                // Activate the selected event
-                /* rf::Object* obj = rf::obj_from_handle(link_handle);
-                if (obj && obj->type == OT_EVENT) {
-                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
-                    if (linked_event) {
-                        linked_event->turn_on();
-                    }
-                }*/
             }
             else {
-                // Standard random selection (no "no_repeats" behavior)
+                // Standard random selection
                 std::uniform_int_distribution<int> dist(0, this->links.size() - 1);
                 int random_index = dist(g_rng);
                 int link_handle = this->links[random_index];
 
                 event_signal_on(link_handle, this->trigger_handle, this->triggered_by_handle);
-
-                // Activate the selected event
-                /* rf::Object* obj = rf::obj_from_handle(link_handle);
-                if (obj && obj->type == OT_EVENT) {
-                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
-                    if (linked_event) {
-                        linked_event->turn_on();
-                    }
-                }*/
             }
         }
     };
@@ -299,7 +322,7 @@ namespace rf
     // id 104
     struct EventDifficultyGate : Event
     {
-        int difficulty = 0;
+        GameDifficultyLevel difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
 
         void register_variable_handlers() override
         {
@@ -308,24 +331,20 @@ namespace rf
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventDifficultyGate*>(event);
-                this_event->difficulty = std::stoi(value);
+                this_event->difficulty = static_cast<GameDifficultyLevel>(std::stoi(value));
             };
         }
 
         void turn_on() override
         {
-            xlog::warn("Gate {} with UID {} is checking for difficulty {}", this->name, this->uid, difficulty);
-
-            if (rf::game_get_skill_level() == static_cast<GameDifficultyLevel>(difficulty)) {
+            if (game_get_skill_level() == difficulty) {
                 activate_links(this->trigger_handle, this->triggered_by_handle, true);
             }
         }
 
         void turn_off() override
         {
-            xlog::warn("Gate {} with UID {} is checking for difficulty {}", this->name, this->uid, difficulty);
-
-            if (rf::game_get_skill_level() == static_cast<GameDifficultyLevel>(difficulty)) {
+            if (game_get_skill_level() == difficulty) {
                 activate_links(this->trigger_handle, this->triggered_by_handle, false);
             }
         }
@@ -339,7 +358,7 @@ namespace rf
 
         void register_variable_handlers() override
         {
-            Event::register_variable_handlers(); // Include base handlers
+            Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
@@ -355,12 +374,12 @@ namespace rf
 
         void turn_on() override
         {
-            rf::hud_msg(message.c_str(), 0, static_cast<int>(duration * 1000), 0);
+            hud_msg(message.c_str(), 0, static_cast<int>(duration * 1000), 0);
         }
 
         void turn_off() override
         {
-            rf::hud_msg_clear();
+            hud_msg_clear();
         }
     };
 
@@ -371,7 +390,7 @@ namespace rf
 
         void register_variable_handlers() override
         {
-            Event::register_variable_handlers(); // Include base handlers
+            Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
@@ -382,7 +401,7 @@ namespace rf
 
         void turn_on() override
         {
-            rf::bink_play(filename.c_str());
+            bink_play(filename.c_str());
         }
     };
 
@@ -393,7 +412,7 @@ namespace rf
 
         void register_variable_handlers() override
         {
-            Event::register_variable_handlers(); // Include base handlers
+            Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
@@ -404,7 +423,7 @@ namespace rf
 
         void turn_on() override
         {
-            rf::level.default_rock_hardness = std::clamp(hardness, 0, 100);
+            level.default_rock_hardness = std::clamp(hardness, 0, 100);
         }
     };
 
@@ -441,12 +460,6 @@ namespace rf
 
             event_signal_on(link_handle, this->trigger_handle, this->triggered_by_handle);
 
-            /* rf::Object* obj = rf::obj_from_handle(link_handle);
-            if (obj && obj->type == OT_EVENT) {
-                rf::Event* linked_event = static_cast<rf::Event*>(obj);
-                linked_event->turn_on();
-            }*/
-
             ++next_link_index;
         }
     };
@@ -459,10 +472,10 @@ namespace rf
         {
             for (size_t i = 0; i < this->links.size(); ++i) {
                 int link_handle = this->links[i];
-                rf::Object* obj = rf::obj_from_handle(link_handle);
+                Object* obj = obj_from_handle(link_handle);
 
                 if (obj && obj->type == OT_EVENT) {
-                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                    Event* linked_event = static_cast<Event*>(obj);
                     linked_event->delay_timestamp.invalidate();
                     linked_event->delayed_msg = 0;
                 }                
@@ -490,10 +503,10 @@ namespace rf
         {
             for (size_t i = 0; i < this->links.size(); ++i) {
                 int link_handle = this->links[i];
-                rf::Object* obj = rf::obj_from_handle(link_handle);
+                Object* obj = obj_from_handle(link_handle);
 
                 if (obj && obj->type == OT_EVENT) {
-                    rf::Event* linked_event = static_cast<rf::Event*>(obj);
+                    Event* linked_event = static_cast<Event*>(obj);
 
                     if (remove_all) {
                         linked_event->links.clear();
@@ -548,13 +561,30 @@ namespace rf
         int subject_uid = -1;
         bool inbound = false;
 
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAddLink*>(event);
+                this_event->subject_uid = std::stoi(value);
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAddLink*>(event);
+                this_event->inbound = (value == "true");
+            };
+        }
+
         void turn_on() override
         {
             if (this->links.empty()) {
                 return;
             }
 
-            rf::Object* subject_obj = rf::obj_lookup_from_uid(subject_uid);
+            Object* subject_obj = obj_lookup_from_uid(subject_uid);
 
             if (!subject_obj) {
                 return;
@@ -593,12 +623,12 @@ namespace rf
 
         void turn_on() override
         {
-            rf::Object* obj = rf::obj_lookup_from_uid(check_uid);
+            Object* obj = obj_lookup_from_uid(check_uid);
 
             if (check_uid == -1 ||
                 !obj ||
-                obj->type == rf::OT_CORPSE ||
-                (obj->type == rf::OT_ENTITY && rf::entity_from_handle(obj->handle)->life <= 0)) { // if entity, alive
+                obj->type == OT_CORPSE ||
+                (obj->type == OT_ENTITY && entity_from_handle(obj->handle)->life <= 0)) { // if entity, alive
                 return;
             }
 
@@ -607,10 +637,10 @@ namespace rf
 
         void turn_off() override
         {
-            rf::Object* obj = rf::obj_lookup_from_uid(check_uid);
+            Object* obj = obj_lookup_from_uid(check_uid);
 
-            if (check_uid == -1 || !obj || obj->type == rf::OT_CORPSE ||
-                (obj->type == rf::OT_ENTITY && rf::entity_from_handle(obj->handle)->life <= 0)) { // if entity, alive
+            if (check_uid == -1 || !obj || obj->type == OT_CORPSE ||
+                (obj->type == OT_ENTITY && entity_from_handle(obj->handle)->life <= 0)) { // if entity, alive
                 return;
             }
 
@@ -621,9 +651,9 @@ namespace rf
     // id 114
     struct EventGoalMath : Event
     {
-        std::optional<std::string> goal;
+        std::string goal;
         GoalMathOperation operation = GoalMathOperation::add;
-        std::optional<int> value;
+        int operation_value;
 
         void register_variable_handlers() override
         {
@@ -642,18 +672,17 @@ namespace rf
 
             handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventGoalMath*>(event);
-                this_event->value = std::stoi(value);
+                this_event->operation_value = std::stoi(value);
             };
         }
 
         void turn_on() override
         {
-            if (!goal.has_value()) {
+            if (goal.empty()) {
                 return;
             }
 
-            int effective_value = value.value_or(1); // Default value to 1 if not specified
-            String effective_goal = goal.value_or("").c_str();
+            String effective_goal = goal.c_str();
 
             // Find level goal
             GenericEvent* named_event = event_find_named_event(&effective_goal);
@@ -668,11 +697,6 @@ namespace rf
             // Find persistent goal
             PersistentGoalEvent* persist_event = event_lookup_persistent_goal_event(effective_goal);
 
-            if (!persist_event && !named_event) {
-                xlog::error("Did not find a goal named '{}'", effective_goal);
-                return;
-            }
-
             if (goal_count_ptr) {
                 xlog::warn("Level goal count before operation: {}, initial: {}", *goal_count_ptr, *goal_initial_ptr);
             }
@@ -685,17 +709,17 @@ namespace rf
             auto apply_operation = [&](int& goal_count, int initial_value) {
                 switch (operation) {
                 case GoalMathOperation::add:
-                    goal_count += effective_value;
+                    goal_count += operation_value;
                     break;
                 case GoalMathOperation::sub:
-                    goal_count -= effective_value;
+                    goal_count -= operation_value;
                     break;
                 case GoalMathOperation::mul:
-                    goal_count *= effective_value;
+                    goal_count *= operation_value;
                     break;
                 case GoalMathOperation::div:
-                    if (effective_value != 0) {
-                        goal_count /= effective_value;
+                    if (operation_value != 0) {
+                        goal_count /= operation_value;
                     }
                     else {
                         xlog::error("Division by zero attempted in EventGoalMath UID {}", this->uid);
@@ -703,7 +727,7 @@ namespace rf
                     break;
                 case GoalMathOperation::rdiv:
                     if (goal_count != 0) {
-                        goal_count = effective_value / goal_count;
+                        goal_count = operation_value / goal_count;
                     }
                     else {
                         xlog::error("Division by zero attempted in reverse divide operation for EventGoalMath UID {}",
@@ -711,22 +735,22 @@ namespace rf
                     }
                     break;
                 case GoalMathOperation::set:
-                    goal_count = effective_value;
+                    goal_count = operation_value;
                     break;
                 case GoalMathOperation::mod:
-                    if (effective_value != 0) {
-                        goal_count %= effective_value;
+                    if (operation_value != 0) {
+                        goal_count %= operation_value;
                     }
                     else {
                         xlog::error("Modulo by zero attempted in EventGoalMath UID {}", this->uid);
                     }
                     break;
                 case GoalMathOperation::pow:
-                    if (effective_value >= 0) {
-                        goal_count = static_cast<int>(std::pow(goal_count, effective_value));
+                    if (operation_value >= 0) {
+                        goal_count = static_cast<int>(std::pow(goal_count, operation_value));
                     }
                     else {
-                        xlog::error("Negative exponent {} not allowed in EventGoalMath UID {}", effective_value,
+                        xlog::error("Negative exponent {} not allowed in EventGoalMath UID {}", operation_value,
                                     this->uid);
                     }
                     break;
@@ -737,10 +761,10 @@ namespace rf
                     goal_count = std::abs(goal_count);
                     break;
                 case GoalMathOperation::max:
-                    goal_count = std::max(goal_count, effective_value);
+                    goal_count = std::max(goal_count, operation_value);
                     break;
                 case GoalMathOperation::min:
-                    goal_count = std::min(goal_count, effective_value);
+                    goal_count = std::min(goal_count, operation_value);
                     break;
                 case GoalMathOperation::reset:
                     goal_count = initial_value;
@@ -754,14 +778,14 @@ namespace rf
             // Apply to persistent goal
             if (persist_event) {
                 xlog::warn("Applying operation '{}' with value '{}' to persistent goal '{}'",
-                           static_cast<int>(operation), effective_value, persist_event->name);
+                           static_cast<int>(operation), operation_value, persist_event->name);
                 apply_operation(persist_event->count, persist_event->initial_count);
             }
 
             // Apply to level goal
             if (goal_count_ptr) {
                 xlog::warn("Applying operation '{}' with value '{}' to level goal '{}'", static_cast<int>(operation),
-                           effective_value, effective_goal);
+                           operation_value, effective_goal);
                 apply_operation(*goal_count_ptr, *goal_initial_ptr);
             }
 
@@ -780,9 +804,9 @@ namespace rf
     // id 115
     struct EventGoalGate : Event
     {
-        std::optional<std::string> goal;
+        std::string goal;
         GoalGateTests test_type = GoalGateTests::equal;
-        std::optional<int> value;
+        int test_value;
 
         void register_variable_handlers() override
         {
@@ -801,35 +825,36 @@ namespace rf
 
             handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventGoalGate*>(event);
-                this_event->value = std::stoi(value);
+                this_event->test_value = std::stoi(value);
             };
         }
 
         void turn_on() override
         {
-            if (!goal.has_value()) {
+            if (goal.empty()) {
                 return;
             }
 
-            int effective_value = value.value_or(0);
-            String effective_goal = goal.value_or("").c_str();
+            String effective_goal = goal.c_str();
+
+            // find persistent goal
+            PersistentGoalEvent* persist_event = event_lookup_persistent_goal_event(effective_goal);
 
             // find level goal
             GenericEvent* named_event = event_find_named_event(&effective_goal);
 
             int* goal_count_ptr = nullptr;
-            int* goal_initial_ptr = nullptr;
+            int* goal_initial_ptr = nullptr;            
+
+            if (!persist_event && !named_event) {
+                xlog::error("Goal_Gate ({}) did not find a level or persistent goal named '{}'",
+                    this->uid, effective_goal);
+                return;
+            }
+
             if (named_event) {
                 goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]); // 11 in original code
                 goal_initial_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[0]);
-            }
-
-            // find persistent goal
-            PersistentGoalEvent* persist_event = event_lookup_persistent_goal_event(effective_goal);
-
-            if (!persist_event && !named_event) {
-                xlog::error("Did not find a level or persistent goal named '{}'", effective_goal);
-                return;
             }
 
             int current_value = 0;
@@ -851,22 +876,22 @@ namespace rf
             // Determine test type
             switch (test_type) {
             case GoalGateTests::equal:
-                pass = (current_value == effective_value);
+                pass = (current_value == test_value);
                 break;
             case GoalGateTests::nequal:
-                pass = (current_value != effective_value);
+                pass = (current_value != test_value);
                 break;
             case GoalGateTests::gt:
-                pass = (current_value > effective_value);
+                pass = (current_value > test_value);
                 break;
             case GoalGateTests::lt:
-                pass = (current_value < effective_value);
+                pass = (current_value < test_value);
                 break;
             case GoalGateTests::geq:
-                pass = (current_value >= effective_value);
+                pass = (current_value >= test_value);
                 break;
             case GoalGateTests::leq:
-                pass = (current_value <= effective_value);
+                pass = (current_value <= test_value);
                 break;
             case GoalGateTests::odd:
                 pass = (current_value % 2 != 0);
@@ -875,8 +900,8 @@ namespace rf
                 pass = (current_value % 2 == 0);
                 break;
             case GoalGateTests::divisible:
-                if (effective_value != 0) {
-                    pass = (current_value % effective_value == 0);
+                if (test_value != 0) {
+                    pass = (current_value % test_value == 0);
                 }
                 else {
                     xlog::error("Division by zero in divisible test for EventGoalGate UID {}", this->uid);
@@ -917,45 +942,42 @@ namespace rf
     // id 116
     struct EventEnvironmentGate : Event
     {
-        std::string environment;
+        EnvironmentGateTests environment = EnvironmentGateTests::multi;
 
         void register_variable_handlers() override
         {
             Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
-            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventEnvironmentGate*>(event);
-                this_event->environment = value;
+                this_event->environment = static_cast<EnvironmentGateTests>(std::stoi(value));
             };
         }
 
         void turn_on() override
         {
-            if (environment.empty()) {
-                return;
-            }
-
-            const std::string& test = environment;
             bool pass = false;
 
-            if (test == "multi") {
-                pass = rf::is_multi;
-            }
-            else if (test == "single") {
-                pass = !rf::is_multi;
-            }
-            else if(test == "server") {
-                pass = (rf::is_server || rf::is_dedicated_server);
-            }
-            else if(test == "dedicated") {
-                pass = rf::is_dedicated_server;
-            }
-            else if (test == "client") {
-                pass = (!rf::is_server && !rf::is_dedicated_server);
-            }
-            else {
-                xlog::error("Unknown environment test '{}' for EventEnvironmentGate UID {}", test, this->uid);
+            switch (environment) {
+            case EnvironmentGateTests::multi:
+                pass = is_multi;
+                break;
+            case EnvironmentGateTests::single:
+                pass = !is_multi;
+                break;
+            case EnvironmentGateTests::server:
+                pass = (is_server || is_dedicated_server);
+                break;
+            case EnvironmentGateTests::dedicated:
+                pass = is_dedicated_server;
+                break;
+            case EnvironmentGateTests::client:
+                pass = (!is_server && !is_dedicated_server);
+                break;
+            default:
+                break;
             }
 
             if (pass) {
@@ -968,9 +990,9 @@ namespace rf
     struct EventInsideGate : Event
     {
         int check_uid = -1;
-        int test_uid = -1;
+        GoalInsideCheckSubject subject_type = GoalInsideCheckSubject::player;
 
-       void register_variable_handlers() override
+        void register_variable_handlers() override
         {
             Event::register_variable_handlers();
 
@@ -982,71 +1004,85 @@ namespace rf
 
             handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventInsideGate*>(event);
-                this_event->test_uid = std::stoi(value);
+                this_event->subject_type = static_cast<GoalInsideCheckSubject>(std::stoi(value));
             };
         }
 
         void turn_on() override
         {
-            Object* obj = obj_lookup_from_uid(check_uid);
-            GRoom* room = level_room_from_uid(check_uid);
+            Object* check_obj = obj_lookup_from_uid(check_uid);
+            GRoom* check_room = level_room_from_uid(check_uid);
 
-            int obj_handle_to_test = -1;
-
-            if (test_uid > 0) {
-                xlog::warn("test_uid has value");
-                Object* obj_to_test = obj_lookup_from_uid(test_uid);
-
-                if (obj_to_test) {
-                    xlog::warn("test_uid is using {}", obj_to_test->name);
-                    obj_handle_to_test = obj_to_test->handle;
-                }
-            }
-            else {
-                obj_handle_to_test = triggered_by_handle;
-            }
-
-            Object* triggered_by_obj = obj_from_handle(obj_handle_to_test);            
-
-            if (check_uid == -1 || !triggered_by_obj || (!obj && !room)) {
+            if (check_uid == -1 || (!check_obj && !check_room)) {
+                xlog::warn("UID {} is not a valid trigger/room for Inside_Gate UID {}", check_uid, this->uid);
                 return;
             }
 
-            xlog::warn("object being tested is {}, UID {}", triggered_by_obj->name, triggered_by_obj->uid);
+            std::vector<int> objects_to_check;
 
-            bool pass = false;
-
-            if (obj && obj->type == OT_TRIGGER) {
-                Trigger* trigger = static_cast<Trigger*>(obj);
-
-                xlog::warn("Trigger UID {} is type {}", check_uid, trigger->type);
-
-                switch (trigger->type) {
-                case 0: // sphere shape trigger
-                    pass = trigger_inside_bounding_sphere(trigger, triggered_by_obj);
-                    break;
-
-                case 1: // box shape trigger
-                    pass = trigger_inside_bounding_box(trigger, triggered_by_obj);
-                    break;
-
-                default:
-                    xlog::warn("Unknown trigger type {} for EventInsideGate UID {}", trigger->type, this->uid);
+            // Populate object handles to check
+            switch (subject_type) {
+            case GoalInsideCheckSubject::player:
+                if (local_player_entity) {
+                    objects_to_check.push_back(local_player_entity->handle);
                 }
+                break;
+            case GoalInsideCheckSubject::triggered_by:
+                if (triggered_by_handle != -1) {
+                    objects_to_check.push_back(triggered_by_handle);
+                }
+                break;
+            case GoalInsideCheckSubject::all_linked:
+            case GoalInsideCheckSubject::any_linked:
+                objects_to_check.assign(this->links.begin(), this->links.end());
+                break;
             }
-            else if (room) { // handle room test
-                xlog::warn("tested object's room is {}, test room is {}", triggered_by_obj->room->uid, room->uid);
-                if (room && triggered_by_obj->room == room) {
-                    pass = true;
+
+            // early return if no objects to check
+            if (objects_to_check.empty()) {
+                return;
+            }
+
+            bool pass = (subject_type == GoalInsideCheckSubject::all_linked);
+
+            // evaluate objects_to_check
+            for (const int obj_handle : objects_to_check) {
+                Object* obj = obj_from_handle(obj_handle);
+                bool is_inside = false;
+
+                if (obj) {
+                    if (check_obj && check_obj->type == OT_TRIGGER) {
+                        Trigger* trigger = static_cast<Trigger*>(check_obj);
+                        is_inside = (trigger->type == 0)
+                                        ? trigger_inside_bounding_sphere(trigger, obj)
+                                        : (trigger->type == 1 && trigger_inside_bounding_box(trigger, obj));
+                    }
+                    else if (check_room) {
+                        is_inside = (obj->room == check_room);
+                    }
+                }
+
+                if (subject_type == GoalInsideCheckSubject::all_linked) {
+                    if (!is_inside) {
+                        pass = false; // One failure invalidates "all linked"
+                        break;
+                    }
+                }
+                else if (subject_type == GoalInsideCheckSubject::any_linked) {
+                    if (is_inside) {
+                        pass = true; // One success validates "any linked"
+                        break;
+                    }
+                }
+                else { // For player or triggered_by
+                    pass = is_inside;
+                    break;
                 }
             }
 
             if (pass) {
-                xlog::warn("Test passed for EventInsideGate UID {}", this->uid);
+                xlog::warn("Test passed for Inside_Gate UID {}", this->uid);
                 activate_links(this->trigger_handle, this->triggered_by_handle, true);
-            }
-            else {
-                xlog::warn("Test failed for EventInsideGate UID {}", this->uid);
             }
         }
     };
@@ -1061,9 +1097,9 @@ namespace rf
         {
             for (const int link : this->links)
             {
-                rf::Object* obj = rf::obj_from_handle(link);
+                Object* obj = obj_from_handle(link);
                 if (obj) {
-                    rf::obj_unhide(obj);
+                    obj_unhide(obj);
                 }
             }
         }
@@ -1072,9 +1108,9 @@ namespace rf
         {
             for (const int link : this->links)
             {
-                rf::Object* obj = rf::obj_from_handle(link);
+                Object* obj = obj_from_handle(link);
                 if (obj) {
-                    rf::obj_hide(obj);
+                    obj_hide(obj);
                 }
             }
         }
@@ -1083,7 +1119,7 @@ namespace rf
     // id 120
     struct EventSetDifficulty : Event
     {
-        int difficulty = 0;
+        GameDifficultyLevel difficulty = GameDifficultyLevel::DIFFICULTY_EASY;
 
         void register_variable_handlers() override
         {
@@ -1092,13 +1128,13 @@ namespace rf
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventSetDifficulty*>(event);
-                this_event->difficulty = std::stoi(value);
+                this_event->difficulty = static_cast<GameDifficultyLevel>(std::stoi(value));
             };
         }
 
         void turn_on() override
         {
-            rf::game_set_skill_level(static_cast<GameDifficultyLevel>(difficulty));
+            game_set_skill_level(difficulty);
         }
     };
 
@@ -1120,7 +1156,7 @@ namespace rf
 
         void turn_on() override
         {
-            rf::level.distance_fog_far_clip = far_clip;
+            level.distance_fog_far_clip = far_clip;
         }
     };
 
@@ -1159,7 +1195,7 @@ namespace rf
                     return true; // i know im dead
                 }
 
-                rf::Object* obj = rf::obj_from_handle(link_handle);
+                Object* obj = obj_from_handle(link_handle);
 
                 // not a valid object
                 if (!obj) {
@@ -1167,13 +1203,13 @@ namespace rf
                 }
 
                 // if entity, also check if its dead
-                if (obj && obj->type == rf::OT_ENTITY) {
-                    rf::Entity* entity = rf::entity_from_handle(obj->handle);
+                if (obj && obj->type == OT_ENTITY) {
+                    Entity* entity = entity_from_handle(obj->handle);
                     return entity && entity->life <= 0;
                 }
 
                 // only care about entities and clutter
-                return obj->type != rf::OT_CLUTTER && obj->type != rf::OT_ENTITY;
+                return obj->type != OT_CLUTTER && obj->type != OT_ENTITY;
             });
 
             // everything else isn't dead yet
@@ -1188,10 +1224,10 @@ namespace rf
         void do_activate_links(int trigger_handle, int triggered_by_handle, bool on) override
         {
             for (int link_handle : this->links) {
-                rf::Object* obj = rf::obj_from_handle(link_handle);
+                Object* obj = obj_from_handle(link_handle);
 
                 if (obj) {
-                    rf::ObjectType type = obj->type;
+                    ObjectType type = obj->type;
                     switch (type) {
                         case OT_MOVER: {
                             mover_activate_from_trigger(obj->handle, -1, -1);
@@ -1219,39 +1255,40 @@ namespace rf
     // id 123
     struct EventGametypeGate : Event
     {
-        std::string gametype;
+        NetGameType gametype = NG_TYPE_DM;
 
         void register_variable_handlers() override
         {
             Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
-            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventGametypeGate*>(event);
-                this_event->gametype = value;
+                this_event->gametype = static_cast<NetGameType>(std::stoi(value));
             };
         }
 
         void turn_on() override
         {
-            if (gametype.empty() || !rf::is_multi) {
+            if (!is_multi) {
                 return;
             }
 
-            const std::string& test = gametype;
             bool pass = false;
-
-            if (test == "dm") {
-                pass = (rf::multi_get_game_type() == rf::NG_TYPE_DM);
-            }
-            else if (test == "tdm" || test == "teamdm") {
-                pass = (rf::multi_get_game_type() == rf::NG_TYPE_TEAMDM);
-            }
-            else if (test == "ctf") {
-                pass = (rf::multi_get_game_type() == rf::NG_TYPE_CTF);
-            }
-            else {
-                xlog::error("Unknown gametype test '{}' for EventGametypeGate UID {}", test, this->uid);
+            switch (gametype) {
+            case NG_TYPE_DM:
+                pass = (multi_get_game_type() == NG_TYPE_DM);
+                break;
+            case NG_TYPE_TEAMDM:
+                pass = (multi_get_game_type() == NG_TYPE_TEAMDM);
+                break;
+            case NG_TYPE_CTF:
+                pass = (multi_get_game_type() == NG_TYPE_CTF);
+                break;
+            default:
+                xlog::error("Unknown gametype '{}' for EventGametypeGate UID {}",
+                    static_cast<int>(gametype), this->uid);
+                return;
             }
 
             if (pass) {
@@ -1276,10 +1313,10 @@ namespace rf
         void do_activate_links(int trigger_handle, int triggered_by_handle, bool on) override
         {
             for (int link_handle : this->links) {
-                rf::Object* obj = rf::obj_from_handle(link_handle);
+                Object* obj = obj_from_handle(link_handle);
 
                 if (obj) {
-                    rf::ObjectType type = obj->type;
+                    ObjectType type = obj->type;
                     switch (type) {
                     case OT_MOVER: {
                         mover_activate_from_trigger(obj->handle, -1, -1);
@@ -1299,6 +1336,293 @@ namespace rf
                     default:
                         break;
                     }
+                }
+            }
+        }
+    };
+
+    // id 125
+    struct EventSetSkybox : Event
+    {
+        int new_sky_room_uid = 0;
+        int new_sky_room_anchor_uid = 0;
+        float position_scale = 0.0f;
+        bool relative_position = false;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetSkybox*>(event);
+                this_event->new_sky_room_uid = std::stoi(value);
+            };
+
+            handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetSkybox*>(event);
+                this_event->new_sky_room_anchor_uid = std::stoi(value);
+            };
+        }
+
+        void turn_on() override
+        {
+            set_sky_room_uid_override(new_sky_room_uid, new_sky_room_anchor_uid, relative_position, position_scale);
+        }
+
+        // turning off restores stock sky room via original game logic
+        void turn_off() override
+        {
+            set_sky_room_uid_override(-1, -1, false, -1);
+        }
+    };
+
+    // id 126
+    struct EventSetLife : Event
+    {
+        int new_life = 0;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetLife*>(event);
+                this_event->new_life = std::stoi(value);
+            };
+        }
+
+        void turn_on() override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj && (obj->type == OT_ENTITY || obj->type == OT_CLUTTER)) {
+                    obj->life = new_life;
+                }
+            }
+        }
+    };
+
+    // id 127
+    struct EventSetDebris : Event
+    {
+        std::string debris_filename = "";
+        std::string debris_sound_set = "";
+        int explode_anim_vclip = 0;
+        float explode_anim_radius = 0.0f;
+        float debris_velocity = 0.0f;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetDebris*>(event);
+                this_event->debris_filename = value;
+            };
+
+            handlers[SetVarOpts::str2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetDebris*>(event);
+                this_event->debris_sound_set = value;
+            };
+
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetDebris*>(event);
+                this_event->explode_anim_vclip = std::stoi(value);
+            };
+
+            handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetDebris*>(event);
+                this_event->explode_anim_radius = std::stof(value);
+            };
+
+            handlers[SetVarOpts::float2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetDebris*>(event);
+                this_event->debris_velocity = std::stoi(value);
+            };
+        }
+
+        void turn_on() override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj) {                
+                    if (obj->type == OT_CLUTTER) {
+                        Clutter* cl = static_cast<Clutter*>(obj);
+                        cl->info->debris_filename = debris_filename.c_str();
+                        cl->info->debris_sound_set = debris_sound_set.c_str();
+                        cl->info->explode_anim_vclip = explode_anim_vclip;
+                        cl->info->explode_anim_radius = explode_anim_radius;
+                        cl->info->debris_velocity = debris_velocity;
+                    }
+                    else if (obj->type == OT_ENTITY) {
+                        Entity* ep = static_cast<Entity*>(obj);
+                        ep->info->debris_filename = debris_filename.c_str();
+                        ep->info->explode_vclip_index = explode_anim_vclip;
+                        ep->info->explode_vclip_radius = explode_anim_radius;
+                    }
+                }
+
+            }
+        }
+    };
+
+    // id 128
+    struct EventSetFogColor : Event
+    {
+        std::string fog_color = "";
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetFogColor*>(event);
+                this_event->fog_color = value;
+            };
+        }
+
+        void turn_on() override
+        {
+            try {
+                Color color = Color::from_rgb_string(fog_color);
+                level.distance_fog_color = color;
+            }
+            catch (const std::exception& e) {
+                xlog::error("Set_Fog_Color ({}) failed to set fog color: {}", this->uid, e.what());
+            }
+        }
+    };
+
+    // id 129
+    struct EventSetEntityFlag : Event
+    {
+        SetEntityFlagOption flag = SetEntityFlagOption::boarded;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetEntityFlag*>(event);
+                this_event->flag = static_cast<SetEntityFlagOption>(std::stoi(value));
+            };
+        }
+
+        void turn_on() override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj && obj->type == OT_ENTITY) {
+                    Entity* ep = static_cast<Entity*>(obj);
+                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                    switch (flag) {
+                    case SetEntityFlagOption::boarded:
+                        ep->entity_flags |= 0x10000;
+                        break;
+                    case SetEntityFlagOption::cower:
+                        ep->entity_flags |= 0x800000;
+                        break;
+                    case SetEntityFlagOption::question_unarmed:
+                        ep->entity_flags |= 0x1000000;
+                        break;
+                    case SetEntityFlagOption::fade_corpse_immediately:
+                        ep->entity_flags |= 0x4000000;
+                        break;
+                    case SetEntityFlagOption::dont_hum:
+                        ep->entity_flags2 |= 0x1;
+                        break;
+                    case SetEntityFlagOption::no_shadow:
+                        ep->entity_flags2 |= 0x2;
+                        break;
+                    case SetEntityFlagOption::perfect_aim:
+                        ep->entity_flags2 |= 0x4;
+                        break;
+                    case SetEntityFlagOption::permanent_corpse:
+                        ep->entity_flags2 |= 0x8;
+                        break;
+                    case SetEntityFlagOption::always_relevant:
+                        ep->entity_flags2 |= 0x400;
+                        break;
+                    case SetEntityFlagOption::always_face_player:
+                        ep->ai.ai_flags |= 0x8;
+                        break;
+                    case SetEntityFlagOption::only_attack_player:
+                        ep->ai.ai_flags |= 0x80;
+                        break;
+                    case SetEntityFlagOption::deaf:
+                        ep->ai.ai_flags |= 0x800;
+                        break;
+                    case SetEntityFlagOption::ignore_terrain:
+                        ep->ai.ai_flags |= 0x1000;
+                        break;
+                    default:
+                        break;
+                    }
+                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                }
+            }
+        }
+
+        void turn_off() override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj && obj->type == OT_ENTITY) {
+                    Entity* ep = static_cast<Entity*>(obj);
+                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                    switch (flag) {
+                    case SetEntityFlagOption::boarded:
+                        ep->entity_flags &= ~0x10000;
+                        break;
+                    case SetEntityFlagOption::cower:
+                        ep->entity_flags &= ~0x800000;
+                        break;
+                    case SetEntityFlagOption::question_unarmed:
+                        ep->entity_flags &= ~0x1000000;
+                        break;
+                    case SetEntityFlagOption::fade_corpse_immediately:
+                        ep->entity_flags &= ~0x4000000;
+                        break;
+                    case SetEntityFlagOption::dont_hum:
+                        ep->entity_flags2 &= ~0x1;
+                        break;
+                    case SetEntityFlagOption::no_shadow:
+                        ep->entity_flags2 &= ~0x2;
+                        break;
+                    case SetEntityFlagOption::perfect_aim:
+                        ep->entity_flags2 &= ~0x4;
+                        break;
+                    case SetEntityFlagOption::permanent_corpse:
+                        ep->entity_flags2 &= ~0x8;
+                        break;
+                    case SetEntityFlagOption::always_relevant:
+                        ep->entity_flags2 &= ~0x400;
+                        break;
+                    case SetEntityFlagOption::always_face_player:
+                        ep->ai.ai_flags &= ~0x8;
+                        break;
+                    case SetEntityFlagOption::only_attack_player:
+                        ep->ai.ai_flags &= ~0x80;
+                        break;
+                    case SetEntityFlagOption::deaf:
+                        ep->ai.ai_flags &= ~0x800;
+                        break;
+                    case SetEntityFlagOption::ignore_terrain:
+                        ep->ai.ai_flags &= ~0x1000;
+                        break;
+                    default:
+                        break;
+                    }
+                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
                 }
             }
         }

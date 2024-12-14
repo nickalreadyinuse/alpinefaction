@@ -167,6 +167,7 @@ FunHook<void(bool)> level_init_post_hook{
     [](bool transition) {
         level_init_post_hook.call_target(transition);
         xlog::info("Level loaded: {}{}", rf::level.filename, transition ? " (transition)" : "");
+
         process_queued_spawn_points_from_items();
         evaluate_fullbright_meshes();
         if (g_game_config.try_lightmaps_only) {

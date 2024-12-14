@@ -34,7 +34,7 @@ extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 26; // must be 1 higher than actual count
+constexpr int new_event_count = 31; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -65,6 +65,11 @@ const char* additional_event_names[new_event_count] = {
     "AF_When_Dead",
     "Gametype_Gate",
     "When_Picked_Up",
+    "Set_Skybox",
+    "Set_Life",
+    "Set_Debris",
+    "Set_Fog_Color",
+    "Set_Entity_Flag",
     "_dummy"
 };
 
@@ -364,6 +369,138 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
                 "Reset goal to initial value"
                 }
             }
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Environment_Gate, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Environment to test for (int1):"}
+        },
+        {
+            {FIELD_INT1,
+                {"Multiplayer",
+                "Single player",
+                "Server",
+                "Dedicated server",
+                "Client"
+                }
+            }
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Inside_Gate, {
+        {FIELD_INT1, FIELD_INT2},
+        {
+            {FIELD_INT1, "UID (trigger/room) to check (int1):"},
+            {FIELD_INT2, "What to check for (int2):"}
+        },
+        {
+            {FIELD_INT2,
+                {"Player",
+                "Entity that triggered this",
+                "All linked objects",
+                "At least 1 linked object"
+                }
+            }
+        },
+        {
+            {FIELD_INT2, true}
+        }
+    }},
+    {AlpineDedEventID::Set_Difficulty, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Difficulty (int1):"}
+        },
+        {
+            {FIELD_INT1,
+            {"Easy", "Medium", "Hard", "Impossible"}}
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Set_Fog_Far_Clip, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Far clip distance (int1):"}
+        }
+    }},
+    {AlpineDedEventID::AF_When_Dead, {
+        {FIELD_BOOL1},
+        {
+            {FIELD_BOOL1, "Activate on any dead (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Gametype_Gate, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Check for gametype (int1):"}
+        },
+        {
+            {FIELD_INT1,
+            {"Deathmatch", "Capture the Flag", "Team Deathmatch"}}
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Set_Skybox, {
+        {FIELD_INT1, FIELD_INT2, FIELD_BOOL1, FIELD_FLOAT1},
+        {
+            {FIELD_INT1, "Skybox room UID (int1):"},
+            {FIELD_INT2, "Eye anchor UID (int2):"},
+            {FIELD_BOOL1, "Use relative position (bool1):"},
+            {FIELD_FLOAT1, "Relative position scale (float1):"}
+        }
+    }},
+    {AlpineDedEventID::Set_Life, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "New life value (int1):"}
+        }
+    }},
+    {AlpineDedEventID::Set_Debris, {
+        {FIELD_STR1, FIELD_INT1, FIELD_FLOAT1, FIELD_STR2, FIELD_FLOAT2},
+        {
+            {FIELD_STR1, "Debris filename (str1):"},
+            {FIELD_INT1, "Explosion VClip index (int1):"},
+            {FIELD_FLOAT1, "Explosion VClip radius (float1):"},
+            {FIELD_STR2, "Debris sound set (str2):"},
+            {FIELD_FLOAT2, "Debris velocity (float2):"}
+        }
+    }},
+    {AlpineDedEventID::Set_Fog_Color, {
+        {FIELD_STR1},
+        {
+            {FIELD_STR1, "Fog color (str1):"}
+        }
+    }},
+    {AlpineDedEventID::Set_Entity_Flag, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Flag to set (int1):"}
+        },
+        {
+            {FIELD_INT1,
+            {"Boarded (vehicles only)",
+            "Cower from weapon",
+            "Question unarmed player",
+            "Fade corpse immediately",
+            "Don't hum",
+            "No shadow",
+            "Perfect aim",
+            "Permanent corpse",
+            "Always relevant",
+            "Always face player",
+            "Only attack player",
+            "Deaf",
+            "Ignore terrain when firing"}}
         },
         {
             {FIELD_INT1, true}

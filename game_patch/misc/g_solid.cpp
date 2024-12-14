@@ -7,10 +7,12 @@
 #include "../misc/misc.h"
 #include "../rf/geometry.h"
 #include "../rf/level.h"
+#include "../rf/event.h"
 #include "../rf/mover.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/os/frametime.h"
+#include "../rf/player/camera.h"
 #include "../rf/gameseq.h"
 #include "../os/console.h"
 #include "../bmpman/bmpman.h"
@@ -20,6 +22,11 @@ constexpr auto reference_fps = 30.0f;
 constexpr auto reference_frametime = 1.0f / reference_fps;
 static int g_max_decals = 512;
 static bool g_show_room_clip_wnd = false;
+std::optional<int> g_sky_room_uid_override;
+std::optional<rf::Object*> g_sky_room_eye_anchor;
+std::optional<float> g_sky_room_eye_offset_scale;
+static rf::Vector3 g_adjusted_sky_room_eye_position;
+
 
 FunHook<int(rf::GSolid*, rf::GRoom*)> geo_cache_prepare_room_hook{
     0x004F0C00,
@@ -503,11 +510,121 @@ CallHook<void(rf::GSolid*, rf::GSolid*, rf::GBooleanOperation, bool, rf::Vector3
     },
 };
 
+// verify proposed new sky room UID is a sky room and if so, set it as the override
+void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale)
+{
+    // stock behaviour if no room specified
+    if (room_uid <= 0) {
+        g_sky_room_uid_override.reset();
+        g_sky_room_eye_anchor.reset();
+        g_sky_room_eye_offset_scale.reset();
+        return;
+    }
+
+    // set new sky room if it's a valid room
+    if (auto* possible_new_sky_room = rf::level_room_from_uid(room_uid)) {
+        g_sky_room_uid_override = room_uid;
+    }
+    else {
+        g_sky_room_uid_override.reset();
+        g_sky_room_eye_anchor.reset();
+        g_sky_room_eye_offset_scale.reset();
+        return;
+    }
+
+    // no anchor specified
+    if (anchor_uid <= 0) {
+        g_sky_room_eye_anchor.reset();
+        g_sky_room_eye_offset_scale.reset();
+        return;
+    }
+
+    if (auto* possible_new_sky_eye_anchor = rf::obj_lookup_from_uid(anchor_uid)) {
+        if (check_if_object_is_event_type(possible_new_sky_eye_anchor, rf::EventType::Anchor_Marker)) {
+            g_sky_room_eye_anchor = possible_new_sky_eye_anchor;
+
+            g_sky_room_eye_offset_scale =
+                (relative_position && position_scale > 0)
+                ? std::make_optional(position_scale)
+                : std::nullopt;
+        }
+    }
+}
+
+FunHook<rf::GRoom*(rf::GSolid*)> find_sky_room_hook{
+    0x004D4B90,
+    [](rf::GSolid* solid) {
+        // Use original game behavior if no override is set
+        if (!g_sky_room_uid_override) {
+            return find_sky_room_hook.call_target(solid);
+        }
+
+        // Attempt to fetch the room directly by UID
+        const int new_sky_room_uid = *g_sky_room_uid_override;
+        if (auto* room = rf::level_room_from_uid(new_sky_room_uid)) {
+            return room;
+        }
+
+        // Fallback to original game behavior if the room isn't found
+        return find_sky_room_hook.call_target(solid);
+    },
+};
+
+CodeInjection sky_room_eye_position_patch{
+    0x004D3A0C,
+    [](auto& regs) {
+        // if we don't have an anchor, go to center of the room with original game logic
+        if (!g_sky_room_eye_anchor) {
+            return;
+        }
+
+        // anchor in world space
+        rf::Object* eye_anchor = *g_sky_room_eye_anchor;
+        rf::Vector3 anchor_pos = eye_anchor->pos;
+
+        // translate position is on, calculate based on camera distance from 0,0,0 world space
+        if (g_sky_room_eye_offset_scale && *g_sky_room_eye_offset_scale > 0) {
+
+            rf::Player* local_player = rf::local_player;
+            if (!local_player || !local_player->cam) {
+                return;
+            }
+
+            // camera in world space
+            rf::Camera* camera = local_player->cam;
+            rf::Vector3 camera_pos = rf::camera_get_pos(camera);
+
+            // translate camera position (relative to world origin) to eye position (relative to anchor)
+            g_adjusted_sky_room_eye_position = {anchor_pos.x + (camera_pos.x * *g_sky_room_eye_offset_scale),
+                                                anchor_pos.y + (camera_pos.y * *g_sky_room_eye_offset_scale),
+                                                anchor_pos.z + (camera_pos.z * *g_sky_room_eye_offset_scale)};
+        }
+        else {
+            // translate position is off, just use anchor position as the eye position
+            g_adjusted_sky_room_eye_position = anchor_pos;
+        }
+
+        regs.eax = reinterpret_cast<int32_t>(&g_adjusted_sky_room_eye_position);
+    },
+};
+
+// clean up sky room overrides when shutting down level
+CodeInjection level_release_sky_room_shutdown_patch{
+    0x0045CAF9,
+    [](auto& regs) {
+        set_sky_room_uid_override(-1, -1, false, -1);
+    },
+};
 
 void g_solid_do_patch()
 {
+    // allow Set_Skybox to set a specific sky room
+    find_sky_room_hook.install();
+    sky_room_eye_position_patch.install();
+    level_release_sky_room_shutdown_patch.install();
+
     // geomod experimental
-    g_boolean_begin_hook.install();
+    //g_boolean_begin_hook.install();
 
     // Buffer overflows in solid_read
     // Note: Buffer size is 1024 but opcode allows only 1 byte size

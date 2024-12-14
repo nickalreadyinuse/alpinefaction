@@ -18,4 +18,9 @@ namespace rf
     static auto& gr_set_near_clip = addr_as_ref<void(float dist)>(0x005180A0);
     static auto& multi_powerup_destroy_all = addr_as_ref<void()>(0x0047FE00); // used in multi_init
 
+    static auto& gr_use_far_clip = addr_as_ref<bool>(0x01818B65);
+    static auto& gr_far_clip_dist = addr_as_ref<float>(0x01818B68);
+    static auto& gr_setup_frustum = addr_as_ref<void()>(0x00517E70);
+
+
 }
