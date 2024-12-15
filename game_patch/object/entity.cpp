@@ -246,21 +246,19 @@ ConsoleCommand2 testlink_cmd{
 };
 
 // avoids gibbing if gore level is too low or if this specific corpse shouldn't gib
-CodeInjection corpse_damage_patch{
+/* CodeInjection corpse_damage_patch{
     0x00417C6A,
     [](auto& regs) {
         rf::Corpse* cp = regs.esi;
 
-        //xlog::warn("corpse {} {} {}", cp->uid, cp->corpse_pose_name, cp->corpse_flags);
-
-        if (rf::game_get_gore_level() < 2 ||
-            cp->corpse_flags & 0x400 ||         // drools_slime (used by snakes)
+        // don't destroy corpses that should persist
+        if (cp->corpse_flags & 0x400 ||         // drools_slime (used by snakes)
             cp->corpse_flags & 0x4)             // custom_state_anim (used by sea creature)
         {
             regs.eip = 0x00417C97;
         }
     }
-};
+};*/
 
 // avoids playing pain sounds for gibbing entities (broken atm)
 CodeInjection entity_damage_gib_no_pain_sound_patch {
@@ -291,16 +289,29 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
     0x0042E3C0, [](int handle) {
         rf::Object* objp = rf::obj_from_handle(handle);
 
-        if (!objp || (objp->type != rf::OT_ENTITY && objp->type != rf::OT_CORPSE) || objp->material != 3) {
-            return; // only gib flesh entities and corpses
+        // should only gib on gore level 2 or higher
+        if (rf::game_get_gore_level() < 2) {
+            return;
         }
 
+        // only gib flesh entities and corpses
+        if (!objp || (objp->type != rf::OT_ENTITY && objp->type != rf::OT_CORPSE) || objp->material != 3) {
+            return;
+        }
+
+        // skip entities with ambient flag (is in original but maybe not necessary?)
         rf::Entity* entity = (objp->type == rf::OT_ENTITY) ? static_cast<rf::Entity*>(objp) : nullptr;
         if (entity && (entity->info->flags & 0x800000)) {
-            return; // skip entities with ambient flag (todo: confirm why and if necessary, is in original code)
+            return;
         }
 
-        static constexpr int gib_count = 15;
+        // skip corpses that shouldn't explode (drools_slime or custom_state_anim)
+        rf::Corpse* corpse = (objp->type == rf::OT_CORPSE) ? static_cast<rf::Corpse*>(objp) : nullptr;
+        if (corpse && (corpse->corpse_flags & 0x400 || corpse->corpse_flags & 0x4)) {
+            return;
+        }
+
+        static constexpr int gib_count = 14; // 7 in original
         static constexpr float velocity_scale = 15.0f;
         static constexpr float spin_scale_min = 10.0f;
         static constexpr float spin_scale_max = 25.0f;
@@ -316,8 +327,6 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
 
         for (int i = 0; i < gib_count; ++i) {
             rf::DebrisCreateStruct debris_info;
-
-            debris_info.pos = objp->pos;
 
             // random velocity
             rf::Vector3 vel;
@@ -343,13 +352,14 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             debris_info.iss = iss;
 
             // other properties
+            debris_info.pos = objp->pos;
             debris_info.lifetime_ms = lifetime_ms;
             debris_info.debris_flags = 0x4;
             debris_info.obj_flags = 0x8000; // start_hidden
             debris_info.material = objp->material;
             debris_info.room = objp->room;
 
-            // Choose a random gib filename
+            // pick a random gib filename
             std::uniform_int_distribution<size_t> dist(0, gib_filenames.size() - 1);
             const char* gib_filename = gib_filenames[dist(g_rng)];
 
@@ -358,38 +368,6 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
                 gib->obj_flags |= rf::OF_INVULNERABLE;
             }
         }
-
-        /* int explode_vclip_index = rf::vclip_lookup("bloodsplat");
-        int chunk_explode_vclip_index = rf::vclip_lookup("bloodsplat");
-        float explode_vclip_radius = 1.0f;
-        const char* debris_filename = "df_meatchunks0.V3D";
-
-        static const int debris_max_lifetime = 7000; // ms
-        static const float debris_velocity = 8.5f;
-        static const float damage_scale = 1.0f;
-        static const rf::String cust_snd_set = "gib bounce";
-
-        if (objp->type == rf::OT_ENTITY) { // use overrides from associated entity.tbl class if present
-            rf::Entity* ep = static_cast<rf::Entity*>(objp);
-
-            explode_vclip_index = (ep->info->explode_vclip_index > 0)
-				? ep->info->explode_vclip_index : explode_vclip_index;
-
-            explode_vclip_radius = (ep->info->explode_vclip_radius > 0.0f)
-				? ep->info->explode_vclip_radius : explode_vclip_radius;
-
-            debris_filename = (!ep->info->debris_filename.empty())
-                ? ep->info->debris_filename.c_str() : debris_filename;
-        }
-        else if (objp->type != rf::OT_CORPSE) { // do not gib anything except entities and corpses
-            return;
-        }
-
-        rf::game_do_explosion(
-            explode_vclip_index, objp->room, 0, &objp->pos, explode_vclip_radius, damage_scale, 0);
-
-        rf::debris_spawn_from_object(
-            objp, debris_filename, chunk_explode_vclip_index, debris_max_lifetime, debris_velocity, &cust_snd_set);*/
     }
 };
 
@@ -544,7 +522,7 @@ void entity_do_patch()
 
 	// Restore cut stock game feature for entities and corpses exploding into chunks
 	entity_blood_throw_gibs_hook.install();
-    corpse_damage_patch.install();
+    //corpse_damage_patch.install();
     entity_damage_gib_no_pain_sound_patch.install();
 
     // Commands

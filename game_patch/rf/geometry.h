@@ -7,6 +7,8 @@
 #include "os/string.h"
 #include "os/linklist.h"
 #include "gr/gr.h"
+#include "sound/sound.h"
+#include "object.h"
 
 namespace rf
 {
@@ -475,7 +477,7 @@ namespace rf
     static auto& g_solid_load_v3d = addr_as_ref<GSolid*(const char*)>(0x00586F5C);
     static auto& g_geomod_shapes_meshes = addr_as_ref<int[10]>(0x006371F8);
 
-
+    static auto& material_find_impact_sound_set = addr_as_ref<ImpactSoundSet*(const char* name)>(0x004689A0);
 
     static auto& bbox_intersect = addr_as_ref<bool(const Vector3& bbox1_min, const Vector3& bbox1_max, const Vector3& bbox2_min, const Vector3& bbox2_max)>(0x0046C340);
 }

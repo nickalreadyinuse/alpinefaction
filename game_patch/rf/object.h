@@ -7,6 +7,7 @@
 #include "os/array.h"
 #include "os/string.h"
 #include "os/timestamp.h"
+#include "sound/sound.h"
 #include "physics.h"
 #include "vmesh.h"
 
@@ -140,15 +141,6 @@ namespace rf
     };
     static_assert(sizeof(Debris) == 0x2B4);
 
-    struct ImpactSoundSet
-    {
-        int sounds[40];
-        int num_material_sounds[10];
-        int is_all_sounds;
-        String name;
-    };
-    static_assert(sizeof(ImpactSoundSet) == 0xD4);
-
     struct DebrisCreateStruct
     {
         Vector3 pos;
@@ -183,15 +175,12 @@ namespace rf
 
     static auto& object_list = addr_as_ref<Object>(0x0073D880);
 
-    static auto& debris_spawn_from_object = addr_as_ref<void(Object* objp, const char* debris_v3d_filename,
-        int explode_index, int max_lifetime_ms, float velocity, const String* cust_snd_set)>(0x004133C0);
+    //static auto& debris_spawn_from_object = addr_as_ref<void(Object* objp, const char* debris_v3d_filename,
+    //    int explode_index, int max_lifetime_ms, float velocity, const String* cust_snd_set)>(0x004133C0);
 
     static auto& debris_create = addr_as_ref<Debris*(int parent_handle, const char* vmesh_filename,
         float mass, DebrisCreateStruct* dcs, int mesh_num, float collision_radius)>(0x00412E70);
-
-    static auto& material_find_impact_sound_set = addr_as_ref<ImpactSoundSet*(const char* name)>(0x004689A0);
-
-    }
+}
 
 template<>
 struct EnableEnumBitwiseOperators<rf::ObjectFlags> : std::true_type {};
