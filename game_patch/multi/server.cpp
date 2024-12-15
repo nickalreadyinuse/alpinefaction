@@ -838,8 +838,6 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             }
         }
 
-        //xlog::warn("entity flags {}, {}, {}, {}, {}", damaged_ep->entity_flags, damaged_ep->entity_flags2, damaged_ep->info->flags, damaged_ep->info->flags2, damaged_ep->name);
-
         // should entity gib?
         if (damaged_ep->life < -100.0f &&
             damage_type == 3 &&                         // explosive

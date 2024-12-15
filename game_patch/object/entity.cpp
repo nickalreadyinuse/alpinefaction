@@ -12,8 +12,8 @@
 #include "../rf/player/player.h"
 #include "../rf/particle_emitter.h"
 #include "../rf/os/frametime.h"
+#include "../rf/os/os.h"
 #include "../rf/sound/sound.h"
-#include "../main/main.h"
 
 rf::Timestamp g_player_jump_timestamp;
 
@@ -291,11 +291,75 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
     0x0042E3C0, [](int handle) {
         rf::Object* objp = rf::obj_from_handle(handle);
 
-        if (!objp) {
-            return;
+        if (!objp || (objp->type != rf::OT_ENTITY && objp->type != rf::OT_CORPSE) || objp->material != 3) {
+            return; // only gib flesh entities and corpses
         }
 
-        int explode_vclip_index = rf::vclip_lookup("bloodsplat");
+        rf::Entity* entity = (objp->type == rf::OT_ENTITY) ? static_cast<rf::Entity*>(objp) : nullptr;
+        if (entity && (entity->info->flags & 0x800000)) {
+            return; // skip entities with ambient flag (todo: confirm why and if necessary, is in original code)
+        }
+
+        static constexpr int gib_count = 15;
+        static constexpr float velocity_scale = 15.0f;
+        static constexpr float spin_scale_min = 10.0f;
+        static constexpr float spin_scale_max = 25.0f;
+        static constexpr int lifetime_ms = 7000;
+        static constexpr float velocity_factor = 0.5f;
+        static const char* snd_set = "gib bounce";
+        static const std::vector<const char*> gib_filenames = {
+            "meatchunk1.v3m",
+            "meatchunk2.v3m",
+            "meatchunk3.v3m",
+            "meatchunk4.v3m",
+            "meatchunk5.v3m"};
+
+        for (int i = 0; i < gib_count; ++i) {
+            rf::DebrisCreateStruct debris_info;
+
+            debris_info.pos = objp->pos;
+
+            // random velocity
+            rf::Vector3 vel;
+            vel.rand_quick();
+            debris_info.vel = vel;
+            debris_info.vel *= velocity_scale;
+            debris_info.vel += objp->p_data.vel * velocity_factor;
+
+            // random spin
+            rf::Vector3 spin;
+            spin.rand_quick();
+            debris_info.spin = spin;
+            std::uniform_real_distribution<float> range_dist(spin_scale_min, spin_scale_max);
+            debris_info.spin *= range_dist(g_rng);
+
+            // random orient
+            rf::Matrix3 orient;
+            orient.rand_quick();
+            debris_info.orient = orient;
+
+            // sound set
+            rf::ImpactSoundSet* iss = rf::material_find_impact_sound_set(snd_set);
+            debris_info.iss = iss;
+
+            // other properties
+            debris_info.lifetime_ms = lifetime_ms;
+            debris_info.debris_flags = 0x4;
+            debris_info.obj_flags = 0x8000; // start_hidden
+            debris_info.material = objp->material;
+            debris_info.room = objp->room;
+
+            // Choose a random gib filename
+            std::uniform_int_distribution<size_t> dist(0, gib_filenames.size() - 1);
+            const char* gib_filename = gib_filenames[dist(g_rng)];
+
+            rf::Debris* gib = rf::debris_create(objp->handle, gib_filename, 0.3f, &debris_info, 0, -1.0f);
+            if (gib) {
+                gib->obj_flags |= rf::OF_INVULNERABLE;
+            }
+        }
+
+        /* int explode_vclip_index = rf::vclip_lookup("bloodsplat");
         int chunk_explode_vclip_index = rf::vclip_lookup("bloodsplat");
         float explode_vclip_radius = 1.0f;
         const char* debris_filename = "df_meatchunks0.V3D";
@@ -303,7 +367,7 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
         static const int debris_max_lifetime = 7000; // ms
         static const float debris_velocity = 8.5f;
         static const float damage_scale = 1.0f;
-        static rf::String cust_snd_set = "gib bounce";
+        static const rf::String cust_snd_set = "gib bounce";
 
         if (objp->type == rf::OT_ENTITY) { // use overrides from associated entity.tbl class if present
             rf::Entity* ep = static_cast<rf::Entity*>(objp);
@@ -325,7 +389,7 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             explode_vclip_index, objp->room, 0, &objp->pos, explode_vclip_radius, damage_scale, 0);
 
         rf::debris_spawn_from_object(
-            objp, debris_filename, chunk_explode_vclip_index, debris_max_lifetime, debris_velocity, &cust_snd_set);
+            objp, debris_filename, chunk_explode_vclip_index, debris_max_lifetime, debris_velocity, &cust_snd_set);*/
     }
 };
 

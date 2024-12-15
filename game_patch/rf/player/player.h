@@ -186,6 +186,6 @@ namespace rf
     static auto& game_get_skill_level = addr_as_ref<GameDifficultyLevel()>(0x004369D0);
     static auto& game_set_skill_level = addr_as_ref<void(GameDifficultyLevel)>(0x00436970);    
     static auto& game_get_gore_level = addr_as_ref<int()>(0x00436A20);
-    static auto& game_set_gore_level = addr_as_ref<int(int gore_setting)>(0x00436A10);
+    static auto& game_set_gore_level = addr_as_ref<void(int gore_setting)>(0x00436A10);
 
 }
