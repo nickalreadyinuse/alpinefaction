@@ -127,7 +127,6 @@ namespace rf
 
     struct Debris : Object
     {
-        //Object base;
         Debris* next;
         Debris* prev;
         void* solid;
@@ -174,9 +173,6 @@ namespace rf
     static auto& physics_force_to_ground = addr_as_ref<void(Object* obj)>(0x004A0770);
 
     static auto& object_list = addr_as_ref<Object>(0x0073D880);
-
-    //static auto& debris_spawn_from_object = addr_as_ref<void(Object* objp, const char* debris_v3d_filename,
-    //    int explode_index, int max_lifetime_ms, float velocity, const String* cust_snd_set)>(0x004133C0);
 
     static auto& debris_create = addr_as_ref<Debris*(int parent_handle, const char* vmesh_filename,
         float mass, DebrisCreateStruct* dcs, int mesh_num, float collision_radius)>(0x00412E70);

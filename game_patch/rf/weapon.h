@@ -6,8 +6,6 @@
 
 namespace rf
 {
-    struct ImpactSoundSet;
-
     struct WeaponStateAction
     {
         String name;

@@ -46,6 +46,14 @@ namespace std
 
 namespace rf
 {
+    enum EventFlags : int
+    {
+        EVENT_FLAG_PAUSED = 0x1,
+#ifdef DASH_FACTION
+        EVENT_FLAG_QUEUED = 0x2
+#endif
+    };
+
     struct Event : Object
     {
         int event_type;

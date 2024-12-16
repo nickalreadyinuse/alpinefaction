@@ -91,6 +91,7 @@ Version 1.0.0
 - Add support for turning off `Holster_Weapon` and `Holster_Player_Weapon` to draw holstered weapon in Alpine levels
 - Allow events to be triggered normally in multiplayer maps in Alpine levels
 - Added denylist for events that would cause serious problems if triggered in multiplayer
+- Fix delay parameter breaking `Unhide` and `Alarm_Siren` events
 
 
 
