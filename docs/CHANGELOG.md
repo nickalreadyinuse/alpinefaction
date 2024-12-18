@@ -56,11 +56,11 @@ Version 1.0.0
 - Stop faces being added to "fix PS2 tiling" at build time in editor
 - Stop mover brushes being split to "fix PS2 tiling" in editor
 - Add framework for real-time modification of defined event properties
-- Allow `Super Health` and `Super Armor` in single player
+- Allow `Super Health` and `Super Armor` in single player in Alpine levels
 - Make level editor save files with new rfl version, and display a warning when opening files with older versions
-- Make game load level files up to current AF version
+- Make game load level files up to current Alpine level version
 - Add support for dynamic lights in in Alpine levels
-- Add custom Alpine events:
+- Add custom Alpine events for use in Alpine levels:
     - `Set_Variable`
     - `Clone_Entity`
     - `Set_Player_World_Collide`
@@ -91,7 +91,12 @@ Version 1.0.0
 - Add support for turning off `Holster_Weapon` and `Holster_Player_Weapon` to draw holstered weapon in Alpine levels
 - Allow events to be triggered normally in multiplayer maps in Alpine levels
 - Added denylist for events that would cause serious problems if triggered in multiplayer
-- Fix delay parameter breaking `Unhide` and `Alarm_Siren` events
+- Fix delay parameter breaking the following events in Alpine levels:
+    - `Play_Sound`
+    - `Cyclic_Timer`
+    - `Make_Invulnerable`
+    - `Alarm_Siren`
+    - `Unhide`
 
 
 

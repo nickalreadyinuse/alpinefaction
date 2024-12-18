@@ -24,6 +24,14 @@ namespace rf
     };
     static_assert(sizeof(ClimbRegion) == 0x40);
 
+    struct CutsceneCamera
+    {
+        int uid;
+        Vector3 pos;
+        Matrix3 orient;
+    };
+    static_assert(sizeof(CutsceneCamera) == 0x34);
+
     struct PushRegion
     {
         int shape;

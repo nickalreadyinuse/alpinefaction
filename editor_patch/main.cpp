@@ -580,6 +580,9 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     InitLogging();
     InitCrashHandler();
 
+    // stops pink lightmaps, but also crashes with too many lights todo: can this be fixed?
+    //AsmWriter{0x004AC60B}.jmp(0x004AC611);
+
     // Apply AF-specific changes only if legacy mode isn't active
     if (get_is_saving_af_version()) {
         apply_af_level_editor_changes();

@@ -441,6 +441,24 @@ void event_process_fixed_delay_patch(rf::GenericEvent* event) {
                     event_turn_on(event);
                     break;
                 }
+                case rf::EventType::Make_Invulnerable: {
+                    using EventTurnOnFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOnFn event_turn_on = reinterpret_cast<EventTurnOnFn>(0x004BC7C0);
+                    event_turn_on(event);
+                    break;
+                }
+                case rf::EventType::Cyclic_Timer: {
+                    using EventTurnOnFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOnFn event_turn_on = reinterpret_cast<EventTurnOnFn>(0x004BB7A0);
+                    event_turn_on(event);
+                    break;
+                }
+                case rf::EventType::Play_Sound: {
+                    using EventTurnOnFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOnFn event_turn_on = reinterpret_cast<EventTurnOnFn>(0x004BA440);
+                    event_turn_on(event);
+                    break;
+                }
                 default: {
                     xlog::warn("Something {} turned on", event->uid);
                 }
@@ -449,14 +467,32 @@ void event_process_fixed_delay_patch(rf::GenericEvent* event) {
         else {
             switch (static_cast<rf::EventType>(event->event_type)) {
                 case rf::EventType::UnHide: {
-                    using EventTurnOnFn = void(__thiscall*)(rf::GenericEvent*);
-                    static EventTurnOnFn event_turn_off = reinterpret_cast<EventTurnOnFn>(0x004BCDE0);
+                    using EventTurnOffFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOffFn event_turn_off = reinterpret_cast<EventTurnOffFn>(0x004BCDE0);
                     event_turn_off(event);
                     break;
                 }
                 case rf::EventType::Alarm_Siren: {
-                    using EventTurnOnFn = void(__thiscall*)(rf::GenericEvent*);
-                    static EventTurnOnFn event_turn_off = reinterpret_cast<EventTurnOnFn>(0x004BA8C0);
+                    using EventTurnOffFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOffFn event_turn_off = reinterpret_cast<EventTurnOffFn>(0x004BA8C0);
+                    event_turn_off(event);
+                    break;
+                }
+                case rf::EventType::Make_Invulnerable: {
+                    using EventTurnOffFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOffFn event_turn_off = reinterpret_cast<EventTurnOffFn>(0x004BC880);
+                    event_turn_off(event);
+                    break;
+                }
+                case rf::EventType::Cyclic_Timer: {
+                    using EventTurnOffFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOffFn event_turn_off = reinterpret_cast<EventTurnOffFn>(0x004BB8A0);
+                    event_turn_off(event);
+                    break;
+                }
+                case rf::EventType::Play_Sound: {
+                    using EventTurnOffFn = void(__thiscall*)(rf::GenericEvent*);
+                    static EventTurnOffFn event_turn_off = reinterpret_cast<EventTurnOffFn>(0x004BA690);
                     event_turn_off(event);
                     break;
                 }
@@ -490,11 +526,35 @@ CodeInjection EventAlarmSiren__process_patch {
     }
 };
 
+CodeInjection EventMakeInvulnerable__process_patch {
+    0x004BC8F0, [](auto& regs) {
+        rf::GenericEvent* event = regs.ecx;
+        event_process_fixed_delay_patch(event);
+    }
+};
+
+CodeInjection EventCyclicTimer__process_patch {
+    0x004BB7B0, [](auto& regs) {
+        rf::GenericEvent* event = regs.ecx;
+        event_process_fixed_delay_patch(event);
+    }
+};
+
+CodeInjection EventSound__process_patch {
+    0x004BA570, [](auto& regs) {
+        rf::GenericEvent* event = regs.ecx;
+        event_process_fixed_delay_patch(event);
+    }
+};
+
 void apply_event_patches()
 {
     // fix some events not working if delay value is specified (alpine levels only)
     EventUnhide__process_patch.install();
     EventAlarmSiren__process_patch.install();
+    EventMakeInvulnerable__process_patch.install();
+    EventCyclicTimer__process_patch.install();
+    EventSound__process_patch.install();
 
     // allow Holster_Player_Weapon and Holster_Weapon to be turned off (alpine levels only)
     Event__turn_off_redirector_patch.install();
