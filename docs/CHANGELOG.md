@@ -97,7 +97,7 @@ Version 1.0.0
     - `Make_Invulnerable`
     - `Alarm_Siren`
     - `Unhide`
-
+- Disable level editor lightmap clamping when loading level files
 
 
 
