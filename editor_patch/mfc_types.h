@@ -5,6 +5,8 @@
 #include <mbstring.h>
 #include <algorithm>
 
+extern "C" IMAGE_DOS_HEADER __ImageBase;
+
 struct CWnd_mbrs
 {
     char padding1[0x18];

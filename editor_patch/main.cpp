@@ -462,10 +462,6 @@ CodeInjection texture_name_buffer_overflow_injection2{
     },
 };
 
-
-
-// weird ctrl+P seems to work differently than right click properties (fixed with new dialog)
-
 CodeInjection LoadSaveLevel_patch{
     0x0041CD20, [](auto& regs) {
         int* version = reinterpret_cast<int*>(regs.esi + 0x54);
@@ -474,65 +470,60 @@ CodeInjection LoadSaveLevel_patch{
     }
 };
 
+INT_PTR CALLBACK DialogLegacyLevel(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg) {
+    case WM_INITDIALOG:
+        SetDlgItemTextA(hwndDlg, IDC_LEVEL_PROMPT_MESSAGE, (LPCSTR)lParam);
+        return TRUE;
+
+    case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+        case IDLEVELLINK: // If the link button is clicked
+            ShellExecuteA(NULL, "open", "https://www.redfactionwiki.com/wiki/Alpine_Level_Design", NULL, NULL,
+                          SW_SHOWNORMAL);
+            return TRUE;
+
+        case IDOK: // OK button
+        case IDCANCEL:
+            EndDialog(hwndDlg, LOWORD(wParam));
+            return TRUE;
+        }
+        break;
+    }
+    return FALSE;
+}
+
+void ShowLegacyLevelDialog(int current_version, int new_version) {
+    std::string message =
+        std::format("This level file was constructed using an older version of the level editor.\n\n"
+                    "The version of this level file is {}.\n\n"
+                    "Due to newly added features and capabilities that are not available in older client versions, "
+                    "this level editor saves Alpine Levels using version {}.\n\n"
+                    "If you resave this file, it will be converted to an Alpine Level with version {}, "
+                    "and it will no longer be playable on legacy client versions.\n\n"
+                    "To learn more about Alpine Levels, click the button below to visit the Red Faction Wiki.",
+                    current_version, new_version, new_version);
+
+    DialogBoxParamA(
+        ((HINSTANCE) & __ImageBase),
+        MAKEINTRESOURCEA(IDD_ALPINE_LEVEL_POPUP),
+        GetActiveWindow(),
+        DialogLegacyLevel,
+        reinterpret_cast<LPARAM>(message.c_str())
+    );
+}
+
 CodeInjection LoadSaveLevel_patch2{
     0x0041CDAA, [](auto& regs) {
         int* version = regs.edi;
 
         if (*version < 300) {
-            char message[512];
-            int current_version = *version;
-            int new_version = MAXIMUM_RFL_VERSION;
-
-            std::snprintf(
-                message, sizeof(message),
-                "IMPORTANT: This level file was constructed using an older version of the level editor."
-                "\n\n"
-                "The current version of this level file is %d."
-                "\n\n"
-                "Due to newly added features and capabilities that are not compatible with legacy client versions, "
-                "the Alpine Faction Level Editor saves level files using version %d."
-                "\n\n"
-                "If you resave this file, it will be converted to version %d, "
-                "and it will no longer be playable on legacy client versions.",
-                current_version, new_version, new_version);
-
-            MessageBoxA(0, message, "Legacy Level File", MB_OK | MB_ICONWARNING);
+            xlog::warn("patching");
+            ShowLegacyLevelDialog(*version, MAXIMUM_RFL_VERSION);
         }
     }
 };
-
-// testing
-/* CodeInjection CEventDialog_DoDataExchange_patch{
-    0x004604BC, [](auto& regs) {
-        using namespace asm_regs;
-
-        //CEventDialog* dialog = reinterpret_cast<CEventDialog*>(regs.ebp - 0x2408);
-        //DedEvent* event = *reinterpret_cast<DedEvent**>(regs.ebp + 8);
-        //int template_id = *reinterpret_cast<int*>(regs.ebp + 0x0C);
-
-        CEventDialog* dialog = static_cast<CEventDialog*>(regs.ecx);
-        CDataExchange* pDX = static_cast<CDataExchange*>(regs.edi);
-
-        if (!dialog || !pDX) {
-            xlog::error("Invalid dialog or data exchange!");
-            return;
-        }
-
-        //int template_id = dialog->field_23EC;
-
-        xlog::warn("event dialog template: {}", dialog->field_23EC);
-
-        if (dialog->field_23EC == 192) {
-            xlog::warn("trying template 192");
-
-            DDX_Text(pDX, 1283, &dialog->field_344);
-            DDX_Check(pDX, 1281, &dialog->field_348);
-
-            //regs.eip = 0x00461578;
-            //regs.eip = 0x0046157E;
-        }
-    }
-};*/
 
 void apply_af_level_editor_changes()
 {

@@ -29,8 +29,8 @@
 #include "vtypes.h"
 #include "event.h"
 
-extern "C" IMAGE_DOS_HEADER __ImageBase;
-#define HINST_THISCOMPONENT ((HINSTANCE) & __ImageBase)
+//extern "C" IMAGE_DOS_HEADER __ImageBase;
+//#define HINST_THISCOMPONENT ((HINSTANCE) & __ImageBase)
 
 // Custom event support
 constexpr int original_event_count = 89;
@@ -911,7 +911,7 @@ bool ShowAlpineEventDialog(HWND parent, DedEvent* dedEvent, CDedLevel* level)
 
     // Use DialogBoxParam for modal behavior
     int result =
-        DialogBoxParam(HINST_THISCOMPONENT, MAKEINTRESOURCE(IDD_ALPINE_EVENT_PROPERTIES), parent, DialogProc, 0);
+        DialogBoxParam(((HINSTANCE) & __ImageBase), MAKEINTRESOURCE(IDD_ALPINE_EVENT_PROPERTIES), parent, DialogProc, 0);
 
     if (result == -1) {
         DWORD error = GetLastError();
