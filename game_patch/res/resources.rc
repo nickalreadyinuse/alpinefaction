@@ -3,6 +3,6 @@
 
 // VERSIONINFO
 #define VER_FILE_DESCRIPTION "Alpine Faction Game Patch"
-#define VER_ORIGINAL_FILENAME "DashFaction.dll"
+#define VER_ORIGINAL_FILENAME "AlpineFaction.dll"
 #define VER_FILETYPE 0x2L // VFT_DLL
 #include <common/version/version.rc>

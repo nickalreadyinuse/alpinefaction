@@ -89,7 +89,7 @@ Usage
 -----
 1. Either unpack the zip release or run the installer. Note that Alpine Faction does NOT have to be installed to your Red Faction folder.
 
-2. Run `DashFactionLauncher.exe`.
+2. Run `AlpineFactionLauncher.exe`.
 
 3. Adjust options as desired.
 
@@ -100,7 +100,7 @@ Advanced usage
 This readme file is a work in progress. Alpine Faction has many new client and server commands that are not yet documented.
 If you want to try them out now, use `. <FRAGMENT>` to search for available commands.
 
-To use Red Faction command line options with Alpine Faction, use them with `DashFactionLauncher.exe`. They will be forwarded to the Red Faction process.
+To use Red Faction command line options with Alpine Faction, use them with `AlpineFactionLauncher.exe`. They will be forwarded to the Red Faction process.
 
 Alpine Faction additionally supports the following command line options:
 

@@ -223,7 +223,7 @@ void PatchedAppLauncher::check_installation()
     }
 }
 
-GameLauncher::GameLauncher() : PatchedAppLauncher("DashFaction.dll")
+GameLauncher::GameLauncher() : PatchedAppLauncher("AlpineFaction.dll")
 {
     xlog::info("Checking if config exists");
     if (!m_conf.load()) {
@@ -244,7 +244,7 @@ bool GameLauncher::check_app_hash(const std::string& sha1)
 }
 
 
-EditorLauncher::EditorLauncher() : PatchedAppLauncher("DashEditor.dll")
+EditorLauncher::EditorLauncher() : PatchedAppLauncher("AlpineEditor.dll")
 {
     if (!m_conf.load()) {
         // Failed to load config - save defaults

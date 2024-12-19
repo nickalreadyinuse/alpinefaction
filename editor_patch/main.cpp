@@ -29,7 +29,7 @@
 #include "vtypes.h"
 #include "event.h"
 
-#define LAUNCHER_FILENAME "DashFactionLauncher.exe"
+#define LAUNCHER_FILENAME "AlpineFactionLauncher.exe"
 
 constexpr size_t max_texture_name_len = 31;
 

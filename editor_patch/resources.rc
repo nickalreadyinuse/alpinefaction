@@ -249,7 +249,7 @@ FONT 8, "MS Sans Serif", 0, 0, 0
 
 
 // VERSIONINFO
-#define VER_FILE_DESCRIPTION "Dash Faction Level Editor Patch"
-#define VER_ORIGINAL_FILENAME "DashEditor.dll"
+#define VER_FILE_DESCRIPTION "Alpine Faction Level Editor Patch"
+#define VER_ORIGINAL_FILENAME "AlpineEditor.dll"
 #define VER_FILETYPE 0x2L // VFT_DLL
 #include <common/version/version.rc>

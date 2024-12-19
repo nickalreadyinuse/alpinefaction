@@ -1,8 +1,8 @@
 // VERSIONINFO
-#define VER_FILE_DESCRIPTION "Dash Faction Launcher"
-#define VER_ORIGINAL_FILENAME "DashFactionLauncher.exe"
+#define VER_FILE_DESCRIPTION "Alpine Faction Launcher"
+#define VER_ORIGINAL_FILENAME "AlpineFactionLauncher.exe"
 #define VER_FILETYPE 0x1L // VFT_APP
 #include <common/version/version.rc>
 
 #include <windows.h>
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "res/DashFactionLauncher.manifest"
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "res/AlpineFactionLauncher.manifest"
