@@ -39,151 +39,168 @@ namespace rf
 FunHook<int(const rf::String* name)> event_lookup_type_hook{
     0x004BD700,
     [](const rf::String* name) {
+        if (af_rfl_version(rf::level.version)) {
+            // map of alpine events and corresponding IDs
+            static const std::unordered_map<std::string_view, int> custom_event_ids{
+                {"Set_Variable", 100},
+                {"Clone_Entity", 101},
+                {"Set_Player_World_Collide", 102},
+                {"Switch_Random", 103},
+                {"Difficulty_Gate", 104},
+                {"HUD_Message", 105},
+                {"Play_Video", 106},
+                {"Set_Level_Hardness", 107},
+                {"Sequence", 108},
+                {"Clear_Queued", 109},
+                {"Remove_Link", 110},
+                {"Route_Node", 111},
+                {"Add_Link", 112},
+                {"Valid_Gate", 113},
+                {"Goal_Math", 114},
+                {"Goal_Gate", 115},
+                {"Environment_Gate", 116},
+                {"Inside_Gate", 117},
+                {"Anchor_Marker", 118},
+                {"Force_Unhide", 119},
+                {"Set_Difficulty", 120},
+                {"Set_Fog_Far_Clip", 121},
+                {"AF_When_Dead", 122},
+                {"Gametype_Gate", 123},
+                {"When_Picked_Up", 124},
+                {"Set_Skybox", 125},
+                {"Set_Life", 126},
+                {"Set_Debris", 127},
+                {"Set_Fog_Color", 128},
+                {"Set_Entity_Flag", 129},
+            };
 
-        // map of alpine events and corresponding IDs
-        static const std::unordered_map<std::string_view, int> custom_event_ids{
-            {"Set_Variable", 100},
-            {"Clone_Entity", 101},
-            {"Set_Player_World_Collide", 102},
-            {"Switch_Random", 103},
-            {"Difficulty_Gate", 104},
-            {"HUD_Message", 105},
-            {"Play_Video", 106},
-            {"Set_Level_Hardness", 107},
-            {"Sequence", 108},
-            {"Clear_Queued", 109},
-            {"Remove_Link", 110},
-            {"Route_Node", 111},
-            {"Add_Link", 112},
-            {"Valid_Gate", 113},
-            {"Goal_Math", 114},
-            {"Goal_Gate", 115},
-            {"Environment_Gate", 116},
-            {"Inside_Gate", 117},
-            {"Anchor_Marker", 118},
-            {"Force_Unhide", 119},
-            {"Set_Difficulty", 120},
-            {"Set_Fog_Far_Clip", 121},
-            {"AF_When_Dead", 122},
-            {"Gametype_Gate", 123},
-            {"When_Picked_Up", 124},
-            {"Set_Skybox", 125},
-            {"Set_Life", 126},
-            {"Set_Debris", 127},
-            {"Set_Fog_Color", 128},
-            {"Set_Entity_Flag", 129},
-        };
+            auto it = custom_event_ids.find(name->c_str());
+            if (it != custom_event_ids.end()) {
+                return it->second; // event ID
+            }
 
-        auto it = custom_event_ids.find(name->c_str());
-        if (it != custom_event_ids.end()) {
-            return it->second; // event ID
+            // handle stock events
+            return event_lookup_type_hook.call_target(name);
         }
-
-        // handle stock events
-        return event_lookup_type_hook.call_target(name);
+        // handle non-Alpine levels
+        else {
+            return event_lookup_type_hook.call_target(name);
+        }
     }
 };
 
 FunHook<rf::Event*(int event_type)> event_allocate_hook{
     0x004B69D0,
     [](int event_type) {
-        using AllocFunc = std::function<rf::Event*()>;
+        if (af_rfl_version(rf::level.version)) {
+            using AllocFunc = std::function<rf::Event*()>;
 
-        // map of allocators
-        static const std::unordered_map<int, AllocFunc> event_allocators{
-            {100, []() { return new rf::EventSetVar(); }},
-            {101, []() { return new rf::EventCloneEntity(); }},
-            {102, []() { return new rf::EventSetCollisionPlayer(); }},
-            {103, []() { return new rf::EventSwitchRandom(); }},
-            {104, []() { return new rf::EventDifficultyGate(); }},
-            {105, []() { return new rf::EventHUDMessage(); }},
-            {106, []() { return new rf::EventPlayVideo(); }},
-            {107, []() { return new rf::EventSetLevelHardness(); }},
-            {108, []() { return new rf::EventSequence(); }},
-            {109, []() { return new rf::EventClearQueued(); }},
-            {110, []() { return new rf::EventRemoveLink(); }},
-            {111, []() { return new rf::EventRouteNode(); }},
-            {112, []() { return new rf::EventAddLink(); }},
-            {113, []() { return new rf::EventValidGate(); }},
-            {114, []() { return new rf::EventGoalMath(); }},
-            {115, []() { return new rf::EventGoalGate(); }},
-            {116, []() { return new rf::EventEnvironmentGate(); }},
-            {117, []() { return new rf::EventInsideGate(); }},
-            {118, []() { return new rf::EventAnchorMarker(); }},
-            {119, []() { return new rf::EventForceUnhide(); }},
-            {120, []() { return new rf::EventSetDifficulty(); }},
-            {121, []() { return new rf::EventSetFogFarClip(); }},
-            {122, []() { return new rf::EventAFWhenDead(); }},
-            {123, []() { return new rf::EventGametypeGate(); }},
-            {124, []() { return new rf::EventWhenPickedUp(); }},
-            {125, []() { return new rf::EventSetSkybox(); }},
-            {126, []() { return new rf::EventSetLife(); }},
-            {127, []() { return new rf::EventSetDebris(); }},
-            {128, []() { return new rf::EventSetFogColor(); }},
-            {129, []() { return new rf::EventSetEntityFlag(); }},
-        };
+            // map of allocators
+            static const std::unordered_map<int, AllocFunc> event_allocators{
+                {100, []() { return new rf::EventSetVar(); }},
+                {101, []() { return new rf::EventCloneEntity(); }},
+                {102, []() { return new rf::EventSetCollisionPlayer(); }},
+                {103, []() { return new rf::EventSwitchRandom(); }},
+                {104, []() { return new rf::EventDifficultyGate(); }},
+                {105, []() { return new rf::EventHUDMessage(); }},
+                {106, []() { return new rf::EventPlayVideo(); }},
+                {107, []() { return new rf::EventSetLevelHardness(); }},
+                {108, []() { return new rf::EventSequence(); }},
+                {109, []() { return new rf::EventClearQueued(); }},
+                {110, []() { return new rf::EventRemoveLink(); }},
+                {111, []() { return new rf::EventRouteNode(); }},
+                {112, []() { return new rf::EventAddLink(); }},
+                {113, []() { return new rf::EventValidGate(); }},
+                {114, []() { return new rf::EventGoalMath(); }},
+                {115, []() { return new rf::EventGoalGate(); }},
+                {116, []() { return new rf::EventEnvironmentGate(); }},
+                {117, []() { return new rf::EventInsideGate(); }},
+                {118, []() { return new rf::EventAnchorMarker(); }},
+                {119, []() { return new rf::EventForceUnhide(); }},
+                {120, []() { return new rf::EventSetDifficulty(); }},
+                {121, []() { return new rf::EventSetFogFarClip(); }},
+                {122, []() { return new rf::EventAFWhenDead(); }},
+                {123, []() { return new rf::EventGametypeGate(); }},
+                {124, []() { return new rf::EventWhenPickedUp(); }},
+                {125, []() { return new rf::EventSetSkybox(); }},
+                {126, []() { return new rf::EventSetLife(); }},
+                {127, []() { return new rf::EventSetDebris(); }},
+                {128, []() { return new rf::EventSetFogColor(); }},
+                {129, []() { return new rf::EventSetEntityFlag(); }},
+            };
 
-        // find type and allocate
-        auto it = event_allocators.find(event_type);
-        if (it != event_allocators.end()) {
-            auto* event = it->second();
-            event->initialize();
-            return event;
+            // find type and allocate
+            auto it = event_allocators.find(event_type);
+            if (it != event_allocators.end()) {
+                auto* event = it->second();
+                event->initialize();
+                return event;
+            }
+
+            // handle stock events
+            return event_allocate_hook.call_target(event_type);
         }
-
-        // handle stock events
-        return event_allocate_hook.call_target(event_type);
+        // handle non-Alpine levels
+        else {
+            return event_allocate_hook.call_target(event_type);
+        }
     }
 };
 
 FunHook<void(rf::Event*)> event_deallocate_hook{
     0x004B7750,
     [](rf::Event* eventp) {
-        if (!eventp)
-            return;
+        if (af_rfl_version(rf::level.version)) {
+            if (!eventp)
+                return;
 
-        // map of deallocators
-        static const std::unordered_map<int, std::function<void(rf::Event*)>> event_deallocators{
-            {100, [](rf::Event* e) { delete static_cast<rf::EventSetVar*>(e); }},
-            {101, [](rf::Event* e) { delete static_cast<rf::EventCloneEntity*>(e); }},
-            {102, [](rf::Event* e) { delete static_cast<rf::EventSetCollisionPlayer*>(e); }},
-            {103, [](rf::Event* e) { delete static_cast<rf::EventSwitchRandom*>(e); }},
-            {104, [](rf::Event* e) { delete static_cast<rf::EventDifficultyGate*>(e); }},
-            {105, [](rf::Event* e) { delete static_cast<rf::EventHUDMessage*>(e); }},
-            {106, [](rf::Event* e) { delete static_cast<rf::EventPlayVideo*>(e); }},
-            {107, [](rf::Event* e) { delete static_cast<rf::EventSetLevelHardness*>(e); }},
-            {108, [](rf::Event* e) { delete static_cast<rf::EventSequence*>(e); }},
-            {109, [](rf::Event* e) { delete static_cast<rf::EventClearQueued*>(e); }},
-            {110, [](rf::Event* e) { delete static_cast<rf::EventRemoveLink*>(e); }},
-            {111, [](rf::Event* e) { delete static_cast<rf::EventRouteNode*>(e); }},
-            {112, [](rf::Event* e) { delete static_cast<rf::EventAddLink*>(e); }},
-            {113, [](rf::Event* e) { delete static_cast<rf::EventValidGate*>(e); }},
-            {114, [](rf::Event* e) { delete static_cast<rf::EventGoalMath*>(e); }},
-            {115, [](rf::Event* e) { delete static_cast<rf::EventGoalGate*>(e); }},
-            {116, [](rf::Event* e) { delete static_cast<rf::EventEnvironmentGate*>(e); }},
-            {117, [](rf::Event* e) { delete static_cast<rf::EventInsideGate*>(e); }},
-            {118, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarker*>(e); }},
-            {119, [](rf::Event* e) { delete static_cast<rf::EventForceUnhide*>(e); }},
-            {120, [](rf::Event* e) { delete static_cast<rf::EventSetDifficulty*>(e); }},
-            {121, [](rf::Event* e) { delete static_cast<rf::EventSetFogFarClip*>(e); }},
-            {122, [](rf::Event* e) { delete static_cast<rf::EventAFWhenDead*>(e); }},
-            {123, [](rf::Event* e) { delete static_cast<rf::EventGametypeGate*>(e); }},
-            {124, [](rf::Event* e) { delete static_cast<rf::EventWhenPickedUp*>(e); }},
-            {125, [](rf::Event* e) { delete static_cast<rf::EventSetSkybox*>(e); }},
-            {126, [](rf::Event* e) { delete static_cast<rf::EventSetLife*>(e); }},
-            {127, [](rf::Event* e) { delete static_cast<rf::EventSetDebris*>(e); }},
-            {128, [](rf::Event* e) { delete static_cast<rf::EventSetFogColor*>(e); }},
-            {129, [](rf::Event* e) { delete static_cast<rf::EventSetEntityFlag*>(e); }},
-        };
+            // map of deallocators
+            static const std::unordered_map<int, std::function<void(rf::Event*)>> event_deallocators{
+                {100, [](rf::Event* e) { delete static_cast<rf::EventSetVar*>(e); }},
+                {101, [](rf::Event* e) { delete static_cast<rf::EventCloneEntity*>(e); }},
+                {102, [](rf::Event* e) { delete static_cast<rf::EventSetCollisionPlayer*>(e); }},
+                {103, [](rf::Event* e) { delete static_cast<rf::EventSwitchRandom*>(e); }},
+                {104, [](rf::Event* e) { delete static_cast<rf::EventDifficultyGate*>(e); }},
+                {105, [](rf::Event* e) { delete static_cast<rf::EventHUDMessage*>(e); }},
+                {106, [](rf::Event* e) { delete static_cast<rf::EventPlayVideo*>(e); }},
+                {107, [](rf::Event* e) { delete static_cast<rf::EventSetLevelHardness*>(e); }},
+                {108, [](rf::Event* e) { delete static_cast<rf::EventSequence*>(e); }},
+                {109, [](rf::Event* e) { delete static_cast<rf::EventClearQueued*>(e); }},
+                {110, [](rf::Event* e) { delete static_cast<rf::EventRemoveLink*>(e); }},
+                {111, [](rf::Event* e) { delete static_cast<rf::EventRouteNode*>(e); }},
+                {112, [](rf::Event* e) { delete static_cast<rf::EventAddLink*>(e); }},
+                {113, [](rf::Event* e) { delete static_cast<rf::EventValidGate*>(e); }},
+                {114, [](rf::Event* e) { delete static_cast<rf::EventGoalMath*>(e); }},
+                {115, [](rf::Event* e) { delete static_cast<rf::EventGoalGate*>(e); }},
+                {116, [](rf::Event* e) { delete static_cast<rf::EventEnvironmentGate*>(e); }},
+                {117, [](rf::Event* e) { delete static_cast<rf::EventInsideGate*>(e); }},
+                {118, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarker*>(e); }},
+                {119, [](rf::Event* e) { delete static_cast<rf::EventForceUnhide*>(e); }},
+                {120, [](rf::Event* e) { delete static_cast<rf::EventSetDifficulty*>(e); }},
+                {121, [](rf::Event* e) { delete static_cast<rf::EventSetFogFarClip*>(e); }},
+                {122, [](rf::Event* e) { delete static_cast<rf::EventAFWhenDead*>(e); }},
+                {123, [](rf::Event* e) { delete static_cast<rf::EventGametypeGate*>(e); }},
+                {124, [](rf::Event* e) { delete static_cast<rf::EventWhenPickedUp*>(e); }},
+                {125, [](rf::Event* e) { delete static_cast<rf::EventSetSkybox*>(e); }},
+                {126, [](rf::Event* e) { delete static_cast<rf::EventSetLife*>(e); }},
+                {127, [](rf::Event* e) { delete static_cast<rf::EventSetDebris*>(e); }},
+                {128, [](rf::Event* e) { delete static_cast<rf::EventSetFogColor*>(e); }},
+                {129, [](rf::Event* e) { delete static_cast<rf::EventSetEntityFlag*>(e); }},
+            };
 
-        // find type and deallocate
-        auto it = event_deallocators.find(eventp->event_type);
-        if (it != event_deallocators.end()) {
-            // call deallocator
-            it->second(eventp);
+            // find type and deallocate
+            auto it = event_deallocators.find(eventp->event_type);
+            if (it != event_deallocators.end()) {
+                // call deallocator
+                it->second(eventp);
+            }
+            else {
+                // handle stock events
+                event_deallocate_hook.call_target(eventp);
+            }
         }
+        // handle non-Alpine levels
         else {
-            // handle stock events
             event_deallocate_hook.call_target(eventp);
         }
     }
@@ -214,19 +231,21 @@ bool is_forward_exempt(rf::EventType event_type) {
 
 CodeInjection event_type_forwards_messages_patch{
     0x004B8C44, [](auto& regs) {
-        auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
+        if (af_rfl_version(rf::level.version)) {
+            auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
 
-        // stock events handled by original code
-        if (is_forward_exempt(event_type)) {
-            regs.al = false;
-            regs.eip = 0x004B8C5D;
+            // stock events handled by original code
+            if (is_forward_exempt(event_type)) {
+                regs.al = false;
+                regs.eip = 0x004B8C5D;
+            }
         }
     }
 };
 
 using EventFactory = std::function<rf::Event*(const rf::EventCreateParams&)>;
 
-static std::unordered_map<rf::EventType, EventFactory> event_factories{
+static std::unordered_map<rf::EventType, EventFactory> event_factories {
     // Set_Variable
     {
         rf::EventType::Set_Variable, [](const rf::EventCreateParams& params) {
@@ -537,35 +556,37 @@ rf::Event* construct_alpine_event(int event_type, const rf::EventCreateParams& p
 // assignment of factories for AF event types
 CodeInjection level_read_events_patch {
     0x00462910, [](auto& regs) {
-        int event_type = static_cast<int>(regs.ebp);
+        if (af_rfl_version(rf::level.version)) {
+            int event_type = static_cast<int>(regs.ebp);
 
-        if (event_type >= 100) { // only handle AF events, stock events handled by original code
-            rf::Vector3* pos = regs.edx;
+            if (event_type >= 100) { // only handle AF events, stock events handled by original code
+                rf::Vector3* pos = regs.edx;
 
-            rf::EventCreateParams params{
-                pos,
-                *reinterpret_cast<rf::String*>(regs.esp + 0x5C),    // class_name
-                *reinterpret_cast<rf::String*>(regs.esp + 0x54),    // script_name
-                *reinterpret_cast<rf::String*>(regs.esp + 0x44),    // str1
-                *reinterpret_cast<rf::String*>(regs.esp + 0x4C),    // str2
-                *reinterpret_cast<int*>(regs.esp - 0x24),           // int1
-                *reinterpret_cast<int*>(regs.esp - 0x18),           // int2
-                *reinterpret_cast<bool*>(regs.esp + 0x18),          // bool1
-                *reinterpret_cast<bool*>(regs.esp + 0x20),          // bool2
-                *reinterpret_cast<float*>(regs.esp + 0x1C),         // float1
-                *reinterpret_cast<float*>(regs.esp + 0x24)          // float2
-            };
+                rf::EventCreateParams params{
+                    pos,
+                    *reinterpret_cast<rf::String*>(regs.esp + 0x5C),    // class_name
+                    *reinterpret_cast<rf::String*>(regs.esp + 0x54),    // script_name
+                    *reinterpret_cast<rf::String*>(regs.esp + 0x44),    // str1
+                    *reinterpret_cast<rf::String*>(regs.esp + 0x4C),    // str2
+                    *reinterpret_cast<int*>(regs.esp - 0x24),           // int1
+                    *reinterpret_cast<int*>(regs.esp - 0x18),           // int2
+                    *reinterpret_cast<bool*>(regs.esp + 0x18),          // bool1
+                    *reinterpret_cast<bool*>(regs.esp + 0x20),          // bool2
+                    *reinterpret_cast<float*>(regs.esp + 0x1C),         // float1
+                    *reinterpret_cast<float*>(regs.esp + 0x24)          // float2
+                };
 
-            xlog::debug("Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, "
-                       "int2: {}, bool1: {}, bool2: {}, float1: {}, float2: {}",
-                       event_type, params.class_name, params.script_name, params.str1, params.str2, params.int1,
-                       params.int2, params.bool1, params.bool2, params.float1, params.float2);
+                xlog::debug("Constructing event type {}: class_name: {}, script_name: {}, str1: {}, str2: {}, int1: {}, "
+                           "int2: {}, bool1: {}, bool2: {}, float1: {}, float2: {}",
+                           event_type, params.class_name, params.script_name, params.str1, params.str2, params.int1,
+                           params.int2, params.bool1, params.bool2, params.float1, params.float2);
 
 
-            auto* this_event = construct_alpine_event(event_type, params);
-            regs.eax = this_event; // set eax to created event so level_read_events can continue to use it
+                auto* this_event = construct_alpine_event(event_type, params);
+                regs.eax = this_event; // set eax to created event so level_read_events can continue to use it
 
-            regs.eip = 0x00462915; // made the event, set stack pointer after jump table
+                regs.eip = 0x00462915; // made the event, set stack pointer after jump table
+            }
         }
     }
 };
@@ -573,60 +594,62 @@ CodeInjection level_read_events_patch {
 CodeInjection event_activate_route_node{
     0x004B8B97,
     [](auto& regs) {
-        rf::Event* event = regs.esi;
+        if (af_rfl_version(rf::level.version)) {
+            rf::Event* event = regs.esi;
 
-        // verify it's a Route_Node
-        if (event->event_type == rf::event_type_to_int(rf::EventType::Route_Node)) {
-            auto* delay_event = reinterpret_cast<rf::EventRouteNode*>(event);
-            bool on = *reinterpret_cast<bool*>(regs.esp + 0x18);
-            bool proceed = true;
+            // verify it's a Route_Node
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Route_Node)) {
+                auto* delay_event = reinterpret_cast<rf::EventRouteNode*>(event);
+                bool on = *reinterpret_cast<bool*>(regs.esp + 0x18);
+                bool proceed = true;
 
-            // mode = drop, or mode = fixed + existing delay
-            if (delay_event->behaviour == rf::RouteNodeBehavior::drop ||
-                (delay_event->fixed && event->delay_timestamp.valid())) {
-                xlog::debug("Ignoring message request in {} ({})", event->name, event->uid); // would be nice to use dbg_events
-                proceed = false; // ignoring message, stop
+                // mode = drop, or mode = fixed + existing delay
+                if (delay_event->behaviour == rf::RouteNodeBehavior::drop ||
+                    (delay_event->fixed && event->delay_timestamp.valid())) {
+                    xlog::debug("Ignoring message request in {} ({})", event->name, event->uid); // would be nice to use dbg_events
+                    proceed = false; // ignoring message, stop
+                }
+
+                // calculate desired on/off state
+                bool real_on = false;
+                switch (delay_event->behaviour) {
+                    case rf::RouteNodeBehavior::force_on:
+                        real_on = true;
+                        break;
+                    case rf::RouteNodeBehavior::force_off:
+                        real_on = false;
+                        break;
+                    case rf::RouteNodeBehavior::invert:
+                        real_on = !on;
+                        break;
+                    case rf::RouteNodeBehavior::pass:
+                    default:
+                        real_on = on;
+                        break;
+                }
+
+                // handle clearing trigger info, doing it here ensures it's maintained when process handles it after delay
+                if (delay_event->clear_trigger_info) {
+                    delay_event->trigger_handle = -1;
+                    delay_event->triggered_by_handle = -1;
+                }
+
+                if (proceed && delay_event->delay_seconds > 0.0f) {
+                    delay_event->delay_timestamp.set(static_cast<int>(delay_event->delay_seconds * 1000));
+                    delay_event->delayed_msg = real_on;
+                    proceed = false; // set delay, stop
+                }
+
+                // activate here if no delay, activation happens in process if there is a delay
+                // Note this doesn't call turn_on or turn_off - unneeded since this event does nothing,
+                // but turn_on or turn_off is called if its activated via process (original code)
+                if (proceed) {
+                    delay_event->delay_timestamp.invalidate();
+                    delay_event->activate_links(delay_event->trigger_handle, delay_event->triggered_by_handle, real_on);
+                }
+
+                regs.eip = 0x004B8C35; // skip to end of function
             }
-
-            // calculate desired on/off state
-            bool real_on = false;
-            switch (delay_event->behaviour) {
-                case rf::RouteNodeBehavior::force_on:
-                    real_on = true;
-                    break;
-                case rf::RouteNodeBehavior::force_off:
-                    real_on = false;
-                    break;
-                case rf::RouteNodeBehavior::invert:
-                    real_on = !on;
-                    break;
-                case rf::RouteNodeBehavior::pass:
-                default:
-                    real_on = on;
-                    break;
-            }
-
-            // handle clearing trigger info, doing it here ensures it's maintained when process handles it after delay
-            if (delay_event->clear_trigger_info) {
-                delay_event->trigger_handle = -1;
-                delay_event->triggered_by_handle = -1;
-            }
-
-            if (proceed && delay_event->delay_seconds > 0.0f) {
-                delay_event->delay_timestamp.set(static_cast<int>(delay_event->delay_seconds * 1000));
-                delay_event->delayed_msg = real_on;
-                proceed = false; // set delay, stop
-            }
-
-            // activate here if no delay, activation happens in process if there is a delay
-            // Note this doesn't call turn_on or turn_off - unneeded since this event does nothing,
-            // but turn_on or turn_off is called if its activated via process (original code)
-            if (proceed) {
-                delay_event->delay_timestamp.invalidate();
-                delay_event->activate_links(delay_event->trigger_handle, delay_event->triggered_by_handle, real_on);
-            }
-
-            regs.eip = 0x004B8C35; // skip to end of function
         }
     }
 };
