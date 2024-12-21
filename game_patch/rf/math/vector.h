@@ -38,6 +38,11 @@ namespace rf
             };
         }
 
+        [[nodiscard]] Vector3 cross_prod(const Vector3& other) const
+        {
+            return cross(other);
+        }
+
         Vector3& operator+=(const Vector3& other)
         {
             x += other.x;
@@ -187,6 +192,20 @@ namespace rf
         {
             *this /= len();
         }
+
+        void normalize_safe()
+        {
+            float magnitude = len();
+            if (magnitude > 0.0f) {
+                *this /= magnitude;
+            }
+            else {
+                x = 1.0f;
+                y = 0.0f;
+                z = 0.0f;
+            }
+        }
+
 
         void rand_quick()
         {

@@ -175,6 +175,13 @@ void load_additional_server_config(rf::Parser& parser)
         }
     }
 
+    if (parser.parse_optional("$Bagman:")) {
+        g_additional_server_config.bagman.enabled = parser.parse_bool();
+        if (parser.parse_optional("+Bag Return Time:")) {
+            g_additional_server_config.bagman.bag_return_time = parser.parse_uint();
+        }
+    }
+
     if (parser.parse_optional("$Hitsounds:")) {
         g_additional_server_config.hit_sounds.enabled = parser.parse_bool();
         if (parser.parse_optional("+Sound ID:")) {
@@ -376,6 +383,10 @@ void load_additional_server_config(rf::Parser& parser)
         if (parser.parse_optional("+Armor Is Super:")) {
             g_additional_server_config.kill_reward_armor_super = {parser.parse_bool()};
         }
+    }
+
+    if (parser.parse_optional("$Drop Amps On Death:")) {
+        g_additional_server_config.drop_amps = parser.parse_bool();
     }
 
     if (parser.parse_optional("$Overtime Enabled:")) {
@@ -1907,8 +1918,113 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
     //xlog::warn("gave player {} weapon {} with ammo {}", player->name, weapon_type, ammo_count);
 }
 
+void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
+{
+    if (!ep || (ep->p_data.flags & 0x400000) != 0) {
+        return;
+    }
+
+    rf::Vector3 drop_position = ep->pos;
+    rf::Matrix3 drop_orient = ep->orient;
+
+    rf::Item* dropped_item = nullptr;
+
+    switch (powerup_type) {
+    case 1:
+        dropped_item = rf::item_create(33, "Multi Damage Amplifier", count, -1, &drop_position, &drop_orient, -1, 0, 0);
+        break;
+    case 0:
+        dropped_item = rf::item_create(32, "Multi Invulnerability", count, -1, &drop_position, &drop_orient, -1, 0, 0);
+        break;
+    default:
+        xlog::warn("Unknown powerup type: {}", powerup_type);
+        return;
+    }
+
+    if (dropped_item) {
+        xlog::warn("Dropped {} with count {}", dropped_item->name, count);
+        dropped_item->item_flags |= 8u;
+        /* if (result.num_hits > 0) {
+            rf::Vector3 bbox_min, bbox_max;
+            rf::vmesh_get_bbox(static_cast<rf::VMesh*>(dropped_item->vmesh), &bbox_min, &bbox_max);
+            dropped_item->p_data.pos += result.hit_point * bbox_max.x;
+            dropped_item->pos = dropped_item->p_data.pos;
+        }*/
+        rf::send_obj_kill_packet(ep, dropped_item, nullptr);
+    }
+}
+
+// drop_amps and bagman
+CodeInjection entity_maybe_die_patch{
+    0x00420600,
+    [](auto& regs) {
+        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) &&
+            (g_additional_server_config.drop_amps || g_additional_server_config.bagman.enabled)) {
+
+            rf::Entity* ep = regs.esi;
+
+            if (ep) {
+                xlog::warn("{} died", ep->name);
+                rf::Player* player = rf::player_from_entity_handle(ep->handle);
+
+                if (rf::multi_powerup_has_player(player, 1)) {
+                    int amp_count = 0;
+                    if (g_additional_server_config.bagman.enabled) {
+                        amp_count = 100000;
+                    }
+                    else {
+                        int time_left = rf::multi_powerup_get_time_until(player, 1);
+                        amp_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
+                    }
+
+                    xlog::warn("amp count {}", amp_count);
+
+                    if (amp_count >= 1) {
+                        entity_drop_powerup(ep, 1, amp_count); 
+                    }
+                }
+
+                if (g_additional_server_config.drop_amps && rf::multi_powerup_has_player(player, 0)) {
+                    int invuln_count = 0;
+                    int time_left = rf::multi_powerup_get_time_until(player, 0);
+                    invuln_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
+
+                    xlog::warn("invuln count {}", invuln_count);
+
+                    if (invuln_count >= 1) {
+                        entity_drop_powerup(ep, 0, invuln_count);
+                    }
+                }
+            }
+        }
+    },
+};
+
+// bagman
+CodeInjection item_get_oldest_dynamic_patch{
+    0x00458858,
+    [](auto& regs) {
+        if (g_additional_server_config.bagman.enabled) {
+
+            rf::Item* item = regs.esi;
+
+            if (item) {
+                //xlog::warn("checked item {}, UID {}", item->name, item->uid);
+                if (item->name == "Multi Damage Amplifier") {
+                    xlog::warn("found bag item, ensuring it persists");
+                    regs.eip = 0x0045887E;
+                }
+            }
+        }
+    },
+};
+
 void server_init()
-{ 
+{
+
+    entity_maybe_die_patch.install();
+    item_get_oldest_dynamic_patch.install();
+
     // Override rcon command whitelist
     write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);
     write_mem_ptr(0x0046C7D1 + 2, g_rcon_cmd_whitelist + std::size(g_rcon_cmd_whitelist));

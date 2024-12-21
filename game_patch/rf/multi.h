@@ -6,6 +6,7 @@
 #include "os/string.h"
 #include "os/array.h"
 #include "object.h"
+#include "item.h"
 #include "geometry.h"
 #include "ai.h"
 #include "gr/gr.h"
@@ -209,8 +210,8 @@ namespace rf
     static auto& multi_powerup_add = addr_as_ref<void(Player* pp, int powerup_type, int time_ms)>(0x00480050);
     static auto& multi_powerup_remove = addr_as_ref<void(Player* pp, int powerup_type)>(0x004801F0);
     static auto& multi_powerup_remove_all_for_player = addr_as_ref<void(Player* pp)>(0x00480310);
-    static auto& send_reload_packet =
-        addr_as_ref<void(Entity* ep, int weapon_type, int clip_ammo, int ammo)>(0x00485B50);
+    static auto& send_reload_packet = addr_as_ref<void(Entity* ep, int weapon_type, int clip_ammo, int ammo)>(0x00485B50);
+    static auto& send_obj_kill_packet = addr_as_ref<void(Entity* killed_entity, Item* item, int* a3)>(0x0047E8C0);
 
 
     static auto& netgame = addr_as_ref<NetGameInfo>(0x0064EC28);
@@ -237,4 +238,7 @@ namespace rf
     static auto& multiplayer_crouch_walk_speed = *reinterpret_cast<float*>(0x00594590);
 
     constexpr int multi_max_player_id = 256;
+
+    
+
 }

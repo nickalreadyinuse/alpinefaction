@@ -4,6 +4,7 @@
 namespace rf
 {
     struct Player;
+    struct Entity;
 }
 
 void server_init();

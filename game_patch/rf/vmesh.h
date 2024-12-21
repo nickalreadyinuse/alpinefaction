@@ -96,6 +96,7 @@ namespace rf
     static auto& vmesh_get_type = addr_as_ref<VMeshType(VMesh *vmesh)>(0x00502B00);
     static auto& vmesh_get_name = addr_as_ref<const char*(VMesh* vmesh)>(0x00503470);
     static auto& vmesh_get_num_cspheres = addr_as_ref<int(VMesh *vmesh)>(0x00503250);
+    static auto& vmesh_get_bbox = addr_as_ref<void(VMesh*, Vector3*, Vector3*)>(0x00503310);
     static auto& vmesh_get_csphere = addr_as_ref<bool(VMesh *vmesh, int index, Vector3 *pos, float *radius)>(0x00503270);
     static auto& vmesh_collide = addr_as_ref<bool(VMesh *vmesh, VMeshCollisionInput *in, VMeshCollisionOutput *out, bool clear)>(0x005031F0);
     static auto& vmesh_calc_lighting_data_size = addr_as_ref<int(VMesh *vmesh)>(0x00503F50);

@@ -1,7 +1,10 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
+#include <common/utils/string-utils.h>
 #include <xlog/xlog.h>
+#include <algorithm>
+#include <string_view>
 #include "../rf/event.h"
 #include "../rf/item.h"
 #include "../rf/misc.h"
@@ -10,6 +13,22 @@
 #include "../rf/weapon.h"
 #include "../rf/player/player.h"
 #include "../multi/server.h"
+
+int item_lookup_type(const char* name)
+{
+    if (!name || rf::num_item_types <= 0)
+        return -1;
+
+    auto name_view = std::string_view(name);
+    auto it =
+        std::find_if(std::begin(rf::item_info), std::begin(rf::item_info) + rf::num_item_types, [name_view](const rf::ItemInfo& item) {
+            return string_equals_ignore_case(name_view, item.cls_name);
+        });
+
+    return (it != std::begin(rf::item_info) + rf::num_item_types)
+        ? static_cast<int>(std::distance(std::begin(rf::item_info), it))
+        : -1;
+}
 
 FunHook<int(int, int, int, int)> item_touch_weapon_hook{
     0x0045A6D0,

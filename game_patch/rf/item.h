@@ -58,6 +58,9 @@ namespace rf
 
     static auto& item_lookup_type = addr_as_ref<int(const char *name)>(0x00459430);
     static auto& item_restore_mesh = addr_as_ref<void(Item *item, const char *mesh_name)>(0x00459BB0);
+    static auto& item_create = addr_as_ref<Item*(int type, const char* name, int count, int parent_handle,
+        const Vector3* pos, Matrix3* orient, int respawn_time, bool permanent, bool from_packet)>(0x00459100);
+
     //static auto& item_pickup = addr_as_ref<void(Item* item, Entity* ep, bool do_los_check, int allow_multi)>(0x00459560);
 
     }

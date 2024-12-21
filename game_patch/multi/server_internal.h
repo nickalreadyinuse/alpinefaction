@@ -38,6 +38,12 @@ struct GunGameConfig
     std::vector<std::pair<int, int>> levels;
 };
 
+struct BagmanConfig
+{
+    bool enabled = false;
+    float bag_return_time = 25000.0f;
+};
+
 struct HitSoundsConfig
 {
     bool enabled = true;
@@ -110,6 +116,7 @@ struct ServerAdditionalConfig
     std::optional<float> spawn_armor;
     int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
+    BagmanConfig bagman;
     HitSoundsConfig hit_sounds;
     CriticalHitsConfig critical_hits;
     WeaponStayExemptionConfig weapon_stay_exemptions;
@@ -130,6 +137,7 @@ struct ServerAdditionalConfig
     int anticheat_level = 0;
     int click_limiter_fire_wait = 50;
     bool stats_message_enabled = true;
+    bool drop_amps = false;
     bool dynamic_rotation = false;
     std::string welcome_message;
     bool weapon_items_give_full_ammo = false;
