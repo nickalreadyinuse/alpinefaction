@@ -265,7 +265,7 @@ CodeInjection level_load_lightmaps_color_conv_patch{
         }
 
         // If no per-level floor clamp, consider using legacy clamping for non-Alpine levels
-        if (!floor_clamp_defined && rf::level.version < 300) {
+        if (!floor_clamp_defined && rf::level.version < 300 && !DashLevelProps::instance().lightmaps_full_depth) {
 
             // If not full range OR official + forced clamping
             if (!g_alpine_game_config.full_range_lighting || (g_alpine_game_config.always_clamp_official_lightmaps && rf::level.version < 200)) {

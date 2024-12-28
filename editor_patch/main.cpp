@@ -138,7 +138,9 @@ CodeInjection CDialog_DoModal_injection{
         auto lpszTemplateName = addr_as_ref<LPCSTR>(regs.esp);
         // Customize:
         // - 148: trigger properties dialog
-        if (lpszTemplateName == MAKEINTRESOURCE(IDD_TRIGGER_PROPERTIES)) {
+        if (lpszTemplateName == MAKEINTRESOURCE(IDD_TRIGGER_PROPERTIES) ||
+            lpszTemplateName == MAKEINTRESOURCE(IDD_LEVEL_PROPERTIES)
+        ) {
             hCurrentResourceHandle = reinterpret_cast<int>(g_module);
         }
     },
@@ -448,6 +450,7 @@ void InitCrashHandler()
 
 void ApplyGraphicsPatches();
 void ApplyTriggerPatches();
+void ApplyLevelPatches();
 void ApplyEventsPatches();
 void ApplyTexturesPatches();
 
@@ -712,6 +715,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Apply patches defined in other files
     ApplyGraphicsPatches();
     ApplyTriggerPatches();
+    ApplyLevelPatches();
     ApplyEventsPatches();
     ApplyTexturesPatches();
 

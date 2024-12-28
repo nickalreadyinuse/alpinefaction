@@ -106,25 +106,6 @@ CodeInjection critical_error_log_injection{
     },
 };
 
-CodeInjection level_read_data_check_restore_status_patch{
-    0x00461195,
-    [](auto& regs) {
-        // check if sr_load_level_state is successful
-        if (regs.eax != 0)
-            return;
-        // check if this is auto-load when changing level
-        const char* save_filename = regs.edi;
-        if (!std::strcmp(save_filename, "auto.svl"))
-            return;
-        // manual load failed
-        xlog::error("Restoring game state failed");
-        char* error_info = *reinterpret_cast<char**>(regs.esp + 0x2B0 + 0xC);
-        std::strcpy(error_info, "Save file is corrupted");
-        // return to level_read_data failure path
-        regs.eip = 0x004608CC;
-    },
-};
-
 void set_jump_to_multi_server_list(bool jump)
 {
     g_jump_to_multi_server_list = jump;
@@ -381,16 +362,6 @@ CallHook<int(char*, const char*)> skeleton_pagein_debug_print_patch{
     reinterpret_cast<int(*)(char*, const char*)>(debug_print_hook),
 };
 
-CodeInjection level_load_items_crash_fix{
-    0x0046519F,
-    [](auto& regs) {
-        void* item = regs.eax;
-        if (item == nullptr) {
-            regs.eip = 0x004651C6;
-        }
-    },
-};
-
 CodeInjection vmesh_col_fix{
     0x00499BCF,
     [](auto& regs) {
@@ -412,15 +383,6 @@ CodeInjection explosion_crash_fix{
         if (player == nullptr) {
             regs.esp += 4;
             regs.eip = 0x004365EC;
-        }
-    },
-};
-
-CallHook<void(rf::Vector3*, float, float, float, float, bool, int, int)> level_read_geometry_header_light_add_directional_hook{
-    0x004619E1,
-    [](rf::Vector3 *dir, float intensity, float r, float g, float b, bool is_dynamic, int casts_shadow, int dropoff_type) {
-        if (rf::gr::lighting_enabled()) {
-            level_read_geometry_header_light_add_directional_hook.call_target(dir, intensity, r, g, b, is_dynamic, casts_shadow, dropoff_type);
         }
     },
 };
@@ -560,9 +522,6 @@ void misc_init()
     // It is not visible in game because other things are drawn over it
     AsmWriter(0x0041AE47, 0x0041AE4C).nop();
 
-    // Add checking if restoring game state from save file failed during level loading
-    level_read_data_check_restore_status_patch.install();
-
     // Open server list menu instead of main menu when leaving multiplayer game
     rf_init_state_hook.install();
     rf_state_is_closed_hook.install();
@@ -599,9 +558,6 @@ void misc_init()
     // Log error when RFA cannot be loaded
     skeleton_pagein_debug_print_patch.install();
 
-    // Fix item_create null result handling in RFL loading (affects multiplayer only)
-    level_load_items_crash_fix.install();
-
     // Fix col-spheres vs mesh collisions
     vmesh_col_fix.install();
 
@@ -612,9 +568,6 @@ void misc_init()
     if (!g_game_config.reduced_speed_in_background) {
         write_mem<u8>(0x004353CC, asm_opcodes::jmp_rel_short);
     }
-
-    // Fix dedicated server crash when loading level that uses directional light
-    level_read_geometry_header_light_add_directional_hook.install();
 
     // Fix stack corruption when packfile has lower size than expected
     vfile_read_stack_corruption_fix.install();
