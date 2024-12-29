@@ -18,10 +18,10 @@ namespace rf
             AddrCaller{0x004FCE70}.this_call(this);
         }
 
-        Matrix3 copy_transpose() const
+        Matrix3* copy_transpose(Matrix3* out)
         {
-            Matrix3 result;
-            AddrCaller{0x004FC8A0}.this_call(this, &result);
+            Matrix3* result = nullptr;
+            AddrCaller{0x004FC8A0}.this_call(this, out);
             return result;
         }
 
@@ -37,6 +37,11 @@ namespace rf
             fvec.rand_quick();
 
             make_quick(fvec);
+        }
+
+        void extract_angles(float* pitch, float* roll, float* yaw)
+        {
+            AddrCaller{0x004FC060}.this_call(this, pitch, roll, yaw);
         }
     };
     static_assert(sizeof(Matrix3) == 0x24);
@@ -57,4 +62,5 @@ namespace rf
     };
 
     static auto& identity_matrix = addr_as_ref<Matrix3>(0x0173C388);
-}
+    static auto& file_default_matrix = *reinterpret_cast<Matrix3*>(0x01BDB278);
+    }

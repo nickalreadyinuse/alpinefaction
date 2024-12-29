@@ -198,7 +198,7 @@ void MainDlg::OnBnClickedEditorBtn()
 void MainDlg::OnSupportLinkClick()
 {
     xlog::info("Opening support channel");
-    HINSTANCE result = ShellExecuteA(*this, "open", "https://discord.gg/bC2WzvJ", nullptr, nullptr, SW_SHOW);
+    HINSTANCE result = ShellExecuteA(*this, "open", "https://discord.gg/factionfiles", nullptr, nullptr, SW_SHOW);
     auto result_int = reinterpret_cast<INT_PTR>(result);
     if (result_int <= 32) {
         xlog::error("ShellExecuteA failed {}", result_int);

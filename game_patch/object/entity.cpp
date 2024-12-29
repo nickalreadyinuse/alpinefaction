@@ -206,7 +206,7 @@ CodeInjection entity_process_pre_hide_riot_shield_injection{
 
 // in EventSpawnObject__turn_on
 CodeInjection entity_create_hook{
-    0x004BC180,  // Address right after the call to entity_create
+    0x004BC180,
     [](BaseCodeInjection::Regs& regs) {
         // Cast the entity pointer using the workaround
         uintptr_t entity_addr = static_cast<uintptr_t>(regs.eax);
@@ -460,10 +460,24 @@ CodeInjection player_create_entity_nano_patch {
     }
 };
 
+// makes some entities red?
+CodeInjection player_create_entity_patch {
+    0x004A4234,
+    [](auto& regs) {        
+        rf::Entity* ep = regs.ebx;
+        xlog::warn("entity: {} skin", ep->name);
+        //rf::entity_set_skin(ep, "1default_red");
+        //regs.eip = 0x004A4340;
+        regs.eip = 0x004A42CE;
+        //ep->nano_shield_info->nano_shield_vfx_handle = rf::vmesh_create_anim_fx("NanoShieldConstant.vfx", 0);
+    }
+};
+
 void entity_do_patch()
 {
     testlink_cmd.register_cmd();
     entity_create_hook.install();
+    //player_create_entity_patch.install(); // force team skin experiment
     //player_create_entity_nano_patch.install(); // nanoshield experiment
     //physics_calc_fall_damage_hook.install();
     //physics_calc_fall_damage_hookB.install();

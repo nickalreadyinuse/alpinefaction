@@ -103,6 +103,11 @@ namespace rf
         ObjInterp* obj_interp;
         void* mesh_lighting_data;
         Vector3 relative_transition_pos;
+
+        void move(Vector3* new_pos)
+        {
+            AddrCaller{0x0048A230}.this_call(this, new_pos);
+        }
     };
     static_assert(sizeof(Object) == 0x28C);
 

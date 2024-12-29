@@ -2,7 +2,9 @@
 #include <patch_common/CodeInjection.h>
 #include <common/rfproto.h>
 #include <xlog/xlog.h>
+#include "../misc/misc.h"
 #include "../rf/player/player.h"
+#include "../rf/level.h"
 #include "../rf/trigger.h"
 #include "../rf/multi.h"
 
@@ -48,7 +50,16 @@ FunHook<void(rf::Trigger*, int32_t, bool)> trigger_activate_hook{
 
         // Check if this is Solo or Teleport trigger (REDPF feature)
         uint8_t ext_flags = trigger_name[0] == TRIGGER_PF_FLAGS_PREFIX ? trigger_name[1] : 0;
-        bool is_solo_trigger = (ext_flags & (TRIGGER_SOLO | TRIGGER_TELEPORT)) != 0;
+
+        // in AF levels, teleport flag is ignored (unnecessary)
+        bool is_solo_trigger = false;
+        if (af_rfl_version(rf::level.version)) {
+            is_solo_trigger = (ext_flags & TRIGGER_SOLO) != 0;
+        }
+        else {
+            is_solo_trigger = (ext_flags & (TRIGGER_SOLO | TRIGGER_TELEPORT)) != 0;
+        }
+
         if (rf::is_multi && rf::is_server && is_solo_trigger && player) {
             // rf::console::print("Solo/Teleport trigger activated {}", trigger_name);
             if (player != rf::local_player) {

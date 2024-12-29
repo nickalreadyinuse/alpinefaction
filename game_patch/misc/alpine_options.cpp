@@ -94,7 +94,7 @@ std::optional<OptionValue> parse_bool(const std::string& value) {
 
 // master list of options: mapped to option ID, associated tbl, and parser
 const std::unordered_map<std::string, OptionMetadata> option_metadata = {
-    {"$Scoreboard Logo", {AlpineOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp
+    {"$Scoreboard Logo", {AlpineOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp // possibly delete
     {"$Default Geomod Mesh", {AlpineOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Driller Double Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Driller Single Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
@@ -649,10 +649,12 @@ void load_af_options_config()
 
     // Load all af_client*.tbl files first
     // af_client.tbl overrides numbered variations because its loaded later
-    for (int i = 0; i <= 9; ++i) {
+    /* for (int i = 0; i <= 9; ++i) {
         std::string numbered_file = "af_client" + std::to_string(i) + ".tbl";
         load_single_af_options_file(numbered_file);
-    }
+    }*/
+
+    load_single_af_options_file("af_client.tbl");
 
     // if a TC mod is loaded, handle the other options files
     if (rf::mod_param.found()) {

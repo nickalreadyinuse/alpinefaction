@@ -27,14 +27,14 @@ public:
     {
         is_solo_ = Button_GetCheck(GetDlgItem(hwnd_, IDC_TRIGGER_SOLO)) == BST_CHECKED;
         is_clientside_ = Button_GetCheck(GetDlgItem(hwnd_, IDC_TRIGGER_CLIENTSIDE)) == BST_CHECKED;
-        is_teleport_ = Button_GetCheck(GetDlgItem(hwnd_, IDC_TRIGGER_TELEPORT)) == BST_CHECKED;
+        //is_teleport_ = Button_GetCheck(GetDlgItem(hwnd_, IDC_TRIGGER_TELEPORT)) == BST_CHECKED;
     }
 
     void UpdateCheckBoxesStates()
     {
         CheckDlgButton(hwnd_, IDC_TRIGGER_SOLO, is_solo_ ? BST_CHECKED : BST_UNCHECKED);
         CheckDlgButton(hwnd_, IDC_TRIGGER_CLIENTSIDE, is_clientside_ ? BST_CHECKED : BST_UNCHECKED);
-        CheckDlgButton(hwnd_, IDC_TRIGGER_TELEPORT, is_teleport_ ? BST_CHECKED : BST_UNCHECKED);
+        //CheckDlgButton(hwnd_, IDC_TRIGGER_TELEPORT, is_teleport_ ? BST_CHECKED : BST_UNCHECKED);
     }
 
     void ExtractFlagsAndRemoveFromScriptName()

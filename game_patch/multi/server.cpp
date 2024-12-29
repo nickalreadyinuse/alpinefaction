@@ -2019,9 +2019,43 @@ CodeInjection item_get_oldest_dynamic_patch{
     },
 };
 
+CodeInjection entity_create_no_collide{
+    0x004223B2,
+    [](auto& regs) {
+
+        if (g_additional_server_config.vote_match.enabled) {
+            int entity_flags = regs.esp + 0x14C;
+            xlog::warn("flags {}", entity_flags);
+
+            //rf::Item* item = regs.esi;
+
+            /* if (item) {
+                //xlog::warn("checked item {}, UID {}", item->name, item->uid);
+                if (item->name == "Multi Damage Amplifier") {
+                    xlog::warn("found bag item, ensuring it persists");
+                    regs.eip = 0x0045887E;
+                }
+            }*/
+        }
+    },
+};
+
+CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int)> entity_create_no_collide_hook {
+    0x004A41D3,
+    [](int type, const char* name, int parent_handle, rf::Vector3* pos, rf::Matrix3* orient, int create_flags, int mp_character) {
+
+        if (get_df_server_info()->no_player_collide) {
+            create_flags = 5;
+        }
+
+        return entity_create_no_collide_hook.call_target(type, name, parent_handle, pos, orient, create_flags, mp_character);
+    }
+};
+
 void server_init()
 {
-
+    entity_create_no_collide_hook.install();
+    //entity_create_no_collide.install();
     entity_maybe_die_patch.install();
     item_get_oldest_dynamic_patch.install();
 
@@ -2148,6 +2182,11 @@ bool server_allow_lightmaps_only()
 bool server_allow_disable_screenshake()
 {
     return g_additional_server_config.allow_disable_screenshake;
+}
+
+bool server_no_player_collide()
+{
+    return g_additional_server_config.vote_match.enabled;
 }
 
 bool server_weapon_items_give_full_ammo()

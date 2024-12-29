@@ -82,6 +82,11 @@ namespace rf
             return AddrCaller{0x0052CF60}.this_call<int>(this, buf, buf_len, min_ver, unused);
         }
 
+        void read_matrix(Matrix3* mat, int ver, Matrix3* deflt)
+        {
+            AddrCaller{0x0052CAC0}.this_call(this, mat, ver, deflt);
+        }
+
         template<typename T>
         T read(int min_ver = 0, T def_val = 0)
         {

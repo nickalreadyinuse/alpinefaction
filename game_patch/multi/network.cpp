@@ -680,6 +680,7 @@ struct DashFactionJoinAcceptPacketExt
         allow_fb_mesh       = 1 << 2,
         allow_lmap          = 1 << 3,
         allow_no_ss         = 1 << 4,
+        no_player_collide   = 1 << 5,
     } flags = Flags::none;
 
     float max_fov;
@@ -718,6 +719,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_allow_disable_screenshake()) {
             ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_no_ss;
         }
+        if (server_no_player_collide()) {
+            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::no_player_collide;
+        }
         auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
     },
@@ -742,6 +746,7 @@ CodeInjection process_join_accept_injection{
             server_info.allow_fb_mesh = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_fb_mesh);
             server_info.allow_lmap = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_lmap);
             server_info.allow_no_ss = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_ss);
+            server_info.no_player_collide = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::no_player_collide);
 
             constexpr float default_fov = 90.0f;
             if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {

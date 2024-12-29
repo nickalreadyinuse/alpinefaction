@@ -367,6 +367,9 @@ $RFE Level1:      "AF_General"
 $Event Name:      "Set_Entity_Flag"
 $RFE Level1:      "AF_General"
 
+$Event Name:      "AF_Teleport_Player"
+$RFE Level1:      "AF_General"
+
 #End
 
 // ------------------------------------------------

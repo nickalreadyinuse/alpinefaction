@@ -182,6 +182,7 @@ namespace rf
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
+    static auto& event_lookup_type = addr_as_ref<int(String* class_name)>(0x004BD700);
     static auto& event_create = addr_as_ref<Event*(const rf::Vector3* pos, int event_type)>(0x004B6870);
     static auto& event_delete = addr_as_ref<void(rf::Event*)>(0x004B67C0);
     static auto& event_add_link = addr_as_ref<void(int event_handle, int handle)>(0x004B6790);
@@ -318,7 +319,8 @@ namespace rf
         Set_Life,
         Set_Debris,
         Set_Fog_Color,
-        Set_Entity_Flag
+        Set_Entity_Flag,
+        AF_Teleport_Player
     };
 
     // int to EventType

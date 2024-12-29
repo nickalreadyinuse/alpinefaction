@@ -87,6 +87,7 @@ struct DashFactionServerInfo
     bool allow_fb_mesh = false;
     bool allow_lmap = false;
     bool allow_no_ss = false;
+    bool no_player_collide = false;
 };
 
 void multi_level_download_update();

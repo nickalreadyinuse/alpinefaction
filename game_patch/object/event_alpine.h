@@ -17,10 +17,12 @@
 #include "../rf/clutter.h"
 #include "../rf/trigger.h"
 #include "../main/main.h"
+#include "../object/object.h"
 #include "../rf/player/player.h"
 #include "../rf/os/timestamp.h"
 
 void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale);
+rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, rf::Matrix3& new_orient);
 
 namespace rf
 {
@@ -1624,6 +1626,69 @@ namespace rf
                     }
                     xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
                 }
+            }
+        }
+    };
+
+    // id 130
+    struct EventAFTeleportPlayer : Event
+    {
+        bool reset_velocity = false;
+        bool force_exit_vehicle = false;
+        std::string exit_vfx = "";
+        std::string exit_sound = "";
+
+        /* void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetFogColor*>(event);
+                this_event->fog_color = value;
+            };
+        }*/
+
+        void turn_on() override
+        {
+            Entity* teleported_entity = entity_from_handle(this->triggered_by_handle);
+            
+            if (teleported_entity) {
+                xlog::warn("teleporting {}, exit dir {},{},{}", teleported_entity->name, this->orient.fvec.x,
+                           this->orient.fvec.y, this->orient.fvec.z);
+                if (!is_multi) {
+                    if (force_exit_vehicle) {
+                        entity_detach_from_host(teleported_entity);
+                    }
+                    else {
+                        Entity* host_vehicle = entity_from_handle(teleported_entity->host_handle);
+                        if (host_vehicle) {
+                            teleported_entity = host_vehicle;
+                        }
+                        
+                    }
+                }
+
+                teleported_entity->p_data.next_pos = this->pos;
+                teleported_entity->move(&this->pos);
+
+                if (reset_velocity) {
+                    teleported_entity->p_data.vel.zero();
+                }
+                else {
+                    teleported_entity->p_data.vel =
+                        rotate_velocity(teleported_entity->p_data.vel, teleported_entity->p_data.orient, this->orient);
+                }
+
+                teleported_entity->orient = this->orient;
+                teleported_entity->p_data.orient = this->orient;
+                teleported_entity->p_data.next_orient = this->orient;
+                teleported_entity->eye_orient = this->orient;
+
+                float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
+                teleported_entity->orient.extract_angles(&pitch, &roll, &yaw);
+
+                teleported_entity->control_data.phb.set(-pitch, yaw, roll);
             }
         }
     };

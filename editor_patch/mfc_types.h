@@ -582,12 +582,17 @@ struct VFile
     void* pPackfileEntry;
     int bCdFile;
     int open_file_index;
+
+    void rw_matrix(Matrix3* mat, int ver, Matrix3* deflt)
+    {
+        AddrCaller{0x004D1820}.this_call(this, mat, ver, deflt);
+    }
 };
 static_assert(sizeof(VFile) == 0x114);
 
 bool get_is_saving_af_version();
 
-
+static auto& editor_file_default_matrix = *reinterpret_cast<Matrix3*>(0x01642060);
 
 //static auto DDX_Control = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CWnd*)>(0x005394EF);
 //static auto DDX_Text = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CString*)>(0x0053929C);

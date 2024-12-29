@@ -34,7 +34,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 31; // must be 1 higher than actual count
+constexpr int new_event_count = 32; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -70,6 +70,7 @@ const char* additional_event_names[new_event_count] = {
     "Set_Debris",
     "Set_Fog_Color",
     "Set_Entity_Flag",
+    "AF_Teleport_Player",
     "_dummy"
 };
 
@@ -496,7 +497,7 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             "No shadow",
             "Perfect aim",
             "Permanent corpse",
-            "Always relevant",
+            //"Always relevant",
             "Always face player",
             "Only attack player",
             "Deaf",
@@ -506,8 +507,16 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             {FIELD_INT1, true}
         }
     }},
+    {AlpineDedEventID::AF_Teleport_Player, {
+        {FIELD_BOOL1, FIELD_BOOL2, FIELD_STR1, FIELD_STR2},
+        {
+            {FIELD_BOOL1, "Reset velocity (bool1):"},
+            {FIELD_BOOL2, "Eject from vehicle (bool2):"},
+            {FIELD_STR1, "Exit VClip (str1):"},
+            {FIELD_STR2, "Exit sound filename (str2):"}
+        }
+    }},
 };
-
 
 void CreateDynamicControls(HWND hwndDlg, const FieldConfig& config, const std::string& className)
 {
@@ -750,10 +759,6 @@ void SaveCurrentFields(HWND hwndDlg)
     }
 }
 
-
-
-
-
 INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     char buffer[256];
@@ -866,10 +871,6 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
         return TRUE;
     }
 
-
-
-
-
     case WM_COMMAND: {
         if (LOWORD(wParam) == IDOK && currentDedEvent)
         {
@@ -902,8 +903,6 @@ INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
     return FALSE;
 }
 
-
-
 bool ShowAlpineEventDialog(HWND parent, DedEvent* dedEvent, CDedLevel* level)
 {
     currentDedEvent = dedEvent;
@@ -925,8 +924,6 @@ bool ShowAlpineEventDialog(HWND parent, DedEvent* dedEvent, CDedLevel* level)
     return (result == IDOK);
 }
 
-
-
 void OpenAlpineEventProperties(DedEvent* dedEvent, CDedLevel* level) {
     if (ShowAlpineEventDialog(GetActiveWindow(), dedEvent, level)) {
         xlog::info("Dialog saved successfully!");
@@ -936,7 +933,7 @@ void OpenAlpineEventProperties(DedEvent* dedEvent, CDedLevel* level) {
     }
 }
 
-// set template, in CDedLevel__OpenEventProperties (needs cleanup)
+// set template, in CDedLevel__OpenEventProperties
 CodeInjection open_event_properties_patch{
     0x00408D6D, [](auto& regs) {
         CDedLevel* level = regs.edi;
@@ -951,8 +948,47 @@ CodeInjection open_event_properties_patch{
     }
 };
 
+// directional events
+CodeInjection DedEvent__exchange_patch {
+    0x00451614, [](auto& regs) {
+
+        DedEvent* event = regs.esi;
+        VFile* file = regs.edi;
+
+        if (event->event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player)) {
+
+            // save orientation to rfl file
+            // NOTE: the game MUST read this properly or very strange things will happen
+            Matrix3* mat = &event->orient;
+            file->rw_matrix(mat, 300, &editor_file_default_matrix);
+            
+            regs.edx = mat;
+            regs.eip = 0x0045165C;
+        }
+    }
+};
+
+CodeInjection arrows_for_events_patch {
+    0x00421654, [](auto& regs) {
+
+        int event_type = *reinterpret_cast<int*>(regs.esi + 0x94);
+
+        if (event_type == 41 || // Play_VClip
+            event_type == 69 || // Teleport
+            event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player)) {
+            regs.eip = 0x00421661; // draw 3d arrow
+        }
+    }
+};
+
 void ApplyEventsPatches()
 {
+    // Support custom events with orientation
+    DedEvent__exchange_patch.install();
+
+    // Render 3d arrows for events that save orientation
+    arrows_for_events_patch.install();
+
     // Support custom event integration
     initialize_event_names(); // populate extended array with stock + AF events
     // debug_event_names(); // debug logging

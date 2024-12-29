@@ -72,6 +72,7 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"Set_Debris", 127},
                 {"Set_Fog_Color", 128},
                 {"Set_Entity_Flag", 129},
+                {"AF_Teleport_Player", 130},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -127,6 +128,7 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {127, []() { return new rf::EventSetDebris(); }},
                 {128, []() { return new rf::EventSetFogColor(); }},
                 {129, []() { return new rf::EventSetEntityFlag(); }},
+                {130, []() { return new rf::EventAFTeleportPlayer(); }},
             };
 
             // find type and allocate
@@ -186,6 +188,7 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {127, [](rf::Event* e) { delete static_cast<rf::EventSetDebris*>(e); }},
                 {128, [](rf::Event* e) { delete static_cast<rf::EventSetFogColor*>(e); }},
                 {129, [](rf::Event* e) { delete static_cast<rf::EventSetEntityFlag*>(e); }},
+                {130, [](rf::Event* e) { delete static_cast<rf::EventAFTeleportPlayer*>(e); }},
             };
 
             // find type and deallocate
@@ -540,6 +543,20 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             return event;
         }
     },
+    // AF_Teleport_Player
+    {
+        rf::EventType::AF_Teleport_Player, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::AF_Teleport_Player));
+            auto* event = dynamic_cast<rf::EventAFTeleportPlayer*>(base_event);
+            if (event) {
+                event->reset_velocity = params.bool1;
+                event->force_exit_vehicle = params.bool2;
+                event->exit_vfx = params.str1;
+                event->exit_sound = params.str2;
+            }
+            return event;
+        }
+    },
 };
 
 rf::Event* construct_alpine_event(int event_type, const rf::EventCreateParams& params)
@@ -653,6 +670,23 @@ CodeInjection event_activate_route_node{
         }
     }
 };
+
+rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, rf::Matrix3& new_orient)
+{
+    // Convert velocity to world space using the old orientation
+    rf::Vector3 world_velocity;
+    world_velocity.x = old_orient.rvec.dot_prod(old_velocity);
+    world_velocity.y = old_orient.uvec.dot_prod(old_velocity);
+    world_velocity.z = old_orient.fvec.dot_prod(old_velocity);
+
+    // Rotate world velocity to the new orientation's local space
+    rf::Vector3 new_velocity;
+    new_velocity.x = new_orient.rvec.dot_prod(world_velocity);
+    new_velocity.y = new_orient.uvec.dot_prod(world_velocity);
+    new_velocity.z = new_orient.fvec.dot_prod(world_velocity);
+
+    return new_velocity;
+}
 
 void apply_alpine_events()
 {
