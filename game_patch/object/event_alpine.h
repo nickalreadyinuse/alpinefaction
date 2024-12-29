@@ -1635,8 +1635,8 @@ namespace rf
     {
         bool reset_velocity = false;
         bool force_exit_vehicle = false;
-        std::string exit_vfx = "";
-        std::string exit_sound = "";
+        std::string entrance_vclip = "";
+        std::string exit_vclip = "";        
 
         /* void register_variable_handlers() override
         {
@@ -1656,6 +1656,8 @@ namespace rf
             if (teleported_entity) {
                 xlog::warn("teleporting {}, exit dir {},{},{}", teleported_entity->name, this->orient.fvec.x,
                            this->orient.fvec.y, this->orient.fvec.z);
+
+                // Handle ejection from vehicle
                 if (!is_multi) {
                     if (force_exit_vehicle) {
                         entity_detach_from_host(teleported_entity);
@@ -1669,9 +1671,20 @@ namespace rf
                     }
                 }
 
+                // Play entrance vclip
+                if (!entrance_vclip.empty()) {
+                    int entrance_vclip_id = rf::vclip_lookup(entrance_vclip.c_str());
+                    if (entrance_vclip_id > -1) {
+                        rf::vclip_play_3d(entrance_vclip_id, teleported_entity->room, &teleported_entity->pos,
+                                          &teleported_entity->pos, 1.0f, -1, &teleported_entity->orient.fvec, 1);
+                    }
+                }
+
+                // Teleport player position
                 teleported_entity->p_data.next_pos = this->pos;
                 teleported_entity->move(&this->pos);
 
+                // Rotate velocity on exit
                 if (reset_velocity) {
                     teleported_entity->p_data.vel.zero();
                 }
@@ -1680,6 +1693,7 @@ namespace rf
                         rotate_velocity(teleported_entity->p_data.vel, teleported_entity->p_data.orient, this->orient);
                 }
 
+                // Teleport player orientation
                 teleported_entity->orient = this->orient;
                 teleported_entity->p_data.orient = this->orient;
                 teleported_entity->p_data.next_orient = this->orient;
@@ -1689,6 +1703,15 @@ namespace rf
                 teleported_entity->orient.extract_angles(&pitch, &roll, &yaw);
 
                 teleported_entity->control_data.phb.set(-pitch, yaw, roll);
+
+                // Play exit vclip
+                if (!exit_vclip.empty()) {
+                    int exit_vclip_id = rf::vclip_lookup(exit_vclip.c_str());
+                    if (exit_vclip_id > -1) {
+                        rf::vclip_play_3d(
+                            exit_vclip_id, this->room, &this->pos, &this->pos, 1.0f, -1, &this->orient.fvec, 1);
+                    }
+                }
             }
         }
     };

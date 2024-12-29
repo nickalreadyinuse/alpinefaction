@@ -551,8 +551,8 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             if (event) {
                 event->reset_velocity = params.bool1;
                 event->force_exit_vehicle = params.bool2;
-                event->exit_vfx = params.str1;
-                event->exit_sound = params.str2;
+                event->entrance_vclip = params.str1;
+                event->exit_vclip = params.str2;
             }
             return event;
         }

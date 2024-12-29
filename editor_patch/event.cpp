@@ -510,10 +510,10 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
     {AlpineDedEventID::AF_Teleport_Player, {
         {FIELD_BOOL1, FIELD_BOOL2, FIELD_STR1, FIELD_STR2},
         {
-            {FIELD_BOOL1, "Reset velocity (bool1):"},
-            {FIELD_BOOL2, "Eject from vehicle (bool2):"},
-            {FIELD_STR1, "Exit VClip (str1):"},
-            {FIELD_STR2, "Exit sound filename (str2):"}
+            {FIELD_BOOL1, "Reset player velocity (bool1):"},
+            {FIELD_BOOL2, "Eject player from vehicle (bool2):"},
+            {FIELD_STR1, "Entrance VClip (str1):"},
+            {FIELD_STR2, "Exit VClip (str2):"}
         }
     }},
 };
