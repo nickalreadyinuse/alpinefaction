@@ -128,6 +128,7 @@ struct ServerAdditionalConfig
     bool require_client_mod = true;
     float player_damage_modifier = 1.0f;
     bool saving_enabled = false;
+    bool no_player_collide = false;
     bool upnp_enabled = true;
     std::optional<int> force_player_character;
     std::optional<float> max_fov;

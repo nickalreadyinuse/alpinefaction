@@ -318,6 +318,10 @@ void load_additional_server_config(rf::Parser& parser)
         g_additional_server_config.saving_enabled = parser.parse_bool();
     }
 
+    if (parser.parse_optional("$No Player Collide:")) {
+        g_additional_server_config.no_player_collide = parser.parse_bool();
+    }
+
     if (parser.parse_optional("$UPnP Enabled:")) {
         g_additional_server_config.upnp_enabled = parser.parse_bool();
     }
@@ -498,7 +502,6 @@ CodeInjection dedicated_server_load_config_patch{
         }
 
         if (g_additional_server_config.use_sp_damage_calculation) {
-            xlog::warn("Applying SP damage logic");
             AsmWriter(0x0041A37A).jmp(0x0041A3C1);
         }
 
@@ -588,13 +591,37 @@ std::string get_ready_player_names(bool is_blue_team)
     return oss.str();
 }
 
-void handle_whosready_command(rf::Player* player)
+std::string get_unready_player_names()
+{
+    const auto& all_players = get_current_player_list(false);
+
+    // Create sets
+    std::unordered_set<rf::Player*> ready_players(g_match_info.ready_players_blue.begin(),
+        g_match_info.ready_players_blue.end());
+
+    ready_players.insert(g_match_info.ready_players_red.begin(), g_match_info.ready_players_red.end());
+
+    std::ostringstream oss;
+    for (const auto& player : all_players) {
+        // Check if the player is not in the ready set
+        if (ready_players.find(player) == ready_players.end()) {
+            if (oss.tellp() > 0) {
+                oss << ", ";
+            }
+            oss << player->name;
+        }
+    }
+    return oss.str();
+}
+
+
+void handle_matchinfo_command(rf::Player* player)
 {
     auto msg = std::format("\xA6 No match is queued.");
 
     if (g_match_info.pre_match_active) {
         if (!g_match_info.ready_players_red.empty() || !g_match_info.ready_players_blue.empty()) {
-            msg = std::format("\xA6 These players are currently ready:\n"
+            msg = std::format("\xA6 These players are ready:\n"
                                    "RED TEAM: {}\n"
                                    "BLUE TEAM: {}\n",
                                    get_ready_player_names(0), get_ready_player_names(1));
@@ -605,6 +632,17 @@ void handle_whosready_command(rf::Player* player)
     }
 
     send_chat_line_packet(msg.c_str(), player);
+}
+
+void handle_whosready_command(rf::Player* player)
+{
+    auto msg = std::format("\xA6 No match is queued.");
+
+    if (g_match_info.pre_match_active) {
+        msg = std::format("\xA6 Not ready: {}\n", get_unready_player_names());
+    }
+
+    send_chat_line_packet(msg.c_str(), nullptr);
 }
 
 CodeInjection process_obj_update_set_pos_injection{
@@ -703,6 +741,9 @@ bool handle_server_chat_command(std::string_view server_command, rf::Player* sen
     }
     else if (cmd_name == "unready") {
         set_ready_status(sender, 0);
+    }
+    else if (cmd_name == "matchinfo") {
+        handle_matchinfo_command(sender);
     }
     else if (cmd_name == "whosready") {
         handle_whosready_command(sender);
@@ -2019,27 +2060,6 @@ CodeInjection item_get_oldest_dynamic_patch{
     },
 };
 
-CodeInjection entity_create_no_collide{
-    0x004223B2,
-    [](auto& regs) {
-
-        if (g_additional_server_config.vote_match.enabled) {
-            int entity_flags = regs.esp + 0x14C;
-            xlog::warn("flags {}", entity_flags);
-
-            //rf::Item* item = regs.esi;
-
-            /* if (item) {
-                //xlog::warn("checked item {}, UID {}", item->name, item->uid);
-                if (item->name == "Multi Damage Amplifier") {
-                    xlog::warn("found bag item, ensuring it persists");
-                    regs.eip = 0x0045887E;
-                }
-            }*/
-        }
-    },
-};
-
 CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int)> entity_create_no_collide_hook {
     0x004A41D3,
     [](int type, const char* name, int parent_handle, rf::Vector3* pos, rf::Matrix3* orient, int create_flags, int mp_character) {
@@ -2054,8 +2074,10 @@ CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int
 
 void server_init()
 {
+    // Handle no player collide server option
     entity_create_no_collide_hook.install();
-    //entity_create_no_collide.install();
+
+    // Handle dropping amps on death
     entity_maybe_die_patch.install();
     item_get_oldest_dynamic_patch.install();
 
@@ -2186,7 +2208,7 @@ bool server_allow_disable_screenshake()
 
 bool server_no_player_collide()
 {
-    return g_additional_server_config.vote_match.enabled;
+    return g_additional_server_config.no_player_collide;
 }
 
 bool server_weapon_items_give_full_ammo()
