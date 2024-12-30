@@ -326,20 +326,20 @@ CodeInjection player_move_flashlight_light_patch {
         regs.eax = *reinterpret_cast<float*>(0x005A0108) * sqrt(dist); // scale light radius
 
         float mapped_dist = map_range(dist, 0.0f, *reinterpret_cast<float*>(0x005A0100), 1.0f, 0.05f);
-        *reinterpret_cast<float*>(0x005A00FC) = 0.8f * mapped_dist; // scale light intensity
+        *reinterpret_cast<float*>(0x005A00FC) = 0.6f * mapped_dist; // scale light intensity
     },
 };
 
 void update_player_flashlight() {
-    *reinterpret_cast<float*>(0x005A0108) = 3.5f;   // radius (default 3.0)
+    *reinterpret_cast<float*>(0x005A0108) = 3.25f;   // base radius (default 3.0)
     //*reinterpret_cast<float*>(0x005A00FC) = 0.8f;  // intensity (default 1.0)
     *reinterpret_cast<float*>(0x005A0100) = 20.0f;  // max range (default 12.0)
     AsmWriter(0x004A6AF3).push(2);                  // attenuation algo (default 0)
 
-    // warm yellow to loosely emulate an incandescent lightbulb
-    AsmWriter{0x004A6B03}.push(0x3F7A3D71);         // r (new 0.9804, default 1.0)
-    AsmWriter{0x004A6AFE}.push(0x3F718F5C);         // g (new 0.9412, default 1.0)
-    AsmWriter{0x004A6AF9}.push(0x3F490FDB);         // b (new 0.7843, default 1.0)
+    // warm yellow/tan to loosely emulate an incandescent lightbulb
+    AsmWriter{0x004A6B03}.push(0x3F800000); // r (new 255, default 255)
+    AsmWriter{0x004A6AFE}.push(0x3F5F399F); // g (new 190, default 255)
+    AsmWriter{0x004A6AF9}.push(0x3F404461); // b (new 120, default 255)
 }
 
 void player_do_patch()

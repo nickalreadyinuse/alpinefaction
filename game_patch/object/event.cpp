@@ -549,40 +549,6 @@ CodeInjection EventSound__process_patch {
     }
 };
 
-FunHook<void(rf::Event*)> event_teleport_player_on_hook{
-    0x004B9820,
-    [](rf::Event* event) {
-        if (rf::is_multi && af_rfl_version(rf::level.version)) {
-            rf::Entity* teleported_entity = rf::entity_from_handle(event->triggered_by_handle);
-
-            if (teleported_entity) {
-
-                // move player
-                teleported_entity->p_data.next_pos = event->pos;
-                teleported_entity->move(&event->pos);
-
-                // rotate out vel based on exit dir of event
-                //teleported_entity->p_data.vel =
-                    //rotate_velocity(teleported_entity->p_data.vel, teleported_entity->p_data.orient, event->orient);
-
-                // rotate player orient based on exit dir of event
-                teleported_entity->orient = event->orient;
-                teleported_entity->p_data.orient = event->orient;
-                teleported_entity->p_data.next_orient = event->orient;
-                teleported_entity->eye_orient = event->orient;
-
-                float pitch = 0.0f, roll = 0.0f, yaw = 0.0f;
-                teleported_entity->orient.extract_angles(&pitch, &roll, &yaw);
-
-                teleported_entity->control_data.phb.set(-pitch, yaw, roll);
-            }
-        }
-        else {
-            event_teleport_player_on_hook.call_target(event);
-        }
-    },
-};
-
 //directional events
 CodeInjection level_read_events_patch {
     0x0046231D, [](auto& regs) {
@@ -606,9 +572,6 @@ void apply_event_patches()
 {
     // allow custom directional events
     level_read_events_patch.install();
-
-    // remove solo requirement and maintain velocity for Teleport_Player event (alpine levels only)
-    //event_teleport_player_on_hook.install(); // maybe not
 
     // fix some events not working if delay value is specified (alpine levels only)
     EventUnhide__process_patch.install();

@@ -86,6 +86,12 @@ Version 1.0.0
     - `AF_When_Dead`
     - `Gametype_Gate`
     - `When_Picked_Up`
+    - `Set_Skybox`
+    - `Set_Life`
+    - `Set_Debris`
+    - `Set_Fog_Color`
+    - `Set_Entity_Flag`
+    - `AF_Teleport_Player`
 - Moved placement for new `dedicated_server.txt` lines to above `$Map` lines
 - Make `Headlamp_State` affect player (flashlight) if it has no links in Alpine levels
 - Add support for turning off `Holster_Weapon` and `Holster_Player_Weapon` to draw holstered weapon in Alpine levels
@@ -98,6 +104,10 @@ Version 1.0.0
     - `Alarm_Siren`
     - `Unhide`
 - Disable level editor lightmap clamping when loading level files
+- Add `$No Player Collide` and `$Drop Amp on Death` to dedicated server config
+- Move custom dedicated server config options up with the others (above `$Map` lines)
+- Allow autocomplete for map filenames from 1 character
+- Update `/whosready` chat command (for match mode ready up system) to broadcast to all players
 
 
 

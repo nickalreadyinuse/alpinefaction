@@ -135,7 +135,7 @@ ConsoleCommand2 version_cmd{
 };
 
 ConsoleCommand2 server_password_cmd{
-    "sv_password",
+    "sv_pass",
     [](std::optional<std::string> new_password) {
         if (!rf::is_multi || !rf::is_server) {
             rf::console::print("This command can only be run as a server!");
@@ -156,7 +156,7 @@ ConsoleCommand2 server_password_cmd{
 };
 
 ConsoleCommand2 server_rcon_password_cmd{
-    "sv_rconpassword",
+    "sv_rconpass",
     [](std::optional<std::string> new_rcon_password) {
         if (!rf::is_multi || !rf::is_dedicated_server) {
             rf::console::print("This command can only be run on a dedicated server!");
@@ -196,7 +196,7 @@ FunHook<void()> verify_level_cmd_hook{
 };
 
 ConsoleCommand2 pcollide_cmd{
-    "sp_pcollide",
+    "pcollide",
     []() {
         if (rf::is_multi) {
             rf::console::print("That command can't be used in multiplayer.");
@@ -340,12 +340,12 @@ void console_commands_init()
     register_builtin_command("cl_togglecrouch", nullptr, 0x00430C50);
 
     // risky commands, restricted in MP unless debug build
-    register_builtin_command("sp_dropclutter", "Spawn a clutter object by class name", 0x0040F0A0);
-    register_builtin_command("sp_dropentity", "Spawn an entity by class name", 0x00418740);
-    register_builtin_command("sp_dropitem", "Spawn an item by class name", 0x00458530);
+    register_builtin_command("drop_clutter", "Spawn a clutter object by class name", 0x0040F0A0);
+    register_builtin_command("drop_entity", "Spawn an entity by class name", 0x00418740);
+    register_builtin_command("drop_item", "Spawn an item by class name", 0x00458530);
     // register_builtin_command("pcollide", "Toggle if player collides with the world", 0x004A0F60);
-    register_builtin_command("sp_teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
-    register_builtin_command("sp_levelhardness", "Set default hardness for geomods", 0x004663E0);
+    register_builtin_command("teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
+    register_builtin_command("level_hardness", "Set default hardness for geomods", 0x004663E0);
 
 
 #ifdef DEBUG
