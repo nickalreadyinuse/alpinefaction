@@ -429,6 +429,7 @@ namespace rf
     static auto& entity_can_swim = addr_as_ref<bool(Entity* ep)>(0x00427FF0);
     static auto& entity_headlamp_turn_on = addr_as_ref<void(Entity* ep)>(0x00429560);
     static auto& entity_headlamp_turn_off = addr_as_ref<void(Entity* ep)>(0x004294A0);
+    static auto& entity_headlamp_is_on = addr_as_ref<bool(Entity* ep)>(0x00429480);
     static auto& entity_set_nano_flag = addr_as_ref<void(Entity* ep)>(0x0042D270);
     static auto& entity_remove_nano_flag = addr_as_ref<void(Entity* ep)>(0x0042D280);
     static auto& entity_has_nano_shield = addr_as_ref<bool(Entity* ep)>(0x0042CCA0);

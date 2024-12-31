@@ -36,6 +36,13 @@ namespace rf
         CC_ACTION_QUICK_LOAD = 0x18,
     };
 
+    enum AlpineControlConfigAction
+    {
+        AF_ACTION_FLASHLIGHT = 0x0,
+        AF_ACTION_SKIP_CUTSCENE = 0x1,
+        AF_ACTION_SELF_KILL = 0x2,
+    };
+
     struct ControlConfigItem
     {
         int16_t default_scan_codes[2];
@@ -72,6 +79,10 @@ namespace rf
     static auto& control_config_check_pressed =
         addr_as_ref<bool(ControlConfig *cc, ControlConfigAction action, bool *just_pressed)>(0x0043D4F0);
     static auto& control_config_get_key_name = addr_as_ref<int(String *out, int key)>(0x0043D930);
+    static auto& control_config_add_item = addr_as_ref<void(ControlConfig* ccp, const char* name,
+        int is_repeat, int16_t key1, int16_t key2, int16_t mouse_button)>(0x0043CFD0);
     static auto& control_config_get_mouse_button_name = addr_as_ref<int(String *out, int button)>(0x0043D970);
     static auto& control_config_find_action_by_name = addr_as_ref<int(PlayerSettings *ps, const char *name)>(0x0043D9F0);
+    static auto& control_config_get_num_bindings = addr_as_ref<int(ControlConfig* ai)>(0x0043D920);
+
 }
