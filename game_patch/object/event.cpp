@@ -560,7 +560,8 @@ CodeInjection level_read_events_patch {
             xlog::warn("Class name: {}", class_name->c_str());
             int event_type = rf::event_lookup_type(class_name);
 
-            if (event_type == static_cast<int>(rf::EventType::AF_Teleport_Player)) {
+            if (event_type == static_cast<int>(rf::EventType::AF_Teleport_Player) ||
+                event_type == static_cast<int>(rf::EventType::Clone_Entity)) {
                 regs.eax = reinterpret_cast<rf::Matrix3*>(regs.esp + 0x9C - 0x30);
                 file->read_matrix(regs.eax, 300, &rf::file_default_matrix);
             }

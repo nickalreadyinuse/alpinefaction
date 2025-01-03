@@ -73,6 +73,8 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"Set_Fog_Color", 128},
                 {"Set_Entity_Flag", 129},
                 {"AF_Teleport_Player", 130},
+                {"Set_Item_Drop", 131},
+                {"AF_Heal", 132},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -129,6 +131,8 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {128, []() { return new rf::EventSetFogColor(); }},
                 {129, []() { return new rf::EventSetEntityFlag(); }},
                 {130, []() { return new rf::EventAFTeleportPlayer(); }},
+                {131, []() { return new rf::EventSetItemDrop(); }},
+                {132, []() { return new rf::EventAFHeal(); }},
             };
 
             // find type and allocate
@@ -189,6 +193,8 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {128, [](rf::Event* e) { delete static_cast<rf::EventSetFogColor*>(e); }},
                 {129, [](rf::Event* e) { delete static_cast<rf::EventSetEntityFlag*>(e); }},
                 {130, [](rf::Event* e) { delete static_cast<rf::EventAFTeleportPlayer*>(e); }},
+                {131, [](rf::Event* e) { delete static_cast<rf::EventSetItemDrop*>(e); }},
+                {132, [](rf::Event* e) { delete static_cast<rf::EventAFHeal*>(e); }},
             };
 
             // find type and deallocate
@@ -270,7 +276,9 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Clone_Entity));
             auto* event = dynamic_cast<rf::EventCloneEntity*>(base_event);
             if (event) {                
-                event->ignore_item_drop = params.bool1;
+                event->hostile_to_player = params.bool1;
+                event->find_player = params.bool2;
+                event->link_from = params.int1;
             }
             return event;
         }
@@ -553,6 +561,31 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
                 event->force_exit_vehicle = params.bool2;
                 event->entrance_vclip = params.str1;
                 event->exit_vclip = params.str2;
+            }
+            return event;
+        }
+    },
+    // Set_Item_Drop
+    {
+        rf::EventType::Set_Item_Drop, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Item_Drop));
+            auto* event = dynamic_cast<rf::EventSetItemDrop*>(base_event);
+            if (event) {
+                event->item_name = params.str1;
+            }
+            return event;
+        }
+    },
+    // AF_Heal
+    {
+        rf::EventType::AF_Heal, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::AF_Heal));
+            auto* event = dynamic_cast<rf::EventAFHeal*>(base_event);
+            if (event) {
+                event->amount = params.int1;
+                event->target = static_cast<rf::AFHealTargetOption>(params.int2);
+                event->apply_to_armor = params.bool1;
+                event->super = params.bool2;
             }
             return event;
         }

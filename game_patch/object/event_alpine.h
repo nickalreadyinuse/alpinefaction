@@ -6,6 +6,8 @@
 #include <optional>
 #include <cstddef>
 #include <functional>
+#include <algorithm>
+#include <common/utils/list-utils.h>
 #include "../rf/event.h"
 #include "../rf/object.h"
 #include "../rf/level.h"
@@ -20,6 +22,7 @@
 #include "../object/object.h"
 #include "../rf/player/player.h"
 #include "../rf/os/timestamp.h"
+#include "../rf/os/array.h"
 
 void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale);
 rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, rf::Matrix3& new_orient);
@@ -112,19 +115,21 @@ namespace rf
         no_shadow,
         perfect_aim,
         permanent_corpse,
-        always_relevant, // todo: test and confirm this works
         always_face_player,
         only_attack_player,
         deaf,
         ignore_terrain
     };
 
-    enum class SetClutterFlagOption : int
+    enum class AFHealTargetOption : int
     {
-        collide_weapon,
-        collide_object,
-        has_alpha,
-        is_switch
+        linked,
+        player,
+        all_players,
+        player_team,
+        enemy_team,
+        red_team,
+        blue_team
     };
 
     // start alpine event structs
@@ -192,7 +197,9 @@ namespace rf
     // id 101
     struct EventCloneEntity : Event
     {
-        bool ignore_item_drop = 0;
+        bool hostile_to_player = 0;
+        bool find_player = 0;
+        int link_from = -1;
 
         void register_variable_handlers() override
         {
@@ -201,7 +208,17 @@ namespace rf
             auto& handlers = variable_handler_storage[this];
             handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventCloneEntity*>(event);
-                this_event->ignore_item_drop = (value == "true");
+                this_event->hostile_to_player = (value == "true");
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCloneEntity*>(event);
+                this_event->find_player = (value == "true");
+            };
+
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCloneEntity*>(event);
+                this_event->link_from = std::stoi(value);
             };
         }
 
@@ -214,21 +231,22 @@ namespace rf
                 if (obj) {
                     Entity* entity = static_cast<Entity*>(obj);
                     Entity* new_entity =
-                        entity_create(entity->info_index, entity->name, -1, pos, entity->orient, 0, -1);
+                        entity_create(entity->info_index, entity->name, -1, pos, this->orient, 0, -1);
                     new_entity->entity_flags = entity->entity_flags;
-                    new_entity->pos = entity->pos;
                     new_entity->entity_flags2 = entity->entity_flags2;
-                    new_entity->info = entity->info;
-                    new_entity->info2 = entity->info2;
-                    if (!ignore_item_drop) {
-                        new_entity->drop_item_class = entity->drop_item_class;
-                    }                    
+                    new_entity->info->flags = entity->info->flags;
+                    new_entity->info->flags2 = entity->info->flags2;
+                    new_entity->fov_cos = entity->fov_cos;
+
+                    new_entity->drop_item_class = entity->drop_item_class;
+                    
                     new_entity->obj_flags = entity->obj_flags;
                     new_entity->ai.custom_attack_range = entity->ai.custom_attack_range;
                     new_entity->ai.use_custom_attack_range = entity->ai.use_custom_attack_range;
                     new_entity->ai.attack_style = entity->ai.attack_style;
                     new_entity->ai.cooperation = entity->ai.cooperation;
                     new_entity->ai.cover_style = entity->ai.cover_style;
+                    new_entity->ai.ai_flags = entity->ai.ai_flags;
 
                     for (int i = 0; i < 64; ++i) {
                         new_entity->ai.has_weapon[i] = entity->ai.has_weapon[i];
@@ -241,6 +259,46 @@ namespace rf
 
                     new_entity->ai.current_secondary_weapon = entity->ai.current_secondary_weapon;
                     new_entity->ai.current_primary_weapon = entity->ai.current_primary_weapon;
+
+                    new_entity->ai.mode_default = entity->ai.mode_default;
+                    new_entity->ai.submode_default = entity->ai.submode_default;
+                    new_entity->ai.default_waypoint_path = entity->ai.default_waypoint_path;
+                    new_entity->ai.default_waypoint_path_flags = entity->ai.default_waypoint_path_flags;
+
+                    obj_set_friendliness(new_entity, 1);
+                    ai_set_mode(&new_entity->ai, AiMode::AI_MODE_WAITING, -1, -1);
+
+                    int walk_only = 0;
+
+                    if (!entity_is_flying(new_entity) || !entity_is_swimming(new_entity)) {
+                        walk_only = 1;
+                    }
+
+                    ai_path_locate_pos(
+                        &new_entity->pos,
+                        new_entity->ai.movement_radius,
+                        new_entity->ai.movement_height,
+                        walk_only,
+                        &new_entity->ai.current_path.adjacent_node1,
+                        &new_entity->ai.current_path.adjacent_node2,
+                        0);                   
+
+                    if (link_from > 0) {
+                        Event* linked_event = event_lookup_from_uid(link_from);
+                        if (linked_event) {
+                            event_add_link(linked_event->handle, new_entity->handle);
+                        }
+                    }                    
+
+                    if (find_player) {
+                        ai_set_mode(&new_entity->ai, AiMode::AI_MODE_FIND_PLAYER, -1, -1);
+                        ai_set_submode(&new_entity->ai, AiSubmode::AI_SUBMODE_12);
+                        entity_make_run(new_entity);
+                    }
+
+                    if (hostile_to_player) {
+                        new_entity->ai.hate_list.add(local_player_entity->handle);
+                    }
                 }
             }
         }
@@ -1365,6 +1423,16 @@ namespace rf
                 auto* this_event = static_cast<EventSetSkybox*>(event);
                 this_event->new_sky_room_anchor_uid = std::stoi(value);
             };
+
+            handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetSkybox*>(event);
+                this_event->position_scale = std::stof(value);
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetSkybox*>(event);
+                this_event->relative_position = (value == "true");
+            };
         }
 
         void turn_on() override
@@ -1550,9 +1618,6 @@ namespace rf
                     case SetEntityFlagOption::permanent_corpse:
                         ep->entity_flags2 |= 0x8;
                         break;
-                    case SetEntityFlagOption::always_relevant:
-                        ep->entity_flags2 |= 0x400;
-                        break;
                     case SetEntityFlagOption::always_face_player:
                         ep->ai.ai_flags |= 0x8;
                         break;
@@ -1606,9 +1671,6 @@ namespace rf
                     case SetEntityFlagOption::permanent_corpse:
                         ep->entity_flags2 &= ~0x8;
                         break;
-                    case SetEntityFlagOption::always_relevant:
-                        ep->entity_flags2 &= ~0x400;
-                        break;
                     case SetEntityFlagOption::always_face_player:
                         ep->ai.ai_flags &= ~0x8;
                         break;
@@ -1638,16 +1700,31 @@ namespace rf
         std::string entrance_vclip = "";
         std::string exit_vclip = "";        
 
-        /* void register_variable_handlers() override
+        void register_variable_handlers() override
         {
             Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
-            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
-                auto* this_event = static_cast<EventSetFogColor*>(event);
-                this_event->fog_color = value;
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFTeleportPlayer*>(event);
+                this_event->reset_velocity = (value == "true");
             };
-        }*/
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFTeleportPlayer*>(event);
+                this_event->force_exit_vehicle = (value == "true");
+            };
+
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFTeleportPlayer*>(event);
+                this_event->entrance_vclip = value;
+            };
+
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFTeleportPlayer*>(event);
+                this_event->exit_vclip = value;
+            };
+        }
 
         void turn_on() override
         {
@@ -1711,6 +1788,166 @@ namespace rf
                         rf::vclip_play_3d(
                             exit_vclip_id, this->room, &this->pos, &this->pos, 1.0f, -1, &this->orient.fvec, 1);
                     }
+                }
+            }
+        }
+    };
+
+    // id 131
+    struct EventSetItemDrop : Event
+    {
+        std::string item_name = "";
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetItemDrop*>(event);
+                this_event->item_name = value;
+            };
+        }
+
+        void turn_on() override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj && obj->type == OT_ENTITY) {
+                    Entity* ep = static_cast<Entity*>(obj);
+
+                    int item_id_to_drop = item_lookup_type(item_name.c_str());
+                    if (item_id_to_drop > -1) {
+                        ep->drop_item_class = item_id_to_drop;
+                    }
+                }
+            }
+        }
+    };
+
+    // id 132
+    struct EventAFHeal : Event
+    {
+        int amount = 0;
+        AFHealTargetOption target = AFHealTargetOption::linked;
+        bool apply_to_armor = false;
+        bool super = false;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFHeal*>(event);
+                this_event->amount = std::stoi(value);
+            };
+
+            handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFHeal*>(event);
+                this_event->target = static_cast<AFHealTargetOption>(std::stoi(value));
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFHeal*>(event);
+                this_event->apply_to_armor = (value == "true");
+            };
+
+            handlers[SetVarOpts::bool2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventAFHeal*>(event);
+                this_event->super = (value == "true");
+            };
+        }
+
+        void turn_on() override
+        {
+            auto apply_healing = [&](Entity* ep) {
+                if (ep) {
+                    if (apply_to_armor) {
+                        ep->armor = std::clamp(ep->armor + amount, 0.0f, super ? 200.0f : 100.0f);
+                    }
+                    else {
+                        ep->life = std::clamp(ep->life + amount, 0.0f, super ? 200.0f : 100.0f);
+                    }
+                }
+            };
+
+            auto player_list = SinglyLinkedList{rf::player_list};
+
+            switch (target) {
+                case AFHealTargetOption::linked: {
+                    if (!this->links.empty()) {
+                        for (int link_handle : this->links) {
+                            Entity* ep = entity_from_handle(link_handle);
+                            if (ep) {
+                                apply_healing(ep);
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case AFHealTargetOption::player: {
+                    Entity* ep = entity_from_handle(this->triggered_by_handle);
+                    apply_healing(ep);
+                    break;
+                }
+
+                case AFHealTargetOption::all_players: {
+                    for (auto& player : player_list) {
+                        Entity* ep = entity_from_handle(player.entity_handle);
+                        apply_healing(ep);
+                    }
+                    break;
+                }
+
+                case AFHealTargetOption::player_team: {
+                    Entity* triggering_entity = entity_from_handle(this->triggered_by_handle);
+                    if (triggering_entity) {
+                        int team = triggering_entity->team;
+                        for (auto& player : player_list) {
+                            Entity* ep = entity_from_handle(player.entity_handle);
+                            if (ep && ep->team == team) {
+                                apply_healing(ep);
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case AFHealTargetOption::enemy_team: {
+                    Entity* triggering_entity = entity_from_handle(this->triggered_by_handle);
+                    if (triggering_entity) {
+                        int team = triggering_entity->team;
+                        for (auto& player : player_list) {
+                            Entity* ep = entity_from_handle(player.entity_handle);
+                            if (ep && ep->team != team) {
+                                apply_healing(ep);
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case AFHealTargetOption::red_team: {
+                    for (auto& player : player_list) {
+                        Entity* ep = entity_from_handle(player.entity_handle);
+                        if (ep && ep->team == 0) { // Red team
+                            apply_healing(ep);
+                        }
+                    }
+                    break;
+                }
+
+                case AFHealTargetOption::blue_team: {
+                    for (auto& player : player_list) {
+                        Entity* ep = entity_from_handle(player.entity_handle);
+                        if (ep && ep->team == 1) { // Blue team
+                            apply_healing(ep);
+                        }
+                    }
+                    break;
                 }
             }
         }

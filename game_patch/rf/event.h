@@ -320,7 +320,9 @@ namespace rf
         Set_Debris,
         Set_Fog_Color,
         Set_Entity_Flag,
-        AF_Teleport_Player
+        AF_Teleport_Player,
+        Set_Item_Drop,
+        AF_Heal
     };
 
     // int to EventType

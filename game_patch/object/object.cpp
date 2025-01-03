@@ -264,34 +264,6 @@ CodeInjection mover_process_post_patch{
     }
 };
 
-CodeInjection obj_flag_dead_patch{
-    0x0048AB46,
-    [](auto& regs) {
-        rf::Object* obj = regs.eax;
-        xlog::warn("checking object UID {}, name {}", obj->uid, obj->name);        
-    },
-};
-
-//unused
-FunHook<void(rf::Object*)> obj_flag_dead_hook{
-    0x00489FC0,
-    [](rf::Object* objp) {
-        if (rf::gameseq_in_gameplay &&
-            (objp->type == rf::ObjectType::OT_CLUTTER || objp->type == rf::ObjectType::OT_ENTITY)) {
-            xlog::warn("checking object UID {}, name {}", objp->uid, objp->name);
-            auto event_list = rf::find_all_events_by_type(rf::EventType::Difficulty_Gate);
-            for (auto* event : event_list) {
-                if (event) {
-                    xlog::info("Event UID: {}", event->uid);
-                    event->activate(-1, objp->uid, true);
-                }
-            }
-        }
-
-        obj_flag_dead_hook.call_target(objp);
-    },
-};
-
 FunHook<void(rf::Entity*)> entity_on_dead_hook{
     0x00418F80,
     [](rf::Entity* ep) {
@@ -321,25 +293,6 @@ CallHook<void(rf::Object*)> obj_flag_dead_clutter_hook{
     },
 };
 
-/* CodeInjection clutter_damage_patch{
-    0x00410270,
-    [](auto& regs) {
-        //rf::Clutter* damaged_cp = regs.esi;
-        rf::Clutter* damaged_cp = reinterpret_cast<rf::Clutter*>(regs.esp + 0x10 + 0x4);
-        //xlog::warn("Damaged {}, info index {}, shield ID {}", damaged_cp->name, damaged_cp->info_index, addr_as_ref<int>(0x004103C6));
-        xlog::warn("Damaged {}, info index {}, shield ID", damaged_cp->name, damaged_cp->info_index);
-        //rf::Object* obj = regs.eax;
-        /* if (rf::is_multi) {
-            xlog::warn("multi");
-            //regs.eip = 0x004103C6;
-            return;
-        }
-
-        //0x005AFB78
-        //xlog::warn("Not multi");        
-    },
-};*/
-
 FunHook<void(rf::Clutter*, float, int, int, rf::PCollisionOut*)> clutter_damage_hook{
     0x00410270,
     [](rf::Clutter* damaged_cp, float damage, int responsible_entity_handle, int damage_type, rf::PCollisionOut* collide_out) {
@@ -355,10 +308,10 @@ FunHook<void(rf::Clutter*, float, int, int, rf::PCollisionOut*)> clutter_damage_
 
 void object_do_patch()
 {
+    // Disable damage for the riot shield in multiplayer
     clutter_damage_hook.install();
-    //clutter_damage_patch.install();
 
-    //obj_flag_dead_hook.install();
+    // Support AF_When_Dead events
     entity_on_dead_hook.install();
     obj_flag_dead_clutter_hook.install();
 

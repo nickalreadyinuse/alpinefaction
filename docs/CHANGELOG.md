@@ -92,6 +92,7 @@ Version 1.0.0
     - `Set_Fog_Color`
     - `Set_Entity_Flag`
     - `AF_Teleport_Player`
+    - `AF_Heal`
 - Moved placement for new `dedicated_server.txt` lines to above `$Map` lines
 - Make `Headlamp_State` affect player (flashlight) if it has no links in Alpine levels
 - Add support for turning off `Holster_Weapon` and `Holster_Player_Weapon` to draw holstered weapon in Alpine levels
@@ -108,6 +109,9 @@ Version 1.0.0
 - Move custom dedicated server config options up with the others (above `$Map` lines)
 - Allow autocomplete for map filenames from 1 character
 - Update `/whosready` chat command (for match mode ready up system) to broadcast to all players
+- Add 3D arrows to level editor for stock events `Play_Vclip` and `Teleport` (as well as some new AF events)
+- Stop the riot shield from being destroyed in multiplayer
+
 
 
 

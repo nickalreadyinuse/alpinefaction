@@ -62,6 +62,28 @@ bool af_rfl_version(int version)
     return version >= 300 && version <= MAXIMUM_RFL_VERSION;
 }
 
+// check if the currently loaded level is at least X version
+bool rfl_version_minimum(int check_version)
+{
+    if (rf::level.flags & rf::LEVEL_LOADED) {
+        return rf::level.version >= check_version;
+    }
+    else {
+        return false;
+    }
+}
+
+// check if we're currently in an Alpine level
+bool af_rfl_is_loaded()
+{
+    if (rf::level.flags & rf::LEVEL_LOADED) {
+        return rf::level.version >= 300 && rf::level.version <= MAXIMUM_RFL_VERSION;
+    }
+    else {
+        return false;
+    }    
+}
+
 CodeInjection critical_error_hide_main_wnd_patch{
     0x0050BA90,
     []() {
@@ -441,8 +463,16 @@ CodeInjection level_read_geometry_header_patch{
     }
 };
 
+CodeInjection ai_return_to_default_behavior_patch{
+    0x00407EE1, [](auto& regs) {
+
+        xlog::warn("returning to default");
+    }
+};
+
 void misc_init()
 {
+    ai_return_to_default_behavior_patch.install();
     //AsmWriter(0x0046E4AA).nop(5); // stop ai = 0 in MP
 
     //gr_set_far_clip_hook.install();

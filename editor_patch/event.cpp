@@ -34,7 +34,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 32; // must be 1 higher than actual count
+constexpr int new_event_count = 34; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -71,6 +71,8 @@ const char* additional_event_names[new_event_count] = {
     "Set_Fog_Color",
     "Set_Entity_Flag",
     "AF_Teleport_Player",
+    "Set_Item_Drop",
+    "AF_Heal",
     "_dummy"
 };
 
@@ -227,9 +229,11 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         }
     }},
     {AlpineDedEventID::Clone_Entity, {
-        {FIELD_BOOL1},
+        {FIELD_BOOL1, FIELD_BOOL2, FIELD_INT1},
         {
-            {FIELD_BOOL1, "Ignore item drop (bool1):"}
+            {FIELD_BOOL1, "Clone is hostile to player (bool1):"},
+            {FIELD_BOOL2, "Go to player (bool2):"},
+            {FIELD_INT1, "Link event UID to clone (int1):"}
         }
     }},
     {AlpineDedEventID::Switch_Random, {
@@ -497,7 +501,6 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             "No shadow",
             "Perfect aim",
             "Permanent corpse",
-            //"Always relevant",
             "Always face player",
             "Only attack player",
             "Deaf",
@@ -514,6 +517,34 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             {FIELD_BOOL2, "Eject player from vehicle (bool2):"},
             {FIELD_STR1, "Entrance VClip (str1):"},
             {FIELD_STR2, "Exit VClip (str2):"}
+        }
+    }},
+    {AlpineDedEventID::Set_Item_Drop, {
+        {FIELD_STR1},
+        {
+            {FIELD_STR1, "Item class to drop (str1):"}
+        }
+    }},
+    {AlpineDedEventID::AF_Heal, {
+        {FIELD_INT1, FIELD_INT2, FIELD_BOOL1, FIELD_BOOL2},
+        {
+            {FIELD_INT1, "Amount (int1):"},
+            {FIELD_INT2, "Apply change to (int2):"},
+            {FIELD_BOOL1, "Apply to armor instead (bool1):"},
+            {FIELD_BOOL2, "Allow super values (bool2):"}
+        },
+        {
+            {FIELD_INT2,
+            {"Linked entities",
+            "Triggering player",
+            "All players",
+            "Teammates",
+            "Enemy team",
+            "Players on red team",
+            "Players on blue team"}}
+        },
+        {
+            {FIELD_INT2, true}
         }
     }},
 };
@@ -955,10 +986,11 @@ CodeInjection DedEvent__exchange_patch {
         DedEvent* event = regs.esi;
         VFile* file = regs.edi;
 
-        if (event->event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player)) {
+        if (event->event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player) ||
+            event->event_type == static_cast<int>(AlpineDedEventID::Clone_Entity)) {
 
             // save orientation to rfl file
-            // NOTE: the game MUST read this properly or very strange things will happen
+            // NOTE: the game MUST read this properly or very bad things will happen
             Matrix3* mat = &event->orient;
             file->rw_matrix(mat, 300, &editor_file_default_matrix);
             
@@ -968,6 +1000,7 @@ CodeInjection DedEvent__exchange_patch {
     }
 };
 
+// 3d arrows
 CodeInjection arrows_for_events_patch {
     0x00421654, [](auto& regs) {
 
@@ -975,7 +1008,8 @@ CodeInjection arrows_for_events_patch {
 
         if (event_type == 41 || // Play_VClip
             event_type == 69 || // Teleport
-            event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player)) {
+            event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player) ||
+            event_type == static_cast<int>(AlpineDedEventID::Clone_Entity)) {
             regs.eip = 0x00421661; // draw 3d arrow
         }
     }

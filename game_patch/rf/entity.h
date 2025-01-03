@@ -425,6 +425,7 @@ namespace rf
     static auto& entity_make_freefall = addr_as_ref<void(Entity* ep)>(0x004281A0);
     static auto& entity_is_flying = addr_as_ref<bool(Entity* ep)>(0x0042A060);
     static auto& entity_make_fly = addr_as_ref<void(Entity* ep)>(0x00428130);
+    static auto& entity_make_run = addr_as_ref<void(Entity* ep)>(0x004280B0);
     static auto& entity_on_ground = addr_as_ref<bool(Entity* ep)>(0x0042A0D0);
     static auto& entity_can_swim = addr_as_ref<bool(Entity* ep)>(0x00427FF0);
     static auto& entity_headlamp_turn_on = addr_as_ref<void(Entity* ep)>(0x00429560);

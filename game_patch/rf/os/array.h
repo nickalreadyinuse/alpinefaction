@@ -56,7 +56,10 @@ namespace rf
             return &elements[num];
         }
 
-        void add(T element);
+        void add(T element)
+        {
+            AddrCaller{0x0045EC40}.this_call(this, element);
+        }
 
         void clear()
         {
