@@ -6,8 +6,11 @@
 #include <xlog/xlog.h>
 #include <common/version/version.h>
 #include <common/error/error-utils.h>
+#include <common/utils/string-utils.h>
+#include <common/HttpRequest.h>
 #include <launcher_common/PatchedAppLauncher.h>
 #include <launcher_common/UpdateChecker.h>
+#include "ImageButton.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -40,8 +43,53 @@ BOOL MainDlg::OnInitDialog()
     // Fill mod selector
     RefreshModSelector();
 
+    // Setup image buttons
+    m_play_button.AttachDlgItem(IDC_PLAY_BTN, *this);
+    //m_editor_button.AttachDlgItem(IDC_EDITOR_BTN, *this);
+    m_options_button.AttachDlgItem(IDC_OPTIONS_BTN, *this);
+    m_sb1_button.AttachDlgItem(IDC_SB1_BTN, *this);
+    m_sb2_button.AttachDlgItem(IDC_SB2_BTN, *this);
+    m_sb3_button.AttachDlgItem(IDC_SB3_BTN, *this);
+    m_sb4_button.AttachDlgItem(IDC_SB4_BTN, *this);
+
+    // Load button images
+    m_play_button.LoadImages(IDB_PLAY_NORMAL, IDB_PLAY_HOVER, IDB_PLAY_PRESSED);
+    //m_editor_button.LoadImages(IDB_EDITOR_NORMAL, IDB_EDITOR_HOVER, IDB_EDITOR_PRESSED);
+    m_options_button.LoadImages(IDB_OPTIONS_NORMAL, IDB_OPTIONS_HOVER, IDB_OPTIONS_PRESSED);
+    m_sb1_button.LoadImages(IDB_SB1_NORMAL, IDB_SB1_HOVER, IDB_SB1_PRESSED);
+    m_sb2_button.LoadImages(IDB_SB2_NORMAL, IDB_SB2_HOVER, IDB_SB2_PRESSED);
+    m_sb3_button.LoadImages(IDB_SB3_NORMAL, IDB_SB3_HOVER, IDB_SB3_PRESSED);
+    m_sb4_button.LoadImages(IDB_SB4_NORMAL, IDB_SB4_HOVER, IDB_SB4_PRESSED);
+
+    // get news feed
+    AttachItem(IDC_NEWS_BOX, m_news_box);
+    FetchNews();
+
+    AttachItem(IDC_ABOUT_LINK, m_about_link);
+
+
+    // Force buttons to redraw
+    m_play_button.Invalidate();
+    //m_editor_button.Invalidate();
+    m_options_button.Invalidate();
+    m_sb1_button.Invalidate();
+    m_sb2_button.Invalidate();
+    m_sb3_button.Invalidate();
+    m_sb4_button.Invalidate();
+
+
+    // Setup tooltips
     m_tool_tip.Create(*this);
-    m_tool_tip.AddTool(m_mod_selector, "Select a game mod (you can download them from FactionFiles.com)");
+    m_tool_tip.AddTool(m_mod_selector, "To find more mods, click the FactionFiles logo under Resources");
+    m_tool_tip.AddTool(m_options_button, "Adjust settings");
+    m_tool_tip.AddTool(m_play_button, "Launch Alpine Faction");
+    m_tool_tip.AddTool(m_sb1_button, "Open the Alpine Faction level editor");
+    m_tool_tip.AddTool(m_sb2_button, "Join the Red Faction community Discord");
+    m_tool_tip.AddTool(m_sb3_button, "Find community-made mods and levels at FactionFiles.com");
+    m_tool_tip.AddTool(m_sb4_button, "Visit the Red Faction Wiki");
+
+    // Set placeholder text for mod box when no selection
+    SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"Select a mod...");
 
 #ifdef NDEBUG
     HWND hwnd = GetHwnd();
@@ -62,12 +110,39 @@ BOOL MainDlg::OnCommand(WPARAM wparam, LPARAM lparam)
 
     UINT id = LOWORD(wparam);
     switch (id) {
+    case IDC_PLAY_BTN:
+        OnBnClickedOk();
+        return TRUE;
     case IDC_OPTIONS_BTN:
         OnBnClickedOptionsBtn();
         return TRUE;
-    case IDC_EDITOR_BTN:
+    case IDC_SB1_BTN:
         OnBnClickedEditorBtn();
         return TRUE;
+    case IDC_SB2_BTN:
+        OnSupportLinkClick(0);
+        return TRUE;
+    case IDC_SB3_BTN:
+        OnSupportLinkClick(1);
+        return TRUE;
+    case IDC_SB4_BTN:
+        OnSupportLinkClick(2);
+        return TRUE;
+    case IDC_ABOUT_LINK:
+        OnAboutLinkClick();
+        return TRUE;
+    case IDC_MOD_COMBO: // display "Select a mod..." when the mod selector is empty
+        if (HIWORD(wparam) == CBN_EDITCHANGE) 
+        {
+            CString text;
+            m_mod_selector.GetWindowText();
+
+            if (text.IsEmpty())
+            {
+                SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"Select a mod...");
+            }
+        }
+        break;
     }
 
     return FALSE;
@@ -84,7 +159,7 @@ LRESULT MainDlg::OnNotify([[ maybe_unused ]] WPARAM wparam, LPARAM lparam)
             OnAboutLinkClick();
         }
         else if (nmhdr.idFrom == IDC_SUPPORT_LINK) {
-            OnSupportLinkClick();
+            OnSupportLinkClick(0);
         }
         break;
     }
@@ -93,6 +168,72 @@ LRESULT MainDlg::OnNotify([[ maybe_unused ]] WPARAM wparam, LPARAM lparam)
 
 INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    if (msg == WM_DRAWITEM) {
+        LPDRAWITEMSTRUCT lpDrawItem = (LPDRAWITEMSTRUCT)lparam;
+
+        if (lpDrawItem->CtlID == IDC_PLAY_BTN ||
+            lpDrawItem->CtlID == IDC_EDITOR_BTN ||
+            lpDrawItem->CtlID == IDC_OPTIONS_BTN ||
+            lpDrawItem->CtlID == IDC_SB1_BTN ||
+            lpDrawItem->CtlID == IDC_SB2_BTN ||
+            lpDrawItem->CtlID == IDC_SB3_BTN ||
+            lpDrawItem->CtlID == IDC_SB4_BTN) {
+
+            // Retrieve HWND of the control
+            HWND hwndCtrl = GetDlgItem(lpDrawItem->CtlID).GetHwnd();
+            if (!hwndCtrl)
+                return FALSE; // Safety check
+
+            // Use GetCWndPtr() to retrieve a pointer to the control
+            CWnd* pWnd = GetCWndPtr(hwndCtrl);
+            if (!pWnd)
+                return FALSE;
+
+            // Attempt to cast to ImageButton
+            ImageButton* pButton = dynamic_cast<ImageButton*>(pWnd);
+            if (pButton) {
+                pButton->DrawItem(lpDrawItem);
+                return TRUE; // Indicate that WM_DRAWITEM was handled
+            }
+        }
+    }
+
+    if (msg == WM_CTLCOLORSTATIC) {
+        HDC hdcStatic = (HDC)wparam;
+        if ((HWND)lparam == m_news_box.GetHwnd()) {
+            SetBkMode(hdcStatic, TRANSPARENT);
+            SetTextColor(hdcStatic, RGB(255, 255, 255)); // White text
+            return (LRESULT)GetStockObject(NULL_BRUSH);
+        }
+
+        if ((HWND)lparam == m_about_link.GetHwnd()) {
+            SetBkMode(hdcStatic, TRANSPARENT);
+            SetTextColor(hdcStatic, RGB(255, 255, 255)); // White text
+            return (LRESULT)GetStockObject(NULL_BRUSH);
+        }
+    }
+
+    if (msg == WM_DRAWITEM) {
+        LPDRAWITEMSTRUCT lpDrawItem = (LPDRAWITEMSTRUCT)lparam;
+        if (lpDrawItem->CtlID == IDC_ABOUT_LINK) {
+            HDC hdc = lpDrawItem->hDC;
+            SetBkMode(hdc, TRANSPARENT);           // Transparent background
+            SetTextColor(hdc, RGB(255, 255, 255)); // Always white text
+
+            std::string version_text = "AF v1.0.0-dev";
+
+            DrawText(hdc, version_text.c_str(), -1, &lpDrawItem->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+            return TRUE;
+        }
+    }
+
+    if (msg == WM_CTLCOLORBTN) {
+        HDC hdcButton = (HDC)wparam;
+        SetBkMode(hdcButton, TRANSPARENT);
+        return (LRESULT)GetStockObject(NULL_BRUSH); // Transparent background
+    }
+
     if (msg == WM_UPDATE_CHECK)
         return OnUpdateCheck(wparam, lparam);
     return CDialog::DialogProc(msg, wparam, lparam);
@@ -151,9 +292,9 @@ LRESULT MainDlg::OnUpdateCheck(WPARAM wparam, LPARAM lparam)
         m_update_status.SetWindowText("No update is available.");
     else {
         m_update_status.SetWindowText("New version available!");
-        int result = MessageBoxA(chk_result.message.c_str(), "Dash Faction update is available!",
+        int result = MessageBoxA(chk_result.message.c_str(), "Update is available!",
                                   MB_OKCANCEL | MB_ICONEXCLAMATION);
-        if (result == IDOK) {
+        if (result == IDC_PLAY_BTN) {
             HINSTANCE exec_res = ShellExecuteA(*this, "open", chk_result.url.c_str(), nullptr, nullptr, SW_SHOW);
             auto exec_res_int = reinterpret_cast<INT_PTR>(exec_res);
             if (exec_res_int <= 32) {
@@ -166,12 +307,57 @@ LRESULT MainDlg::OnUpdateCheck(WPARAM wparam, LPARAM lparam)
     return 0;
 }
 
+std::string replace_html_breaks(const std::string& input)
+{
+    std::string output = input;
+    size_t pos = 0;
+
+    // Replace all occurrences of <br> with Windows-style newlines \r\n
+    while ((pos = output.find("<br>", pos)) != std::string::npos) {
+        output.replace(pos, 4, "\r\n"); // Replace "<br>" with "\r\n"
+        pos += 2;                       // Move past the replacement
+    }
+
+    return output;
+}
+
+
+void MainDlg::FetchNews()
+{
+    try {
+        HttpSession session{"AlpineFactionLauncher"};
+        HttpRequest req{"https://www.redfactionwiki.com/wiki/Alpine_Faction_News_Feed?action=raw", "GET", session};
+        req.send();
+
+        char buf[8192]; // Large enough buffer to store the response
+        size_t bytes_read = req.read(buf, sizeof(buf) - 1);
+        buf[bytes_read] = '\0'; // Ensure null termination
+
+        std::string news_content(buf, bytes_read);
+
+        // Strip HTML tags (basic implementation)
+        //news_content = strip_html_tags(news_content);
+        news_content = replace_html_breaks(news_content);
+
+        // Convert to wide string for CEdit control
+        CString news_text = news_content.c_str();
+
+        // Update news box content
+        m_news_box.SetWindowTextA(news_text);
+    }
+    catch (const std::exception& e) {
+        xlog::error("Failed to fetch news: {}", e.what());
+        m_news_box.SetWindowTextA("Failed to load news.");
+    }
+}
+
+
 void MainDlg::OnBnClickedOptionsBtn()
 {
     try {
         OptionsDlg dlg;
         INT_PTR nResponse = dlg.DoModal(*this);
-        if (nResponse == IDOK) {
+        if (nResponse == IDC_PLAY_BTN) {
             RefreshModSelector();
         }
     }
@@ -195,10 +381,22 @@ void MainDlg::OnBnClickedEditorBtn()
         AfterLaunch();
 }
 
-void MainDlg::OnSupportLinkClick()
+void MainDlg::OnSupportLinkClick(int link_id)
 {
     xlog::info("Opening support channel");
-    HINSTANCE result = ShellExecuteA(*this, "open", "https://discord.gg/factionfiles", nullptr, nullptr, SW_SHOW);
+    std::string url = "";
+    switch (link_id) {
+    case 0:
+        url = "https://discord.gg/factionfiles";
+        break;
+    case 1:
+        url = "https://factionfiles.com";
+        break;
+    case 2:
+        url = "https://redfactionwiki.com";
+        break;
+    }
+    HINSTANCE result = ShellExecuteA(*this, "open", url.c_str(), nullptr, nullptr, SW_SHOW);
     auto result_int = reinterpret_cast<INT_PTR>(result);
     if (result_int <= 32) {
         xlog::error("ShellExecuteA failed {}", result_int);

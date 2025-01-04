@@ -5,7 +5,7 @@
 #include <common/version/version.h>
 
 const char rf_key_name[] = R"(SOFTWARE\Volition\Red Faction)";
-const char df_subkey_name[] = "Dash Faction";
+const char df_subkey_name[] = "Alpine Faction";
 
 const char GameConfig::default_rf_tracker[] = "rfgt.factionfiles.com";
 
@@ -14,7 +14,7 @@ unsigned GameConfig::min_fps_limit = 1u;
 unsigned GameConfig::max_fps_limit = 10000u;
 #else
 unsigned GameConfig::min_fps_limit = 10u;
-unsigned GameConfig::max_fps_limit = 240u;
+unsigned GameConfig::max_fps_limit = 10000u;
 #endif
 
 const char fallback_executable_path[] = R"(C:\games\RedFaction\rf.exe)";
@@ -175,7 +175,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Swap Assault Rifle Controls", swap_assault_rifle_controls);
     result &= visitor(dash_faction_key, "Swap Grenade Controls", swap_grenade_controls);
     result &= visitor(dash_faction_key, "Glares", glares);
-    result &= visitor(dash_faction_key, "Gibs", gibs);
+    //result &= visitor(dash_faction_key, "Gibs", gibs);
     result &= visitor(dash_faction_key, "Linear Pitch", linear_pitch);
     result &= visitor(dash_faction_key, "Show Enemy Bullets", show_enemy_bullets);
     result &= visitor(dash_faction_key, "Lightmaps Only", try_lightmaps_only);

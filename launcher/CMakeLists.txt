@@ -3,6 +3,8 @@ set(SRCS
     AboutDlg.h
     CMakeLists.txt
     DashFactionLauncher.rc
+    ImageButton.h
+    ImageButton.cpp
     LauncherApp.cpp
     LauncherApp.h
     LauncherCommandLineInfo.h

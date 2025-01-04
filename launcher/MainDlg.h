@@ -6,6 +6,7 @@
 #include <wxx_stdcontrols.h>
 #include <memory>
 #include <launcher_common/UpdateChecker.h>
+#include "ImageButton.h"
 
 class MainDlg : public CDialog
 {
@@ -24,17 +25,30 @@ private:
     void OnBnClickedOptionsBtn();
     void OnBnClickedOk();
     void OnBnClickedEditorBtn();
-    void OnSupportLinkClick();
+    void OnSupportLinkClick(int link_id);
     void OnAboutLinkClick();
     void RefreshModSelector();
     CString GetSelectedMod();
     void AfterLaunch();
+    CEdit m_news_box;
+    void FetchNews();
+    CEdit m_about_link;
+    bool m_about_link_hover = false;
 
 protected:
     // Controls
     CStatic m_picture;
     CStatic m_update_status;
     CComboBox m_mod_selector;
+
+    ImageButton m_play_button;
+    ImageButton m_editor_button;
+    ImageButton m_options_button;
+
+    ImageButton m_sb1_button;
+    ImageButton m_sb2_button;
+    ImageButton m_sb3_button;
+    ImageButton m_sb4_button;
 
     AsyncUpdateChecker m_update_checker;
     CToolTip m_tool_tip;

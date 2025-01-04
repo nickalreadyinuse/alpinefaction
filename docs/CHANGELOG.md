@@ -111,6 +111,10 @@ Version 1.0.0
 - Update `/whosready` chat command (for match mode ready up system) to broadcast to all players
 - Add 3D arrows to level editor for stock events `Play_Vclip` and `Teleport` (as well as some new AF events)
 - Stop the riot shield from being destroyed in multiplayer
+- Implement framework for custom AF controls, and controls for flashlight, kill self, and skip cutscene
+- Implement new launcher GUI
+- Raise max FPS limit to 10000
+- Adjust default settings: linear pitch on, directinput on, vsync off, fps limit 240, resolution 1920x1080
 
 
 

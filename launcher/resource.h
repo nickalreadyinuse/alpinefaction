@@ -16,6 +16,7 @@
 #define IDD_OPTIONS_MULTIPLAYER         109
 #define IDD_OPTIONS_INPUT               110
 #define IDD_OPTIONS_INTERFACE           111
+#define IDC_PLAY_BTN                    999
 #define IDC_EDITOR_BTN                  1000
 #define IDC_OPTIONS_BTN                 1001
 #define IDC_RESOLUTIONS_COMBO           1002
@@ -73,6 +74,45 @@
 #define IDC_INPUT_OPTIONS_BOX           1056
 #define IDC_INTERFACE_OPTIONS_BOX       1057
 #define IDC_RENDERER_COMBO              1058
+
+
+#define IDC_VERSION_TEXT                3050
+
+#define IDC_SB1_BTN                     3051
+#define IDC_SB2_BTN                     3052
+#define IDC_SB3_BTN                     3053
+#define IDC_SB4_BTN                     3054
+
+// Image buttons
+#define IDB_PLAY_NORMAL                 3001
+#define IDB_PLAY_HOVER                  3002
+#define IDB_PLAY_PRESSED                3003
+
+#define IDB_EDITOR_NORMAL               3004
+#define IDB_EDITOR_HOVER                3005
+#define IDB_EDITOR_PRESSED              3006
+
+#define IDB_OPTIONS_NORMAL              3007
+#define IDB_OPTIONS_HOVER               3008
+#define IDB_OPTIONS_PRESSED             3009
+
+#define IDB_SB1_NORMAL                  3010
+#define IDB_SB1_HOVER                   3011
+#define IDB_SB1_PRESSED                 3012
+
+#define IDB_SB2_NORMAL                  3013
+#define IDB_SB2_HOVER                   3014
+#define IDB_SB2_PRESSED                 3015
+
+#define IDB_SB3_NORMAL                  3016
+#define IDB_SB3_HOVER                   3017
+#define IDB_SB3_PRESSED                 3018
+
+#define IDB_SB4_NORMAL                  3019
+#define IDB_SB4_HOVER                   3020
+#define IDB_SB4_PRESSED                 3021
+
+#define IDC_NEWS_BOX                    3022
 
 // Next default values for new objects
 //

@@ -65,28 +65,68 @@ IDR_ICON                ICON                    "res/AF.ico"
 
 IDB_HEADER              BITMAP                  "res/header.bmp"
 
+IDB_PLAY_NORMAL         BITMAP                  "res/play_normal.bmp"
+IDB_PLAY_HOVER          BITMAP                  "res/play_hover.bmp"
+IDB_PLAY_PRESSED        BITMAP                  "res/play_pressed.bmp"
+
+IDB_EDITOR_NORMAL       BITMAP                  "res/play_normal.bmp"
+IDB_EDITOR_HOVER        BITMAP                  "res/play_hover.bmp"
+IDB_EDITOR_PRESSED      BITMAP                  "res/play_pressed.bmp"
+
+IDB_OPTIONS_NORMAL      BITMAP                  "res/options_normal.bmp"
+IDB_OPTIONS_HOVER       BITMAP                  "res/options_hover.bmp"
+IDB_OPTIONS_PRESSED     BITMAP                  "res/options_pressed.bmp"
+
+IDB_SB1_NORMAL          BITMAP                  "res/sb1_normal.bmp"
+IDB_SB1_HOVER           BITMAP                  "res/sb1_hover.bmp"
+IDB_SB1_PRESSED         BITMAP                  "res/sb1_normal.bmp"
+
+IDB_SB2_NORMAL          BITMAP                  "res/sb2_normal.bmp"
+IDB_SB2_HOVER           BITMAP                  "res/sb2_hover.bmp"
+IDB_SB2_PRESSED         BITMAP                  "res/sb2_normal.bmp"
+
+IDB_SB3_NORMAL          BITMAP                  "res/sb3_normal.bmp"
+IDB_SB3_HOVER           BITMAP                  "res/sb3_hover.bmp"
+IDB_SB3_PRESSED         BITMAP                  "res/sb3_normal.bmp"
+
+IDB_SB4_NORMAL          BITMAP                  "res/sb4_normal.bmp"
+IDB_SB4_HOVER           BITMAP                  "res/sb4_hover.bmp"
+IDB_SB4_PRESSED         BITMAP                  "res/sb4_normal.bmp"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-IDD_MAIN DIALOGEX 0, 0, 300, 218
+IDD_MAIN DIALOGEX 0, 0, 384, 240
 STYLE DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
 CAPTION "Alpine Faction Launcher"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    CONTROL         IDB_HEADER,IDC_HEADER_PIC,"Static",SS_BITMAP|SS_REALSIZECONTROL,0,0,300,49
-    DEFPUSHBUTTON   "Play Game",IDOK,48,54,114,24
-    PUSHBUTTON      "Level Editor",IDC_EDITOR_BTN,48,84,114,24
-    PUSHBUTTON      "Options",IDC_OPTIONS_BTN,48,114,114,24
-    PUSHBUTTON      "Exit Launcher",IDCANCEL,48,144,114,24
-    LTEXT           "Mod:",IDC_STATIC,48,176,17,8
-    COMBOBOX        IDC_MOD_COMBO,67,174,95,200,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Checking for update...",IDC_UPDATE_STATUS,6,204,114,8,SS_NOTIFY
-    CONTROL         "<a>Join Community Discord</a>",IDC_SUPPORT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,124,192,86,8
-    CONTROL         "<a>About Alpine Faction</a>",IDC_ABOUT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,142,204,68,8
+
+    CONTROL IDB_HEADER,IDC_HEADER_PIC,"Static",SS_BITMAP|SS_REALSIZECONTROL,0,0,384,240
+    CONTROL "", IDC_PLAY_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 10, 190, 96, 28
+    CONTROL "", IDC_OPTIONS_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 106, 190, 19, 28
+    CONTROL "", IDC_SB1_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 222, 204, 36, 30
+    CONTROL "", IDC_SB2_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 263, 204, 36, 30
+    CONTROL "", IDC_SB3_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 304, 204, 36, 30
+    CONTROL "", IDC_SB4_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 344, 204, 36, 30
+
+    LTEXT "", IDC_NEWS_BOX, 175, 58, 140, 60, SS_LEFT | SS_NOPREFIX | SS_EDITCONTROL
+
+
+
+    COMBOBOX        IDC_MOD_COMBO,12,222,111,100,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    //LTEXT           "Checking for update...",IDC_UPDATE_STATUS,262,200,114,8,SS_NOTIFY
+    //CONTROL         "<a>AF v1.0.0-dev</a>",IDC_ABOUT_LINK,"SysLink",LWS_RIGHT | WS_TABSTOP,330,176,48,8
+    //CONTROL "<a>AF v1.0.0-dev</a>", IDC_ABOUT_LINK, "SysLink", WS_TABSTOP | WS_VISIBLE | WS_CHILD | LWS_RIGHT, 330, 176, 48, 8
+
+    //LTEXT "AF v1.0.0-dev", IDC_ABOUT_LINK, 330, 176, 48, 8, WS_TABSTOP | WS_VISIBLE | WS_CHILD
+    PUSHBUTTON "AF v1.0.0-dev", IDC_ABOUT_LINK, 330, 176, 48, 8, BS_OWNERDRAW | WS_TABSTOP | WS_VISIBLE | WS_CHILD
+
+
 END
 
 IDD_OPTIONS DIALOGEX 0, 0, 452, 318
