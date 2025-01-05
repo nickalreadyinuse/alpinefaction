@@ -574,6 +574,36 @@ struct CDedLevel
 // static_assert(offsetof(CDedLevel, selection) == 0x298, "Selection field offset mismatch!");
 static_assert(sizeof(CDedLevel) == 0x608, "CDedLevel size mismatch!");
 
+struct CCmdTarget_mbrs
+{
+    char padding[0x18];
+};
+static_assert(sizeof(CCmdTarget_mbrs) == 0x18);
+
+struct CDocument_mbrs : CCmdTarget_mbrs
+{
+    CString m_strTitle;
+    CString m_strPathName;
+    void* m_pDocTemplate;
+    char m_viewList[0x1C]; // CPtrList
+    BOOL m_bModified;
+    BOOL m_bAutoDelete;
+    BOOL m_bEmbedded;
+};
+static_assert(sizeof(CDocument_mbrs) == 0x4C);
+
+struct CDocument
+{
+    void* _vft;
+    CDocument_mbrs _d;
+
+    CString GetPathName()
+    {
+        return AddrCaller{0x0044A520}.this_call<CString>(this);
+    }
+};
+static_assert(sizeof(CDocument) == 0x50);
+
 struct VFile
 {
     int DirId;

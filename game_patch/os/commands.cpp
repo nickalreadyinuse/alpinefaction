@@ -32,7 +32,7 @@ ConsoleCommand2 dot_cmd{
 };
 
 ConsoleCommand2 vli_cmd{
-    "r_vli",
+    "vli",
     []() {
         g_game_config.glares = !g_game_config.glares;
         g_game_config.save();
@@ -104,10 +104,10 @@ ConsoleCommand2 level_info_cmd{
                 version_text = "Community - RF/PF/DF";
             }
             else if (rf::level.version > 0 && rf::level.version < 200) {
-                version_text = "Official - internal";
+                version_text = "Official - Internal";
             }            
             else if (rf::level.version >= 300) {
-                version_text = "Community - AF";
+                version_text = "Community - Alpine";
             }
             else {
                 version_text = "Unsupported";
@@ -337,7 +337,7 @@ void console_commands_init()
     register_builtin_command("dbg_systeminfo", "Show system information", 0x00525A60);
     register_builtin_command("r_trilinearfiltering", "Toggle trilinear filtering", 0x0054F050);
     register_builtin_command("r_detailtextures", "Toggle detail textures", 0x0054F0B0);
-    register_builtin_command("cl_togglecrouch", nullptr, 0x00430C50);
+    register_builtin_command("cl_togglecrouch", "Toggle crouch mode", 0x00430C50);
 
     // risky commands, restricted in MP unless debug build
     register_builtin_command("drop_clutter", "Spawn a clutter object by class name", 0x0040F0A0);

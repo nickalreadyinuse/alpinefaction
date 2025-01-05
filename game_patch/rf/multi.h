@@ -214,6 +214,13 @@ namespace rf
     static auto& send_obj_kill_packet = addr_as_ref<void(Entity* killed_entity, Item* item, int* a3)>(0x0047E8C0);
 
 
+    static auto& set_in_mp_flag = addr_as_ref<void()>(0x0046ED50);
+    static auto& multi_start = addr_as_ref<void(int is_client, const NetAddr* serv_addr)>(0x0046D5B0);
+    static auto& multi_stop = addr_as_ref<void()>(0x0046E2C0);
+    static auto& multi_load_next_level = addr_as_ref<void()>(0x0046ED70);
+    static auto& multi_init_server = addr_as_ref<void()>(0x00482060);
+    static auto& multi_hud_clear_chat = addr_as_ref<void()>(0x00479000);
+
     static auto& netgame = addr_as_ref<NetGameInfo>(0x0064EC28);
     static auto& is_multi = addr_as_ref<bool>(0x0064ECB9);
     static auto& is_server = addr_as_ref<bool>(0x0064ECBA); // only refers to a listen server

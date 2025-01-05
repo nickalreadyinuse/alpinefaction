@@ -100,4 +100,5 @@ void multi_level_download_do_frame();
 void multi_level_download_abort();
 void multi_ban_apply_patch();
 void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
+void start_level_in_multi(std::string filename);
 std::optional<std::string> multi_ban_unban_last();

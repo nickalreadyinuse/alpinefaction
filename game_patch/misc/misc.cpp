@@ -18,6 +18,7 @@
 #include "../sound/sound.h"
 #include "../os/console.h"
 #include "../main/main.h"
+#include "../multi/multi.h"
 #include "../rf/gr/gr.h"
 #include "../rf/player/player.h"
 #include "../rf/multi.h"
@@ -51,6 +52,7 @@ struct JoinMpGameData
 bool g_in_mp_game = false;
 bool g_jump_to_multi_server_list = false;
 std::optional<JoinMpGameData> g_join_mp_game_seq_data;
+std::optional<std::string> g_levelm_filename;
 
 bool tc_mod_is_loaded()
 {
@@ -131,6 +133,12 @@ void start_join_multi_game_sequence(const rf::NetAddr& addr, const std::string& 
     g_join_mp_game_seq_data = {JoinMpGameData{addr, password}};
 }
 
+void start_levelm_load_sequence(std::string filename)
+{
+    g_jump_to_multi_server_list = true;
+    g_levelm_filename = filename;
+}
+
 bool multi_join_game(const rf::NetAddr& addr, const std::string& password)
 {
     auto multi_set_current_server_addr = addr_as_ref<void(const rf::NetAddr& addr)>(0x0044B380);
@@ -183,6 +191,9 @@ FunHook<void(int, int)> rf_init_state_hook{
                 auto password = g_join_mp_game_seq_data.value().password;
                 g_join_mp_game_seq_data.reset();
                 multi_join_game(addr, password);
+            }
+            else if (g_levelm_filename.has_value()) {
+                start_level_in_multi(g_levelm_filename.value_or(""));
             }
         }
     },

@@ -7,8 +7,12 @@
 #include "multi.h"
 #include "multi_private.h"
 #include "server_internal.h"
+#include "../rf/file/file.h"
+#include "../rf/level.h"
+#include "../os/console.h"
 #include "../misc/misc.h"
 #include "../rf/os/os.h"
+#include "../rf/gameseq.h"
 #include "../rf/os/timer.h"
 #include "../rf/multi.h"
 #include "../rf/os/console.h"
@@ -25,6 +29,12 @@ static rf::CmdLineParam& get_url_cmd_line_param()
 {
     static rf::CmdLineParam url_param{"-url", "", true};
     return url_param;
+}
+
+static rf::CmdLineParam& get_levelm_cmd_line_param()
+{
+    static rf::CmdLineParam levelm_param{"-levelm", "", true};
+    return levelm_param;
 }
 
 void handle_url_param()
@@ -61,6 +71,19 @@ void handle_url_param()
 
     rf::NetAddr addr{host, port};
     start_join_multi_game_sequence(addr, password);
+}
+
+void handle_levelm_param()
+{
+    // do nothing unless -levelm is specified
+    if (!get_levelm_cmd_line_param().found()) {
+        return;
+    }
+
+    std::string level_filename = get_levelm_cmd_line_param().get_arg();
+
+    //rf::console::print("filename {}", level_filename);
+    start_levelm_load_sequence(level_filename);
 }
 
 FunHook<void()> multi_limbo_init{
@@ -445,8 +468,56 @@ CodeInjection multi_powerup_remove_all_for_player_nano_patch {
     },
 };
 
+void start_level_in_multi(std::string filename) {
+
+    auto [is_valid, valid_filename] = is_level_name_valid(filename);
+
+    if (is_valid) {
+        rf::VArray_String<rf::String>* levels_ptr = reinterpret_cast<rf::VArray_String<rf::String>*>(0x0064EC68);
+
+        if (levels_ptr) {
+            levels_ptr->add(valid_filename.c_str());
+        }
+
+        rf::set_in_mp_flag();
+        rf::multi_start(0,0);
+
+        *reinterpret_cast<float*>(0x0064EC4C) = 600.0f;                             // time limit
+        *reinterpret_cast<int*>(0x0064EC50) = 30;                                   // kill limit
+        *reinterpret_cast<int*>(0x0064EC58) = 5;                                    // cap limit
+        *reinterpret_cast<int*>(0x0064EC54) = 64;                                   // geo limit
+        *reinterpret_cast<int*>(0x0064EC40) = 0;                                    // server options flags (team damage, fall damage, etc.)
+        *reinterpret_cast<rf::String*>(0x0064EC28) = "Alpine Faction Test Server";  // server name
+        //*reinterpret_cast<rf::String*>(0x0064EC30) = "password";                    // password
+        *reinterpret_cast<int*>(0x0064EC3C) = 0;                                    // game type
+        *reinterpret_cast<int*>(0x0064EC40) &= 0xFFFFFBFF;                          // do not broadcast to tracker
+
+        rf::multi_hud_clear_chat();
+        rf::multi_load_next_level();
+        rf::multi_init_server();
+    }
+}
+
+ConsoleCommand2 levelm_cmd{
+    "levelm",
+    [](std::string filename) {
+        if (rf::gameseq_get_state() == rf::GS_MAIN_MENU ||
+            rf::gameseq_get_state() == rf::GS_EXTRAS_MENU) {
+            start_level_in_multi(filename);
+            rf::console::print("Starting local multiplayer game on {}", filename);
+        }
+        else {
+            rf::console::print("You must run this command from the main menu!");
+        }
+    },
+    "Start a local multiplayer game on the specified level",
+    "levelm <filename>",
+};
+
 void multi_do_patch()
 {
+    
+
     //entity_set_nano_flag_hook.install();
     //entity_remove_nano_flag_hook.install();
     //multi_powerup_add_nano_patch.install();
@@ -486,9 +557,14 @@ void multi_do_patch()
 
     // Init cmd line param
     get_url_cmd_line_param();
+    get_levelm_cmd_line_param();
+
+    // console commands
+    levelm_cmd.register_cmd();
 }
 
 void multi_after_full_game_init()
 {
     handle_url_param();
+    handle_levelm_param();
 }

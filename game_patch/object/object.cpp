@@ -308,8 +308,8 @@ FunHook<void(rf::Clutter*, float, int, int, rf::PCollisionOut*)> clutter_damage_
 
 void object_do_patch()
 {
-    // Disable damage for the riot shield in multiplayer
-    clutter_damage_hook.install();
+    // Disable damage for the riot shield in multiplayer (needs fix)
+    //clutter_damage_hook.install(); // disabled for now, makes riot shields persist after player leaves
 
     // Support AF_When_Dead events
     entity_on_dead_hook.install();

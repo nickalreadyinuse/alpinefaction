@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
+#include <filesystem>
 #include <string_view>
 #include <windows.h>
 #include <shellapi.h>
@@ -30,13 +31,14 @@
 #include "event.h"
 
 #define LAUNCHER_FILENAME "AlpineFactionLauncher.exe"
+HMODULE g_module;
+static std::string g_launcher_pathname;
 
 constexpr size_t max_texture_name_len = 31;
 
-HMODULE g_module;
 bool g_skip_wnd_set_text = false;
 
-static bool g_is_saving_af_version = true; // TODO: way to control this var (reg?)
+static bool g_is_saving_af_version = true;
 
 static const auto g_editor_app = reinterpret_cast<std::byte*>(0x006F9DA0);
 static auto& g_main_frame = addr_as_ref<std::byte*>(0x006F9E68);
@@ -252,7 +254,37 @@ CodeInjection CCutscenePropertiesDialog_ct_crash_fix{
     },
 };
 
-class CMainFrame;
+struct CFrameWnd
+{
+    char padding[0xBC];
+};
+static_assert(sizeof(CFrameWnd) == 0xBC);
+
+struct CMainFrame : CFrameWnd
+{
+    void* views[4];
+    void* unk_view;
+    CDocument* doc;
+    VString field_D4;
+    char dialog_bar[0x88]; // CDialogBar
+    char status_bar[0x7C]; // CStatusBar
+    char splitter[0x26C]; // CDedSplitterWnd
+    float grid_size_available_values[12];
+    float rotate_by_available_vals[8];
+    int texture_grid_size_available_values[8];
+    int grid_size_index;
+    int rotate_by_index;
+    int texture_grid_size_index;
+    float camera_speed_allowed_values[6];
+    int camera_speed_index;
+    float grid_brightness;
+    int custom_colors[16];
+    int favorite_textures[8];
+    bool play_no_tnl;
+    char padding[3];
+    void* preferences_dlg;
+};
+static_assert(sizeof(CMainFrame) == 0x550);
 
 static auto RedrawEditorAfterModification = addr_as_ref<int __cdecl()>(0x00483560);
 
@@ -302,6 +334,37 @@ void CMainFrame_InvertSelection(CWnd* this_)
     RedrawEditorAfterModification();
 }
 
+void CMainFrame_PlayMulti(CWnd* this_)
+{
+    xlog::warn("Full Launcher Path: {}", g_launcher_pathname);
+    CMainFrame* mainframe = reinterpret_cast<CMainFrame*>(GetMainFrame());
+    if (!mainframe || !mainframe->doc) {
+        xlog::error("Failed to get CMainFrame or document!");
+        return;
+    }
+
+    std::string filename = std::filesystem::path(mainframe->doc->_d.m_strPathName.c_str()).filename().string();
+    if (filename.empty()) {
+        xlog::error("No valid filename found!");
+        return;
+    }
+
+    xlog::warn("Launching game with filename: {}", filename);
+
+    std::string commandLine = g_launcher_pathname + " -game -levelm " + filename;
+    xlog::warn("Running: {}", commandLine);
+
+    STARTUPINFOA startupInfo{};
+    PROCESS_INFORMATION processInfo{};
+    startupInfo.cb = sizeof(startupInfo);
+
+    if (!CreateProcessA(g_launcher_pathname.c_str(),
+                        commandLine.data(),
+                        nullptr, nullptr, FALSE, CREATE_NEW_CONSOLE, nullptr, nullptr, &startupInfo, &processInfo)) {
+        xlog::error("Failed to launch game! Error Code: {}", GetLastError());
+    }
+}
+
 BOOL __fastcall CMainFrame_OnCmdMsg(CWnd* this_, int, UINT nID, int nCode, void* pExtra, void* pHandlerInfo)
 {
     constexpr int CN_COMMAND = 0;
@@ -330,6 +393,9 @@ BOOL __fastcall CMainFrame_OnCmdMsg(CWnd* this_, int, UINT nID, int nCode, void*
             case ID_INVERT_SELECTION:
                 handler = std::bind(CMainFrame_InvertSelection, this_);
                 break;
+            case ID_PLAY_MULTI:
+                handler = std::bind(CMainFrame_PlayMulti, this_);
+                break;
         }
 
         if (handler) {
@@ -352,10 +418,10 @@ void InitLogging()
 {
     CreateDirectoryA("logs", nullptr);
     xlog::LoggerConfig::get()
-        .add_appender<xlog::FileAppender>("logs/DashEditor.log", false)
+        .add_appender<xlog::FileAppender>("logs/AlpineEditor.log", false)
         .add_appender<xlog::ConsoleAppender>()
         .add_appender<xlog::Win32Appender>();
-    xlog::info("DashFaction Editor log started.");
+    xlog::info("Alpine Faction Editor log started.");
 }
 
 void InitCrashHandler()
@@ -365,9 +431,9 @@ void InitCrashHandler()
 
     CrashHandlerConfig config;
     config.this_module_handle = g_module;
-    std::snprintf(config.log_file, std::size(config.log_file), "%s\\logs\\DashEditor.log", current_dir);
+    std::snprintf(config.log_file, std::size(config.log_file), "%s\\logs\\AlpineEditor.log", current_dir);
     std::snprintf(config.output_dir, std::size(config.output_dir), "%s\\logs", current_dir);
-    std::snprintf(config.app_name, std::size(config.app_name), "DashEditor");
+    std::snprintf(config.app_name, std::size(config.app_name), "AlpinehEditor");
     config.add_known_module("RED");
     config.add_known_module("DashEditor");
 
@@ -579,11 +645,11 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
         apply_af_level_editor_changes();
     }      
 
-    // Change command for Play Level action to use Dash Faction launcher
-    static std::string launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;
+    // Change command for Play Level action to use AF launcher
+    g_launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;
     using namespace asm_regs;
-    AsmWriter(0x00447B32, 0x00447B39).mov(eax, launcher_pathname.c_str());
-    AsmWriter(0x00448024, 0x0044802B).mov(eax, launcher_pathname.c_str());
+    AsmWriter(0x00447B32, 0x00447B39).mov(eax, g_launcher_pathname.c_str());
+    AsmWriter(0x00448024, 0x0044802B).mov(eax, g_launcher_pathname.c_str());
     CMainFrame_OnPlayLevelCmd_skip_level_dir_injection.install();
     CMainFrame_OnPlayLevelFromCameraCmd_skip_level_dir_injection.install();
 

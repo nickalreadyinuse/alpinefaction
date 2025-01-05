@@ -1,5 +1,7 @@
 #pragma once
 
+//#include "string.h"
+
 namespace rf
 {
     template<typename T = char>
@@ -115,6 +117,45 @@ namespace rf
         }
     };
     static_assert(sizeof(VArray<>) == 0xC);
+
+    template<typename T = char>
+    struct VArray_String
+    {
+        int size = 0;
+        int capacity = 0;
+        T* data = nullptr;
+
+        void clear()
+        {
+            size = 0;
+        }
+
+        void add(T element)
+        {
+            AddrCaller{0x00447060}.this_call(this, element);
+        }
+
+        T& operator[](int index)
+        {
+            return data[index];
+        }
+
+        T* begin()
+        {
+            return data;
+        }
+
+        T* end()
+        {
+            return data + size;
+        }
+
+        ~VArray_String()
+        {
+            delete[] data;
+        }
+    };
+    static_assert(sizeof(VArray_String<>) == 0xC);
 
     template<typename T, int N>
     class FArray

@@ -714,7 +714,7 @@ rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, 
 
     // Rotate world velocity to the new orientation's local space
     rf::Vector3 new_velocity;
-    new_velocity.x = new_orient.rvec.dot_prod(world_velocity);
+    new_velocity.x = new_orient.rvec.dot_prod(-world_velocity);
     new_velocity.y = new_orient.uvec.dot_prod(world_velocity);
     new_velocity.z = new_orient.fvec.dot_prod(world_velocity);
 

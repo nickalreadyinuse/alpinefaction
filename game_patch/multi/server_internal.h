@@ -111,9 +111,9 @@ struct ServerAdditionalConfig
     NewSpawnLogicConfig new_spawn_logic;
     int spawn_protection_duration_ms = 1500;
     int desired_player_count = 32;
-    std::optional<float> spawn_life;
+    float spawn_life = -1.0f;
     bool use_sp_damage_calculation = false;
-    std::optional<float> spawn_armor;
+    float spawn_armor= -1.0f;
     int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
     BagmanConfig bagman;
