@@ -2074,6 +2074,12 @@ CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int
 
 void server_init()
 {
+    // Update the message when a dedicated server launches with some wrong options
+    static char new_config_error_message[] =
+        "Oh no! Either you haven't specified any maps, or you have an error in your dedicated server configuration.\n"
+        "If this issue persists, join the community Discord at https://discord.gg/factionfiles for some assistance.\n";
+    AsmWriter{0x0046E230}.push(reinterpret_cast<int32_t>(new_config_error_message));
+
     // Handle no player collide server option
     entity_create_no_collide_hook.install();
 
