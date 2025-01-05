@@ -78,10 +78,14 @@
 
 #define IDC_VERSION_TEXT                3050
 
-#define IDC_SB1_BTN                     3051
+//#define IDC_SB1_BTN                     3051
 #define IDC_SB2_BTN                     3052
 #define IDC_SB3_BTN                     3053
 #define IDC_SB4_BTN                     3054
+#define IDC_SM1_BTN                     3055
+#define IDC_SM2_BTN                     3056
+#define IDC_SM3_BTN                     3057
+#define IDC_SM4_BTN                     3058
 
 // Image buttons
 #define IDB_PLAY_NORMAL                 3001
@@ -96,9 +100,9 @@
 #define IDB_OPTIONS_HOVER               3008
 #define IDB_OPTIONS_PRESSED             3009
 
-#define IDB_SB1_NORMAL                  3010
-#define IDB_SB1_HOVER                   3011
-#define IDB_SB1_PRESSED                 3012
+//#define IDB_SB1_NORMAL                  3010
+//#define IDB_SB1_HOVER                   3011
+//#define IDB_SB1_PRESSED                 3012
 
 #define IDB_SB2_NORMAL                  3013
 #define IDB_SB2_HOVER                   3014
@@ -113,6 +117,22 @@
 #define IDB_SB4_PRESSED                 3021
 
 #define IDC_NEWS_BOX                    3022
+
+#define IDB_SM1_NORMAL                  3023
+#define IDB_SM1_HOVER                   3024
+#define IDB_SM1_PRESSED                 3025
+
+#define IDB_SM2_NORMAL                  3026
+#define IDB_SM2_HOVER                   3027
+#define IDB_SM2_PRESSED                 3028
+
+#define IDB_SM3_NORMAL                  3029
+#define IDB_SM3_HOVER                   3030
+#define IDB_SM3_PRESSED                 3031
+
+#define IDB_SM4_NORMAL                  3032
+#define IDB_SM4_HOVER                   3033
+#define IDB_SM4_PRESSED                 3034
 
 // Next default values for new objects
 //

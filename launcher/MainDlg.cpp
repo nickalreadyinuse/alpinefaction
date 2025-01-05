@@ -45,21 +45,25 @@ BOOL MainDlg::OnInitDialog()
 
     // Setup image buttons
     m_play_button.AttachDlgItem(IDC_PLAY_BTN, *this);
-    //m_editor_button.AttachDlgItem(IDC_EDITOR_BTN, *this);
     m_options_button.AttachDlgItem(IDC_OPTIONS_BTN, *this);
-    m_sb1_button.AttachDlgItem(IDC_SB1_BTN, *this);
     m_sb2_button.AttachDlgItem(IDC_SB2_BTN, *this);
     m_sb3_button.AttachDlgItem(IDC_SB3_BTN, *this);
     m_sb4_button.AttachDlgItem(IDC_SB4_BTN, *this);
+    m_sm1_button.AttachDlgItem(IDC_SM1_BTN, *this);
+    m_sm2_button.AttachDlgItem(IDC_SM2_BTN, *this);
+    m_sm3_button.AttachDlgItem(IDC_SM3_BTN, *this);
+    m_sm4_button.AttachDlgItem(IDC_SM4_BTN, *this);
 
     // Load button images
     m_play_button.LoadImages(IDB_PLAY_NORMAL, IDB_PLAY_HOVER, IDB_PLAY_PRESSED);
-    //m_editor_button.LoadImages(IDB_EDITOR_NORMAL, IDB_EDITOR_HOVER, IDB_EDITOR_PRESSED);
     m_options_button.LoadImages(IDB_OPTIONS_NORMAL, IDB_OPTIONS_HOVER, IDB_OPTIONS_PRESSED);
-    m_sb1_button.LoadImages(IDB_SB1_NORMAL, IDB_SB1_HOVER, IDB_SB1_PRESSED);
     m_sb2_button.LoadImages(IDB_SB2_NORMAL, IDB_SB2_HOVER, IDB_SB2_PRESSED);
     m_sb3_button.LoadImages(IDB_SB3_NORMAL, IDB_SB3_HOVER, IDB_SB3_PRESSED);
     m_sb4_button.LoadImages(IDB_SB4_NORMAL, IDB_SB4_HOVER, IDB_SB4_PRESSED);
+    m_sm1_button.LoadImages(IDB_SM1_NORMAL, IDB_SM1_HOVER, IDB_SM1_PRESSED);
+    m_sm2_button.LoadImages(IDB_SM2_NORMAL, IDB_SM2_HOVER, IDB_SM2_PRESSED);
+    m_sm3_button.LoadImages(IDB_SM3_NORMAL, IDB_SM3_HOVER, IDB_SM3_PRESSED);
+    m_sm4_button.LoadImages(IDB_SM4_NORMAL, IDB_SM4_HOVER, IDB_SM4_PRESSED);
 
     // get news feed
     AttachItem(IDC_NEWS_BOX, m_news_box);
@@ -67,26 +71,30 @@ BOOL MainDlg::OnInitDialog()
 
     AttachItem(IDC_ABOUT_LINK, m_about_link);
 
-
     // Force buttons to redraw
     m_play_button.Invalidate();
-    //m_editor_button.Invalidate();
     m_options_button.Invalidate();
-    m_sb1_button.Invalidate();
     m_sb2_button.Invalidate();
     m_sb3_button.Invalidate();
     m_sb4_button.Invalidate();
-
+    m_sm1_button.Invalidate();
+    m_sm2_button.Invalidate();
+    m_sm3_button.Invalidate();
+    m_sm4_button.Invalidate();
 
     // Setup tooltips
     m_tool_tip.Create(*this);
     m_tool_tip.AddTool(m_mod_selector, "To find more mods, click the FactionFiles logo under Resources");
     m_tool_tip.AddTool(m_options_button, "Adjust settings");
     m_tool_tip.AddTool(m_play_button, "Launch Alpine Faction");
-    m_tool_tip.AddTool(m_sb1_button, "Open the Alpine Faction level editor");
+    m_tool_tip.AddTool(m_sm1_button, "Open the Alpine Faction level editor");
     m_tool_tip.AddTool(m_sb2_button, "Join the Red Faction community Discord");
     m_tool_tip.AddTool(m_sb3_button, "Find community-made mods and levels at FactionFiles.com");
     m_tool_tip.AddTool(m_sb4_button, "Visit the Red Faction Wiki");
+    m_tool_tip.AddTool(m_about_link, "Current version, click to learn more about Alpine Faction");
+    m_tool_tip.AddTool(m_sm2_button, "Open your mods directory");
+    m_tool_tip.AddTool(m_sm3_button, "Open your clientside mods directory");
+    m_tool_tip.AddTool(m_sm4_button, "Open your user_maps directory for custom levels");
 
     // Set placeholder text for mod box when no selection
     SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"Select a mod...");
@@ -116,7 +124,7 @@ BOOL MainDlg::OnCommand(WPARAM wparam, LPARAM lparam)
     case IDC_OPTIONS_BTN:
         OnBnClickedOptionsBtn();
         return TRUE;
-    case IDC_SB1_BTN:
+    case IDC_SM1_BTN:
         OnBnClickedEditorBtn();
         return TRUE;
     case IDC_SB2_BTN:
@@ -127,6 +135,15 @@ BOOL MainDlg::OnCommand(WPARAM wparam, LPARAM lparam)
         return TRUE;
     case IDC_SB4_BTN:
         OnSupportLinkClick(2);
+        return TRUE;
+    case IDC_SM2_BTN:
+        OnOpenGameFolder(0);
+        return TRUE;
+    case IDC_SM3_BTN:
+        OnOpenGameFolder(1);
+        return TRUE;
+    case IDC_SM4_BTN:
+        OnOpenGameFolder(2);
         return TRUE;
     case IDC_ABOUT_LINK:
         OnAboutLinkClick();
@@ -174,10 +191,13 @@ INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
         if (lpDrawItem->CtlID == IDC_PLAY_BTN ||
             lpDrawItem->CtlID == IDC_EDITOR_BTN ||
             lpDrawItem->CtlID == IDC_OPTIONS_BTN ||
-            lpDrawItem->CtlID == IDC_SB1_BTN ||
             lpDrawItem->CtlID == IDC_SB2_BTN ||
             lpDrawItem->CtlID == IDC_SB3_BTN ||
-            lpDrawItem->CtlID == IDC_SB4_BTN) {
+            lpDrawItem->CtlID == IDC_SB4_BTN ||
+            lpDrawItem->CtlID == IDC_SM1_BTN ||
+            lpDrawItem->CtlID == IDC_SM2_BTN ||
+            lpDrawItem->CtlID == IDC_SM3_BTN ||
+            lpDrawItem->CtlID == IDC_SM4_BTN) {
 
             // Retrieve HWND of the control
             HWND hwndCtrl = GetDlgItem(lpDrawItem->CtlID).GetHwnd();
@@ -400,6 +420,52 @@ void MainDlg::OnSupportLinkClick(int link_id)
     auto result_int = reinterpret_cast<INT_PTR>(result);
     if (result_int <= 32) {
         xlog::error("ShellExecuteA failed {}", result_int);
+    }
+}
+
+void MainDlg::OnOpenGameFolder(int folder_id)
+{
+    // Load the game executable path from GameConfig
+    GameConfig gameConfig;
+    if (!gameConfig.load()) {
+        xlog::error("Failed to load game configuration.");
+        return;
+    }
+
+    std::string game_exe_path = gameConfig.game_executable_path.value();
+    if (game_exe_path.empty()) {
+        xlog::error("Game executable path is empty.");
+        return;
+    }
+
+    // Extract game directory from RF.exe path
+    std::string game_dir = game_exe_path.substr(0, game_exe_path.find_last_of("\\/"));
+
+    // Define folder paths relative to the game directory
+    std::string folder_path;
+    switch (folder_id) {
+        case 0:
+            folder_path = game_dir + "\\mods\\";
+            break;
+        case 1:
+            folder_path = game_dir + "\\client_mods\\";
+            break;
+        case 2:
+            folder_path = game_dir + "\\user_maps\\";
+            break;
+        default:
+            xlog::error("Invalid folder ID: {}", folder_id);
+            return;
+    }
+
+    xlog::info("Opening folder: {}", folder_path);
+
+    // Open the folder in Windows Explorer
+    HINSTANCE result = ShellExecuteA(nullptr, "open", folder_path.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    auto result_int = reinterpret_cast<INT_PTR>(result);
+
+    if (result_int <= 32) {
+        xlog::error("ShellExecuteA failed with error code: {}", result_int);
     }
 }
 

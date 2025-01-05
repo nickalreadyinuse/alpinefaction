@@ -26,6 +26,7 @@ private:
     void OnBnClickedOk();
     void OnBnClickedEditorBtn();
     void OnSupportLinkClick(int link_id);
+    void OnOpenGameFolder(int folder_id);
     void OnAboutLinkClick();
     void RefreshModSelector();
     CString GetSelectedMod();
@@ -45,10 +46,14 @@ protected:
     ImageButton m_editor_button;
     ImageButton m_options_button;
 
-    ImageButton m_sb1_button;
+    //ImageButton m_sb1_button;
     ImageButton m_sb2_button;
     ImageButton m_sb3_button;
     ImageButton m_sb4_button;
+    ImageButton m_sm1_button;
+    ImageButton m_sm2_button;
+    ImageButton m_sm3_button;
+    ImageButton m_sm4_button;
 
     AsyncUpdateChecker m_update_checker;
     CToolTip m_tool_tip;

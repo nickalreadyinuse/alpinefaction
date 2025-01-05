@@ -19,7 +19,7 @@ function(add_packfile packfile_name)
 endfunction()
 
 
-add_packfile(dashfaction.vpp
+add_packfile(alpinefaction.vpp
     maps_df.txt
     events.tbl
 

@@ -77,9 +77,9 @@ IDB_OPTIONS_NORMAL      BITMAP                  "res/options_normal.bmp"
 IDB_OPTIONS_HOVER       BITMAP                  "res/options_hover.bmp"
 IDB_OPTIONS_PRESSED     BITMAP                  "res/options_pressed.bmp"
 
-IDB_SB1_NORMAL          BITMAP                  "res/sb1_normal.bmp"
-IDB_SB1_HOVER           BITMAP                  "res/sb1_hover.bmp"
-IDB_SB1_PRESSED         BITMAP                  "res/sb1_normal.bmp"
+//IDB_SB1_NORMAL          BITMAP                  "res/sb1_normal.bmp"
+//IDB_SB1_HOVER           BITMAP                  "res/sb1_hover.bmp"
+//IDB_SB1_PRESSED         BITMAP                  "res/sb1_normal.bmp"
 
 IDB_SB2_NORMAL          BITMAP                  "res/sb2_normal.bmp"
 IDB_SB2_HOVER           BITMAP                  "res/sb2_hover.bmp"
@@ -92,6 +92,22 @@ IDB_SB3_PRESSED         BITMAP                  "res/sb3_normal.bmp"
 IDB_SB4_NORMAL          BITMAP                  "res/sb4_normal.bmp"
 IDB_SB4_HOVER           BITMAP                  "res/sb4_hover.bmp"
 IDB_SB4_PRESSED         BITMAP                  "res/sb4_normal.bmp"
+
+IDB_SM1_NORMAL          BITMAP                  "res/smb1_normal.bmp"
+IDB_SM1_HOVER           BITMAP                  "res/smb1_hover.bmp"
+IDB_SM1_PRESSED         BITMAP                  "res/smb1_normal.bmp"
+
+IDB_SM2_NORMAL          BITMAP                  "res/smb2_normal.bmp"
+IDB_SM2_HOVER           BITMAP                  "res/smb2_hover.bmp"
+IDB_SM2_PRESSED         BITMAP                  "res/smb2_normal.bmp"
+
+IDB_SM3_NORMAL          BITMAP                  "res/smb3_normal.bmp"
+IDB_SM3_HOVER           BITMAP                  "res/smb3_hover.bmp"
+IDB_SM3_PRESSED         BITMAP                  "res/smb3_normal.bmp"
+
+IDB_SM4_NORMAL          BITMAP                  "res/smb4_normal.bmp"
+IDB_SM4_HOVER           BITMAP                  "res/smb4_hover.bmp"
+IDB_SM4_PRESSED         BITMAP                  "res/smb4_normal.bmp"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -109,10 +125,15 @@ BEGIN
     CONTROL IDB_HEADER,IDC_HEADER_PIC,"Static",SS_BITMAP|SS_REALSIZECONTROL,0,0,384,240
     CONTROL "", IDC_PLAY_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 10, 190, 96, 28
     CONTROL "", IDC_OPTIONS_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 106, 190, 19, 28
-    CONTROL "", IDC_SB1_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 222, 204, 36, 30
+    //CONTROL "", IDC_SB1_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 222, 204, 36, 30
     CONTROL "", IDC_SB2_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 263, 204, 36, 30
     CONTROL "", IDC_SB3_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 304, 204, 36, 30
     CONTROL "", IDC_SB4_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 344, 204, 36, 30
+
+    CONTROL "", IDC_SM1_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 142, 190, 94, 12
+    CONTROL "", IDC_SM2_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 142, 202, 94, 12
+    CONTROL "", IDC_SM3_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 142, 214, 94, 12
+    CONTROL "", IDC_SM4_BTN, "BUTTON", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW, 142, 226, 94, 12
 
     LTEXT "", IDC_NEWS_BOX, 175, 58, 140, 60, SS_LEFT | SS_NOPREFIX | SS_EDITCONTROL
 

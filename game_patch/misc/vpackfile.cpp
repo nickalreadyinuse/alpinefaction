@@ -477,7 +477,7 @@ static void load_dashfaction_vpp()
 {
     // Load DashFaction specific packfile
     std::string df_vpp_dir = get_module_dir(g_hmodule);
-    const char* df_vpp_base_name = "dashfaction.vpp";
+    const char* df_vpp_base_name = "alpinefaction.vpp";
     if (!PathFileExistsA((df_vpp_dir + df_vpp_base_name).c_str())) {
         // Remove trailing slash
         if (df_vpp_dir.back() == '\\') {

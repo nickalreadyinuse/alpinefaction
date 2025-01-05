@@ -387,8 +387,8 @@ void LoadDashEditorPackfile()
     auto df_dir = get_module_dir(g_module);
     std::string old_root_path = root_path;
     std::strncpy(root_path, df_dir.c_str(), sizeof(root_path) - 1);
-    if (!vpackfile_add("dashfaction.vpp", nullptr)) {
-        xlog::error("Failed to load dashfaction.vpp from {}", df_dir);
+    if (!vpackfile_add("alpinefaction.vpp", nullptr)) {
+        xlog::error("Failed to load alpinefaction.vpp from {}", df_dir);
     }
     std::strncpy(root_path, old_root_path.c_str(), sizeof(root_path) - 1);
 }

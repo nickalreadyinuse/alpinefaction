@@ -21,17 +21,22 @@ Special Thanks
 ---------------------------------
 
 Rafalh:
-* Creating Dash Faction
+* Creating the Dash Faction codebase
 * An unbelievable amount of RE work on Red Faction and its editor
-
-natalie <webmistress@natalie.ee>:
-* Assistance learning IDA and C++
+* Technical assistance
 
 nick:
-* Extensive testing
+* Extensive advice on virtually every aspect of the project
+* Beta testing
 
-Intharth:
-* Extensive testing
+natalie <webmistress@natalie.ee>:
+* Technical assistance and advice
+
+Beta testers:
+* nick
+* Intharth
+* BATEMAN
+* MysticaL-AceR
 
 ###############################################################################
 ## Dash Faction
