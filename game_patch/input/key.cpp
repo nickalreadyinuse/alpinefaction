@@ -192,14 +192,13 @@ CodeInjection control_config_init_patch{
     },
 };
 
-// define actions for alpine controls
+// alpine controls that activate only when local player is alive (multi or single)
 CodeInjection player_execute_action_patch{
     0x004A6283,
     [](auto& regs) {
-
         rf::ControlConfigAction action = regs.ebp;
         int action_index = static_cast<int>(action);
-        //xlog::warn("check execute action {}", action_index);
+        //xlog::warn("executing action {}", action_index);
 
         // only intercept alpine controls
         if (action_index >= starting_alpine_control_index) {
@@ -218,7 +217,22 @@ CodeInjection player_execute_action_patch{
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL)) {
                 rf::player_kill_self(rf::local_player);
             }
-            else if (action_index == starting_alpine_control_index +
+        }
+    },
+};
+
+// alpine controls that activate in multiplayer (player spawned or not)
+CodeInjection player_execute_action_patch2{
+    0x004A624B,
+    [](auto& regs) {
+
+        rf::ControlConfigAction action = regs.ebp;
+        int action_index = static_cast<int>(action);
+        //xlog::warn("executing action {}", action_index);
+
+        // only intercept alpine controls
+        if (action_index >= starting_alpine_control_index) {
+            if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote yes", nullptr);
@@ -245,7 +259,7 @@ CodeInjection controls_process_patch{
 
         // C++ doesn't have a way to dynamically get the last enum index, so just update this when adding new controls
         if (index >= starting_alpine_control_index &&
-            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL)) {
+            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_READY)) {
             //xlog::warn("passing control {}", index);
             regs.eip = 0x00430E24;
         }
@@ -257,6 +271,7 @@ void key_apply_patch()
     // Handle Alpine controls
     control_config_init_patch.install();
     player_execute_action_patch.install();
+    player_execute_action_patch2.install();
     controls_process_patch.install();
 
     // Support non-US keyboard layouts

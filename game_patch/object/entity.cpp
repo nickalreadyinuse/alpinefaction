@@ -204,47 +204,6 @@ CodeInjection entity_process_pre_hide_riot_shield_injection{
     },
 };
 
-// in EventSpawnObject__turn_on
-/* CodeInjection entity_create_hook{
-    0x004BC180,
-    [](BaseCodeInjection::Regs& regs) {
-        // Cast the entity pointer using the workaround
-        uintptr_t entity_addr = static_cast<uintptr_t>(regs.eax);
-        rf::Object* created_entity = reinterpret_cast<rf::Object*>(entity_addr);
-
-        // Log the pointer and additional details
-        //xlog::warn("Entity created with pointer: 0x{:X}", entity_addr);
-
-        if (created_entity) {
-            xlog::warn("New entity! Pointer: {}, UID: {}, Position: x={}, y={}, z={}, life: {}, armor: {}, handle: {}", entity_addr,
-                       created_entity->uid, created_entity->pos.x, created_entity->pos.y,
-                       created_entity->pos.z, created_entity->life, created_entity->armor, created_entity->handle);
-            //rf::Entity* testent = rf::local_player_entity;
-            //xlog::warn("Entity UID: {}", testent->uid);
-        }
-    }
-};*/
-
-/* ConsoleCommand2 testlink_cmd{
-    "dbg_make_link",
-    [](std::optional<int> from, std::optional<int> to) {
-        if (from && to) {
-            xlog::warn("Attempting to create a link from UID {} to handle {}", from.value_or(-1), to.value_or(-1));
-
-            rf::Event* from_event = rf::event_lookup_from_uid(from.value_or(-1));
-            rf::Event* to_event = rf::event_lookup_from_uid(to.value_or(-1));
-
-            rf::event_add_link(from_event->handle, to.value_or(-1));
-            //int minutes = minutes_opt.value_or(5);
-            //extend_round_time(minutes);
-            //std::string msg = std::format("\xA6 Round extended by {} minutes", minutes);
-            //rf::multi_chat_say(msg.c_str(), false);
-        }
-    },
-    "make a link",
-    "dbg_make_link",
-};*/
-
 // avoids gibbing if gore level is too low or if this specific corpse shouldn't gib
 /* CodeInjection corpse_damage_patch{
     0x00417C6A,
@@ -392,97 +351,19 @@ ConsoleCommand2 cl_gorelevel_cmd{
     "cl_gorelevel [level]"
 };
 
-// no idea
-CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hook{
-    0x0049D4B6,
-    [](rf::Entity* entity, float rel_vel) {
-        // Custom behavior: adjust the relative velocity if needed
-        float adjusted_rel_vel = rel_vel;
-
-        xlog::warn("A rel_vel is {}", rel_vel);
-
-        // Call the original function with potentially modified parameters
-        physics_calc_fall_damage_hook.call_target(entity, adjusted_rel_vel);
-    }
-};
-
-// no idea
-CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookB{
-    0x0049DE23,
-    [](rf::Entity* entity, float rel_vel) {
-        // Custom behavior: adjust the relative velocity if needed
-        float adjusted_rel_vel = rel_vel;
-
-        xlog::warn("Brel_vel is {}", rel_vel);
-
-        // Call the original function with potentially modified parameters
-        physics_calc_fall_damage_hookB.call_target(entity, adjusted_rel_vel);
-    }
-};
-
-// fall damage when impacting
-CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookC{
-    0x0049DE39,
-    [](rf::Entity* entity, float rel_vel) {
-        // Custom behavior: adjust the relative velocity if needed
-        
-        xlog::warn("Crel_vel is {}", rel_vel);
-
-        float adjusted_rel_vel = rel_vel * 0; // disable
-
-        // Call the original function with potentially modified parameters
-        physics_calc_fall_damage_hookC.call_target(entity, adjusted_rel_vel);
-    }
-};
-
-// fall damage when landing
-CallHook<void(rf::Entity*, float)> physics_calc_fall_damage_hookD{
-    0x004A0C28,
-    [](rf::Entity* entity, float rel_vel) {
-        // Custom behavior: adjust the relative velocity if needed
-        float adjusted_rel_vel = rel_vel;
-
-        xlog::warn("Drel_vel is {}", rel_vel);
-
-        // Call the original function with potentially modified parameters
-        physics_calc_fall_damage_hookD.call_target(entity, adjusted_rel_vel);
-    }
-};
-
-// experimenting with nanoshield, not working, disabled
-CodeInjection player_create_entity_nano_patch {
-    0x004A4207,
-    [](auto& regs) {        
-        rf::Entity* ep = regs.ebx;
-        xlog::warn("object: {}, type {}", ep->name, static_cast<int>(ep->type));
-
-        ep->nano_shield_info->nano_shield_vfx_handle = rf::vmesh_create_anim_fx("NanoShieldConstant.vfx", 0);
-    }
-};
-
-// makes some entities red?
+// makes some entities red - unfinished
 CodeInjection player_create_entity_patch {
     0x004A4234,
     [](auto& regs) {        
         rf::Entity* ep = regs.ebx;
         xlog::warn("entity: {} skin", ep->name);
-        //rf::entity_set_skin(ep, "1default_red");
-        //regs.eip = 0x004A4340;
         regs.eip = 0x004A42CE;
-        //ep->nano_shield_info->nano_shield_vfx_handle = rf::vmesh_create_anim_fx("NanoShieldConstant.vfx", 0);
     }
 };
 
 void entity_do_patch()
 {
-    //testlink_cmd.register_cmd();
-    //entity_create_hook.install();
     //player_create_entity_patch.install(); // force team skin experiment
-    //player_create_entity_nano_patch.install(); // nanoshield experiment
-    //physics_calc_fall_damage_hook.install();
-    //physics_calc_fall_damage_hookB.install();
-    //physics_calc_fall_damage_hookC.install();
-    //physics_calc_fall_damage_hookD.install();
 
     // Fix player being stuck to ground when jumping, especially when FPS is greater than 200
     stuck_to_ground_when_jumping_fix.install();
