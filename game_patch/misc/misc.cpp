@@ -474,18 +474,8 @@ CodeInjection level_read_geometry_header_patch{
     }
 };
 
-CodeInjection ai_return_to_default_behavior_patch{
-    0x00407EE1, [](auto& regs) {
-
-        xlog::warn("returning to default");
-    }
-};
-
 void misc_init()
 {
-    ai_return_to_default_behavior_patch.install();
-    //AsmWriter(0x0046E4AA).nop(5); // stop ai = 0 in MP
-
     //gr_set_far_clip_hook.install();
     //AsmWriter{0x0051806F}.jmp(0x00518083); // stops far clip from derendering geometry covered by fog, buggy
 

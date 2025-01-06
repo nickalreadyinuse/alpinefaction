@@ -312,7 +312,6 @@ void parse_kill_rewards(rf::Parser& parser) {
 }
 
 void parse_miscellaneous_options(rf::Parser& parser) {
-    parse_uint_option(parser, "$Spawn Protection Duration:", g_additional_server_config.spawn_protection_duration_ms, "Spawn Protection Duration");
     parse_int_option(parser, "$Desired Player Count:", g_additional_server_config.desired_player_count, "Desired Player Count");
     parse_float_option(parser, "$Spawn Health:", g_additional_server_config.spawn_life, "Spawn Health");
     parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
@@ -1188,7 +1187,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
         }
 
         // should entity gib?
-        if (damaged_ep->life < -100.0f &&
+        if (damaged_ep->life < -5.0f &&
             damage_type == 3 &&                         // explosive
             damaged_ep->material == 3 &&                // flesh
             rf::game_get_gore_level() >= 2 &&

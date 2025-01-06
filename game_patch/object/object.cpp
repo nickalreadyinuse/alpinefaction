@@ -267,7 +267,7 @@ CodeInjection mover_process_post_patch{
 FunHook<void(rf::Entity*)> entity_on_dead_hook{
     0x00418F80,
     [](rf::Entity* ep) {
-        xlog::warn("killing entity UID {}, name {}", ep->uid, ep->name);
+        //xlog::warn("killing entity UID {}, name {}", ep->uid, ep->name);
 
         if (!rf::is_multi) {
             rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, ep->handle, -1, true);
@@ -285,7 +285,7 @@ CallHook<void(rf::Object*)> obj_flag_dead_clutter_hook{
         0x004101F4
     },
     [](rf::Object* objp) {
-        xlog::warn("killing clutter UID {}, name {}", objp->uid, objp->name);
+        //xlog::warn("killing clutter UID {}, name {}", objp->uid, objp->name);
 
         rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, objp->handle, -1, true);
 

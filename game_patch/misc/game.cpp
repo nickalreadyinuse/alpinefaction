@@ -5,6 +5,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
+#include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../os/console.h"
 #include "../rf/misc.h"
@@ -126,7 +127,6 @@ static ConsoleCommand2 screenshot_cmd{
     "screenshot",
     []() {
         auto game_print_screen = addr_as_ref<void(char* filename)>(0x004366E0);
-        //rf::entity_headlamp_turn_on(rf::local_player_entity);
         char buf[MAX_PATH];
         game_print_screen(buf);
         rf::console::print("Screenshot saved in {}", buf);

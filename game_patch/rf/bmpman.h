@@ -90,5 +90,7 @@ namespace rf::bm
     static auto& lock = addr_as_ref<Format(int handle, ubyte **data, ubyte **pal)>(0x00510780);
     static auto& unlock = addr_as_ref<void(int)>(0x00511700);
 
+    static auto& bm_set_resolution_level_for_all = addr_as_ref<void(int level)>(0x0050EF10);
+
     static auto& bitmaps = addr_as_ref<BitmapEntry*>(0x017C80C4);
 }

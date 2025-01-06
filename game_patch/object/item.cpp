@@ -105,7 +105,7 @@ CodeInjection item_pickup_patch {
             rf::Item* item = regs.esi;
             rf::Entity* entity = regs.edi;
             if (item && entity && entity == rf::local_player_entity) {
-                xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
+                //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
                 rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
             }
         }

@@ -758,12 +758,11 @@ namespace rf
             PersistentGoalEvent* persist_event = event_lookup_persistent_goal_event(effective_goal);
 
             if (goal_count_ptr) {
-                xlog::warn("Level goal count before operation: {}, initial: {}", *goal_count_ptr, *goal_initial_ptr);
+                //xlog::warn("Level goal count before operation: {}, initial: {}", *goal_count_ptr, *goal_initial_ptr);
             }
 
             if (persist_event) {
-                xlog::warn("Persistent goal '{}', count: {}, initial count: {}", persist_event->name,
-                           persist_event->count, persist_event->initial_count);
+                //xlog::warn("Persistent goal '{}', count: {}, initial count: {}", persist_event->name, persist_event->count, persist_event->initial_count);
             }
 
             auto apply_operation = [&](int& goal_count, int initial_value) {
@@ -837,26 +836,23 @@ namespace rf
 
             // Apply to persistent goal
             if (persist_event) {
-                xlog::warn("Applying operation '{}' with value '{}' to persistent goal '{}'",
-                           static_cast<int>(operation), operation_value, persist_event->name);
+                //xlog::warn("Applying operation '{}' with value '{}' to persistent goal '{}'", static_cast<int>(operation), operation_value, persist_event->name);
                 apply_operation(persist_event->count, persist_event->initial_count);
             }
 
             // Apply to level goal
             if (goal_count_ptr) {
-                xlog::warn("Applying operation '{}' with value '{}' to level goal '{}'", static_cast<int>(operation),
-                           operation_value, effective_goal);
+                //xlog::warn("Applying operation '{}' with value '{}' to level goal '{}'", static_cast<int>(operation), operation_value, effective_goal);
                 apply_operation(*goal_count_ptr, *goal_initial_ptr);
             }
 
             // Log final values
             if (persist_event) {
-                xlog::warn("Persistent goal '{}', new count: {}, initial count: {}", persist_event->name,
-                           persist_event->count, persist_event->initial_count);
+                //xlog::warn("Persistent goal '{}', new count: {}, initial count: {}", persist_event->name, persist_event->count, persist_event->initial_count);
             }
 
             if (goal_count_ptr) {
-                xlog::warn("Level goal count after operation: {}", *goal_count_ptr);
+                //xlog::warn("Level goal count after operation: {}", *goal_count_ptr);
             }
         }
     };
@@ -1592,7 +1588,7 @@ namespace rf
 
                 if (obj && obj->type == OT_ENTITY) {
                     Entity* ep = static_cast<Entity*>(obj);
-                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                    //xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
                     switch (flag) {
                     case SetEntityFlagOption::boarded:
                         ep->entity_flags |= 0x10000;
@@ -1633,7 +1629,7 @@ namespace rf
                     default:
                         break;
                     }
-                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                    //xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
                 }
             }
         }
@@ -1645,7 +1641,7 @@ namespace rf
 
                 if (obj && obj->type == OT_ENTITY) {
                     Entity* ep = static_cast<Entity*>(obj);
-                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                    //xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
                     switch (flag) {
                     case SetEntityFlagOption::boarded:
                         ep->entity_flags &= ~0x10000;
@@ -1686,7 +1682,7 @@ namespace rf
                     default:
                         break;
                     }
-                    xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
+                    //xlog::warn("attem {},,, {}", static_cast<int>(flag), ep->info->flags);
                 }
             }
         }
@@ -1731,8 +1727,7 @@ namespace rf
             Entity* teleported_entity = entity_from_handle(this->triggered_by_handle);
             
             if (teleported_entity) {
-                xlog::warn("teleporting {}, exit dir {},{},{}", teleported_entity->name, this->orient.fvec.x,
-                           this->orient.fvec.y, this->orient.fvec.z);
+                //xlog::warn("teleporting {}, exit dir {},{},{}", teleported_entity->name, this->orient.fvec.x, this->orient.fvec.y, this->orient.fvec.z);
 
                 // Handle ejection from vehicle
                 if (!is_multi) {

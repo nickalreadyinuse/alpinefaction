@@ -109,7 +109,7 @@ struct ServerAdditionalConfig
     VoteConfig vote_match;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
-    int spawn_protection_duration_ms = 1500;
+    //int spawn_protection_duration_ms = 1500;
     int desired_player_count = 32;
     float spawn_life = -1.0f;
     bool use_sp_damage_calculation = false;

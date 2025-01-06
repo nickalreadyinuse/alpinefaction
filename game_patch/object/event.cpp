@@ -257,7 +257,45 @@ ConsoleCommand2 debug_event_msg_cmd{
     "dbg_events",
     []() {
         event_debug_enabled = !event_debug_enabled;
-    }
+        rf::console::print("Printing of event debug information is {}.", event_debug_enabled ? "enabled" : "disabled");
+    },
+    "Print debug information for events",
+    "dbg_events",
+};
+
+ConsoleCommand2 debug_goal_cmd{
+    "dbg_goal",
+    [](std::string name) {
+        rf::console::print("Checking for a goal named '{}'...", name);
+        rf::String goal_name = name.c_str();
+        bool found_a_goal = 0;
+
+        // try to find a normal goal
+        rf::GenericEvent* named_event = rf::event_find_named_event(&goal_name);
+        if (named_event) {
+            found_a_goal = true;
+            int* goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]);
+            int* goal_initial_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[0]);            
+
+            rf::console::print("Non-persistent goal named '{}' found! Initial value: {}, current value: {}",
+                name, *goal_initial_ptr, *goal_count_ptr);
+        }
+
+        // try to find a persistent goal
+        rf::PersistentGoalEvent* persist_event = rf::event_lookup_persistent_goal_event(goal_name);
+        if (persist_event) {
+            found_a_goal = true;
+
+            rf::console::print("Persistent goal named '{}' found! Initial value: {}, current value: {}",
+                name, persist_event->initial_count, persist_event->count);
+        }
+
+        if (!found_a_goal) {
+            rf::console::print("No goals named '{}' were found.", name);
+        }
+    },
+    "Look up the current value of a named goal",
+    "dbg_goal <name>",
 };
 
 /* rf::Vector3 extract_yaw_vector(const rf::Matrix3& matrix)
@@ -343,7 +381,7 @@ CodeInjection trigger_activate_linked_objects_patch{
             rf::Object* event_obj = regs.esi;
             rf::Event* event = static_cast<rf::Event*>(event_obj);
 
-            xlog::warn("triggered event name: {}, uid: {}, type: {}", event->name, event->uid, event->event_type);
+            //xlog::warn("triggered event name: {}, uid: {}, type: {}", event->name, event->uid, event->event_type);
 
             // original code does not allow triggers to activate events in multiplayer
             // on AF levels, this is limited to a blocked list of events that would be problematic in multiplayer        
@@ -404,7 +442,7 @@ CodeInjection Event__turn_off_redirector_patch {
         if (af_rfl_version(rf::level.version)) {
 
             rf::Event* event = regs.ecx;
-            xlog::warn("event turned off {}, {}, {}", event->name, event->uid, event->event_type);
+            //xlog::warn("event turned off {}, {}, {}", event->name, event->uid, event->event_type);
 
             if (event->event_type == rf::event_type_to_int(rf::EventType::Holster_Player_Weapon)) {
                 event_holster_player_weapon_turn_off();
@@ -462,7 +500,7 @@ void event_process_fixed_delay_patch(rf::GenericEvent* event) {
                     break;
                 }
                 default: {
-                    xlog::warn("Something {} turned on", event->uid);
+                    //xlog::warn("Something {} turned on", event->uid);
                 }
             }
         }
@@ -499,7 +537,7 @@ void event_process_fixed_delay_patch(rf::GenericEvent* event) {
                     break;
                 }
                 default: {
-                    xlog::warn("Something {} turned off", event->uid);
+                    //xlog::warn("Something {} turned off", event->uid);
                 }
             }
         }
@@ -557,7 +595,7 @@ CodeInjection level_read_events_patch {
         rf::File* file = regs.edi;
 
         if (class_name) {
-            xlog::warn("Class name: {}", class_name->c_str());
+            //xlog::warn("Class name: {}", class_name->c_str());
             int event_type = rf::event_lookup_type(class_name);
 
             if (event_type == static_cast<int>(rf::EventType::AF_Teleport_Player) ||
@@ -622,4 +660,5 @@ void apply_event_patches()
 
     // Register commands
     debug_event_msg_cmd.register_cmd();
+    debug_goal_cmd.register_cmd();
 }

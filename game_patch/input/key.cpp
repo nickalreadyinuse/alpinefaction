@@ -157,7 +157,7 @@ void alpine_control_config_add_item(rf::ControlConfig* config, const char* name,
     // Increment num_bindings (for control indices)
     config->num_bindings++;
 
-    xlog::warn("added {}, {}, {}", binding.name.c_str(), binding_index, config->bindings[binding_index].name);
+    //xlog::warn("added {}, {}, {}", binding.name.c_str(), binding_index, config->bindings[binding_index].name);
 
     return;
 }

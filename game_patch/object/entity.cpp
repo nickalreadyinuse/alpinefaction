@@ -268,7 +268,7 @@ CodeInjection entity_damage_gib_no_pain_sound_patch {
         //float pain_sound_volume = regs.eax;
         if (ep->entity_flags & 0x80) {
             //pain_sound_volume = 0.0f;
-            xlog::warn("nosound");
+            //xlog::warn("nosound");
             regs.eip = 0x0041A550;
         }
     }
@@ -537,7 +537,7 @@ void entity_do_patch()
 	// Restore cut stock game feature for entities and corpses exploding into chunks
 	entity_blood_throw_gibs_hook.install();
     //corpse_damage_patch.install();
-    entity_damage_gib_no_pain_sound_patch.install();
+    //entity_damage_gib_no_pain_sound_patch.install();
 
     // Commands
     cl_gorelevel_cmd.register_cmd();
