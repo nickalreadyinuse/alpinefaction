@@ -41,6 +41,9 @@ namespace rf
         AF_ACTION_FLASHLIGHT = 0x0,
         AF_ACTION_SKIP_CUTSCENE = 0x1,
         AF_ACTION_SELF_KILL = 0x2,
+        AF_ACTION_VOTE_YES = 0x3,
+        AF_ACTION_VOTE_NO = 0x4,
+        AF_ACTION_READY = 0x5,
     };
 
     struct ControlConfigItem

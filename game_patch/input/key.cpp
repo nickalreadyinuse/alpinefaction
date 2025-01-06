@@ -3,6 +3,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../multi/multi.h"
 #include "../rf/input.h"
 #include "../rf/entity.h"
 #include "../rf/multi.h"
@@ -177,12 +178,17 @@ CodeInjection control_config_init_patch{
         }        
 
         alpine_control_config_add_item(
-            ccp, "Alpine - Toggle headlamp", 0, 22, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT);
+            ccp, "(AF) Toggle headlamp", 0, 0x21, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT);
         alpine_control_config_add_item(
-            ccp, "Alpine - Skip cutscene", 0, 22, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
+            ccp, "(AF) Skip cutscene", 0, 0x25, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
         alpine_control_config_add_item(
-            ccp, "Alpine - Kill self", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
-
+            ccp, "(AF) Kill yourself", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
+        alpine_control_config_add_item(
+            ccp, "(AF) Vote yes", 0, 0x3B, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
+        alpine_control_config_add_item(
+            ccp, "(AF) Vote no", 0, 0x3C, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
+        alpine_control_config_add_item(
+            ccp, "(AF) Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
     },
 };
 
@@ -198,18 +204,34 @@ CodeInjection player_execute_action_patch{
         // only intercept alpine controls
         if (action_index >= starting_alpine_control_index) {
             if (action_index == starting_alpine_control_index +
-                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT) && !rf::is_multi) {
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT) &&
+                !rf::is_multi) {
                 (rf::entity_headlamp_is_on(rf::local_player_entity))
                     ? rf::entity_headlamp_turn_off(rf::local_player_entity)
                     : rf::entity_headlamp_turn_on(rf::local_player_entity);
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE)) {
-
+                
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL)) {
                 rf::player_kill_self(rf::local_player);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES) &&
+                rf::is_multi && !rf::is_server) {
+                send_chat_line_packet("/vote yes", nullptr);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO) &&
+                rf::is_multi && !rf::is_server) {
+                send_chat_line_packet("/vote no", nullptr);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_READY) &&
+                rf::is_multi && !rf::is_server) {
+                send_chat_line_packet("/ready", nullptr);
             }
         }
     },

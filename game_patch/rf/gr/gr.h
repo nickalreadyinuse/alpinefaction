@@ -381,6 +381,8 @@ namespace rf::gr
     static auto& project_vertex = addr_as_ref<ubyte (Vertex *p)>(0x00518440);
     static auto& show_lightmaps = *reinterpret_cast<bool*>(0x009BB5A4);
     static auto& light_set_ambient = addr_as_ref<void(float r, float g, float b)>(0x004D8CE0);
+    static auto& gr_line_arrow = addr_as_ref<void(float x1, float y1, float z1, float x2, float y2, float z2, int r, int g, int b)>(0x00516AD0);
+    static auto& gr_3d_cursor = addr_as_ref<void(Vector3* pos, Matrix3* orient, float scale)>(0x00516B10);
 
     inline void set_color(ubyte r, ubyte g, ubyte b, ubyte a = screen.current_color.alpha)
     {

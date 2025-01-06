@@ -116,6 +116,8 @@ Version 1.0.0
 - Raise max FPS limit to 10000
 - Adjust default settings: linear pitch on, directinput on, vsync off, fps limit 240, resolution 1920x1080
 - Add functions to launch a test listen server on-demand: `levelm` console command, `-levelm` command line, and `Play (multi)` button in RED
+- Add controls for vote yes, vote no, and ready for match
+- Add link drawing to `debug event` and `debug trigger`
 
 
 

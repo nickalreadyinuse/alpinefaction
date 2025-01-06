@@ -1,9 +1,12 @@
+#include <xlog/xlog.h>
 #include "debug_internal.h"
 #include "../rf/multi.h"
+#include "../rf/event.h"
 #include "../rf/geometry.h"
 #include "../os/console.h"
 #include <patch_common/MemUtils.h>
 #include <patch_common/CodeInjection.h>
+#include <patch_common/AsmWriter.h>
 
 struct DebugFlagDesc
 {
@@ -112,7 +115,56 @@ void debug_cmd_render_ui()
     dbg_particle_stats();
 }
 
+// draw links arrows from events
+CodeInjection event_render_patch{
+    0x004BD80B,
+    [](auto& regs) {
+        rf::GenericEvent* event = regs.eax;
+
+        if (event) {
+            rf::Vector3 event_pos = event->pos;
+            for (int link : event->links) {
+                rf::Object* link_target = rf::obj_from_handle(link);
+                if (link_target) {
+                    rf::gr::gr_line_arrow(
+                        event_pos.x, event_pos.y, event_pos.z,
+                        link_target->pos.x, link_target->pos.y, link_target->pos.z,
+                        128, 0, 255);
+                }
+                //xlog::warn("link: {}", rf::obj_from_handle(link)->name);
+            }
+        }
+    },
+};
+
+// draw link arrows from triggers
+CodeInjection trigger_render_patch{
+    0x004C05D4,
+    [](auto& regs) {
+        rf::Trigger* trigger = regs.esi;
+
+        if (trigger) {
+            rf::Vector3 trigger_pos = trigger->pos;
+            for (int link : trigger->links) {
+                rf::Object* link_target = rf::obj_from_handle(link);
+                if (link_target) {
+                    rf::gr::gr_line_arrow(
+                        trigger_pos.x, trigger_pos.y, trigger_pos.z,
+                        link_target->pos.x, link_target->pos.y, link_target->pos.z,
+                        0, 0, 255);
+                }
+            }
+        }
+    },
+};
+
 void debug_cmd_init()
 {
+    // events
+    event_render_patch.install();
+    trigger_render_patch.install();
+    AsmWriter{0x004BD86E}.push(0x3E000000); // event sprite radius 1.0f -> 0.25f
+
+    // command
     debug_cmd.register_cmd();
 }

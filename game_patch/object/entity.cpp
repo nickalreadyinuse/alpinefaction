@@ -205,7 +205,7 @@ CodeInjection entity_process_pre_hide_riot_shield_injection{
 };
 
 // in EventSpawnObject__turn_on
-CodeInjection entity_create_hook{
+/* CodeInjection entity_create_hook{
     0x004BC180,
     [](BaseCodeInjection::Regs& regs) {
         // Cast the entity pointer using the workaround
@@ -223,9 +223,9 @@ CodeInjection entity_create_hook{
             //xlog::warn("Entity UID: {}", testent->uid);
         }
     }
-};
+};*/
 
-ConsoleCommand2 testlink_cmd{
+/* ConsoleCommand2 testlink_cmd{
     "dbg_make_link",
     [](std::optional<int> from, std::optional<int> to) {
         if (from && to) {
@@ -243,7 +243,7 @@ ConsoleCommand2 testlink_cmd{
     },
     "make a link",
     "dbg_make_link",
-};
+};*/
 
 // avoids gibbing if gore level is too low or if this specific corpse shouldn't gib
 /* CodeInjection corpse_damage_patch{
@@ -475,8 +475,8 @@ CodeInjection player_create_entity_patch {
 
 void entity_do_patch()
 {
-    testlink_cmd.register_cmd();
-    entity_create_hook.install();
+    //testlink_cmd.register_cmd();
+    //entity_create_hook.install();
     //player_create_entity_patch.install(); // force team skin experiment
     //player_create_entity_nano_patch.install(); // nanoshield experiment
     //physics_calc_fall_damage_hook.install();

@@ -562,13 +562,13 @@ INT_PTR CALLBACK DialogLegacyLevel(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARA
 
 void ShowLegacyLevelDialog(int current_version, int new_version) {
     std::string message =
-        std::format("This level file was constructed using an older version of the level editor.\n\n"
+        std::format("This level file was constructed using an older version of RED.\n\n"
                     "The version of this level file is {}.\n\n"
-                    "Due to newly added features and capabilities that are not available in older client versions, "
-                    "this level editor saves Alpine Levels using version {}.\n\n"
+                    "Due to new Alpine Faction features and capabilities that are not available in older client versions, "
+                    "Alpine RED saves levels with version {}.\n\n"
                     "If you resave this file, it will be converted to an Alpine Level with version {}, "
-                    "and it will no longer be playable on legacy client versions.\n\n"
-                    "To learn more about Alpine Levels, click the button below to visit the Red Faction Wiki.",
+                    "and it will no longer be playable on non-Alpine legacy client versions.\n\n"
+                    "To learn more about Alpine Levels, click below to visit the Red Faction Wiki.",
                     current_version, new_version, new_version);
 
     DialogBoxParamA(
