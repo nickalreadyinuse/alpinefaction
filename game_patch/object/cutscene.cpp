@@ -3,6 +3,7 @@
 #include <patch_common/CodeInjection.h>
 #include <algorithm>
 #include <xlog/xlog.h>
+#include "../input/input.h"
 #include "../os/console.h"
 #include "../rf/player/player.h"
 #include "../rf/gr/gr.h"
@@ -51,9 +52,7 @@ FunHook<void(bool)> cutscene_do_frame_hook{
     0x0045B5E0,
     [](bool dlg_open) {
         bool skip_cutscene = false;
-        auto skip_cutscene_ctrl = g_game_config.skip_cutscene_ctrl.value() != -1
-            ? static_cast<rf::ControlConfigAction>(g_game_config.skip_cutscene_ctrl.value())
-            : default_skip_cutscene_ctrl;
+        auto skip_cutscene_ctrl = get_af_control(rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
         rf::control_config_check_pressed(&rf::local_player->settings.controls, skip_cutscene_ctrl, &skip_cutscene);
 
         if (!skip_cutscene) {
@@ -97,28 +96,6 @@ CallHook<bool(rf::Camera*)> cutscene_stop_current_camera_enter_first_person_hook
     },
 };
 
-ConsoleCommand2 skip_cutscene_bind_cmd{
-    "skip_cutscene_bind",
-    [](std::string bind_name) {
-        if (bind_name == "default") {
-            g_game_config.skip_cutscene_ctrl = -1;
-        }
-        else {
-            int ctrl = rf::control_config_find_action_by_name(&rf::local_player->settings, bind_name.c_str());
-            if (ctrl == -1) {
-                rf::console::print("Cannot find control: {}", bind_name);
-            }
-            else {
-                g_game_config.skip_cutscene_ctrl = ctrl;
-                g_game_config.save();
-                rf::console::print("Skip Cutscene bind changed to: {}", bind_name);
-            }
-        }
-    },
-    "Changes bind used to skip cutscenes",
-    "skip_cutscene_bind ctrl_name",
-};
-
 CodeInjection cutscene_shot_sync_fix{
     0x0045B43B,
     [](auto& regs) {
@@ -136,7 +113,6 @@ void cutscene_apply_patches()
 {
     // Support skipping cutscenes
     cutscene_do_frame_hook.install();
-    skip_cutscene_bind_cmd.register_cmd();
 
     // Fix crash if camera cannot be restored to first-person mode after cutscene
     cutscene_stop_current_camera_enter_first_person_hook.install();

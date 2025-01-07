@@ -345,7 +345,6 @@ ConsoleCommand2 cl_gorelevel_cmd{
         else {
             rf::console::print("Gore level is {}", rf::game_get_gore_level());
         }
-        
     },
     "Set gore level.",
     "cl_gorelevel [level]"

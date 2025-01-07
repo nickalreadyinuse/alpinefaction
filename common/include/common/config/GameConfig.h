@@ -34,7 +34,7 @@ struct GameConfig
     static unsigned min_fps_limit;
     static unsigned max_fps_limit;
     CfgVar<unsigned> max_fps{240, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
-    CfgVar<unsigned> server_max_fps{60, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
+    CfgVar<unsigned> server_max_fps{240, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
 
     enum class Renderer
     {
@@ -64,15 +64,14 @@ struct GameConfig
     CfgVar<bool> high_monitor_res = true;
     CfgVar<bool> true_color_textures = true;
     CfgVar<bool> damage_screen_flash = true;
-    CfgVar<bool> mesh_static_lighting = true;
-    CfgVar<bool> muzzle_flash = true;
+    CfgVar<bool> mesh_static_lighting = true;    
     CfgVar<bool> glares = true;
     CfgVar<bool> show_enemy_bullets = true;
-    //CfgVar<bool> gibs = true;
 
     CfgVar<bool> try_mesh_fullbright = false;
     CfgVar<bool> try_lightmaps_only = false;
     CfgVar<bool> try_disable_screenshake = false;
+    CfgVar<bool> try_disable_muzzle_flash = false;
 
     static constexpr float min_fov = 75.0f;
     static constexpr float max_fov = 160.0f;
@@ -99,7 +98,6 @@ struct GameConfig
     CfgVar<bool> linear_pitch = true;
     CfgVar<bool> swap_assault_rifle_controls = false;
     CfgVar<bool> swap_grenade_controls = false;
-    CfgVar<int> skip_cutscene_ctrl = -1;
 
     // Interface
     CfgVar<bool> fps_counter = true;
@@ -118,7 +116,7 @@ struct GameConfig
     CfgVar<bool> autosave = true;
 
     // Internal
-    CfgVar<std::string> dash_faction_version{""};
+    CfgVar<std::string> alpine_faction_version{""};
 
     bool load();
     void save();

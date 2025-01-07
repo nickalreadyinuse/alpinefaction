@@ -32,6 +32,7 @@ add_packfile(alpinefaction.vpp
     images/DF_red_1.tga
     images/reticle_1.tga
     images/reticle_rocket_1.tga
+    images/reticle_rocketlock_1.tga
     images/scope_ret_1.tga
     images/ammo_bar_1.tga
     images/ammo_bar_power_1.tga

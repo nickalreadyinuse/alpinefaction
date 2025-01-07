@@ -14,6 +14,11 @@
 
 static int starting_alpine_control_index = -1;
 
+rf::ControlConfigAction get_af_control(rf::AlpineControlConfigAction alpine_control)
+{
+    return static_cast<rf::ControlConfigAction>(starting_alpine_control_index + static_cast<int>(alpine_control));
+}
+
 FunHook<int(int16_t)> key_to_ascii_hook{
     0x0051EFC0,
     [](int16_t key) {
@@ -177,18 +182,20 @@ CodeInjection control_config_init_patch{
             starting_alpine_control_index = ccp->num_bindings;
         }        
 
-        alpine_control_config_add_item(
+        alpine_control_config_add_item( // F
             ccp, "(AF) Toggle headlamp", 0, 0x21, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT);
-        alpine_control_config_add_item(
+        alpine_control_config_add_item( // K
             ccp, "(AF) Skip cutscene", 0, 0x25, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
         alpine_control_config_add_item(
-            ccp, "(AF) Kill yourself", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
-        alpine_control_config_add_item(
+            ccp, "(AF) Respawn", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
+        alpine_control_config_add_item( // F1
             ccp, "(AF) Vote yes", 0, 0x3B, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
-        alpine_control_config_add_item(
+        alpine_control_config_add_item( // F2
             ccp, "(AF) Vote no", 0, 0x3C, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
-        alpine_control_config_add_item(
+        alpine_control_config_add_item( // F3
             ccp, "(AF) Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
+        alpine_control_config_add_item(
+            ccp, "(AF) Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
     },
 };
 
@@ -202,20 +209,26 @@ CodeInjection player_execute_action_patch{
 
         // only intercept alpine controls
         if (action_index >= starting_alpine_control_index) {
-            if (action_index == starting_alpine_control_index +
-                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT) &&
-                !rf::is_multi) {
+            if (action_index == static_cast<int>(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT))
+                && !rf::is_multi) {
                 (rf::entity_headlamp_is_on(rf::local_player_entity))
                     ? rf::entity_headlamp_turn_off(rf::local_player_entity)
                     : rf::entity_headlamp_turn_on(rf::local_player_entity);
             }
             else if (action_index == starting_alpine_control_index +
-                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE)) {
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE) &&
+                !rf::is_multi) {
                 
             }
             else if (action_index == starting_alpine_control_index +
-                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL)) {
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL) &&
+                rf::is_multi) {
                 rf::player_kill_self(rf::local_player);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG) &&
+                rf::is_multi && !rf::is_server) {
+                send_chat_line_packet("/dropflag", nullptr);
             }
         }
     },
@@ -259,7 +272,7 @@ CodeInjection controls_process_patch{
 
         // C++ doesn't have a way to dynamically get the last enum index, so just update this when adding new controls
         if (index >= starting_alpine_control_index &&
-            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_READY)) {
+            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG)) {
             //xlog::warn("passing control {}", index);
             regs.eip = 0x00430E24;
         }

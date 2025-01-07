@@ -27,10 +27,12 @@ Rafalh:
 
 nick:
 * Extensive advice on virtually every aspect of the project
-* Beta testing
 
 natalie <webmistress@natalie.ee>:
 * Technical assistance and advice
+
+HeyItsDuke:
+* Rocket launcher lock on reticle for Big HUD
 
 Beta testers:
 * nick

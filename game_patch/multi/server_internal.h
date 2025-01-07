@@ -132,9 +132,10 @@ struct ServerAdditionalConfig
     bool upnp_enabled = true;
     std::optional<int> force_player_character;
     std::optional<float> max_fov;
-    bool allow_fullbright_meshes = false;
-    bool allow_lightmaps_only = false;
-    bool allow_disable_screenshake = false;
+    bool allow_fullbright_meshes = true;
+    bool allow_lightmaps_only = true;
+    bool allow_disable_screenshake = true;
+    bool allow_disable_muzzle_flash = true;
     int anticheat_level = 0;
     int click_limiter_fire_wait = 50;
     bool stats_message_enabled = true;

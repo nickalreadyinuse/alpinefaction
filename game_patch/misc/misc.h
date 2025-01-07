@@ -14,3 +14,4 @@ void g_solid_render_ui();
 bool tc_mod_is_loaded();
 bool af_rfl_version(int version);
 void evaluate_restrict_disable_ss();
+void evaluate_restrict_disable_muzzle_flash();

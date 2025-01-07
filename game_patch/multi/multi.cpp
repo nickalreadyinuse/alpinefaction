@@ -489,7 +489,7 @@ void start_level_in_multi(std::string filename) {
         *reinterpret_cast<int*>(0x0064EC40) = 0;                                    // server options flags (team damage, fall damage, etc.)
         *reinterpret_cast<rf::String*>(0x0064EC28) = "Alpine Faction Test Server";  // server name
         //*reinterpret_cast<rf::String*>(0x0064EC30) = "password";                    // password
-        *reinterpret_cast<int*>(0x0064EC3C) = 0;                                    // game type
+        *reinterpret_cast<int*>(0x0064EC3C) = string_starts_with_ignore_case(filename, "ctf") ? 1 : 0; // game type
         *reinterpret_cast<int*>(0x0064EC40) &= 0xFFFFFBFF;                          // do not broadcast to tracker
 
         rf::multi_hud_clear_chat();

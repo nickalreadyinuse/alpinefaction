@@ -44,6 +44,7 @@ namespace rf
         AF_ACTION_VOTE_YES = 0x3,
         AF_ACTION_VOTE_NO = 0x4,
         AF_ACTION_READY = 0x5,
+        AF_ACTION_DROP_FLAG = 0x6,
     };
 
     struct ControlConfigItem

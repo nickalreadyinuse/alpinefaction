@@ -680,7 +680,8 @@ struct DashFactionJoinAcceptPacketExt
         allow_fb_mesh       = 1 << 2,
         allow_lmap          = 1 << 3,
         allow_no_ss         = 1 << 4,
-        no_player_collide = 1 << 5,
+        no_player_collide   = 1 << 5,
+        allow_no_mf         = 1 << 6,
     } flags = Flags::none;
 
     float max_fov;
@@ -722,6 +723,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_no_player_collide()) {
             ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::no_player_collide;
         }
+        if (server_allow_disable_muzzle_flash()) {
+            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_no_mf;
+        }
         auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
     },
@@ -747,6 +751,7 @@ CodeInjection process_join_accept_injection{
             server_info.allow_lmap = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_lmap);
             server_info.allow_no_ss = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_ss);
             server_info.no_player_collide = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::no_player_collide);
+            server_info.allow_no_mf = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_mf);
 
             constexpr float default_fov = 90.0f;
             if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
@@ -975,17 +980,17 @@ ConsoleCommand2 update_rate_cmd{
         if (update_rate) {
             if (rf::is_server) {
                 // By default server-side update-rate is set to 1/0.085 ~= 12, don't allow lower values
-                g_update_rate = std::clamp(update_rate.value(), 12, 240); // up from 60
-                if (g_update_rate > 30) {
+                g_update_rate = std::clamp(update_rate.value(), 30, 60);
+                /* if (g_update_rate > 30) {
                     static rf::Color yellow{255, 255, 0, 255};
                     rf::console::output(
                         "Server update rate greater than 30 is not recommended. It can cause jitter for clients with "
                         "default update rate and break hit registration for clients with high ping.", &yellow);
-                }
+                }*/
             }
             else {
                 // By default client-side update-rate is set to 20, don't allow lower values
-                g_update_rate = std::clamp(update_rate.value(), 20, 240); // up from 60
+                g_update_rate = std::clamp(update_rate.value(), 30, 240); // up from 60
             }
         }
         rf::console::print("Update rate per second: {}", g_update_rate);

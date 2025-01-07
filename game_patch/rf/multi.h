@@ -174,6 +174,8 @@ namespace rf
     static auto& multi_time_limit = addr_as_ref<float>(0x0064EC4C);
     static auto& multi_kill_limit = addr_as_ref<int>(0x0064EC50);
     static auto& multi_cap_limit = addr_as_ref<int>(0x0064EC58);
+    static auto& ctf_flag_cooldown_timestamp = addr_as_ref<Timestamp>(0x006C74F4);
+    static auto& multi_ctf_drop_flag = addr_as_ref<void(Player* pp)>(0x00473F40);
     static auto& multi_ctf_get_red_team_score = addr_as_ref<uint8_t()>(0x00475020);
     static auto& multi_ctf_get_blue_team_score = addr_as_ref<uint8_t()>(0x00475030);
     static auto& multi_ctf_get_red_flag_player = addr_as_ref<Player*()>(0x00474E60);

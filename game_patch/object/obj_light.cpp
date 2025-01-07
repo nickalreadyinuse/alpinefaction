@@ -22,6 +22,8 @@
 
 void gr_light_use_static(bool use_static);
 
+bool server_side_restrict_disable_muzzle_flash = false;
+
 void obj_mesh_lighting_alloc_one(rf::Object *objp)
 {
     // Note: ObjDeleteMesh frees mesh_lighting_data
@@ -167,20 +169,42 @@ ConsoleCommand2 mesh_static_lighting_cmd{
 CallHook<void(rf::Entity&)> entity_update_muzzle_flash_light_hook{
     0x0041E814,
     [](rf::Entity& ep) {
-        if (g_game_config.muzzle_flash) {
+        if (g_game_config.try_disable_muzzle_flash && !server_side_restrict_disable_muzzle_flash) {
+            return;
+        }
+        entity_update_muzzle_flash_light_hook.call_target(ep);
+        /* if (g_game_config.try_disable_muzzle_flash) {
             entity_update_muzzle_flash_light_hook.call_target(ep);
-        }        
+        }*/
     },
 };
+
+void evaluate_restrict_disable_muzzle_flash()
+{
+    server_side_restrict_disable_muzzle_flash =
+        rf::is_multi && !rf::is_server && get_df_server_info() && !get_df_server_info()->allow_no_mf;
+
+    if (server_side_restrict_disable_muzzle_flash) {
+        if (g_game_config.try_disable_muzzle_flash) {
+            rf::console::print("This server does not allow you to disable muzzle flash lights!");
+        }
+    }
+}
 
 ConsoleCommand2 muzzle_flash_cmd{
     "r_muzzleflash",
     []() {
-        g_game_config.muzzle_flash = !g_game_config.muzzle_flash;
+        g_game_config.try_disable_muzzle_flash = !g_game_config.try_disable_muzzle_flash;
         g_game_config.save();
-        rf::console::print("Muzzle flash lights are {}", g_game_config.muzzle_flash ? "enabled" : "disabled");
+
+        evaluate_restrict_disable_muzzle_flash();
+
+        rf::console::print("Muzzle flash lights are {}",
+                           g_game_config.try_disable_muzzle_flash
+                               ? "disabled. In multiplayer, this will only apply if the server allows it."
+                               : "enabled.");
     },
-    "Toggle muzzle flash dynamic lights",
+    "Disable muzzle flash lights. In multiplayer, this is only applied if the server allows it.",
 };
 
 ConsoleCommand2 fullbright_models_cmd{

@@ -15,6 +15,7 @@ bool server_allow_fullbright_meshes();
 bool server_allow_lightmaps_only();
 bool server_allow_disable_screenshake();
 bool server_no_player_collide();
+bool server_allow_disable_muzzle_flash();
 void server_reliable_socket_ready(rf::Player* player);
 bool server_weapon_items_give_full_ammo();
 bool server_weapon_infinite_magazines();
