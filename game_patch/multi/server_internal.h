@@ -129,7 +129,7 @@ struct ServerAdditionalConfig
     float player_damage_modifier = 1.0f;
     bool saving_enabled = false;
     bool no_player_collide = false;
-    bool upnp_enabled = true;
+    bool upnp_enabled = false;
     std::optional<int> force_player_character;
     std::optional<float> max_fov;
     bool allow_fullbright_meshes = true;

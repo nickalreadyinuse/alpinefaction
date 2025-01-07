@@ -118,6 +118,8 @@ Version 1.0.0
 - Add functions to launch a test listen server on-demand: `levelm` console command, `-levelm` command line, and `Play (multi)` button in RED
 - Add controls for vote yes, vote no, and ready for match
 - Add link drawing to `debug event` and `debug trigger`
+- Add Big HUD version of rocket lock on reticle (contribution from HeyItsDuke)
+- Add CTF flag dropping functionality and control
 
 
 

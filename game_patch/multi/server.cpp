@@ -135,7 +135,7 @@ void parse_spawn_protection(rf::Parser& parser)
 
 void parse_respawn_logic(rf::Parser& parser)
 {
-    if (parser.parse_optional("$Player Respawn Logic:")) {
+    if (parser.parse_optional("$Player Respawn Logic")) {
         rf::console::print("Parsing Player Respawn Logic...");
 
         parse_boolean_option(parser, "+Respect Team Spawns:", g_additional_server_config.new_spawn_logic.respect_team_spawns, "+Respect Team Spawns");
@@ -239,16 +239,6 @@ void parse_weapon_stay_exemptions(rf::Parser& parser) {
     }
 }
 
-void parse_item_respawn_time_override(rf::Parser& parser) {
-    while (parser.parse_optional("$Item Respawn Time Override:")) {
-        rf::String item_name;
-        parser.parse_string(&item_name);
-        auto new_time = parser.parse_uint();
-        g_additional_server_config.item_respawn_time_overrides[item_name.c_str()] = new_time;
-        rf::console::print("Item Respawn Time Override: {} -> {}ms", item_name.c_str(), new_time);
-    }
-}
-
 void parse_weapon_ammo_settings(rf::Parser& parser) {
     if (parser.parse_optional("$Weapon Items Give Full Ammo:")) {
         g_additional_server_config.weapon_items_give_full_ammo = parser.parse_bool();
@@ -294,7 +284,7 @@ void parse_force_character(rf::Parser& parser) {
 }
 
 void parse_kill_rewards(rf::Parser& parser) {
-    if (parser.parse_optional("$Kill Reward:")) {
+    if (parser.parse_optional("$Kill Reward")) {
         rf::console::print("Parsing Kill Rewards...");
         parse_float_option(parser, "+Effective Health:", g_additional_server_config.kill_reward_effective_health, "Kill Reward: Effective Health");
         parse_float_option(parser, "+Health:", g_additional_server_config.kill_reward_health, "Kill Reward: Health");
@@ -333,6 +323,26 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     }
 }
 
+void parse_item_respawn_time_override(rf::Parser& parser) {
+    while (parser.parse_optional("$Item Respawn Time Override:")) {
+        rf::String item_name;
+        parser.parse_string(&item_name);
+        auto new_time = parser.parse_uint();
+        g_additional_server_config.item_respawn_time_overrides[item_name.c_str()] = new_time;
+        rf::console::print("Item Respawn Time Override: {} -> {}ms", item_name.c_str(), new_time);
+    }
+}
+
+void parse_item_replacements(rf::Parser& parser) {
+    while (parser.parse_optional("$Item Replacement:")) {
+        rf::String old_item, new_item;
+        parser.parse_string(&old_item);
+        parser.parse_string(&new_item);
+        g_additional_server_config.item_replacements[old_item.c_str()] = new_item.c_str();
+        rf::console::print("Item Replaced: {} -> {}", old_item.c_str(), new_item.c_str());
+    }
+}
+
 void load_additional_server_config(rf::Parser& parser) {
     // Vote config
     parse_vote_config("Vote Kick", g_additional_server_config.vote_kick, parser);
@@ -352,7 +362,6 @@ void load_additional_server_config(rf::Parser& parser) {
     parse_critical_hits(parser);
     parse_overtime(parser);
     parse_weapon_stay_exemptions(parser);
-    parse_item_respawn_time_override(parser);
     parse_weapon_ammo_settings(parser);
     parse_default_player_weapon(parser);
     parse_force_character(parser);
@@ -368,14 +377,18 @@ void load_additional_server_config(rf::Parser& parser) {
             g_additional_server_config.max_fov = {max_fov};
         }
     }
+
+    // Repeatable config
+    parse_item_respawn_time_override(parser);
+    parse_item_replacements(parser);
     
-    if (parser.parse_optional("$Item Replacement:")) {
+    /* if (parser.parse_optional("$Item Replacement:")) {
         rf::String old_item, new_item;
         parser.parse_string(&old_item);
         parser.parse_string(&new_item);
         g_additional_server_config.item_replacements[old_item.c_str()] = new_item.c_str();
         rf::console::print("Item Replaced: {} -> {}", old_item.c_str(), new_item.c_str());
-    }
+    }*/
 }
 
 /*
