@@ -173,9 +173,6 @@ CallHook<void(rf::Entity&)> entity_update_muzzle_flash_light_hook{
             return;
         }
         entity_update_muzzle_flash_light_hook.call_target(ep);
-        /* if (g_game_config.try_disable_muzzle_flash) {
-            entity_update_muzzle_flash_light_hook.call_target(ep);
-        }*/
     },
 };
 
@@ -204,7 +201,7 @@ ConsoleCommand2 muzzle_flash_cmd{
                                ? "disabled. In multiplayer, this will only apply if the server allows it."
                                : "enabled.");
     },
-    "Disable muzzle flash lights. In multiplayer, this is only applied if the server allows it.",
+    "Toggle muzzle flash lights. In multiplayer, this is only applied if the server allows it.",
 };
 
 ConsoleCommand2 fullbright_models_cmd{

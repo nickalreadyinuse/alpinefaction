@@ -53,7 +53,7 @@ void evaluate_restrict_disable_ss()
 }
 
 ConsoleCommand2 disable_screenshake_cmd{
-    "disable_screenshake",
+    "r_screenshake",
     []() {
         g_game_config.try_disable_screenshake = !g_game_config.try_disable_screenshake;
         g_game_config.save();
