@@ -37,7 +37,7 @@ enum class AlpineDedEventID : int
     Valid_Gate,
     Goal_Math,
     Goal_Gate,
-    Environment_Gate,
+    Scope_Gate,
     Inside_Gate,
     Anchor_Marker,
     Force_Unhide,

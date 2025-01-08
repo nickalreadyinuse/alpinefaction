@@ -88,13 +88,17 @@ namespace rf
         force_off
     };
 
-    enum class EnvironmentGateTests : int
+    enum class ScopeGateTests : int
     {
         multi,
         single,
         server,
         dedicated,
-        client
+        client,
+        triggered_by,
+        blue_team,
+        red_team,
+        has_flag
     };
 
     enum class GoalInsideCheckSubject : int
@@ -985,20 +989,20 @@ namespace rf
 
             // Log test result
             if (pass) {
-                xlog::warn("Test '{}' passed for EventGoalGate UID {}", static_cast<int>(test_type), this->uid);
+                //xlog::warn("Test '{}' passed for EventGoalGate UID {}", static_cast<int>(test_type), this->uid);
                 activate_links(this->trigger_handle, this->triggered_by_handle, true);
             }
             else {
-                xlog::warn("Test '{}' failed for EventGoalGate UID {}", static_cast<int>(test_type), this->uid);
+                //xlog::warn("Test '{}' failed for EventGoalGate UID {}", static_cast<int>(test_type), this->uid);
             }
         }
     };
 
 
     // id 116
-    struct EventEnvironmentGate : Event
+    struct EventScopeGate : Event
     {
-        EnvironmentGateTests environment = EnvironmentGateTests::multi;
+        ScopeGateTests scope = ScopeGateTests::multi;
 
         void register_variable_handlers() override
         {
@@ -1007,8 +1011,8 @@ namespace rf
             auto& handlers = variable_handler_storage[this];
 
             handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
-                auto* this_event = static_cast<EventEnvironmentGate*>(event);
-                this_event->environment = static_cast<EnvironmentGateTests>(std::stoi(value));
+                auto* this_event = static_cast<EventScopeGate*>(event);
+                this_event->scope = static_cast<ScopeGateTests>(std::stoi(value));
             };
         }
 
@@ -1016,21 +1020,33 @@ namespace rf
         {
             bool pass = false;
 
-            switch (environment) {
-            case EnvironmentGateTests::multi:
+            switch (scope) {
+            case ScopeGateTests::multi:
                 pass = is_multi;
                 break;
-            case EnvironmentGateTests::single:
+            case ScopeGateTests::single:
                 pass = !is_multi;
                 break;
-            case EnvironmentGateTests::server:
+            case ScopeGateTests::server:
                 pass = (is_server || is_dedicated_server);
                 break;
-            case EnvironmentGateTests::dedicated:
+            case ScopeGateTests::dedicated:
                 pass = is_dedicated_server;
                 break;
-            case EnvironmentGateTests::client:
-                pass = (!is_server && !is_dedicated_server);
+            case ScopeGateTests::client:
+                pass = !(is_server || is_dedicated_server);
+                break;
+            case ScopeGateTests::triggered_by:
+                pass = (local_player && (local_player->entity_handle == this->triggered_by_handle));
+                break;
+            case ScopeGateTests::red_team:
+                pass = (local_player_entity && (local_player_entity->team == 1));
+                break;
+            case ScopeGateTests::blue_team:
+                pass = (local_player_entity && (local_player_entity->team == 0));
+                break;
+            case ScopeGateTests::has_flag:
+                pass = (local_player && (multi_ctf_get_blue_flag_player() == local_player || multi_ctf_get_red_flag_player() == local_player));
                 break;
             default:
                 break;

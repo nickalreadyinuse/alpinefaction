@@ -402,7 +402,7 @@ $RFE Level1:      "AF_Flow"
 $Event Name:      "Goal_Gate"
 $RFE Level1:      "AF_Flow"
 
-$Event Name:      "Environment_Gate"
+$Event Name:      "Scope_Gate"
 $RFE Level1:      "AF_Flow"
 
 $Event Name:      "Inside_Gate"

@@ -58,7 +58,7 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"Valid_Gate", 113},
                 {"Goal_Math", 114},
                 {"Goal_Gate", 115},
-                {"Environment_Gate", 116},
+                {"Scope_Gate", 116},
                 {"Inside_Gate", 117},
                 {"Anchor_Marker", 118},
                 {"Force_Unhide", 119},
@@ -116,7 +116,7 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {113, []() { return new rf::EventValidGate(); }},
                 {114, []() { return new rf::EventGoalMath(); }},
                 {115, []() { return new rf::EventGoalGate(); }},
-                {116, []() { return new rf::EventEnvironmentGate(); }},
+                {116, []() { return new rf::EventScopeGate(); }},
                 {117, []() { return new rf::EventInsideGate(); }},
                 {118, []() { return new rf::EventAnchorMarker(); }},
                 {119, []() { return new rf::EventForceUnhide(); }},
@@ -178,7 +178,7 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {113, [](rf::Event* e) { delete static_cast<rf::EventValidGate*>(e); }},
                 {114, [](rf::Event* e) { delete static_cast<rf::EventGoalMath*>(e); }},
                 {115, [](rf::Event* e) { delete static_cast<rf::EventGoalGate*>(e); }},
-                {116, [](rf::Event* e) { delete static_cast<rf::EventEnvironmentGate*>(e); }},
+                {116, [](rf::Event* e) { delete static_cast<rf::EventScopeGate*>(e); }},
                 {117, [](rf::Event* e) { delete static_cast<rf::EventInsideGate*>(e); }},
                 {118, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarker*>(e); }},
                 {119, [](rf::Event* e) { delete static_cast<rf::EventForceUnhide*>(e); }},
@@ -227,7 +227,7 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Add_Link,
         rf::EventType::Valid_Gate,
         rf::EventType::Goal_Gate,
-        rf::EventType::Environment_Gate,
+        rf::EventType::Scope_Gate,
         rf::EventType::Inside_Gate,
         rf::EventType::AF_When_Dead,
         rf::EventType::Gametype_Gate,
@@ -423,13 +423,13 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             return event;
         }
     },
-    // Environment_Gate
+    // Scope_Gate
     {
-        rf::EventType::Environment_Gate, [](const rf::EventCreateParams& params) {
-            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Environment_Gate));
-            auto* event = dynamic_cast<rf::EventEnvironmentGate*>(base_event);
+        rf::EventType::Scope_Gate, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Scope_Gate));
+            auto* event = dynamic_cast<rf::EventScopeGate*>(base_event);
             if (event) {
-                event->environment = static_cast<rf::EnvironmentGateTests>(params.int1);
+                event->scope = static_cast<rf::ScopeGateTests>(params.int1);
             }
             return event;
         }

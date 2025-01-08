@@ -56,7 +56,7 @@ const char* additional_event_names[new_event_count] = {
     "Valid_Gate",
     "Goal_Math",
     "Goal_Gate",
-    "Environment_Gate",
+    "Scope_Gate",
     "Inside_Gate",
     "Anchor_Marker",
     "Force_Unhide",
@@ -379,10 +379,10 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             {FIELD_INT1, true}
         }
     }},
-    {AlpineDedEventID::Environment_Gate, {
+    {AlpineDedEventID::Scope_Gate, {
         {FIELD_INT1},
         {
-            {FIELD_INT1, "Environment to test for (int1):"}
+            {FIELD_INT1, "Scope to test against (int1):"}
         },
         {
             {FIELD_INT1,
@@ -390,7 +390,11 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
                 "Single player",
                 "Server",
                 "Dedicated server",
-                "Client"
+                "Client",
+                "Triggering player",
+                "Red team",
+                "Blue team",
+                "Player that has flag"
                 }
             }
         },
