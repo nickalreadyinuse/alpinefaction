@@ -48,6 +48,7 @@ add_packfile(alpinefaction.vpp
     images/bullet_icon_rocket_1.tga
     images/bullet_icon_shotgun_1.tga
     images/gore1.tga
+    images/fle_gore1.tga
     images/enviro0_1.tga
     images/enviro10_1.tga
     images/enviro20_1.tga

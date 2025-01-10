@@ -153,7 +153,7 @@ void set_big_hud(bool is_big)
 }
 
 ConsoleCommand2 bighud_cmd{
-    "cl_bighud",
+    "bighud",
     []() {
         if (!g_game_config.big_hud && is_screen_resolution_too_low_for_big_hud()) {
             rf::console::print("Screen resolution is too low for big HUD!");

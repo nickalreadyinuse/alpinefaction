@@ -240,7 +240,9 @@ INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
             SetBkMode(hdc, TRANSPARENT);           // Transparent background
             SetTextColor(hdc, RGB(255, 255, 255)); // Always white text
 
-            std::string version_text = "AF v0.0.1-dev"; // todo pull from version.h
+            //std::string version_text = "AF v0.0.1-dev"; // todo pull from version.h
+            std::string version_text = std::format("AF {}", VERSION_STR);
+
 
             DrawText(hdc, version_text.c_str(), -1, &lpDrawItem->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 

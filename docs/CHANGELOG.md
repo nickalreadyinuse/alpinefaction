@@ -21,7 +21,6 @@ Version 1.0.0
 - Add correct scaling for geomod crater texture based on resolution
 - Add `server_password` command
 - Add `server_rcon_password` command
-- Make player maintain relative velocity when teleporting
 - Add `$DF Overtime Enabled` option in dedicated server config
 - Add support for bluebeard.bty (sound config file) in mods
 - Add `toggle_crouch` command to allow players to switch between toggle crouch and hold crouch (default)
@@ -45,7 +44,7 @@ Version 1.0.0
 - Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
 - Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
 - Add support for mod authors to change hardcoded values via new `.tbl` files in mod folder
-- Add support for clientside mod authors to change some safe hardcoded values via `af_clientX.tbl` in `client_mods`
+- Add support for clientside mod authors to change some safe hardcoded values via `af_client.tbl` in `client_mods`
 - Lower minimum character count for console tab complete to 1
 - Add `$DF GunGame` option in dedicated server config
 - Add framework in game and editor for custom events
@@ -110,7 +109,6 @@ Version 1.0.0
 - Allow autocomplete for map filenames from 1 character
 - Update `/whosready` chat command (for match mode ready up system) to broadcast to all players
 - Add 3D arrows to level editor for stock events `Play_Vclip` and `Teleport` (as well as some new AF events)
-- Stop the riot shield from being destroyed in multiplayer
 - Implement framework for custom AF controls, and controls for flashlight, kill self, and skip cutscene
 - Implement new launcher GUI
 - Raise max FPS limit to 10000
@@ -120,6 +118,7 @@ Version 1.0.0
 - Add link drawing to `debug event` and `debug trigger`
 - Add Big HUD version of rocket lock on reticle (contribution from HeyItsDuke)
 - Add CTF flag dropping functionality and control
+- Add framework for `mapname_info.tbl` loading and initial set of options
 
 
 

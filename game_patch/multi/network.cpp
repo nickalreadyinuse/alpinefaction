@@ -47,7 +47,7 @@
 #define NET_IFINDEX_UNSPECIFIED 0
 #endif
 
-int g_update_rate = 30; // up from 30
+int g_update_rate = 30; // client netfps
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 
@@ -970,30 +970,18 @@ CodeInjection server_update_rate_injection{
     0x0047E891,
     [](auto& regs) {
         auto& min_send_obj_update_interval = *static_cast<int*>(regs.esp);
-        min_send_obj_update_interval = 1000 / g_update_rate;
+        min_send_obj_update_interval = 1000 / g_game_config.server_netfps;
     },
 };
 
-ConsoleCommand2 update_rate_cmd{
-    "net_updaterate",
+ConsoleCommand2 netfps_cmd{
+    "sv_netfps",
     [](std::optional<int> update_rate) {
         if (update_rate) {
-            if (rf::is_server) {
-                // By default server-side update-rate is set to 1/0.085 ~= 12, don't allow lower values
-                g_update_rate = std::clamp(update_rate.value(), 30, 60);
-                /* if (g_update_rate > 30) {
-                    static rf::Color yellow{255, 255, 0, 255};
-                    rf::console::output(
-                        "Server update rate greater than 30 is not recommended. It can cause jitter for clients with "
-                        "default update rate and break hit registration for clients with high ping.", &yellow);
-                }*/
-            }
-            else {
-                // By default client-side update-rate is set to 20, don't allow lower values
-                g_update_rate = std::clamp(update_rate.value(), 30, 240); // up from 60
-            }
+            // By default server-side update-rate is set to 1/0.085 ~= 12
+            g_game_config.server_netfps = std::clamp(update_rate.value(), 12, 300);
         }
-        rf::console::print("Update rate per second: {}", g_update_rate);
+        rf::console::print("Server netfps: {}", g_game_config.server_netfps.value());
     },
 };
 
@@ -1231,7 +1219,7 @@ void network_init()
     // Allow changing client and server update rate
     client_update_rate_injection.install();
     server_update_rate_injection.install();
-    update_rate_cmd.register_cmd();
+    netfps_cmd.register_cmd();
 
     // Fix rotation interpolation (Y axis) when it goes from 360 to 0 degrees
     obj_interp_rotation_fix.install();

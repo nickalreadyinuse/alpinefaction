@@ -87,6 +87,7 @@ struct GameConfig
     // Multiplayer
     static const char default_rf_tracker[];
     CfgVar<std::string> tracker{default_rf_tracker};
+    CfgVar<unsigned> server_netfps = 30;
 
     static constexpr unsigned default_update_rate = 200000; // T1/LAN in stock launcher
     CfgVar<unsigned> update_rate = default_update_rate;

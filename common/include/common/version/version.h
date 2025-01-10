@@ -18,8 +18,8 @@
 #define VERSION_MAJOR          0
 #define VERSION_MINOR          0
 #define VERSION_PATCH          1
-#define VERSION_TYPE           VERSION_TYPE_DEV
-#define VERSION_TYPE_REVISION  1
+#define VERSION_TYPE           VERSION_TYPE_BETA
+#define VERSION_TYPE_REVISION  2
 
 // Increment only when absolutely necessary! (will break level compatibility for older clients)
 // Stock RF1 uses versions 156 - 200. RF2 uses version 295
