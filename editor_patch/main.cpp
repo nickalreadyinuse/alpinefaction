@@ -140,9 +140,6 @@ CodeInjection CDialog_DoModal_injection{
         if (lpszTemplateName == MAKEINTRESOURCE(IDD_TRIGGER_PROPERTIES)) {
             hCurrentResourceHandle = reinterpret_cast<int>(g_module);
         }
-        /* if (lpszTemplateName == MAKEINTRESOURCE(IDD_ALPINE_EVENT_PROPERTIES)) {
-            hCurrentResourceHandle = reinterpret_cast<int>(g_module);
-        }*/
     },
 };
 
@@ -304,6 +301,11 @@ void CMainFrame_OpenHotkeysHelp(CWnd* this_)
     ShellExecuteA(WndToHandle(this_), "open", "https://redfactionwiki.com/wiki/RED_Hotkey_Reference", nullptr, nullptr, SW_SHOW);
 }
 
+void CMainFrame_OpenAlpineHelp(CWnd* this_)
+{
+    ShellExecuteA(WndToHandle(this_), "open", "https://redfactionwiki.com/wiki/Alpine_Level_Design", nullptr, nullptr, SW_SHOW);
+}
+
 void CMainFrame_HideAllObjects(CWnd* this_)
 {
     AddrCaller{0x0042DCA0}.this_call(GetLevelFromMainFrame(this_));
@@ -377,6 +379,9 @@ BOOL __fastcall CMainFrame_OnCmdMsg(CWnd* this_, int, UINT nID, int nCode, void*
                 break;
             case ID_WIKI_HOTKEYS:
                 handler = std::bind(CMainFrame_OpenHotkeysHelp, this_);
+                break;
+            case ID_WIKI_ALPINE_HELP:
+                handler = std::bind(CMainFrame_OpenAlpineHelp, this_);
                 break;
             case ID_HIDE_ALL_OBJECTS:
                 handler = std::bind(CMainFrame_HideAllObjects, this_);
@@ -742,14 +747,14 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
 
     // Fix F4 key (Maximize active viewport) for screens larger than 1024x768
     constexpr int max_size = 0x7FFF;
-    write_mem<int>(0x0044770D + 1, max_size);
-    write_mem<int>(0x0044771D + 1, max_size);
-    write_mem<int>(0x00447750 + 1, -max_size);
-    write_mem<int>(0x004477E1 + 1, -max_size);
-    write_mem<int>(0x00447797 + 1, max_size);
-    write_mem<int>(0x00447761 + 1, max_size);
-    write_mem<int>(0x004477A0 + 2, -max_size);
-    write_mem<int>(0x004477EE + 2, -max_size);
+    write_mem<int>(0x0044770D + 1, max_size); // 1 cx
+    write_mem<int>(0x0044771D + 1, max_size); // 1 cy
+    write_mem<int>(0x00447750 + 1, -max_size); // 2 add cx
+    write_mem<int>(0x004477E1 + 1, -max_size); // 4 add cx crash
+    write_mem<int>(0x00447797 + 1, max_size); // 3 cx
+    write_mem<int>(0x00447761 + 1, max_size); // 3 cy
+    write_mem<int>(0x004477A0 + 2, -max_size); // 3 lea
+    write_mem<int>(0x004477EE + 2, -max_size); // 4 lea
 
     // Fix editor crash when building geometry after lightmap resolution for a face was set to Undefined
     write_mem<i8>(0x00402DFA + 1, 0);

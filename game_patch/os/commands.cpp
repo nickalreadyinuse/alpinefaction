@@ -77,14 +77,58 @@ DcCommandAlias map_cmd{
     level_cmd,
 };
 
+void print_basic_level_info() {
+    rf::console::print("Filename: {}", rf::level.filename);
+    rf::console::print("Name: {}", rf::level.name);
+    rf::console::print("Author: {}", rf::level.author);
+    rf::console::print("Date: {}", rf::level.level_date);
+
+    std::string version_text;
+    if (rf::level.version == 175) {
+        version_text = "Official - PS2 retail";
+    }
+    else if (rf::level.version == 180) {
+        version_text = "Official - PC retail";
+    }
+    else if (rf::level.version == 200) {
+        version_text = "Community - RF/PF/DF";
+    }
+    else if (rf::level.version > 0 && rf::level.version < 200) {
+        version_text = "Official - Internal";
+    }
+    else if (rf::level.version >= 300) {
+        version_text = "Community - Alpine";
+    }
+    else {
+        version_text = "Unsupported";
+    }
+    rf::console::print("RFL File Version: {} ({})", rf::level.version, version_text);
+}
+
 ConsoleCommand2 level_info_cmd{
     "level_info",
     []() {
         if (rf::level.flags & rf::LEVEL_LOADED) {
-            rf::console::print("Filename: {}", rf::level.filename);
-            rf::console::print("Name: {}", rf::level.name);
-            rf::console::print("Author: {}", rf::level.author);
-            rf::console::print("Date: {}", rf::level.level_date);
+            print_basic_level_info();
+        }
+        else {
+            rf::console::print("No level loaded!");
+        }
+    },
+    "Shows basic information about the current level",
+};
+
+DcCommandAlias map_info_cmd{
+    "map_info",
+    level_info_cmd,
+};
+
+ConsoleCommand2 level_info_ext_cmd{
+    "level_info_ext",
+    []() {
+        if (rf::level.flags & rf::LEVEL_LOADED) {
+            print_basic_level_info(); // print basic info before continuing
+
             rf::console::print("Has Skybox? {}", rf::level.has_skyroom);
             rf::console::print("Hardness: {}", rf::level.default_rock_hardness);
             rf::console::print("Ambient Light: {}, {}, {}",
@@ -92,38 +136,17 @@ ConsoleCommand2 level_info_cmd{
             rf::console::print("Distance Fog: {}, {}, {}, near clip: {}, far clip: {}",
                 rf::level.distance_fog_color.red, rf::level.distance_fog_color.green, rf::level.distance_fog_color.blue,
                 rf::level.distance_fog_near_clip, rf::level.distance_fog_far_clip);
-
-            std::string version_text;
-            if (rf::level.version == 175) {
-                version_text = "Official - PS2 retail";
-            }
-            else if (rf::level.version == 180) {
-                version_text = "Official - PC retail";
-            }
-            else if (rf::level.version == 200) {
-                version_text = "Community - RF/PF/DF";
-            }
-            else if (rf::level.version > 0 && rf::level.version < 200) {
-                version_text = "Official - Internal";
-            }            
-            else if (rf::level.version >= 300) {
-                version_text = "Community - Alpine";
-            }
-            else {
-                version_text = "Unsupported";
-            }
-            rf::console::print("RFL File Version: {} ({})", rf::level.version, version_text);
         }
         else {
             rf::console::print("No level loaded!");
         }
     },
-    "Shows information about the current level",
+    "Shows extended information about the current level",
 };
 
-DcCommandAlias map_info_cmd{
-    "map_info",
-    level_info_cmd,
+DcCommandAlias map_info_ext_cmd{
+    "map_info_ext",
+    level_info_ext_cmd,
 };
 
 ConsoleCommand2 version_cmd{
@@ -394,7 +417,7 @@ void console_commands_init()
     register_builtin_command("play_bik", nullptr, 0x00520A70);
 #endif // DEBUG
 
-    // Custom Dash Faction commands
+    // Custom commands
     pcollide_cmd.register_cmd();
     dot_cmd.register_cmd();
     vli_cmd.register_cmd();
@@ -404,6 +427,8 @@ void console_commands_init()
     map_cmd.register_cmd();
     level_info_cmd.register_cmd();
     map_info_cmd.register_cmd();
+    level_info_ext_cmd.register_cmd();
+    map_info_ext_cmd.register_cmd();
     version_cmd.register_cmd();
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();

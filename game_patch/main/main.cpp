@@ -28,6 +28,7 @@
 #include "../multi/server.h"
 #include "../multi/server_internal.h"
 #include "../misc/misc.h"
+#include "../misc/alpine_options.h"
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
 #include "../input/input.h"
@@ -152,6 +153,10 @@ FunHook<int(rf::String&, rf::String&, char*)> level_load_hook{
         xlog::info("Loading level: {}", level_filename);
         if (!save_filename.empty())
             xlog::info("Restoring game from save file: {}", save_filename);
+
+        // attempt to load level_info tbl file
+        load_level_info_config(level_filename);
+
         int ret = level_load_hook.call_target(level_filename, save_filename, error);
         if (ret != 0)
             xlog::warn("Loading failed: {}", error);

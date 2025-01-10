@@ -12,6 +12,7 @@
 
 #define ID_WIKI_EDITING_MAIN_PAGE  0x9000
 #define ID_WIKI_HOTKEYS            0x9001
+#define ID_WIKI_ALPINE_HELP        0x9007
 #define ID_SHOW_ALL_OBJECTS        0x9002
 #define ID_HIDE_ALL_OBJECTS        0x9003
 #define ID_HIDE_SELECTED           0x9004

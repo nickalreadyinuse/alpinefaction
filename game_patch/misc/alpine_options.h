@@ -9,6 +9,17 @@
 #include <cstddef>
 #include <xlog/xlog.h>
 
+
+// ======= Globals and utility =======
+
+
+
+void load_af_options_config();
+void load_level_info_config(const std::string& level_filename);
+std::string trim(const std::string& str); // unused?
+std::tuple<int, int, int, int> extract_color_components(uint32_t color);
+
+// ======= Alpine options =======
 enum class AlpineOptionID
 {
     ScoreboardLogo,
@@ -45,12 +56,14 @@ enum class AlpineOptionID
     _optioncount // dummy for total count
 };
 
+
+
 constexpr std::size_t to_index(AlpineOptionID option_id)
 {
     return static_cast<std::size_t>(option_id);
 }
 
-constexpr std::size_t option_count = to_index(AlpineOptionID::_optioncount);
+constexpr std::size_t af_option_count = to_index(AlpineOptionID::_optioncount);
 
 // Variant type to represent all possible configuration option values
 using OptionValue = std::variant<std::string, uint32_t, float, int, bool>;
@@ -69,7 +82,7 @@ struct AlpineOptionsConfig
 {
     // Store options in a map with their parsed values
     std::unordered_map<AlpineOptionID, OptionValue> options;
-    std::array<bool, option_count> options_loaded = {}; // Track loaded options
+    std::array<bool, af_option_count> options_loaded = {}; // Track loaded options
 
     // Check if a specific option is loaded
     bool is_option_loaded(AlpineOptionID option_id) const
@@ -78,12 +91,7 @@ struct AlpineOptionsConfig
     }
 };
 
-// global instance
 extern AlpineOptionsConfig g_alpine_options_config;
-
-// Function to load and parse the configuration files
-void load_af_options_config();
-std::string trim(const std::string& str);
 
 template<typename T>
 inline T get_option_value(AlpineOptionID id)
@@ -96,4 +104,73 @@ template<typename T>
 inline T get_option_or_default(AlpineOptionID id, T default_value)
 {
     return g_alpine_options_config.is_option_loaded(id) ? get_option_value<T>(id) : default_value;
+}
+
+// ======= Alpine level info ======= 
+enum class AlpineLevelInfoID
+{
+    LightmapClampFloor,
+    LightmapClampCeiling,
+    IdealPlayerCount,
+    AuthorContact,
+    AuthorWebsite,
+    Description,
+    PlayerHeadlampColor,
+    PlayerHeadlampRange,
+    PlayerHeadlampRadius,
+    _optioncount       // dummy for total count
+};
+
+// Convert enum to index
+constexpr std::size_t to_index(AlpineLevelInfoID option_id)
+{
+    return static_cast<std::size_t>(option_id);
+}
+
+constexpr std::size_t aflevel_option_count = to_index(AlpineLevelInfoID::_optioncount);
+
+// Variant type to represent different configuration values
+using LevelInfoValue = std::variant<std::string, uint32_t, float, int, bool>;
+
+struct LevelInfoMetadata
+{
+    AlpineLevelInfoID id;
+    std::function<std::optional<LevelInfoValue>(const std::string&)> parse_function;
+};
+
+// Main configuration structure for level info
+struct AlpineLevelInfoConfig
+{
+    // maps of level options and mesh replacements
+    std::unordered_map<std::string, std::unordered_map<AlpineLevelInfoID, LevelInfoValue>> level_options;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> mesh_replacements; // stored lowercase
+
+    // Check if an option exists for a given level
+    bool is_option_loaded(const std::string& level, AlpineLevelInfoID option_id) const
+    {
+        auto level_it = level_options.find(level);
+        if (level_it != level_options.end()) {
+            return level_it->second.find(option_id) != level_it->second.end();
+        }
+        return false; // no options loaded for this level
+    }
+};
+
+extern AlpineLevelInfoConfig g_alpine_level_info_config;
+
+// Get an option value for a level
+template<typename T>
+inline T get_level_info_value(const std::string& level, AlpineLevelInfoID id)
+{
+    return std::get<T>(g_alpine_level_info_config.level_options.at(level).at(id));
+}
+
+// Get an option value with a default fallback
+template<typename T>
+inline T get_level_info_or_default(const std::string& level, AlpineLevelInfoID id, T default_value)
+{
+    if (g_alpine_level_info_config.is_option_loaded(level, id)) {
+        return get_level_info_value<T>(level, id);
+    }
+    return default_value;
 }

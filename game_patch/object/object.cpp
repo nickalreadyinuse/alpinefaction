@@ -3,6 +3,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/StaticBufferResizePatch.h>
+#include <common/utils/string-utils.h>
 #include <xlog/xlog.h>
 #include "../rf/gr/gr_light.h"
 #include "../rf/sound/sound.h"
@@ -15,6 +16,7 @@
 #include "../rf/geometry.h"
 #include "../rf/math/ix.h"
 #include "../rf/gameseq.h"
+#include "../misc/alpine_options.h"
 #include "object.h"
 #include "object_private.h"
 
@@ -195,10 +197,27 @@ CodeInjection sort_clutter_patch{
 FunHook<rf::VMesh*(rf::Object*, const char*, rf::VMeshType)> obj_create_mesh_hook{
     0x00489FE0,
     [](rf::Object* objp, const char* name, rf::VMeshType type) {
+
+        // handle per-map mesh replacements
+        auto level_it = g_alpine_level_info_config.mesh_replacements.find(rf::level.filename);
+        if (level_it != g_alpine_level_info_config.mesh_replacements.end()) {
+            const auto& mesh_map = level_it->second;
+
+            // convert original mesh name to lowercase
+            std::string lower_name = string_to_lower(name);
+
+            auto mesh_it = mesh_map.find(lower_name);
+            if (mesh_it != mesh_map.end()) {
+                name = mesh_it->second.c_str(); // Use replacement name
+                xlog::debug("Replacing mesh {} with {}", name, mesh_it->second);
+            }
+        }
+
         rf::VMesh* mesh = obj_create_mesh_hook.call_target(objp, name, type);
         if (mesh && (rf::level.flags & rf::LEVEL_LOADED) != 0) {
             obj_mesh_lighting_maybe_update(objp);
         }
+        
         return mesh;
     },
 };

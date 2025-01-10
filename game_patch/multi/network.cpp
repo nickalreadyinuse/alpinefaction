@@ -47,7 +47,7 @@
 #define NET_IFINDEX_UNSPECIFIED 0
 #endif
 
-int g_update_rate = 120; // up from 30
+int g_update_rate = 30; // up from 30
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 

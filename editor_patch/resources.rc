@@ -194,6 +194,7 @@ IDR_MAIN_FRAME MENU
     {
         MENUITEM "Wiki - &Editing Main Page\tF1", ID_WIKI_EDITING_MAIN_PAGE
         MENUITEM "Wiki - &Hotkeys", ID_WIKI_HOTKEYS
+        MENUITEM "Wiki - &Alpine Level Design", ID_WIKI_ALPINE_HELP
         MENUITEM SEPARATOR
         MENUITEM "&About RED...", ID_APP_ABOUT
     }

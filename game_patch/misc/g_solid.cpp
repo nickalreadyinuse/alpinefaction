@@ -3,12 +3,14 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../misc/alpine_options.h"
 #include "../main/main.h"
 #include "../misc/misc.h"
 #include "../rf/geometry.h"
 #include "../rf/level.h"
 #include "../rf/event.h"
 #include "../rf/mover.h"
+#include "../rf/file/file.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/os/frametime.h"
@@ -241,12 +243,53 @@ CodeInjection level_load_lightmaps_color_conv_patch{
         rf::gr::LockInfo lock;
         if (!rf::gr::lock(lightmap->bm_handle, 0, &lock, rf::gr::LOCK_WRITE_ONLY))
             return;
-        // apply clamping if needed
-        if ((g_game_config.clamp_mode == GameConfig::ALPINEONLY && rf::level.version < 300) ||
-            (g_game_config.clamp_mode == GameConfig::COMMUNITY && rf::level.version < 200)) {
+
+        uint32_t clamp_floor = 0; // no floor
+        uint32_t clamp_ceiling = 0xFFFFFFFF; // no ceiling
+        bool should_clamp = false; // no clamping by default
+
+        // check if LightmapClampFloor is defined for this level
+        if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
+            clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+            should_clamp = true;
+        }
+        else {
+            // Apply default clamping logic based on clamp mode
+            if ((g_game_config.clamp_mode == GameConfig::ALPINEONLY && rf::level.version < 300) ||
+                  (g_game_config.clamp_mode == GameConfig::COMMUNITY && rf::level.version < 200)) {
+                should_clamp = true;
+                clamp_floor = 0x202020FF; // stock game clamping value 32, 32, 32, 255
+            }
+        }
+
+        // check if LightmapClampCeiling is defined for this level
+        if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
+            clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
+            should_clamp = true;
+        }
+
+        // Extract RGB components from clamping values
+        auto [clamp_r_floor, clamp_g_floor, clamp_b_floor, _] = extract_color_components(clamp_floor);
+        auto [clamp_r_ceiling, clamp_g_ceiling, clamp_b_ceiling, __] = extract_color_components(clamp_ceiling);
+
+        //xlog::warn("Clamp floor for {}: R={}, G={}, B={}", rf::level.filename, clamp_r_floor, clamp_g_floor, clamp_b_floor);
+        //xlog::warn("Clamp ceiling for {}: R={}, G={}, B={}", rf::level.filename, clamp_r_ceiling, clamp_g_ceiling, clamp_b_ceiling);
+
+        // Apply clamping
+        if (should_clamp) {
             xlog::debug("Applying lightmap clamping");
-            for (int i = 0; i < lightmap->w * lightmap->h * 3; ++i)
-                lightmap->buf[i] = std::max(lightmap->buf[i], (uint8_t)(4 << 3)); // 32
+
+            for (int i = 0; i < lightmap->w * lightmap->h * 3; i += 3) {
+                // Apply floor clamp
+                lightmap->buf[i] = std::max(lightmap->buf[i], static_cast<uint8_t>(clamp_r_floor));
+                lightmap->buf[i + 1] = std::max(lightmap->buf[i + 1], static_cast<uint8_t>(clamp_g_floor));
+                lightmap->buf[i + 2] = std::max(lightmap->buf[i + 2], static_cast<uint8_t>(clamp_b_floor));
+
+                // Apply ceiling clamp
+                lightmap->buf[i] = std::min(lightmap->buf[i], static_cast<uint8_t>(clamp_r_ceiling));
+                lightmap->buf[i + 1] = std::min(lightmap->buf[i + 1], static_cast<uint8_t>(clamp_g_ceiling));
+                lightmap->buf[i + 2] = std::min(lightmap->buf[i + 2], static_cast<uint8_t>(clamp_b_ceiling));
+            }
         }
 
         bool success = bm_convert_format(lock.data, lock.format, lightmap->buf,

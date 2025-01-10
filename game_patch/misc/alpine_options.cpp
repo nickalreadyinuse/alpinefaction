@@ -4,6 +4,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/ShortTypes.h>
 #include <patch_common/AsmWriter.h>
+#include <regex>
 #include "../os/console.h"
 #include "../rf/file/file.h"
 #include "../rf/gr/gr.h"
@@ -31,6 +32,7 @@
 //namespace fs = std::filesystem;
 
 AlpineOptionsConfig g_alpine_options_config;
+AlpineLevelInfoConfig g_alpine_level_info_config;
 
 // trim leading and trailing whitespace
 std::string trim(const std::string& str, bool remove_quotes = false)
@@ -63,6 +65,8 @@ std::tuple<int, int, int, int> extract_color_components(uint32_t color)
     );
 }
 
+// ===== Parsers for AlpineOptions =====
+
 // strings can be provided in quotation marks or not
 std::optional<OptionValue> parse_string(const std::string& value)
 {
@@ -94,7 +98,7 @@ std::optional<OptionValue> parse_bool(const std::string& value) {
 
 // master list of options: mapped to option ID, associated tbl, and parser
 const std::unordered_map<std::string, OptionMetadata> option_metadata = {
-    {"$Scoreboard Logo", {AlpineOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp // possibly delete
+    //{"$Scoreboard Logo", {AlpineOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp // possibly delete
     {"$Default Geomod Mesh", {AlpineOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Driller Double Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Driller Single Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
@@ -126,6 +130,220 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Multiplayer Crouch Walk Speed", {AlpineOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float, true}},
     {"$Walkable Slope Threshold", {AlpineOptionID::WalkableSlopeThreshold, "af_game.tbl", parse_float}}
 };
+
+
+// ===== Parsers for Alpine level info =====
+
+std::string trim_level(const std::string& str)
+{
+    auto start = str.find_first_not_of(" \t\n\r");
+    auto end = str.find_last_not_of(" \t\n\r");
+    if (start == std::string::npos)
+        return "";
+    return str.substr(start, end - start + 1);
+}
+
+// Parsing functions for level settings
+std::optional<LevelInfoValue> parse_float_level(const std::string& value)
+{
+    try {
+        return std::stof(value);
+    }
+    catch (...) {
+        return std::nullopt;
+    }
+}
+
+std::optional<LevelInfoValue> parse_int_level(const std::string& value)
+{
+    try {
+        return std::stoi(value);
+    }
+    catch (...) {
+        return std::nullopt;
+    }
+}
+
+std::optional<LevelInfoValue> parse_bool_level(const std::string& value)
+{
+    return value == "1" || value == "true" || value == "True";
+}
+
+std::optional<LevelInfoValue> parse_string_level(const std::string& value)
+{
+    return trim(value, true);
+}
+
+std::optional<LevelInfoValue> parse_color_level(const std::string& value)
+{
+    std::string trimmed_value = trim(value, true);
+
+    try {
+        // Check if it's a valid hex string (6 or 8 characters)
+        if (!trimmed_value.empty() && trimmed_value.length() <= 8 &&
+            std::all_of(trimmed_value.begin(), trimmed_value.end(), ::isxdigit)) {
+            uint32_t color = std::stoul(trimmed_value, nullptr, 16); // Parse hex
+
+            // If it's a 24-bit color (6 characters), add full alpha (0xFF)
+            if (trimmed_value.length() == 6)
+                color = (color << 8) | 0xFF;
+
+            return color;
+        }
+
+        // Check for RGB formats using regex
+        std::regex rgb_pattern(R"([\{\<]?\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*[\>\}]?)");
+        std::smatch matches;
+
+        if (std::regex_match(trimmed_value, matches, rgb_pattern)) {
+            if (matches.size() == 4) { // First match is the full string, next 3 are R, G, B
+                int r = std::stoi(matches[1].str());
+                int g = std::stoi(matches[2].str());
+                int b = std::stoi(matches[3].str());
+
+                // Ensure values are within the valid range
+                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+                    uint32_t color = (r << 24) | (g << 16) | (b << 8) | 0xFF; // Add full alpha
+                    return color;
+                }
+            }
+        }
+    }
+    catch (...) {
+        return std::nullopt; // Return null if parsing fails
+    }
+
+    return std::nullopt;
+}
+
+std::optional<std::pair<std::string, std::string>> parse_mesh_replacement(const std::string& value)
+{
+    std::string trimmed_value = trim(value, true);
+    std::regex mesh_replacement_pattern("\\{\\s*\"([^\"]+)\"\\s*,\\s*\"([^\"]+)\"\\s*\\}");
+    std::smatch matches;
+
+    if (std::regex_match(trimmed_value, matches, mesh_replacement_pattern)) {
+        if (matches.size() == 3) { // Full match and 2 filename captures
+            return std::make_pair(trim(matches[1].str(), true), trim(matches[2].str(), true));
+        }
+    }
+    return std::nullopt;
+}
+
+// Metadata map for level options
+const std::unordered_map<std::string, LevelInfoMetadata> level_info_metadata = {
+    {"$Lightmap Clamp Floor", {AlpineLevelInfoID::LightmapClampFloor, parse_color_level}},
+    {"$Lightmap Clamp Ceiling", {AlpineLevelInfoID::LightmapClampCeiling, parse_color_level}},
+    {"$Ideal Player Count", {AlpineLevelInfoID::IdealPlayerCount, parse_int_level}},
+    {"$Author Contact", {AlpineLevelInfoID::AuthorContact, parse_string_level}},
+    {"$Author Website", {AlpineLevelInfoID::AuthorWebsite, parse_string_level}},
+    {"$Description", {AlpineLevelInfoID::Description, parse_string_level}},
+    {"$Player Headlamp Color", {AlpineLevelInfoID::PlayerHeadlampColor, parse_color_level}},
+    {"$Player Headlamp Range", {AlpineLevelInfoID::PlayerHeadlampRange, parse_float_level}},
+    {"$Player Headlamp Radius", {AlpineLevelInfoID::PlayerHeadlampRadius, parse_float_level}},
+};
+
+// Load level info from filename_info.tbl
+void load_level_info_config(const std::string& level_filename)
+{
+    std::string base_filename = level_filename.substr(0, level_filename.size() - 4);
+    std::string info_filename = base_filename + "_info.tbl";
+    auto level_info_file = std::make_unique<rf::File>();
+
+    if (level_info_file->open(info_filename.c_str()) != 0) {
+        xlog::debug("Could not open {}", info_filename);
+        return;
+    }
+
+    xlog::debug("Successfully opened {}", info_filename);
+
+    // Read entire file content into a single string buffer
+    std::string file_content;
+    std::string buffer(2048, '\0');
+    int bytes_read;
+
+    while ((bytes_read = level_info_file->read(&buffer[0], buffer.size() - 1)) > 0) {
+        buffer.resize(bytes_read);
+        file_content += buffer;
+        buffer.resize(2048, '\0');
+    }
+
+    level_info_file->close();
+
+    // Process file content line-by-line
+    std::istringstream file_stream(file_content);
+    std::string line;
+    bool found_start = false;
+
+    // Search for #Start marker
+    while (std::getline(file_stream, line)) {
+        line = trim(line, false);
+        if (line == "#Start") {
+            found_start = true;
+            break;
+        }
+    }
+
+    if (!found_start) {
+        xlog::warn("No #Start marker found in {}", info_filename);
+        return;
+    }
+
+    // Process options until #End marker is found
+    bool found_end = false;
+    while (std::getline(file_stream, line)) {
+        line = trim(line, false);
+
+        if (line == "#End") {
+            found_end = true;
+            break;
+        }
+        if (line.empty() || line.starts_with("//")) {
+            continue;
+        }
+
+        auto delimiter_pos = line.find(':');
+        if (delimiter_pos == std::string::npos || line[0] != '$') {
+            continue;
+        }
+
+        std::string option_name = trim(line.substr(0, delimiter_pos), false);
+        std::string option_value = trim(line.substr(delimiter_pos + 1), false);
+
+        // handle mesh replacements
+        if (option_name == "$Mesh Replacement") {
+            auto parsed_value = parse_mesh_replacement(option_value);
+            if (parsed_value) {
+                g_alpine_level_info_config.mesh_replacements[level_filename][string_to_lower(parsed_value->first)]= parsed_value->second;
+
+                xlog::debug("Mesh Replacement Added: {} -> {} in {}", parsed_value->first, parsed_value->second, level_filename);
+            }
+            else {
+                xlog::warn("Invalid mesh replacement format in {}", info_filename);
+            }
+
+            continue;
+        }
+
+        // handle other level info options
+        auto meta_it = level_info_metadata.find(option_name);
+        if (meta_it != level_info_metadata.end()) {
+            const auto& metadata = meta_it->second;
+            auto parsed_value = metadata.parse_function(option_value);
+            if (parsed_value) {
+                g_alpine_level_info_config.level_options[level_filename][metadata.id] = *parsed_value;
+                xlog::debug("Parsed and applied {} for {}: {}", option_name, level_filename, option_value);
+            }
+        }
+        else {
+            xlog::warn("Unknown option {} in {}", option_name, info_filename);
+        }
+    }
+
+    if (!found_end) {
+        xlog::warn("No #End marker found in {}", info_filename);
+    }
+}
 
 void open_url(const std::string& url)
 {
@@ -671,7 +889,7 @@ void load_af_options_config()
     }    
 
     xlog::warn("Loaded options:");
-    for (std::size_t i = 0; i < option_count; ++i) {
+    for (std::size_t i = 0; i < af_option_count; ++i) {
         if (g_alpine_options_config.options_loaded[i]) {
             //xlog::warn("Option {} is loaded", i);
         }

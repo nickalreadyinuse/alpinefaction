@@ -570,9 +570,7 @@ struct CDedLevel
     VArray<int> selection;
     char padding_after_selection[0x608 - (0x298 + 0xC)];
 };
-
-// static_assert(offsetof(CDedLevel, selection) == 0x298, "Selection field offset mismatch!");
-static_assert(sizeof(CDedLevel) == 0x608, "CDedLevel size mismatch!");
+static_assert(sizeof(CDedLevel) == 0x608);
 
 struct CCmdTarget_mbrs
 {

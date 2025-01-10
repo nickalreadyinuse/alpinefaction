@@ -194,7 +194,6 @@ bool is_valid_float(const std::string& str, float& outValue)
     }
 }
 
-
 // temporary storage of currently active alpine event and level
 DedEvent* currentDedEvent = nullptr;
 CDedLevel* currentDedLevel = nullptr; // used by links dialog
@@ -973,7 +972,7 @@ CodeInjection open_event_properties_patch{
     0x00408D6D, [](auto& regs) {
         CDedLevel* level = regs.edi;
         DedEvent* event = regs.ebx;
-        xlog::warn("opening properties on event {}, type {}", event->class_name.c_str(), event->event_type);
+        //xlog::warn("opening properties on event {}, type {}", event->class_name.c_str(), event->event_type);
         //xlog::warn("selection is {}", level->selection[0]);
 
         if (event->event_type > 88) { // only redirect alpine events
