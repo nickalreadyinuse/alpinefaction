@@ -1,6 +1,6 @@
 Alpine Faction
 ============
-<img src="https://raw.githubusercontent.com/GooberRF/alpinefaction/refs/heads/master/launcher/res/header.bmp">
+<img src="https://raw.githubusercontent.com/GooberRF/alpinefaction/refs/heads/master/docs/alpinelogo1.png">
 
 About
 -----

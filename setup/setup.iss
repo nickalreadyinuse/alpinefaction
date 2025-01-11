@@ -6,18 +6,18 @@
 
 [Setup]
 AppId={{BDD60DE7-9374-463C-8E74-8227EB03E28F}
-AppName=Dash Faction
+AppName=Alpine Faction
 AppVersion={#AppVer}
-AppPublisher=rafalh
-AppPublisherURL=https://rafalh.dev/
-AppSupportURL=https://rafalh.dev/
-AppUpdatesURL=https://rafalh.dev/
-UninstallDisplayName=Dash Faction
-UninstallDisplayIcon={app}\DashFactionLauncher.exe
-DefaultDirName={autopf}\Dash Faction
-DefaultGroupName=Dash Faction
+AppPublisher=Goober
+AppPublisherURL=https://factionfiles.com/
+AppSupportURL=https://factionfiles.com/
+AppUpdatesURL=https://factionfiles.com/
+UninstallDisplayName=Alpine Faction
+UninstallDisplayIcon={app}\AlpineFactionLauncher.exe
+DefaultDirName={autopf}\Alpine Faction
+DefaultGroupName=Alpine Faction
 DisableWelcomePage=no
-OutputBaseFilename=DashFaction-{#AppVer}-setup
+OutputBaseFilename=AlpineFaction-{#AppVer}-setup
 Compression=lzma2/max
 SolidCompression=yes
 OutputDir=build
@@ -30,17 +30,18 @@ WizardStyle=modern
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "rfproto"; Description: "Register rf:// protocol handler (enables multiplayer click-to-join)"; GroupDescription: "Other options:"
-Name: "rflassoc"; Description: "Associate the .rfl file extension with the Dash Faction level editor"; GroupDescription: "Other options:"
+Name: "afproto"; Description: "Register af:// protocol handler (enables FactionFiles integration)"; GroupDescription: "Other options:"
+Name: "rflassoc"; Description: "Associate the .rfl file extension with the Alpine Faction level editor"; GroupDescription: "Other options:"
 Name: "fftracker"; Description: "Use the FactionFiles multiplayer tracker (rfgt.factionfiles.com; community standard)"; GroupDescription: "Other options:"
 Name: "patchgame"; Description: "Install necessary Red Faction patches"; GroupDescription: "Other options:"; Check: "PatchGameTaskCheck"
-Name: "replacerflauncher"; Description: "Replace the Red Faction launcher with the Dash Faction launcher (enables Steam support)"; GroupDescription: "Other options:"; Flags: unchecked
+Name: "replacerflauncher"; Description: "Replace the Red Faction launcher with the Alpine Faction launcher (enables Steam support)"; GroupDescription: "Other options:"; Flags: unchecked
 Name: "redvisualstyles"; Description: "Enable Windows visual styles for the level editor (experimental)"; GroupDescription: "Other options:"; Flags: unchecked
 
 [Files]
-Source: "{#BinDir}\DashFactionLauncher.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\AlpineFactionLauncher.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\CrashHandler.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BinDir}\DashEditor.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BinDir}\DashFaction.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\AlpinehEditor.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\AlpineFaction.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\d3d8to9.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\alpinefaction.vpp"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SrcRootDir}\resources\licensing-info.txt"; DestDir: "{app}"; Flags: ignoreversion
@@ -63,34 +64,42 @@ Source: "{#PatchesDir}\tables-gog-gr.vpp.mbsdiff"; Flags: dontcopy
 [Dirs]
 Name: "{code:GetGameDir}"; Permissions: users-modify
 Name: "{code:GetGameDir}\user_maps\multi"; Permissions: users-modify
+Name: "{code:GetGameDir}\user_maps\single"; Permissions: users-modify
+Name: "{code:GetGameDir}\mods"; Permissions: users-modify
+Name: "{code:GetGameDir}\client_mods"; Permissions: users-modify
 Name: "{code:GetGameDir}\screenshots"; Permissions: users-modify
 Name: "{code:GetGameDir}\logs"; Permissions: users-modify
 
 [Icons]
-Name: "{group}\Dash Faction"; Filename: "{app}\DashFactionLauncher.exe"
-Name: "{autodesktop}\Dash Faction"; Filename: "{app}\DashFactionLauncher.exe"; Tasks: desktopicon
+Name: "{group}\Alpine Faction"; Filename: "{app}\AlpineFactionLauncher.exe"
+Name: "{autodesktop}\Alpine Faction"; Filename: "{app}\AlpineFactionLauncher.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\DashFactionLauncher.exe"; Description: "{cm:LaunchProgram,Dash Faction}"; Flags: nowait postinstall skipifsilent
-Filename: "REG"; Parameters: "ADD ""HKCU\Software\Volition\Red Faction\Dash Faction"" /v ""Executable Path"" /d ""{code:GetFinalGameExePath}"" /f"; Flags: runhidden runasoriginaluser
+Filename: "{app}\AlpineFactionLauncher.exe"; Description: "{cm:LaunchProgram,Alpine Faction}"; Flags: nowait postinstall skipifsilent
+Filename: "REG"; Parameters: "ADD ""HKCU\Software\Volition\Red Faction\Alpine Faction"" /v ""Executable Path"" /d ""{code:GetFinalGameExePath}"" /f"; Flags: runhidden runasoriginaluser
 Filename: "REG"; Parameters: "ADD ""HKCU\Software\Volition\Red Faction"" /v GameTracker /d rfgt.factionfiles.com /f"; Flags: runhidden runasoriginaluser; Tasks: fftracker
 
 [Registry]
 ; rf:// protocol
 Root: HKCR; Subkey: "rf"; ValueType: "string"; ValueData: "URL:Red Faction Protocol"; Flags: uninsdeletekey; Tasks: rfproto
 Root: HKCR; Subkey: "rf"; ValueType: "string"; ValueName: "URL Protocol"; ValueData: ""; Tasks: rfproto
-Root: HKCR; Subkey: "rf\DefaultIcon"; ValueType: "string"; ValueData: "{app}\DashFactionLauncher.exe,0"; Tasks: rfproto
-Root: HKCR; Subkey: "rf\shell\open\command"; ValueType: "string"; ValueData: """{app}\DashFactionLauncher.exe"" -game -url %1"; Tasks: rfproto
+Root: HKCR; Subkey: "rf\DefaultIcon"; ValueType: "string"; ValueData: "{app}\AlpineFactionLauncher.exe,0"; Tasks: rfproto
+Root: HKCR; Subkey: "rf\shell\open\command"; ValueType: "string"; ValueData: """{app}\AlpineFactionLauncher.exe"" -game -url %1"; Tasks: rfproto
+; af:// protocol
+Root: HKCR; Subkey: "af"; ValueType: "string"; ValueData: "URL:Red Faction Protocol"; Flags: uninsdeletekey; Tasks: afproto
+Root: HKCR; Subkey: "af"; ValueType: "string"; ValueName: "URL Protocol"; ValueData: ""; Tasks: afproto
+Root: HKCR; Subkey: "af\DefaultIcon"; ValueType: "string"; ValueData: "{app}\AlpineFactionLauncher.exe,0"; Tasks: afproto
+Root: HKCR; Subkey: "af\shell\open\command"; ValueType: "string"; ValueData: """{app}\AlpineFactionLauncher.exe"" -aflink %1"; Tasks: afproto
 ; rfl file extension association
-Root: HKCR; Subkey: ".rfl"; ValueType: "string"; ValueData: "DashFactionLevelEditor"; Flags: uninsdeletekey; Tasks: rflassoc
-Root: HKCR; Subkey: "DashFactionLevelEditor"; ValueType: "string"; ValueData: "Dash Faction Level Editor"; Flags: uninsdeletekey; Tasks: rflassoc
-;Root: HKCR; Subkey: "DashFactionLevelEditor\DefaultIcon"; ValueType: "string"; ValueData: "{app}\DashFactionLauncher.exe,0"; Tasks: rflassoc
-Root: HKCR; Subkey: "DashFactionLevelEditor\shell\open\command"; ValueType: "string"; ValueData: """{app}\DashFactionLauncher.exe"" -editor -level ""%1"""; Tasks: rflassoc
+Root: HKCR; Subkey: ".rfl"; ValueType: "string"; ValueData: "AlpineFactionLevelEditor"; Flags: uninsdeletekey; Tasks: rflassoc
+Root: HKCR; Subkey: "AlpineFactionLevelEditor"; ValueType: "string"; ValueData: "Alpine Faction Level Editor"; Flags: uninsdeletekey; Tasks: rflassoc
+;Root: HKCR; Subkey: "AlpineFactionLevelEditor\DefaultIcon"; ValueType: "string"; ValueData: "{app}\AlpineFactionLauncher.exe,0"; Tasks: rflassoc
+Root: HKCR; Subkey: "AlpineFactionLevelEditor\shell\open\command"; ValueType: "string"; ValueData: """{app}\AlpineFactionLauncher.exe"" -editor -level ""%1"""; Tasks: rflassoc
 
 [CustomMessages]
 RFExeLocation=Setup will attempt to locate RF.exe automatically. Make sure the location is correct, then click Next.
-GameNeedsPatches=Your Red Faction game version is not directly compatible with Dash Faction. To resolve this, setup will apply the following patches:%n%n
-UnkGameExeVersion=The file at the selected location is not recognized.%nPlease make sure the location of RF.exe is correct. If you ignore this error, Dash Faction may not function correctly.%n%nYou can find help at:%n- https://discord.gg/factionfiles%n- https://redfaction.help%n%nTechnical details:%nSHA1 = %1%n%nIgnore this error and continue?
+GameNeedsPatches=Your Red Faction game version is not directly compatible with Alpine Faction. To resolve this, setup will apply the following patches:%n%n
+UnkGameExeVersion=The file at the selected location is not recognized.%nPlease make sure the location of RF.exe is correct. If you ignore this error, Alpine Faction may not function correctly.%n%nYou can find help at:%n- https://discord.gg/factionfiles%n- https://redfaction.help%n%nTechnical details:%nSHA1 = %1%n%nIgnore this error and continue?
 
 [Code]
 type
@@ -253,8 +262,8 @@ begin
         NativeHKLM := HKEY_LOCAL_MACHINE_64
     else
         NativeHKLM := HKEY_LOCAL_MACHINE;
-    if RegQueryStringValue(HKEY_CURRENT_USER, 'SOFTWARE\Volition\Red Faction\Dash Faction', 'Executable Path', Result) then
-        // Dash Faction options - nothing to do
+    if RegQueryStringValue(HKEY_CURRENT_USER, 'SOFTWARE\Volition\Red Faction\Alpine Faction', 'Executable Path', Result) then
+        // Alpine Faction options - nothing to do
     else if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Volition\Red Faction', 'InstallPath', Result) then
         // Install from CD
         Result := Result + 'RF.exe'
@@ -357,9 +366,9 @@ begin
         Log('Deleting RedFaction.exe');
         DeleteFile(GetGameDir('RedFaction.exe'));
         Log('Creating RedFaction.exe symlink: ' + GetGameDir('RedFaction.exe'));
-        if not CreateSymbolicLinkA(GetGameDir('RedFaction.exe'), ExpandConstant('{app}\DashFactionLauncher.exe'), 0) then
+        if not CreateSymbolicLinkA(GetGameDir('RedFaction.exe'), ExpandConstant('{app}\AlpineFactionLauncher.exe'), 0) then
         begin
-            MsgBox('Failed to create a symbolic link to the Dash Faction launcher.', mbError, MB_OK);
+            MsgBox('Failed to create a symbolic link to the Alpine Faction launcher.', mbError, MB_OK);
         end;
     end;
 end;
@@ -373,7 +382,7 @@ begin
     if Pos('replacerflauncher', UninsTaskStr) <> 0 then
     begin
         // Use the registry entry to find the game directory
-        RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Volition\Red Faction\Dash Faction', 'Executable Path', GamePath);
+        RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Volition\Red Faction\Alpine Faction', 'Executable Path', GamePath);
         GamePath := ExtractFileDir(GamePath) + '\';
         if FileExists(GamePath + 'RedFaction.exe.bak') then
         begin
