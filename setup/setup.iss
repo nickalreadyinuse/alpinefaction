@@ -2,10 +2,10 @@
 #define SrcRootDir ".."
 #define BinDir "..\build\Release\bin"
 #define PatchesDir "patches\output"
-#define AppVer "1.8.1-dev"
+#define AppVer "0.0.2-beta"
 
 [Setup]
-AppId={{BDD60DE7-9374-463C-8E74-8227EB03E28F}
+AppId={{005AA7-D71920-FFC72C-4B6E-82D3-9F7B12A3C8D1}}
 AppName=Alpine Faction
 AppVersion={#AppVer}
 AppPublisher=Goober
@@ -97,7 +97,7 @@ Root: HKCR; Subkey: "AlpineFactionLevelEditor"; ValueType: "string"; ValueData: 
 Root: HKCR; Subkey: "AlpineFactionLevelEditor\shell\open\command"; ValueType: "string"; ValueData: """{app}\AlpineFactionLauncher.exe"" -editor -level ""%1"""; Tasks: rflassoc
 
 [CustomMessages]
-RFExeLocation=Setup will attempt to locate RF.exe automatically. Make sure the location is correct, then click Next.
+RFExeLocation=Setup will attempt to locate RF.exe in your Red Faction install directory automatically. If the detected location is wrong, you need to correct it.%n%nIf you run into difficulty, join the Red Faction community Discord for assistance:%n- https://discord.gg/factionfiles%n
 GameNeedsPatches=Your Red Faction game version is not directly compatible with Alpine Faction. To resolve this, setup will apply the following patches:%n%n
 UnkGameExeVersion=The file at the selected location is not recognized.%nPlease make sure the location of RF.exe is correct. If you ignore this error, Alpine Faction may not function correctly.%n%nYou can find help at:%n- https://discord.gg/factionfiles%n- https://redfaction.help%n%nTechnical details:%nSHA1 = %1%n%nIgnore this error and continue?
 

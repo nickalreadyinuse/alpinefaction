@@ -1000,7 +1000,7 @@ static void send_private_message_with_stats(rf::Player* player)
 void shuffle_level_array()
 {
     std::ranges::shuffle(rf::netgame.levels, g_rng);
-    xlog::warn("Shuffled level rotation");
+    xlog::debug("Shuffled level rotation");
 }
 
 const char* get_rand_level_filename()
@@ -1792,7 +1792,7 @@ CodeInjection multi_level_init_injection{
         if (g_additional_server_config.dynamic_rotation && rf::netgame.current_level_index ==
                     rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
                 // if this is the last level in the list and dynamic rotation is on, shuffle
-                xlog::info("Reached end of level rotation, shuffling");
+                xlog::debug("Reached end of level rotation, shuffling");
                 shuffle_level_array();
             }    
     },
