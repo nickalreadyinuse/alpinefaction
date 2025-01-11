@@ -1,4 +1,5 @@
 #include "LauncherApp.h"
+#include "faction_files.h"
 #include "MainDlg.h"
 #include "LauncherCommandLineInfo.h"
 #include <common/config/GameConfig.h>
@@ -10,7 +11,6 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
 
 // LauncherApp initialization
 int LauncherApp::Run()
@@ -24,20 +24,75 @@ int LauncherApp::Run()
     xlog::info("Parsing command line");
     m_cmd_line_info.Parse();
 
+    if (m_cmd_line_info.GetAFDownloadArg().has_value()) {
+        int file_id = std::stoi(m_cmd_line_info.GetAFDownloadArg().value());
+        xlog::info("Processing af://download/{}", file_id);
+
+        FactionFilesAFLink downloader;
+
+        // Fetch file info before downloading
+        auto file_info = downloader.get_file_info(file_id);
+        if (!file_info) {
+            MessageBoxA(nullptr, "Error: File not found on FactionFiles!", "Error", MB_OK | MB_ICONERROR);
+            return 0;
+        }
+
+        // Create confirmation message
+        std::string file_type_string =
+            file_info->file_type == "mod_tc" || file_info->file_type == "mod_clientside" ? "mod?" : "level?";
+
+        std::string message = "File Name: " + file_info->name + "\n" + "Author: " + file_info->author + "\n" +
+            "Size: " + std::to_string(file_info->size_in_bytes / 1024) + " KB\n\n" +
+            "Are you sure you want to install this " + file_type_string;
+
+        // Show confirmation dialog
+        int userChoice =
+            MessageBoxA(nullptr, message.c_str(), "Confirm Install - Alpine Faction", MB_OKCANCEL | MB_ICONQUESTION);
+
+        if (userChoice == IDCANCEL) {
+            xlog::info("User canceled download.");
+            return 0;
+        }
+
+        // Proceed with download & extraction
+        bool success =
+            downloader.download_and_extract(file_id, [](unsigned bytes_received, std::chrono::milliseconds duration) {
+                xlog::info("Downloaded {} KB", bytes_received / 1024);
+                return true; // Continue downloading
+            });
+
+        if (success) {
+            std::string success_message = "Successfully downloaded and installed " + file_info->name + "!" +
+                                          "\n\nWould you like to open the Alpine Faction launcher now?";
+            int result = MessageBoxA(nullptr, success_message.c_str(),
+                            "Success!", MB_YESNO | MB_ICONINFORMATION);
+
+            if (result == IDNO) {
+                return 0; // do not open launcher
+            }
+            // if they want to open launcher, continue
+        }
+        else {
+            MessageBoxA(nullptr, "Download or install failed!", "Error", MB_OK | MB_ICONERROR);
+            return 0; // failure
+        }
+    }
+
     if (m_cmd_line_info.HasHelpFlag()) {
         // Note: we can't use stdio console API in win32 application
         Message(nullptr,
-            "Usage: DashFactionLauncher [-game] [-level name] [-editor] args...\n"
+            "Usage: AlpineFactionLauncher [-game] [-level name] [-editor] args...\n"
             "-game        Starts game immediately\n"
             "-level name  Starts game immediately and loads specified level\n"
+            "-levelm name  Starts game immediately and loads specified level in multiplayer\n"
             "-editor      Starts level editor immediately\n"
-            "-exepath     Override patched executable file location\n"
+            "-exe-path     Override patched executable file location\n"
             "args...      Additional arguments passed to game or editor\n",
-            "Dash Faction Launcher Help", MB_OK | MB_ICONINFORMATION);
+            "Alpine Faction Launcher Help", MB_OK | MB_ICONINFORMATION);
         return 0;
     }
 
-    // Migrate Dash Faction config from old version
+    // Migrate config from old version
     MigrateConfig();
 
     // Disable elevation (UAC)

@@ -343,7 +343,6 @@ std::string replace_html_breaks(const std::string& input)
     return output;
 }
 
-
 void MainDlg::FetchNews()
 {
     try {
@@ -357,8 +356,7 @@ void MainDlg::FetchNews()
 
         std::string news_content(buf, bytes_read);
 
-        // Strip HTML tags (basic implementation)
-        //news_content = strip_html_tags(news_content);
+        // Strip HTML tags
         news_content = replace_html_breaks(news_content);
 
         // Convert to wide string for CEdit control
@@ -372,7 +370,6 @@ void MainDlg::FetchNews()
         m_news_box.SetWindowTextA("Failed to load news.");
     }
 }
-
 
 void MainDlg::OnBnClickedOptionsBtn()
 {

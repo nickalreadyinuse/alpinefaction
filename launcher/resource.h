@@ -76,10 +76,8 @@
 #define IDC_RENDERER_COMBO              1058
 #define IDC_ALPINE_BRAND_CHECK          1059
 
-
 #define IDC_VERSION_TEXT                3050
 
-//#define IDC_SB1_BTN                     3051
 #define IDC_SB2_BTN                     3052
 #define IDC_SB3_BTN                     3053
 #define IDC_SB4_BTN                     3054
@@ -100,10 +98,6 @@
 #define IDB_OPTIONS_NORMAL              3007
 #define IDB_OPTIONS_HOVER               3008
 #define IDB_OPTIONS_PRESSED             3009
-
-//#define IDB_SB1_NORMAL                  3010
-//#define IDB_SB1_HOVER                   3011
-//#define IDB_SB1_PRESSED                 3012
 
 #define IDB_SB2_NORMAL                  3013
 #define IDB_SB2_HOVER                   3014

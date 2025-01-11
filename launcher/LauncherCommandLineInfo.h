@@ -1,6 +1,7 @@
 #pragma once
 
 #include <wxx_wincore.h>
+#include <atlconv.h>
 #include <string_view>
 #include <string>
 #include <optional>
@@ -28,6 +29,11 @@ public:
             else if (arg == "-exe-path") {
                 m_exe_path = {args[++i].c_str()};
             }
+            else if (arg == "-aflink" && i + 1 < args.size()) {
+                Win32xx::CString cstrArg = args[++i];
+                std::string narrowArg = std::string(cstrArg);
+                ParseAFLink(std::string_view(narrowArg));
+            }
             else {
                 if (arg == "-level") {
                     has_level_arg = true;
@@ -40,6 +46,29 @@ public:
         }
         if (!m_game && !m_editor && (has_level_arg || has_dedicated_arg)) {
             m_game = true;
+        }
+    }
+
+    void ParseAFLink(std::string_view url)
+    {
+        if (url.starts_with("af://")) {
+            url.remove_prefix(5); // Remove "af://"
+        }
+
+        size_t slash_pos = url.find('/');
+        if (slash_pos != std::string_view::npos) {
+            std::string type = std::string(url.substr(0, slash_pos));
+            std::string value = std::string(url.substr(slash_pos + 1));
+
+            if (type == "download") {
+                m_afdownload_arg = value;
+            }
+            else if (type == "link") {
+                m_aflink_arg = value;
+            }
+        }
+        else {
+            m_aflink_arg = std::string(url); // Store entire af:// argument if no slash
         }
     }
 
@@ -58,6 +87,21 @@ public:
         return m_help;
     }
 
+    [[nodiscard]] bool HasAFFlag() const
+    {
+        return m_aflink_arg.has_value() || m_afdownload_arg.has_value();
+    }
+
+    [[nodiscard]] std::optional<std::string> GetAFLinkArg() const
+    {
+        return m_aflink_arg;
+    }
+
+    [[nodiscard]] std::optional<std::string> GetAFDownloadArg() const
+    {
+        return m_afdownload_arg;
+    }
+
     [[nodiscard]] std::optional<std::string> GetExePath() const
     {
         return m_exe_path;
@@ -72,6 +116,8 @@ private:
     bool m_game = false;
     bool m_editor = false;
     bool m_help = false;
+    std::optional<std::string> m_afdownload_arg;
+    std::optional<std::string> m_aflink_arg;
     std::optional<std::string> m_exe_path;
     std::vector<std::string> m_pass_through_args;
 };
