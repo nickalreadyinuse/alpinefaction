@@ -74,6 +74,7 @@
 #define IDC_INPUT_OPTIONS_BOX           1056
 #define IDC_INTERFACE_OPTIONS_BOX       1057
 #define IDC_RENDERER_COMBO              1058
+#define IDC_ALPINE_BRAND_CHECK          1059
 
 
 #define IDC_VERSION_TEXT                3050

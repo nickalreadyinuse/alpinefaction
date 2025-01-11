@@ -1,6 +1,8 @@
+#include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
+#include <xlog/xlog.h>
 #include "../rf/hud.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
@@ -183,8 +185,27 @@ FunHook<void()> multi_hud_init_hook{
     },
 };
 
+CodeInjection hud_render_patch_chatbox {
+    0x00437CA1,
+    [](auto& regs) {        
+        //xlog::warn("chatbox render");
+        int w = static_cast<int>(220);
+        int h = static_cast<int>(300);
+        //int x = (static_cast<int>(rf::gr::screen_width()) - w) / 2;
+        int x = static_cast<int>(10);
+        int y = (static_cast<int>(rf::gr::screen_height()) - h) / 2;
+        rf::gr::set_color(0, 0, 0, 0x80);
+        rf::gr::rect(x, y, w, h);
+        rf::gr::set_color(200, 100, 0, 0x80);
+        rf::gr::rect_border(x, y, w, h);
+    }
+};
+
 void multi_hud_apply_patches()
 {
+    // WIP for MP chatbox
+    //hud_render_patch_chatbox.install();
+
     AsmWriter{0x00477790}.jmp(hud_render_team_scores);
     hud_render_power_ups_gr_bitmap_hook.install();
     render_level_info_hook.install();

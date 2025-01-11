@@ -196,8 +196,8 @@ CodeInjection control_config_init_patch{
             ccp, "(AF) Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
         alpine_control_config_add_item(
             ccp, "(AF) Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
-        alpine_control_config_add_item(
-            ccp, "(AF) Chat menu", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
+        /* alpine_control_config_add_item(
+            ccp, "(AF) Chat menu", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);*/
     },
 };
 
@@ -263,18 +263,12 @@ CodeInjection player_execute_action_patch2{
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/ready", nullptr);
             }
-            else if (action_index == starting_alpine_control_index +
+            /* else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU) &&
                 rf::is_multi) {
                 //send_chat_line_packet("/ready", nullptr);
                 xlog::warn("chat menu pressed");
-                int w = static_cast<int>(200 * w);
-                int h = static_cast<int>(200 * h);
-                int x = (static_cast<int>(rf::gr::clip_width()) - w) / 2;
-                int y = (static_cast<int>(rf::gr::clip_height()) - h) / 2;
-                rf::gr::set_color(0, 0, 0, 0x80);
-                rf::gr::rect_border(x, y, w, h);
-            }
+            }*/
         }
     },
 };

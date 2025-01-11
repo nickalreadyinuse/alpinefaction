@@ -107,6 +107,7 @@ struct GameConfig
     CfgVar<int> language = -1;
     CfgVar<bool> scoreboard_anim = false;
     CfgVar<bool> spectate_mode_minimal_ui = false;
+    CfgVar<bool> af_branding = true;
 
     // Misc
     CfgVar<bool> fast_start = true;

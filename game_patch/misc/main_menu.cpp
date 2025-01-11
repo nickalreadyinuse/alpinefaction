@@ -3,6 +3,8 @@
 #include <patch_common/CodeInjection.h>
 #include <common/version/version.h>
 #include <xlog/xlog.h>
+#include <filesystem>
+#include <fstream>
 #include "../rf/ui.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
@@ -70,37 +72,10 @@ CallHook<void()> main_menu_process_mouse_hook{
     },
 };
 
-int load_easter_egg_image()
+int initiate_garden_king()
 {
-    HRSRC res_handle = FindResourceA(g_hmodule, MAKEINTRESOURCEA(100), RT_RCDATA);
-    if (!res_handle) {
-        xlog::error("FindResourceA failed");
-        return -1;
-    }
-    HGLOBAL res_data_handle = LoadResource(g_hmodule, res_handle);
-    if (!res_data_handle) {
-        xlog::error("LoadResource failed");
-        return -1;
-    }
-    void* res_data = LockResource(res_data_handle);
-    if (!res_data) {
-        xlog::error("LockResource failed");
-        return -1;
-    }
-
-    constexpr int easter_egg_size = 128;
-
-    int hbm = rf::bm::create(rf::bm::FORMAT_8888_ARGB, easter_egg_size, easter_egg_size);
-
-    rf::gr::LockInfo lock;
-    if (!rf::gr::lock(hbm, 0, &lock, rf::gr::LOCK_WRITE_ONLY))
-        return -1;
-
-    rf::bm::convert_format(lock.data, lock.format, res_data, rf::bm::FORMAT_8888_ARGB,
-                        easter_egg_size * easter_egg_size);
-    rf::gr::unlock(&lock);
-
-    return hbm;
+    int hbm = rf::bm::load("radar_dish.tga", -1, true);
+    return hbm == -1 ? -1 : hbm;
 }
 
 CallHook<void()> main_menu_render_hook{
@@ -108,7 +83,7 @@ CallHook<void()> main_menu_render_hook{
     []() {
         main_menu_render_hook.call_target();
         if (g_version_click_counter >= 3) {
-            static int img = load_easter_egg_image(); // data.vpp
+            static int img = initiate_garden_king();
             if (img == -1)
                 return;
             int w, h;
@@ -221,8 +196,6 @@ void apply_main_menu_patches()
 {
     // Version in Main Menu
     UiLabel_create2_version_label_hook.install();
-
-    // Version Easter Egg
     main_menu_process_mouse_hook.install();
     main_menu_render_hook.install();
 

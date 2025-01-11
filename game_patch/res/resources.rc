@@ -1,4 +1,3 @@
-100  RCDATA  "easter_egg.bin"
 #include <windows.h>
 
 // VERSIONINFO
