@@ -7,5 +7,5 @@
 #endif
 
 #define CRASHHANDLER_WEBSVC_ENABLED 1
-#define CRASHHANDLER_WEBSVC_URL "https://dashfactionapi.rafalh.dev/crash-report"
-#define CRASHHANDLER_WEBSVC_AGENT "DashFaction"
+#define CRASHHANDLER_WEBSVC_URL "https://redfaction.help/af/crash-report"
+#define CRASHHANDLER_WEBSVC_AGENT "AlpineFaction"

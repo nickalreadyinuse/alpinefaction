@@ -274,12 +274,12 @@ static std::string& get_log_file_path_name()
         LocalFree(argv);
 
         if (!dedicated_server_name.empty()) {
-            log_file_path_name = "logs\\DashFaction-dedicated-";
+            log_file_path_name = "logs\\AlpineFaction-dedicated-";
             log_file_path_name += dedicated_server_name;
             log_file_path_name += ".log";
         }
         else {
-            log_file_path_name = "logs\\DashFaction.log";
+            log_file_path_name = "logs\\AlpineFaction.log";
         }
     }
     return log_file_path_name;
@@ -355,9 +355,9 @@ void init_crash_handler()
     config.this_module_handle = g_hmodule;
     std::snprintf(config.log_file, std::size(config.log_file), "%s\\%s", current_dir, log_file_path_name.c_str());
     std::snprintf(config.output_dir, std::size(config.output_dir), "%s\\logs", current_dir);
-    std::snprintf(config.app_name, std::size(config.app_name), "DashFaction");
+    std::snprintf(config.app_name, std::size(config.app_name), "AlpineFaction");
     config.add_known_module("RF");
-    config.add_known_module("DashFaction");
+    config.add_known_module("AlpineFaction");
 
     CrashHandlerStubInstall(config);
 }

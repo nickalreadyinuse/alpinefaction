@@ -187,16 +187,16 @@ set(SRCS
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 
-add_library(DashFaction SHARED ${SRCS})
-target_compile_features(DashFaction PUBLIC cxx_std_20)
-set_target_properties(DashFaction PROPERTIES
+add_library(AlpineFaction SHARED ${SRCS})
+target_compile_features(AlpineFaction PUBLIC cxx_std_20)
+set_target_properties(AlpineFaction PROPERTIES
     PREFIX ""
     CXX_EXTENSIONS NO
 )
-enable_warnings(DashFaction)
-setup_debug_info(DashFaction)
+enable_warnings(AlpineFaction)
+setup_debug_info(AlpineFaction)
 
-target_include_directories(DashFaction PRIVATE
+target_include_directories(AlpineFaction PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor
     ${CMAKE_SOURCE_DIR}/vendor/zlib
     ${CMAKE_SOURCE_DIR}/vendor/zlib/contrib/minizip
@@ -210,16 +210,16 @@ target_include_directories(DashFaction PRIVATE
 
 if(NOT MSVC)
     # natupnp.h is not distributed with MinGW
-    target_include_directories(DashFaction PRIVATE ${CMAKE_SOURCE_DIR}/vendor/natupnp)
+    target_include_directories(AlpineFaction PRIVATE ${CMAKE_SOURCE_DIR}/vendor/natupnp)
 endif()
 
-target_compile_definitions(DashFaction PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX BUILD_DLL)
+target_compile_definitions(AlpineFaction PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX BUILD_DLL)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/experimental/experimental.cpp")
-    target_compile_definitions(DashFaction PRIVATE HAS_EXPERIMENTAL)
+    target_compile_definitions(AlpineFaction PRIVATE HAS_EXPERIMENTAL)
 endif()
 
-target_link_libraries(DashFaction
+target_link_libraries(AlpineFaction
     psapi
     wininet
     version

@@ -438,9 +438,9 @@ void InitCrashHandler()
     config.this_module_handle = g_module;
     std::snprintf(config.log_file, std::size(config.log_file), "%s\\logs\\AlpineEditor.log", current_dir);
     std::snprintf(config.output_dir, std::size(config.output_dir), "%s\\logs", current_dir);
-    std::snprintf(config.app_name, std::size(config.app_name), "AlpinehEditor");
+    std::snprintf(config.app_name, std::size(config.app_name), "AlpineEditor");
     config.add_known_module("RED");
-    config.add_known_module("DashEditor");
+    config.add_known_module("AlpineEditor");
 
     CrashHandlerStubInstall(config);
 }

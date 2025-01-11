@@ -11,24 +11,24 @@
 void InitLogging()
 {
     auto app_data_dir = Win32xx::GetAppDataPath();
-    auto df_data_dir = app_data_dir + "\\Dash Faction";
+    auto df_data_dir = app_data_dir + "\\Alpine Faction";
     CreateDirectoryA(df_data_dir, nullptr);
-    auto log_file_path = df_data_dir + "\\DashFactionLauncher.log";
+    auto log_file_path = df_data_dir + "\\AlpineFactionLauncher.log";
     xlog::LoggerConfig::get()
         .add_appender<xlog::FileAppender>(log_file_path.GetString(), false)
         .add_appender<xlog::ConsoleAppender>()
         .add_appender<xlog::Win32Appender>();
-    xlog::info("Dash Faction Launcher {} ({} {})", VERSION_STR, __DATE__, __TIME__);
+    xlog::info("Alpine Faction Launcher {} ({} {})", VERSION_STR, __DATE__, __TIME__);
 }
 
 void InitCrashHandler()
 {
     auto app_data_dir = Win32xx::GetAppDataPath();
     CrashHandlerConfig config;
-    std::snprintf(config.log_file, std::size(config.log_file), "%s\\Dash Faction\\DashFactionLauncher.log", app_data_dir.c_str());
-    std::snprintf(config.output_dir, std::size(config.output_dir), "%s\\Dash Faction", app_data_dir.c_str());
-    std::snprintf(config.app_name, std::size(config.app_name), "DashFactionLauncher");
-    config.add_known_module("DashFactionLauncher");
+    std::snprintf(config.log_file, std::size(config.log_file), "%s\\Alpine Faction\\AlpineFactionLauncher.log", app_data_dir.c_str());
+    std::snprintf(config.output_dir, std::size(config.output_dir), "%s\\Alpine Faction", app_data_dir.c_str());
+    std::snprintf(config.app_name, std::size(config.app_name), "AlpineFactionLauncher");
+    config.add_known_module("AlpineFactionLauncher");
     CrashHandlerStubInstall(config);
 }
 

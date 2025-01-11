@@ -40,7 +40,7 @@ Name: "redvisualstyles"; Description: "Enable Windows visual styles for the leve
 [Files]
 Source: "{#BinDir}\AlpineFactionLauncher.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\CrashHandler.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#BinDir}\AlpinehEditor.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\AlpineEditor.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\AlpineFaction.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\d3d8to9.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#BinDir}\alpinefaction.vpp"; DestDir: "{app}"; Flags: ignoreversion

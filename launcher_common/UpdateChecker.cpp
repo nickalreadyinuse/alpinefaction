@@ -34,7 +34,7 @@ static bool verify_signature(const std::optional<std::string>& sig_hdr_opt, std:
 
 UpdateChecker::CheckResult UpdateChecker::check() // NOLINT(readability-convert-member-functions-to-static)
 {
-    HttpSession session{"DashFaction"};
+    HttpSession session{"AlpineFaction"};
     std::string url = UPDATE_CHECK_ENDPOINT_URL "?version=" VERSION_STR;
 
     auto os_ver = get_real_os_version();
