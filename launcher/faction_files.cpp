@@ -153,15 +153,15 @@ bool FactionFilesAFLink::extract_zip(const std::string& zip_path, const std::str
         std::string output_path = extract_to + "\\" + relative_path;
 
         if (relative_path.back() == '/' || relative_path.back() == '\\') {
-            // ✅ If entry is a directory, create it
+            // If entry is a directory, create it
             std::filesystem::create_directories(output_path);
             xlog::info("Created directory: {}", output_path);
         }
         else {
-            // ✅ Ensure parent directories exist
+            // Ensure parent directories exist
             std::filesystem::create_directories(std::filesystem::path(output_path).parent_path());
 
-            // ✅ Extract file
+            // Extract file
             std::ofstream file(output_path, std::ios_base::binary);
             if (!file) {
                 xlog::error("Failed to create output file: {}", output_path);
@@ -226,7 +226,7 @@ bool FactionFilesAFLink::download_and_extract(
     // Determine paths
     std::string extract_to = get_extraction_path(game_dir, file_info->file_type);
     std::string zip_path =
-        extract_to + "\\" + std::to_string(file_id) + ".zip"; // ✅ Download ZIP directly to extraction folder
+        extract_to + "\\" + std::to_string(file_id) + ".zip"; // Download ZIP directly to extraction folder
 
     xlog::info("Downloading file: {} to {}", file_id, zip_path);
 
@@ -269,7 +269,7 @@ bool FactionFilesAFLink::download_and_extract(
         }
     }
 
-    // ✅ Ensure the file is fully written and closed before extraction
+    // Ensure the file is fully written and closed before extraction
     outFile.flush();
     outFile.close();
 
