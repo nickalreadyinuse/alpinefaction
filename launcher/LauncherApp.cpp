@@ -24,6 +24,18 @@ int LauncherApp::Run()
     xlog::info("Parsing command line");
     m_cmd_line_info.Parse();
 
+    if (m_cmd_line_info.GetAFLinkArg().has_value()) {
+        std::string fflink_token = m_cmd_line_info.GetAFLinkArg().value();
+        ValidateAFLinkToken(fflink_token); // Validate and update if necessary
+    }
+    else {
+        // Validate stored token on every launch
+        GameConfig game_config;
+        if (game_config.load() && !game_config.fflink_token.value().empty()) {
+            ValidateAFLinkToken(game_config.fflink_token.value());
+        }
+    }
+
     if (m_cmd_line_info.GetAFDownloadArg().has_value()) {
         int file_id = std::stoi(m_cmd_line_info.GetAFDownloadArg().value());
         xlog::info("Processing af://download/{}", file_id);
@@ -110,6 +122,9 @@ int LauncherApp::Run()
         return 0;
     }
 
+    // Check for updates
+    UpdateChecker::CheckForUpdates();
+
     // Show main dialog
     xlog::info("Showing main dialog");
 	MainDlg dlg;
@@ -118,6 +133,78 @@ int LauncherApp::Run()
     xlog::info("Closing the launcher");
 	return 0;
 }
+
+void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
+{
+    xlog::info("Validating AFLink token: {}", fflink_token);
+
+    std::string verify_url = "https://link.factionfiles.com/aflauncher/v1/link_check.php?token=" + fflink_token;
+    xlog::info("AFLink validity check URL: {}", verify_url);
+
+    HttpSession session("AlpineFactionLauncher");
+
+    try {
+        session.set_connect_timeout(3000);
+        session.set_receive_timeout(3000);
+        HttpRequest req(verify_url, "GET", session);
+        req.send();
+
+        std::string response;
+        char buf[256];
+        while (true) {
+            size_t bytesRead = req.read(buf, sizeof(buf) - 1);
+            if (bytesRead == 0)
+                break;
+            buf[bytesRead] = '\0';
+            response += buf;
+        }
+
+        response.erase(response.find_last_not_of(" \n\r\t") + 1);
+        xlog::info("AFLink verification response: {}", response);
+
+        GameConfig game_config;
+        game_config.load();
+
+        if (response.empty()) {
+            xlog::warn("AFLink check failed: No response received. Retaining existing values.");
+        }
+        else if (response == "notfound") {
+            xlog::warn("Invalid AFLink token detected. Resetting values.");
+            game_config.fflink_token = "";
+            game_config.fflink_username = "";
+            game_config.save();
+        }
+        else if (response.rfind("found", 0) == 0) {   // Ensure "found " prefix
+            std::string username = response.substr(6); // Extract username
+            xlog::info("AFLink valid. Username: {}", username);
+            game_config.fflink_token = fflink_token;
+            game_config.fflink_username = username;
+            game_config.save();
+        }
+        else {
+            xlog::warn("Unexpected response from AFLink check: {}. Retaining existing values.", response);
+        }
+    }
+    catch (const std::exception& e) {
+        xlog::warn("AFLink check failed: {}. Retaining existing values.", e.what());
+    }
+}
+
+/* void LauncherApp::HandleAFLink()
+{
+    if (m_cmd_line_info.GetAFLinkArg().has_value()) {
+        std::string fflink_token = m_cmd_line_info.GetAFLinkArg().value();
+        ValidateAFLinkToken(fflink_token); // Validate and update if necessary
+    }
+    else {
+        // Validate stored token on every launch
+        GameConfig game_config;
+        if (!game_config.fflink_token.value().empty()) {
+            ValidateAFLinkToken(game_config.fflink_token.value());
+        }
+    }
+}*/
+
 
 void LauncherApp::MigrateConfig()
 {

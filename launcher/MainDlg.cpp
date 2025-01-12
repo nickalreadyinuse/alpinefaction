@@ -26,6 +26,25 @@ BOOL MainDlg::OnInitDialog()
 {
     CDialog::OnInitDialog();
 
+    // Load game config
+    GameConfig game_config;
+    game_config.load();
+
+    // Get fflink_username value
+    std::string username = game_config.fflink_username.value();
+
+    // Determine window title
+    std::string window_title;
+    if (username.empty()) {
+        window_title = "Alpine Faction Launcher - Not Linked to a FactionFiles Account";
+    }
+    else {
+        window_title = "Alpine Faction Launcher - Linked as " + username;
+    }
+
+    // Set window title
+    SetWindowText(window_title.c_str());
+
     // Set the icon for this dialog
     SetIconLarge(IDR_ICON);
     SetIconSmall(IDR_ICON);
@@ -97,11 +116,11 @@ BOOL MainDlg::OnInitDialog()
     m_tool_tip.AddTool(m_sm4_button, "Open your user_maps directory for custom levels");
 
     // Set placeholder text for mod box when no selection
-    SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"Select a mod...");
+    SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"No mod selected...");
 
 #ifdef NDEBUG
     HWND hwnd = GetHwnd();
-    m_update_checker.check_async([=]() { ::PostMessageA(hwnd, WM_UPDATE_CHECK, 0, 0); });
+    //m_update_checker.check_async([=]() { ::PostMessageA(hwnd, WM_UPDATE_CHECK, 0, 0); });
 #endif
 
     return TRUE; // return TRUE  unless you set the focus to a control
@@ -156,7 +175,7 @@ BOOL MainDlg::OnCommand(WPARAM wparam, LPARAM lparam)
 
             if (text.IsEmpty())
             {
-                SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"Select a mod...");
+                SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"No mod selected...");
             }
         }
         break;
@@ -240,7 +259,6 @@ INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
             SetBkMode(hdc, TRANSPARENT);           // Transparent background
             SetTextColor(hdc, RGB(255, 255, 255)); // Always white text
 
-            //std::string version_text = "AF v0.0.1-dev"; // todo pull from version.h
             std::string version_text = std::format("AF {}", VERSION_STR);
 
 
@@ -256,8 +274,6 @@ INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
         return (LRESULT)GetStockObject(NULL_BRUSH); // Transparent background
     }
 
-    if (msg == WM_UPDATE_CHECK)
-        return OnUpdateCheck(wparam, lparam);
     return CDialog::DialogProc(msg, wparam, lparam);
 }
 
@@ -295,7 +311,7 @@ void MainDlg::RefreshModSelector()
     m_mod_selector.SetWindowTextA(selected_mod);
 }
 
-LRESULT MainDlg::OnUpdateCheck(WPARAM wparam, LPARAM lparam)
+/* LRESULT MainDlg::OnUpdateCheck(WPARAM wparam, LPARAM lparam)
 {
     UNREFERENCED_PARAMETER(wparam);
     UNREFERENCED_PARAMETER(lparam);
@@ -327,7 +343,7 @@ LRESULT MainDlg::OnUpdateCheck(WPARAM wparam, LPARAM lparam)
     }
 
     return 0;
-}
+}*/
 
 std::string replace_html_breaks(const std::string& input)
 {

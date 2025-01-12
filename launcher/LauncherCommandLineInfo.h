@@ -68,7 +68,7 @@ public:
             }
         }
         else {
-            m_aflink_arg = std::string(url); // Store entire af:// argument if no slash
+            //m_aflink_arg = std::string(url); // Store entire af:// argument if no slash
         }
     }
 

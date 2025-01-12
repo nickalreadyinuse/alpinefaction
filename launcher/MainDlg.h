@@ -55,6 +55,5 @@ protected:
     ImageButton m_sm3_button;
     ImageButton m_sm4_button;
 
-    AsyncUpdateChecker m_update_checker;
     CToolTip m_tool_tip;
 };

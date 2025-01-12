@@ -1,5 +1,6 @@
 #include <shlwapi.h>
 #include <algorithm>
+#include <xlog\xlog.h>
 #include <common/config/GameConfig.h>
 #include <common/config/RegKey.h>
 #include <common/version/version.h>
@@ -192,6 +193,8 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Autosave", autosave);
     result &= visitor(dash_faction_key, "Server Net FPS", server_netfps);
     result &= visitor(dash_faction_key, "Alpine Branding", af_branding);
+    result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
+    result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
 
     return result;
 }

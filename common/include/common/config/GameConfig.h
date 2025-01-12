@@ -119,6 +119,8 @@ struct GameConfig
 
     // Internal
     CfgVar<std::string> alpine_faction_version{""};
+    CfgVar<std::string> fflink_token{""};
+    CfgVar<std::string> fflink_username{""};
 
     bool load();
     void save();
