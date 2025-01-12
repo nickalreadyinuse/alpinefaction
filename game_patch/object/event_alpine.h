@@ -232,7 +232,7 @@ namespace rf
 
                 int link = this->links[i];
                 Object* obj = obj_from_handle(link);
-                if (obj) {
+                if (obj && obj->type == rf::OT_ENTITY) {
                     Entity* entity = static_cast<Entity*>(obj);
                     Entity* new_entity =
                         entity_create(entity->info_index, entity->name, -1, pos, this->orient, 0, -1);
