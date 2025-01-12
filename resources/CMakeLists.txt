@@ -76,6 +76,7 @@ add_packfile(alpinefaction.vpp
     images/hud_miniflag_red_1.vbm
     images/noclip_ammo_bar_1.tga
     images/Icon_EAX.tga
+    images/Icon_Event.tga
     images/radar_dish.tga
     images/score_aflogo.tga
     images/mtl_archway04-mip1.tga
