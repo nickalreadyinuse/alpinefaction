@@ -4,15 +4,33 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../multi/multi.h"
+#include "../multi/endgame_votes.h"
 #include "../rf/input.h"
 #include "../rf/entity.h"
 #include "../rf/multi.h"
+#include "../rf/gameseq.h"
 #include "../rf/player/control_config.h"
 #include "../rf/player/player.h"
 #include "../rf/os/console.h"
 #include "../rf/os/os.h"
 
 static int starting_alpine_control_index = -1;
+
+rf::String get_action_bind_name(int action)
+{
+    auto& config_item = rf::local_player->settings.controls.bindings[action];
+    rf::String name;
+    if (config_item.scan_codes[0] >= 0) {
+        rf::control_config_get_key_name(&name, config_item.scan_codes[0]);
+    }
+    else if (config_item.mouse_btn_id >= 0) {
+        rf::control_config_get_mouse_button_name(&name, config_item.mouse_btn_id);
+    }
+    else {
+        name = "?";
+    }
+    return name;
+}
 
 rf::ControlConfigAction get_af_control(rf::AlpineControlConfigAction alpine_control)
 {
@@ -237,7 +255,7 @@ CodeInjection player_execute_action_patch{
     },
 };
 
-// alpine controls that activate in multiplayer (player spawned or not)
+// alpine controls that activate in active multiplayer game (player spawned or not, but not during limbo)
 CodeInjection player_execute_action_patch2{
     0x004A624B,
     [](auto& regs) {
@@ -252,11 +270,13 @@ CodeInjection player_execute_action_patch2{
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote yes", nullptr);
+                xlog::warn("voting yes");
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote no", nullptr);
+                xlog::warn("voting no");
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_READY) &&
@@ -269,6 +289,31 @@ CodeInjection player_execute_action_patch2{
                 //send_chat_line_packet("/ready", nullptr);
                 xlog::warn("chat menu pressed");
             }*/
+        }
+    },
+};
+
+// alpine controls that activate any time in multiplayer 
+CodeInjection player_execute_action_patch3{
+    0x004A6233,
+    [](auto& regs) {
+
+        rf::ControlConfigAction action = regs.ebp;
+        int action_index = static_cast<int>(action);
+        //xlog::warn("executing action {}", action_index);
+
+        // only intercept alpine controls
+        if (action_index >= starting_alpine_control_index) {
+            if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES) &&
+                rf::gameseq_get_state() == rf::GS_MULTI_LIMBO && !rf::is_server) {
+                multi_attempt_endgame_vote(true);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO) &&
+                rf::gameseq_get_state() == rf::GS_MULTI_LIMBO && !rf::is_server) {
+                multi_attempt_endgame_vote(false);
+            }
         }
     },
 };
@@ -294,6 +339,7 @@ void key_apply_patch()
     control_config_init_patch.install();
     player_execute_action_patch.install();
     player_execute_action_patch2.install();
+    player_execute_action_patch3.install();
     controls_process_patch.install();
 
     // Support non-US keyboard layouts

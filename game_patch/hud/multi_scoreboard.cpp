@@ -3,8 +3,11 @@
 #include <common/utils/list-utils.h>
 #include <patch_common/FunHook.h>
 #include "multi_scoreboard.h"
+#include "../input/input.h"
+#include "../multi/endgame_votes.h"
 #include "../multi/multi.h"
 #include "../misc/alpine_options.h"
+#include "../rf/player/control_config.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/multi.h"
@@ -69,6 +72,22 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
     }
     int font_h = rf::gr::get_font_height(-1);
     cur_y += font_h + 8;
+
+    // Draw endgame voting text
+    int y_vote = y / 3;
+    if (!dry_run
+        && g_player_can_endgame_vote
+        ) {
+        std::string vote_yes_key_text =
+            get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES));
+
+        std::string vote_no_key_text =
+            get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO));
+
+        std::string endgame_vote_text = "Like this map?\n\n" + vote_yes_key_text + " for yes\n" + vote_no_key_text + " for no";
+
+        rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 8, y_vote, endgame_vote_text.c_str(), 0);
+    }
 
     // Draw level
     if (!dry_run) {

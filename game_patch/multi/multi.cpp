@@ -5,6 +5,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include "multi.h"
+#include "endgame_votes.h"
 #include "multi_private.h"
 #include "server_internal.h"
 #include "../rf/file/file.h"
@@ -92,6 +93,11 @@ FunHook<void()> multi_limbo_init{
         multi_limbo_init.call_target();
         if (rf::is_server) {
             server_on_limbo_state_enter();
+            multi_player_set_can_endgame_vote(false); // servers can't endgame vote
+        }
+        // don't let clients vote if the map has been played for less than 30 seconds
+        else if(rf::level.time >= 30.0f) {
+            multi_player_set_can_endgame_vote(true);
         }
     },
 };

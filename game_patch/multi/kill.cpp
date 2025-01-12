@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <unordered_map>
 #include "multi.h"
+#include "endgame_votes.h"
 #include "../main/main.h"
 #include "server.h"
 #include "../os/console.h"
@@ -312,6 +313,9 @@ FunHook<void()> multi_level_init_hook{
         }
 
         multi_level_init_hook.call_target();
+
+        // Stop allowing endgame votes after the next level starts
+        multi_player_set_can_endgame_vote(false);
 
         if (g_additional_server_config.gungame.enabled)
         {

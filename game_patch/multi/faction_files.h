@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <chrono>
+#include <functional>
 #include <common/HttpRequest.h>
 
 class FactionFilesClient
@@ -13,6 +15,15 @@ public:
         std::string description;
         unsigned size_in_bytes;
         int ticket_id;
+    };
+
+    struct VoteInfo
+    {
+        std::string fflink_player_token;
+        std::string level_filename;
+        std::string server_name;
+        std::string mod_name;
+        bool vote;
     };
 
     FactionFilesClient();

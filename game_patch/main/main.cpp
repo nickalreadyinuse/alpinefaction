@@ -193,7 +193,6 @@ FunHook<void(bool)> level_init_post_hook{
                 start_pre_match();
             }
         }
-
     },
 };
 

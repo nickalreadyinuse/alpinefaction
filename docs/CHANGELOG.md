@@ -119,6 +119,11 @@ Version 1.0.0
 - Add Big HUD version of rocket lock on reticle (contribution from HeyItsDuke)
 - Add CTF flag dropping functionality and control
 - Add framework for `mapname_info.tbl` loading and initial set of options
+- Add support for `af://` protocol handler
+- Register `af://` protocol handler during setup
+- Add FactionFiles account linking system (FFLink) via `af://` protocol
+- Add support for direct downloads from FactionFiles via `af://` protocol
+- Add support for endgame voting through FFLink
 
 
 

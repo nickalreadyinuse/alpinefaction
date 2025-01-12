@@ -129,6 +129,8 @@ set(SRCS
     multi/votes.cpp
     multi/commands.cpp
     multi/multi_tdm.cpp
+    multi/endgame_votes.cpp
+    multi/endgame_votes.h
     multi/faction_files.cpp
     multi/faction_files.h
     multi/multi_ban.cpp

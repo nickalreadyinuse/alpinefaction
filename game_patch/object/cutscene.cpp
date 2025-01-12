@@ -18,22 +18,6 @@
 
 static constexpr rf::ControlConfigAction default_skip_cutscene_ctrl = rf::CC_ACTION_MP_STATS;
 
-static rf::String get_action_bind_name(int action)
-{
-    auto& config_item = rf::local_player->settings.controls.bindings[action];
-    rf::String name;
-    if (config_item.scan_codes[0] >= 0) {
-        rf::control_config_get_key_name(&name, config_item.scan_codes[0]);
-    }
-    else if (config_item.mouse_btn_id >= 0) {
-        rf::control_config_get_mouse_button_name(&name, config_item.mouse_btn_id);
-    }
-    else {
-        name = "?";
-    }
-    return name;
-}
-
 static void render_skip_cutscene_hint_text(rf::ControlConfigAction action)
 {
     if (rf::hud_disabled) {
