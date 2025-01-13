@@ -29,11 +29,8 @@ WizardStyle=modern
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-;Name: "rfproto"; Description: "Register rf:// protocol handler (enables multiplayer click-to-join)"; GroupDescription: "Other options:"
-;Name: "afproto"; Description: "Register af:// protocol handler (enables FactionFiles integration)"; GroupDescription: "Other options:"
 Name: "rflassoc"; Description: "Associate the .rfl file extension with the Alpine Faction level editor"; GroupDescription: "Other options:"
-;Name: "fftracker"; Description: "Use the FactionFiles multiplayer tracker (rfgt.factionfiles.com; community standard)"; GroupDescription: "Other options:"
-Name: "patchgame"; Description: "Install necessary Red Faction patches"; GroupDescription: "Other options:"; Check: "PatchGameTaskCheck"
+Name: "resetplayerscfg"; Description: "Back up and reset players.cfg (necessary to use new action binds)"; GroupDescription: "Other options:"
 Name: "replacerflauncher"; Description: "Replace the Red Faction launcher with the Alpine Faction launcher (enables Steam support)"; GroupDescription: "Other options:"; Flags: unchecked
 Name: "redvisualstyles"; Description: "Enable Windows visual styles for the level editor (experimental)"; GroupDescription: "Other options:"; Flags: unchecked
 
@@ -396,12 +393,31 @@ begin
     end;
 end;
 
+procedure ResetPlayersCfgFile();
+var
+    PlayersCfgPath: String;
+begin
+    PlayersCfgPath := GetGameDir('players.cfg');
+    if FileExists(PlayersCfgPath) then
+    begin
+        Log('Found players.cfg at: ' + PlayersCfgPath);
+        if RenameFile(PlayersCfgPath, PlayersCfgPath + '_bak') then
+            Log('Successfully backed up players.cfg to players.cfg_bak.')
+        else
+            MsgBox('Failed to back up players.cfg. You will need to manually delete or rename the file.', mbError, MB_OK);
+    end
+    else
+    begin
+        Log('No players.cfg found at: ' + PlayersCfgPath);
+    end;
+end;
+
 // Check functions
 
-function PatchGameTaskCheck(): Boolean;
-begin
-    Result := GetArrayLength(Patches) > 0;
-end;
+//function PatchGameTaskCheck(): Boolean;
+//begin
+//    Result := GetArrayLength(Patches) > 0;
+//end;
 
 // Event functions
 
@@ -414,8 +430,14 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
     if CurStep = ssPostInstall then
     begin
-        ApplyPatches;
+        if GetArrayLength(Patches) > 0 then
+        begin
+            Log('Applying necessary patches...');
+            ApplyPatches;
+        end;
         ReplaceRedFactionLauncher;
+        if WizardIsTaskSelected('resetplayerscfg') then
+            ResetPlayersCfgFile;
     end;
 end;
 
