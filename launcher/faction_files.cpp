@@ -12,7 +12,7 @@
 static const char file_info_base_url[] = "https://autodl.factionfiles.com/aflauncher/v1/fileinfo.php?id=";
 static const char file_download_base_url[] = "https://autodl.factionfiles.com/aflauncher/v1/downloadfile.php?ticketid=";
 
-FactionFilesAFLink::FactionFilesAFLink() : session_("Alpine Faction")
+FactionFilesAFLink::FactionFilesAFLink() : session_("Alpine Faction Install")
 {
     session_.set_connect_timeout(2000);
     session_.set_receive_timeout(3000);

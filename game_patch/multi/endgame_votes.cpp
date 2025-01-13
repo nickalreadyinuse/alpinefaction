@@ -67,7 +67,7 @@ void submit_vote(const FactionFilesClient::VoteInfo& vote_info)
     //xlog::warn("Submitting vote: {}", vote_url);
 
     // Create HTTP session
-    HttpSession session("AlpineFactionLauncher");
+    HttpSession session("Alpine Faction Vote");
 
     try {
         session.set_connect_timeout(3000);
