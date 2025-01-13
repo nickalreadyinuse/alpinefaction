@@ -407,18 +407,26 @@ void multi_apply_kill_reward(rf::Player* player)
 
     const auto& conf = server_get_df_config();
 
-    float max_life = conf.kill_reward_health_super ? 200.0f : ep->info->max_life;
-    float max_armor = conf.kill_reward_armor_super ? 200.0f : ep->info->max_armor;
+    // Ensure that max health/armor limits do not decrease current values
+    float max_life_limit = std::max(ep->life, conf.kill_reward_health_super ? 200.0f : ep->info->max_life);
+    float armor_max_limit = std::max(ep->armor, conf.kill_reward_armor_super ? 200.0f : ep->info->max_armor);
 
+    // Apply health reward, ensuring we do not exceed max limits
     if (conf.kill_reward_health > 0.0f) {
-        ep->life = std::min(ep->life + conf.kill_reward_health, max_life);
+        ep->life = std::min(ep->life + conf.kill_reward_health, max_life_limit);
     }
+
+    // Apply armor reward, ensuring we do not exceed max limits
     if (conf.kill_reward_armor > 0.0f) {
-        ep->armor = std::min(ep->armor + conf.kill_reward_armor, max_armor);
+        ep->armor = std::min(ep->armor + conf.kill_reward_armor, armor_max_limit);
     }
+
+    // Apply effective health reward, distributed between health and armor
     if (conf.kill_reward_effective_health > 0.0f) {
-        float life_to_add = std::min(conf.kill_reward_effective_health, max_life - ep->life);
-        float armor_to_add = std::min((conf.kill_reward_effective_health - life_to_add) / 2, max_armor - ep->armor);
+        float life_to_add = std::min(conf.kill_reward_effective_health, max_life_limit - ep->life);
+        float armor_to_add =
+            std::min((conf.kill_reward_effective_health - life_to_add) / 2, armor_max_limit - ep->armor);
+
         ep->life += life_to_add;
         ep->armor += armor_to_add;
     }
