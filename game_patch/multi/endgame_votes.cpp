@@ -1,5 +1,6 @@
 #include "endgame_votes.h"
 #include <xlog/xlog.h>
+#include <thread>
 #include "../main/main.h"
 #include "../misc/misc.h"
 #include "../hud/multi_scoreboard.h"
@@ -16,7 +17,10 @@ bool g_player_can_endgame_vote = false;
 
 void multi_player_set_can_endgame_vote(bool can_vote)
 {
-    g_player_can_endgame_vote = can_vote;
+    // only enable voting if fflink token is valid
+    if (!can_vote || !g_game_config.fflink_token.value().empty()) {
+        g_player_can_endgame_vote = can_vote;
+    }
 }
 
 FactionFilesClient::VoteInfo build_vote_info(bool liked)
@@ -43,80 +47,75 @@ FactionFilesClient::VoteInfo build_vote_info(bool liked)
 
     return vote_info;
 }
-// todo: background thread
-void submit_vote(const FactionFilesClient::VoteInfo& vote_info)
+
+void async_submit_vote(FactionFilesClient::VoteInfo vote_info)
 {
-    // Ensure token is valid
-    if (vote_info.fflink_player_token.empty()) {
-        xlog::info("Vote submission failed: No valid AFLink token.");
-        return;
-    }
-
-    // Encode URL parameters
-    std::string encoded_token = vote_info.fflink_player_token;
-    std::string encoded_level = encode_uri_component(vote_info.level_filename);
-    std::string encoded_server = encode_uri_component(vote_info.server_name);
-    std::string encoded_mod = encode_uri_component(vote_info.mod_name);
-    std::string vote_value = vote_info.vote ? "1" : "-1";
-
-    // Construct the URL
-    std::string vote_url = "https://link.factionfiles.com/aflauncher/v1/link_vote.php?token=" + encoded_token +
-                           "&rfl=" + encoded_level + "&server=" + encoded_server + "&mod=" + encoded_mod +
-                           "&vote=" + vote_value;
-
-    //xlog::warn("Submitting vote: {}", vote_url);
-
-    // Create HTTP session
-    HttpSession session("Alpine Faction Vote");
-
-    try {
-        session.set_connect_timeout(3000);
-        session.set_receive_timeout(3000);
-
-        // Send the request
-        HttpRequest req(vote_url, "GET", session);
-        req.send();
-
-        // Read response
-        std::string response;
-        char buf[256];
-        while (true) {
-            size_t bytesRead = req.read(buf, sizeof(buf) - 1);
-            if (bytesRead == 0)
-                break;
-            buf[bytesRead] = '\0';
-            response += buf;
+    std::thread([vote_info]() {
+        // Double check to ensure token is valid
+        if (vote_info.fflink_player_token.empty()) {
+            xlog::warn("Vote submission failed: No valid AFLink token.");
+            return;
         }
 
-        // Trim whitespace
-        response.erase(response.find_last_not_of(" \n\r\t") + 1);
+        // Encode URL parameters
+        std::string encoded_token = vote_info.fflink_player_token;
+        std::string encoded_level = encode_uri_component(vote_info.level_filename);
+        std::string encoded_server = encode_uri_component(vote_info.server_name);
+        std::string encoded_mod = encode_uri_component(vote_info.mod_name);
+        std::string vote_value = vote_info.vote ? "1" : "-1";
 
-        // Log response
-        xlog::info("Vote submission response: {}", response);
+        // Construct the URL
+        std::string vote_url = "https://link.factionfiles.com/aflauncher/v1/link_vote.php?token=" + encoded_token +
+                               "&rfl=" + encoded_level + "&server=" + encoded_server + "&mod=" + encoded_mod +
+                               "&vote=" + vote_value;
 
-        if (response == "accepted") {
-            xlog::info("Vote successfully submitted.");
+        xlog::info("Submitting vote asynchronously... Level: {}, Server: {}, Mod: {}, Positive vote? {}",
+                   vote_info.level_filename, vote_info.server_name, vote_info.mod_name, vote_info.vote ? "yes" : "no");
+
+        //xlog::info("Using vote URL: {}", vote_url);
+
+        // Create HTTP session
+        HttpSession session("Alpine Faction Vote");
+
+        try {
+            session.set_connect_timeout(3000);
+            session.set_receive_timeout(3000);
+
+            HttpRequest req(vote_url, "GET", session);
+            req.send();
+
+            std::string response;
+            char buf[256];
+            while (true) {
+                size_t bytesRead = req.read(buf, sizeof(buf) - 1);
+                if (bytesRead == 0)
+                    break;
+                buf[bytesRead] = '\0';
+                response += buf;
+            }
+
+            // Trim whitespace
+            response.erase(response.find_last_not_of(" \n\r\t") + 1);
+
+            // Log response
+            if (response == "accepted") {
+                xlog::info("Vote successfully submitted.");
+            }
+            else {
+                xlog::warn("Vote submission failed: You voted too recently.");
+            }
         }
-        else {
-            xlog::info("Vote submission failed because you voted too recently.");
+        catch (const std::exception& e) {
+            xlog::warn("Vote submission request failed: {}", e.what());
         }
-    }
-    catch (const std::exception& e) {
-        xlog::info("Vote submission failed: {}", e.what());
-    }
+    }).detach();
 }
-
 
 void multi_attempt_endgame_vote(bool liked)
 {
     if (g_player_can_endgame_vote) {
-        FactionFilesClient::VoteInfo vote_info = build_vote_info(liked);
-
-        xlog::debug("Submitting vote... Level: {}, Server: {}, Mod: {}, Positive vote? {}, User token: {}",
-            vote_info.level_filename, vote_info.server_name, vote_info.mod_name,
-            vote_info.vote ? "yes" : "no", vote_info.fflink_player_token);
-
-        submit_vote(vote_info); // Submit the vote
-        multi_player_set_can_endgame_vote(false); // Mark as voted
+        FactionFilesClient::VoteInfo vote_info = build_vote_info(liked);    // build vote information
+        async_submit_vote(vote_info);                                       // Submit the vote asynchronously
+        multi_player_set_can_endgame_vote(false);                           // Mark as voted
     }
 }
