@@ -95,8 +95,8 @@ FunHook<void()> multi_limbo_init{
             server_on_limbo_state_enter();
             multi_player_set_can_endgame_vote(false); // servers can't endgame vote
         }
-        // don't let clients vote if the map has been played for less than 30 seconds
-        else if(rf::level.time >= 30.0f) {
+        // don't let clients vote if the map has been played for less than 1 min
+        else if(rf::level.time >= 60.0f) {
             multi_player_set_can_endgame_vote(true);
         }
     },
