@@ -7,7 +7,7 @@ Version 1.0.0
 - Add `lighting_color_range` command
 - Add `$DF CTF Flag Return Time` option in dedicated server config
 - Add gibbing when enemies die from explosives (enable with `gibs` command)
-- Add `lightmaps_only`, `mesh_fullbright`, and `disable_screenshake` commands
+- Add `r_lightmap`, `r_fullbright`, and `disable_screenshake` commands
 - Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
 - Add mod name to main menu
 - Make game spawn players at Player Start position if level has no respawn points
