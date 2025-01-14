@@ -631,7 +631,7 @@ void handle_summoner_trailer_button()
 // Only install hooks for options that have been loaded and specified
 void apply_af_options_patches()
 {
-    xlog::warn("Applying Alpine Faction options patches");
+    xlog::debug("Applying Alpine Faction options patches");
 
     // ===========================
     // af_client.tbl
@@ -753,7 +753,7 @@ void apply_af_options_patches()
         handle_summoner_trailer_button();
     }
 
-    //xlog::warn("Alpine Faction Options patches applied successfully");
+    xlog::debug("Alpine Faction Options patches applied successfully");
 
 }
 
@@ -771,7 +771,7 @@ void load_single_af_options_file(const std::string& file_name)
         //xlog::warn("Could not open {}", file_name);
         return;
     }
-    //xlog::warn("Successfully opened {}", file_name);
+    xlog::debug("Successfully opened {}", file_name);
 
     // Read entire file content into a single string buffer
     std::string file_content;
@@ -841,8 +841,8 @@ void load_single_af_options_file(const std::string& file_name)
             if (parsed_value) {
                 g_alpine_options_config.options[metadata.id] = *parsed_value;
                 g_alpine_options_config.options_loaded[static_cast<std::size_t>(metadata.id)] = true;
-                xlog::warn("Parsed and applied option {}: {}", option_name, option_value);
-                xlog::warn("Option ID {} marked as loaded", static_cast<std::size_t>(metadata.id));
+                xlog::debug("Parsed and applied option {}: {}", option_name, option_value);
+                xlog::debug("Option ID {} marked as loaded", static_cast<std::size_t>(metadata.id));
             }
         }
         else if (meta_it != option_metadata.end()) {
@@ -850,10 +850,10 @@ void load_single_af_options_file(const std::string& file_name)
                 xlog::warn("Option {} in {} skipped (wrong tbl file)", option_name, file_name);
             }
             else if (rf::is_dedicated_server && !meta_it->second.apply_on_server) {
-                xlog::warn("Option {} in {} skipped (not needed on dedicated server)", option_name, file_name);
+                xlog::debug("Option {} in {} skipped (not needed on dedicated server)", option_name, file_name);
             }
             else {
-                xlog::warn("Option {} in {} skipped (reason unknown)", option_name, file_name);
+                xlog::debug("Option {} in {} skipped (reason unknown)", option_name, file_name);
             }
         }
     }
@@ -865,7 +865,7 @@ void load_single_af_options_file(const std::string& file_name)
 
 void load_af_options_config()
 {
-    //xlog::warn("Loading Alpine Faction Options configuration");
+    xlog::debug("Loading Alpine Faction Options configuration");
 
     // Load all af_client*.tbl files first
     // af_client.tbl overrides numbered variations because its loaded later
@@ -890,13 +890,13 @@ void load_af_options_config()
         }
     }    
 
-    xlog::warn("Loaded options:");
+    xlog::debug("Loaded options:");
     for (std::size_t i = 0; i < af_option_count; ++i) {
         if (g_alpine_options_config.options_loaded[i]) {
-            //xlog::warn("Option {} is loaded", i);
+            xlog::debug("Option {} is loaded", i);
         }
         else {
-            //xlog::warn("Option {} is NOT loaded", i);
+            xlog::debug("Option {} is NOT loaded", i);
         }
     }
 
