@@ -17,7 +17,18 @@ namespace rf
     struct AiInfo;
     struct Camera;
 
-    /* Settings */   
+    /* Settings */
+
+    struct PlayerHeadlampSettings
+    {
+        float r;
+        float g;
+        float b;
+        float intensity;
+        float base_radius;
+        float max_range;
+        int attenuation_algorithm;
+    };
 
     struct PlayerSettings
     {

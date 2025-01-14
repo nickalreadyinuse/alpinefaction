@@ -31,6 +31,7 @@
 #include "../misc/alpine_options.h"
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
+#include "../misc/player.h"
 #include "../input/input.h"
 #include "../rf/gr/gr.h"
 #include "../rf/multi.h"
@@ -175,6 +176,7 @@ FunHook<void(bool)> level_init_post_hook{
 
         process_queued_spawn_points_from_items();
         evaluate_fullbright_meshes();
+        update_player_flashlight();
         if (g_game_config.try_lightmaps_only) {
             evaluate_lightmaps_only();
         }
