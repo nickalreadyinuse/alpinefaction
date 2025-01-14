@@ -24,6 +24,11 @@ void gr_light_use_static(bool use_static);
 
 bool server_side_restrict_disable_muzzle_flash = false;
 
+// support fullbright character meshes
+static float g_character_ambient_light_r = 1.0f;
+static float g_character_ambient_light_g = 1.0f;
+static float g_character_ambient_light_b = 1.0f;
+
 void obj_mesh_lighting_alloc_one(rf::Object *objp)
 {
     // Note: ObjDeleteMesh frees mesh_lighting_data
@@ -79,22 +84,30 @@ void evaluate_fullbright_meshes()
     if (!rf::LEVEL_LOADED)
         return;
 
-    bool server_side_restrict_fb_mesh =
-        rf::is_multi && !rf::is_server && get_df_server_info() && !get_df_server_info()->allow_fb_mesh;
+    bool should_fullbright = false;
 
-    if (server_side_restrict_fb_mesh && g_game_config.try_mesh_fullbright) {
-        rf::console::print("This server does not allow you to force fullbright meshes!");
-        return;
+    if (g_game_config.try_mesh_fullbright) {
+        bool server_side_restrict_fb_mesh =
+            rf::is_multi && !rf::is_server && get_df_server_info() && !get_df_server_info()->allow_fb_mesh;
+
+        if (server_side_restrict_fb_mesh) {
+            rf::console::print("This server does not allow you to force fullbright meshes!");
+        }
+        else {
+            should_fullbright = true;
+        }
     }
 
-    auto [r, g, b] = g_game_config.try_mesh_fullbright
-                         ? std::make_tuple(1.0f, 1.0f, 1.0f)
-                         : std::make_tuple(static_cast<float>(rf::level.ambient_light.red) / 255.0f,
-                                           static_cast<float>(rf::level.ambient_light.green) / 255.0f,
-                                           static_cast<float>(rf::level.ambient_light.blue) / 255.0f);
-
-    rf::gr::light_set_ambient(r, g, b);
-    recalc_mesh_static_lighting();
+    // Use fullbright (1.0) for each channel if selected and allowed, otherwise use level ambient light
+    if (should_fullbright) {
+        g_character_ambient_light_r = 1.0f;
+        g_character_ambient_light_g = 1.0f;
+        g_character_ambient_light_b = 1.0f;
+    }
+    else {
+        // sets all 3 g_character_ambient_light floats
+        std::memcpy(&g_character_ambient_light_r, reinterpret_cast<const void*>(0x005A38D4), sizeof(float) * 3);
+    }
 }
 
 FunHook<void()> obj_light_calculate_hook{
@@ -205,17 +218,17 @@ ConsoleCommand2 muzzle_flash_cmd{
 };
 
 ConsoleCommand2 fullbright_models_cmd{
-    "r_meshfullbright",
+    "r_fullbright",
     []() {
         g_game_config.try_mesh_fullbright = !g_game_config.try_mesh_fullbright;
         g_game_config.save();
 
         evaluate_fullbright_meshes();    
                 
-        rf::console::print("Fullbright meshes are {}", g_game_config.try_mesh_fullbright ?
+        rf::console::print("Fullbright character meshes are {}", g_game_config.try_mesh_fullbright ?
 			"enabled. In multiplayer, this will only apply if the server allows it." : "disabled.");
     },
-    "Set all meshes to render fullbright. In multiplayer, this is only available if the server allows it.",
+    "Toggle fullbright character meshes. In multiplayer, this is only available if the server allows it.",
 };
 
 CodeInjection dynamic_light_load_patch{
@@ -230,6 +243,11 @@ CodeInjection dynamic_light_load_patch{
 
 void obj_light_apply_patch()
 {
+    // Support fullbright character meshes
+    AsmWriter{0x0052DB3E}.fld<float>(AsmRegMem{&g_character_ambient_light_r});
+    AsmWriter{0x0052DB50}.fld<float>(AsmRegMem{&g_character_ambient_light_r});
+    AsmWriter{0x0052DB62}.fld<float>(AsmRegMem{&g_character_ambient_light_r});
+
     // Allow dynamic lights in levels
     dynamic_light_load_patch.install(); // in LevelLight__load
 
