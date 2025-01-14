@@ -102,7 +102,7 @@ std::string FactionFilesAFLink::get_extraction_path(const std::string& game_exe_
 {
     std::filesystem::path base_path(game_exe_path);
 
-    if (file_type == "map_mp") {
+    if (file_type == "map_mp" || file_type == "map_pack_mp") {
         return (base_path / "user_maps" / "multi").string();
     }
     else if (file_type == "map_sp") {
