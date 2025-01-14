@@ -170,6 +170,18 @@ static CodeInjection console_handle_input_history_injection{
     },
 };
 
+void print_fflink_info() {
+    std::string username = g_game_config.fflink_username.value();
+    std::string msg = "";
+    if (username.empty()) {
+        msg = "Not linked to a FactionFiles account!";
+    }
+    else {
+        msg = "Linked to FactionFiles as " + username;
+    }
+    rf::console::printf("-- %s --", msg);
+}
+
 void console_commands_apply_patches();
 void console_auto_complete_apply_patches();
 void console_commands_init();
@@ -234,4 +246,5 @@ void console_apply_patches()
 void console_init()
 {
     console_commands_init();
+    print_fflink_info();
 }
