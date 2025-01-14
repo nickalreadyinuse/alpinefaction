@@ -33,3 +33,4 @@ struct PlayerAdditionalData
 
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer);
 PlayerAdditionalData& get_player_additional_data(rf::Player* player);
+void update_player_flashlight();

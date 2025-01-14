@@ -5,6 +5,7 @@
 #include <patch_common/ShortTypes.h>
 #include <patch_common/AsmWriter.h>
 #include <regex>
+#include "player.h"
 #include "../os/console.h"
 #include "../rf/file/file.h"
 #include "../rf/gr/gr.h"
@@ -55,13 +56,24 @@ std::string trim(const std::string& str, bool remove_quotes = false)
 
 // Helper functions for individual data types
 
-// parse hex formatted colors
+// parse hex formatted colors to 0-255 ints
 std::tuple<int, int, int, int> extract_color_components(uint32_t color)
 {
     return std::make_tuple((color >> 24) & 0xFF, // red
                            (color >> 16) & 0xFF, // green
                            (color >> 8) & 0xFF,  // blue
                            color & 0xFF          // alpha
+    );
+}
+
+// parse hex formatted colors to 0.0-1.0 floats
+std::tuple<float, float, float, float> extract_normalized_color_components(uint32_t color)
+{
+    return std::make_tuple(
+        ((color >> 24) & 0xFF) / 255.0f, // Red   (0-1)
+        ((color >> 16) & 0xFF) / 255.0f, // Green (0-1)
+        ((color >> 8)  & 0xFF) / 255.0f, // Blue  (0-1)
+        (color & 0xFF) / 255.0f          // Alpha (0-1)
     );
 }
 
@@ -128,7 +140,10 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Fall Damage Slam Multiplier", {AlpineOptionID::FallDamageSlamMultiplier, "af_game.tbl", parse_float, true}},
     {"$Multiplayer Walk Speed", {AlpineOptionID::MultiplayerWalkSpeed, "af_game.tbl", parse_float, true}},
     {"$Multiplayer Crouch Walk Speed", {AlpineOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float, true}},
-    {"$Walkable Slope Threshold", {AlpineOptionID::WalkableSlopeThreshold, "af_game.tbl", parse_float}}
+    {"$Walkable Slope Threshold", {AlpineOptionID::WalkableSlopeThreshold, "af_game.tbl", parse_float}},
+    {"$Player Headlamp Color", {AlpineOptionID::PlayerHeadlampColor, "af_game.tbl", parse_color}},
+    {"$Player Headlamp Range", {AlpineOptionID::PlayerHeadlampRange, "af_game.tbl", parse_float}},
+    {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}}
 };
 
 
@@ -146,29 +161,16 @@ std::string trim_level(const std::string& str)
 // Parsing functions for level settings
 std::optional<LevelInfoValue> parse_float_level(const std::string& value)
 {
-    try {
-        return std::stof(value);
-    }
-    catch (...) {
-        return std::nullopt;
-    }
+    try { return std::stof(value); } catch (...) { return std::nullopt; } 
 }
-
 std::optional<LevelInfoValue> parse_int_level(const std::string& value)
 {
-    try {
-        return std::stoi(value);
-    }
-    catch (...) {
-        return std::nullopt;
-    }
+    try { return std::stoi(value); } catch (...) { return std::nullopt; } 
 }
-
 std::optional<LevelInfoValue> parse_bool_level(const std::string& value)
 {
     return value == "1" || value == "true" || value == "True";
 }
-
 std::optional<LevelInfoValue> parse_string_level(const std::string& value)
 {
     return trim(value, true);

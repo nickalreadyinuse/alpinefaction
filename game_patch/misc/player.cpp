@@ -6,6 +6,7 @@
 #include "../rf/sound/sound.h"
 #include "../rf/bmpman.h"
 #include "../rf/weapon.h"
+#include "../rf/level.h"
 #include "../rf/hud.h"
 #include "../rf/input.h"
 #include "../rf/gr/gr_light.h"
@@ -25,6 +26,7 @@
 #include <patch_common/AsmWriter.h>
 
 std::unordered_map<rf::Player*, PlayerAdditionalData> g_player_additional_data_map;
+static rf::PlayerHeadlampSettings g_local_headlamp_settings;
 
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer)
 {
@@ -335,28 +337,80 @@ CodeInjection player_move_flashlight_light_patch {
         float dist = eye_pos.distance_to(*pDest2);
         regs.eax = *reinterpret_cast<float*>(0x005A0108) * sqrt(dist); // scale light radius
 
-        float mapped_dist = map_range(dist, 0.0f, *reinterpret_cast<float*>(0x005A0100), 1.0f, 0.05f);
-        *reinterpret_cast<float*>(0x005A00FC) = 0.6f * mapped_dist; // scale light intensity
+        //float mapped_dist = map_range(dist, 0.0f, *reinterpret_cast<float*>(0x005A0100), 1.0f, 0.05f);
+        float mapped_dist = map_range(dist, 0.0f, g_local_headlamp_settings.max_range, 1.0f, 0.05f);
+        *reinterpret_cast<float*>(0x005A00FC) =
+            g_local_headlamp_settings.intensity * mapped_dist; // scale light intensity
     },
 };
 
+// called on game start and during each level post init
 void update_player_flashlight() {
-    *reinterpret_cast<float*>(0x005A0108) = 3.25f;   // base radius (default 3.0)
-    //*reinterpret_cast<float*>(0x005A00FC) = 0.8f;  // intensity (default 1.0)
-    *reinterpret_cast<float*>(0x005A0100) = 20.0f;  // max range (default 12.0)
-    AsmWriter(0x004A6AF3).push(2);                  // attenuation algo (default 0)
 
-    // warm yellow/tan to loosely emulate an incandescent lightbulb
-    AsmWriter{0x004A6B03}.push(0x3F800000); // r (new 255, default 255)
-    AsmWriter{0x004A6AFE}.push(0x3F5F399F); // g (new 190, default 255)
-    AsmWriter{0x004A6AF9}.push(0x3F404461); // b (new 120, default 255)
+    //color
+    if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor)) {
+        auto headlamp_color =
+            get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor);
+
+        std::tie(g_local_headlamp_settings.r, g_local_headlamp_settings.g, g_local_headlamp_settings.b,
+                 g_local_headlamp_settings.intensity) = extract_normalized_color_components(headlamp_color);
+    }
+    else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampColor)) {
+        auto headlamp_color = get_option_value<uint32_t>(AlpineOptionID::PlayerHeadlampColor);
+
+        std::tie(g_local_headlamp_settings.r,
+            g_local_headlamp_settings.g,
+            g_local_headlamp_settings.b,
+            g_local_headlamp_settings.intensity) =
+            extract_normalized_color_components(headlamp_color);
+    }    
+    else {
+        g_local_headlamp_settings.r = 1.0f;
+        g_local_headlamp_settings.g = 0.872f;
+        g_local_headlamp_settings.b = 0.75f;
+        g_local_headlamp_settings.intensity = 0.6f;
+    }
+
+    //range
+    if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange)) {
+        g_local_headlamp_settings.max_range =
+            get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange);
+    }
+    else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampRange)) {
+        g_local_headlamp_settings.max_range = get_option_value<float>(AlpineOptionID::PlayerHeadlampRange);
+    }    
+    else {
+        g_local_headlamp_settings.max_range = 20.0f;
+    }
+
+    //radius
+    if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius)) {
+        g_local_headlamp_settings.base_radius =
+            get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius);
+    }
+    else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampRadius)) {
+        g_local_headlamp_settings.base_radius = get_option_value<float>(AlpineOptionID::PlayerHeadlampRadius);
+    }
+    else {
+        g_local_headlamp_settings.base_radius = 3.25f;
+    }
+
+    // Write the values
+    AsmWriter{0x004A6AF9}.push(std::bit_cast<int32_t>(g_local_headlamp_settings.b)); // Blue (stock 1.0f)
+    AsmWriter{0x004A6AFE}.push(std::bit_cast<int32_t>(g_local_headlamp_settings.g)); // Green (stock 1.0f)
+    AsmWriter{0x004A6B03}.push(std::bit_cast<int32_t>(g_local_headlamp_settings.r)); // Red (stock 1.0f)
+
+    // range defined in player_move_flashlight_light_patch
+    //*reinterpret_cast<float*>(0x005A0100) = g_local_headlamp_settings.max_range;     // max range (stock 12.0)
+    *reinterpret_cast<float*>(0x005A0108) = g_local_headlamp_settings.base_radius;   // base radius (stock 3.0)
+    AsmWriter{0x004A6AF3}.push(2);                                                 // attenuation algo (stock 0)
 }
 
 void player_do_patch()
 {
-    // modernize player flashlight somewhat, fix flicking issues
-    update_player_flashlight();
+    // Support player headlamp
     player_move_flashlight_light_patch.install();
+    update_player_flashlight();
 
     // general hooks
     player_create_hook.install();
