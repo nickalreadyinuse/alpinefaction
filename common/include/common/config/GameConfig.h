@@ -64,6 +64,7 @@ struct GameConfig
     CfgVar<bool> high_monitor_res = true;
     CfgVar<bool> true_color_textures = true;
     CfgVar<bool> damage_screen_flash = true;
+    CfgVar<bool> death_bars = true;
     CfgVar<bool> mesh_static_lighting = true;    
     CfgVar<bool> glares = true;
     CfgVar<bool> show_enemy_bullets = true;

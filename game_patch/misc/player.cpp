@@ -235,7 +235,7 @@ FunHook<bool(rf::Player*)> player_is_local_hook{
 
 bool player_is_dead_and_not_spectating(rf::Player* player)
 {
-    if (multi_spectate_is_spectating()) {
+    if (multi_spectate_is_spectating() || !g_game_config.death_bars) {
         return false;
     }
     return rf::player_is_dead(player);
@@ -247,7 +247,7 @@ CallHook player_is_dead_scoreboard2_hook{0x00437C25, player_is_dead_and_not_spec
 
 static bool player_is_dying_and_not_spectating(rf::Player* player)
 {
-    if (multi_spectate_is_spectating()) {
+    if (multi_spectate_is_spectating() || !g_game_config.death_bars) {
         return false;
     }
     return rf::player_is_dying(player);
@@ -284,6 +284,16 @@ ConsoleCommand2 damage_screen_flash_cmd{
         rf::console::print("Damage screen flash effect is {}", g_game_config.damage_screen_flash ? "enabled" : "disabled");
     },
     "Toggle damage screen flash effect",
+};
+
+ConsoleCommand2 death_bars_cmd{
+    "cl_deathbars",
+    []() {
+        g_game_config.death_bars = !g_game_config.death_bars;
+        g_game_config.save();
+        rf::console::print("Death bars are {}", g_game_config.death_bars ? "enabled" : "disabled");
+    },
+    "Toggle red bars at the top and bottom of screen when dead",
 };
 
 CallHook<void(rf::VMesh*, rf::Vector3*, rf::Matrix3*, void*)> player_cockpit_vmesh_render_hook{
@@ -410,4 +420,5 @@ void player_do_patch()
 
     // Commands
     damage_screen_flash_cmd.register_cmd();
+    death_bars_cmd.register_cmd();
 }

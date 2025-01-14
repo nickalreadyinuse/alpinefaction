@@ -427,7 +427,7 @@ void multi_spectate_render()
     if (!g_spectate_mode_enabled) {
         if (rf::player_is_dead(rf::local_player)) {
             rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xC0);
-            int y = scr_h - (g_game_config.big_hud ? 140 : 100);
+            int y = scr_h - (g_game_config.big_hud ? 170 : 155);
             rf::gr::string(10, y, "Press Jump to enter Spectate Mode", medium_font);
         }
         return;

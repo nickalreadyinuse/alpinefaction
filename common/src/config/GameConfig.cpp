@@ -184,6 +184,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Disable Muzzle Flash Lights", try_disable_muzzle_flash);
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
     result &= visitor(dash_faction_key, "Damage Screen Flash", damage_screen_flash);
+    result &= visitor(dash_faction_key, "Death Bars", death_bars);
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
     result &= visitor(dash_faction_key, "Big HUD", big_hud);
