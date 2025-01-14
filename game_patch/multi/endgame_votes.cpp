@@ -26,12 +26,6 @@ void multi_player_set_can_endgame_vote(bool can_vote)
 FactionFilesClient::VoteInfo build_vote_info(bool liked)
 {
     FactionFilesClient::VoteInfo vote_info;
-
-    // check for valid token
-    if (g_game_config.fflink_token.value().empty()) {
-        return vote_info;
-    }
-
     vote_info.fflink_player_token = g_game_config.fflink_token.value();
     vote_info.level_filename = rf::level.filename.c_str();
     vote_info.server_name = rf::netgame.name.c_str();
@@ -51,7 +45,7 @@ FactionFilesClient::VoteInfo build_vote_info(bool liked)
 void async_submit_vote(FactionFilesClient::VoteInfo vote_info)
 {
     std::thread([vote_info]() {
-        // Double check to ensure token is valid
+        // Do not attempt to vote if token is invalid
         if (vote_info.fflink_player_token.empty()) {
             xlog::warn("Vote submission failed: No valid AFLink token.");
             return;
