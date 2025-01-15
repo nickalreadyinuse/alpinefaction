@@ -1,5 +1,6 @@
 #include "LauncherApp.h"
 #include "faction_files.h"
+#include "DownloadProgressDlg.h"
 #include "MainDlg.h"
 #include "LauncherCommandLineInfo.h"
 #include <common/config/GameConfig.h>
@@ -7,6 +8,7 @@
 #include <common/error/error-utils.h>
 #include <launcher_common/PatchedAppLauncher.h>
 #include <xlog/xlog.h>
+#include <thread>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -66,27 +68,41 @@ int LauncherApp::Run()
             return 0;
         }
 
-        // Proceed with download & extraction
-        bool success =
-            downloader.download_and_extract(file_id, [](unsigned bytes_received, std::chrono::milliseconds duration) {
-                xlog::info("Downloaded {} KB", bytes_received / 1024);
-                return true; // Continue downloading
-            });
+        // Show the progress dialog
+        DownloadProgressDlg progressDlg(file_id, file_info->name, file_info->size_in_bytes / 1024);
 
-        if (success) {
+        bool download_success = false; // Track download result
+
+        // Start the download in a separate thread
+        std::thread downloadThread([&]() {
+            download_success = downloader.download_and_extract(
+                file_id, [&](unsigned bytes_received, std::chrono::milliseconds duration) {
+                    PostMessage(progressDlg.GetHwnd(), WM_UPDATE_PROGRESS, bytes_received, 0);
+                    return true; // Continue downloading
+                });
+
+            // Notify the progress dialog that the download is complete
+            PostMessage(progressDlg.GetHwnd(), WM_DOWNLOAD_COMPLETE, download_success, 0);
+        });
+
+        // Start the progress dialog
+        progressDlg.DoModal(nullptr);
+
+        // Wait for the thread to finish
+        downloadThread.join();
+
+        // download succeeded?
+        if (download_success) {
             std::string success_message = "Successfully downloaded and installed " + file_info->name + "!" +
                                           "\n\nWould you like to open the Alpine Faction launcher now?";
-            int result = MessageBoxA(nullptr, success_message.c_str(),
-                            "Success!", MB_YESNO | MB_ICONINFORMATION);
+            int result = MessageBoxA(nullptr, success_message.c_str(), "Success!", MB_YESNO | MB_ICONINFORMATION);
 
             if (result == IDNO) {
-                return 0; // do not open launcher
+                return 0; // Exit if the user chooses not to open the launcher
             }
-            // if they want to open launcher, continue
         }
         else {
             MessageBoxA(nullptr, "Download or install failed!", "Error", MB_OK | MB_ICONERROR);
-            return 0; // failure
         }
     }
 
@@ -189,22 +205,6 @@ void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
         xlog::warn("AFLink check failed: {}. Retaining existing values.", e.what());
     }
 }
-
-/* void LauncherApp::HandleAFLink()
-{
-    if (m_cmd_line_info.GetAFLinkArg().has_value()) {
-        std::string fflink_token = m_cmd_line_info.GetAFLinkArg().value();
-        ValidateAFLinkToken(fflink_token); // Validate and update if necessary
-    }
-    else {
-        // Validate stored token on every launch
-        GameConfig game_config;
-        if (!game_config.fflink_token.value().empty()) {
-            ValidateAFLinkToken(game_config.fflink_token.value());
-        }
-    }
-}*/
-
 
 void LauncherApp::MigrateConfig()
 {

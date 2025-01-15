@@ -129,6 +129,11 @@
 #define IDB_SM4_HOVER                   3033
 #define IDB_SM4_PRESSED                 3034
 
+#define IDD_DOWNLOAD_PROGRESS           3081
+#define IDC_STATIC_PROGRESS             3085
+#define IDC_PROGRESS_BAR                3082
+
+
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED

@@ -3,6 +3,8 @@ set(SRCS
     AboutDlg.h
     CMakeLists.txt
     DashFactionLauncher.rc
+    DownloadProgressDlg.cpp
+    DownloadProgressDlg.h
     faction_files.h
     faction_files.cpp
     ImageButton.h
