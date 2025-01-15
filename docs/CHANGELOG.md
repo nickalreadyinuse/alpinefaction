@@ -124,6 +124,7 @@ Version 1.0.0
 - Add FactionFiles account linking system (FFLink) via `af://` protocol
 - Add support for direct downloads from FactionFiles via `af://` protocol
 - Add support for endgame voting through FFLink
+- Add "Respect Resets" option for solo triggers
 
 
 

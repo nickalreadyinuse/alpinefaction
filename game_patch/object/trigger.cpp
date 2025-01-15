@@ -60,9 +60,27 @@ FunHook<void(rf::Trigger*, int32_t, bool)> trigger_activate_hook{
             is_solo_trigger = (ext_flags & (TRIGGER_SOLO | TRIGGER_TELEPORT)) != 0;
         }
 
-        if (rf::is_multi && rf::is_server && is_solo_trigger && player) {
+        // 0x8 = auto
+        if (rf::is_multi && rf::is_server && is_solo_trigger && player && !(trigger->trigger_flags & 0x8)) {
             // rf::console::print("Solo/Teleport trigger activated {}", trigger_name);
             if (player != rf::local_player) {
+
+                // AF reuses the now deprecated TRIGGER_TELEPORT for "Can Reset"
+                if (af_rfl_version(rf::level.version) && (ext_flags & TRIGGER_TELEPORT) != 0) {
+                    if (trigger->max_count != -1 &&
+                        (trigger->count + 1) >= trigger->max_count &&
+                        !(trigger->trigger_flags & 0x8)) {
+                        rf::obj_flag_dead(trigger);
+                    }
+                    if (trigger->reset_time_ms > 0) {
+                        trigger->next_check.set(trigger->reset_time_ms);
+                    }
+                    float* time_ptr = reinterpret_cast<float*>(0x006460F0);
+                    if (time_ptr) {
+                        trigger->time_last_activated = *time_ptr;
+                    }
+                    trigger->trigger_flags |= 0x40;
+                }
                 send_trigger_activate_packet(player, trigger->uid, h_entity);
                 return;
             }
