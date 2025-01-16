@@ -296,7 +296,7 @@ void init_logging()
         // .add_appender<xlog::ConsoleAppender>()
         // .add_appender<xlog::Win32Appender>()
         .add_appender<RfConsoleLogAppender>();
-    xlog::info("Dash Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__);
+    xlog::info("Alpine Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__);
 
     auto now = std::time(nullptr);
     auto* tm = std::gmtime(&now);

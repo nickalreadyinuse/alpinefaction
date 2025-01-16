@@ -18,7 +18,7 @@ namespace rf::bm
         FORMAT_8888_ARGB = 0x7,
         FORMAT_88_BUMPDUDV = 0x8, // not supported by D3D routines
 #ifdef DASH_FACTION
-        // custom Dash Faction formats
+        // custom formats
         FORMAT_888_BGR = 0x9,        // used by lightmaps
         FORMAT_RENDER_TARGET = 0x10, // texture is used as render target
         FORMAT_DXT1 = 0x11,
@@ -39,7 +39,7 @@ namespace rf::bm
         TYPE_VBM = 0x5,
         TYPE_M2V = 0x6,
 #ifdef DASH_FACTION
-        // Custom Dash Faction bitmap types
+        // Custom bitmap types
         TYPE_DDS = 0x10,
 #endif
     };

@@ -269,9 +269,9 @@ FONT 8, "MS Shell Dlg"
 BEGIN
     LTEXT           "Alpine Faction",IDC_APP_NAME,12,6,100,16
     LTEXT           "Version: ?", IDC_APP_VERSION,12,22,100,8
-    LTEXT           "Alpine Faction is Copyright (C) 2025 Goober.",IDC_STATIC,12,34,180,8
+    LTEXT           "Alpine Faction is Copyright © 2025 Goober.",IDC_STATIC,12,34,180,8
     LTEXT           "Alpine Faction is a fork of Dash Faction.",IDC_STATIC,12,46,180,8
-    LTEXT           "Dash Faction is Copyright (C) 2022 rafalh.",IDC_STATIC,12,58,180,8
+    LTEXT           "Dash Faction is Copyright © 2022 rafalh.",IDC_STATIC,12,58,180,8
     LTEXT           "This software uses open-source components.",IDC_STATIC,12,70,180,8
     CONTROL         "<a href=""https://github.com/GooberRF/alpinefaction"">Source code</a>",IDC_SRC_LINK,"SysLink",WS_TABSTOP,12,82,100,8
     CONTROL         "<a>Licensing information</a>",IDC_LICENSE_LINK,"SysLink",WS_TABSTOP,12,94,100,8

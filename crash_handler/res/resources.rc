@@ -14,7 +14,7 @@
 // Bitmap resources
 //
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
-IDB_HDR_PIC        BITMAP         "DF.bmp"
+IDB_HDR_PIC        BITMAP         "AF.bmp"
 
 
 

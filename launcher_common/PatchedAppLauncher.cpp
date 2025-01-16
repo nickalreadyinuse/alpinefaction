@@ -63,7 +63,7 @@ std::string PatchedAppLauncher::get_patch_dll_path()
     }
 
     std::string dir = get_dir_from_path(buf);
-    xlog::info("Determined Dash Faction directory: {}", dir);
+    xlog::info("Determined Alpine Faction directory: {}", dir);
     return dir + "\\" + m_patch_dll_name;
 }
 

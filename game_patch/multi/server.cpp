@@ -1048,7 +1048,7 @@ static bool check_player_ac_status([[maybe_unused]] rf::Player* player)
         if (!verified) {
             send_chat_line_packet(
                 "Sorry! Your spawn request was rejected because verification of your client software failed. "
-                "Please use the latest officially released version of Dash Faction. You can get it from dashfaction.com.",
+                "Please use the latest officially released version of Alpine Faction.",
                 player);
             return false;
         }

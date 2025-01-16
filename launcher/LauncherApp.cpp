@@ -299,7 +299,7 @@ bool LauncherApp::LaunchGame(HWND hwnd, const char* mod_name)
         Message(hwnd,
             "Privilege elevation is required. Please change RF.exe file properties and disable all "
             "compatibility settings (Run as administrator, Compatibility mode for Windows XX, etc.) or run "
-            "Dash Faction launcher as administrator.",
+            "the Alpine Faction Launcher as administrator.",
             nullptr, MB_OK | MB_ICONERROR);
     }
     catch (FileNotFoundException&) {
@@ -310,7 +310,7 @@ bool LauncherApp::LaunchGame(HWND hwnd, const char* mod_name)
         std::stringstream ss;
         ss << "Unsupported game executable has been detected!\n\n"
             << "SHA1:\n" << e.get_sha1() << "\n\n"
-            << "Dash Faction supports only unmodified Red Faction 1.20 NA executable.\n"
+            << "Alpine Faction supports only unmodified Red Faction 1.20 NA executable.\n"
             << "If your game has not been updated to 1.20 please do it first. If the error still shows up "
             << "replace your RF.exe file with original 1.20 NA RF.exe available on FactionFiles.com.\n"
             << "Click OK to open download page.";
