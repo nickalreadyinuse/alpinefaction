@@ -458,9 +458,21 @@ CodeInjection dedicated_server_load_config_patch{
         auto& parser = *reinterpret_cast<rf::Parser*>(regs.esp - 4 + 0x4C0 - 0x470);
         load_additional_server_config(parser);
 
-        // Init weapon stay exemptions after loading additional config
+        // Insert server name in window title when hosting dedicated server
+        std::string wnd_name;
+        wnd_name.append(rf::netgame.name.c_str());
+        wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
+        SetWindowTextA(rf::main_wnd, wnd_name.c_str()); 
+    },
+};
+
+CodeInjection dedicated_server_load_post_map_patch{
+    0x0046E216,
+    [](auto& regs) {
+
         initialize_weapon_stay_exemptions();
-        // if dynamic rotation is on, shuffle rotation on server launch
+
+        // shuffle maplist
         if (g_additional_server_config.dynamic_rotation) {
             shuffle_level_array();
         }
@@ -475,15 +487,10 @@ CodeInjection dedicated_server_load_config_patch{
             AsmWriter{0x00425506}.nop(2);
         }
 
+        // apply SP damage calculation
         if (g_additional_server_config.use_sp_damage_calculation) {
             AsmWriter(0x0041A37A).jmp(0x0041A3C1);
         }
-
-        // Insert server name in window title when hosting dedicated server
-        std::string wnd_name;
-        wnd_name.append(rf::netgame.name.c_str());
-        wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
-        SetWindowTextA(rf::main_wnd, wnd_name.c_str()); 
     },
 };
 
@@ -671,7 +678,7 @@ static void send_private_message_with_stats(rf::Player* player)
 void shuffle_level_array()
 {
     std::ranges::shuffle(rf::netgame.levels, g_rng);
-    xlog::debug("Shuffled level rotation");
+    xlog::info("Shuffled level rotation");
 }
 
 const char* get_rand_level_filename()
@@ -1463,7 +1470,6 @@ CodeInjection multi_level_init_injection{
         if (g_additional_server_config.dynamic_rotation && rf::netgame.current_level_index ==
                     rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
                 // if this is the last level in the list and dynamic rotation is on, shuffle
-                xlog::debug("Reached end of level rotation, shuffling");
                 shuffle_level_array();
             }    
     },
@@ -2079,6 +2085,7 @@ void server_init()
 
     // Additional server config
     dedicated_server_load_config_patch.install();
+    dedicated_server_load_post_map_patch.install();
 
     // Apply customized spawn protection duration
     spawn_protection_duration_patch.install();
