@@ -554,6 +554,7 @@ void multi_do_patch()
     multi_ctf_level_init_hook.install();
 
     multi_kill_do_patch();
+    faction_files_do_patch();
     level_download_do_patch();
     network_init();
     multi_tdm_apply_patch();

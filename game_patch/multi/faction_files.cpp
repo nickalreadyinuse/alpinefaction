@@ -6,6 +6,7 @@
 #include <functional>
 #include <stdexcept>
 #include <xlog/xlog.h>
+#include "../os/console.h"
 #include "faction_files.h"
 
 static const char level_download_agent_name[] = "Alpine Faction Autodl";
@@ -107,4 +108,26 @@ void FactionFilesClient::download_map(const char* tmp_filename, int ticket_id,
             throw std::runtime_error("download aborted");
         }
     }
+}
+
+ConsoleCommand2 fflink_status_cmd{
+    "fflink_status",
+    []() {
+        g_game_config.load(); // reload config in case account was linked since game launch
+        std::string username = g_game_config.fflink_username.value();
+        if (username.empty()) {
+            rf::console::print("This client is not linked to a FactionFiles account! "
+                "Visit alpinefaction.com/link to learn more and link your account.");
+        }
+        else {
+            rf::console::printf("This client is linked to FactionFiles as %s", username.c_str());
+        }
+    },
+    "Check status of your client's link with FactionFiles.com",
+    "fflink_status",
+};
+
+void faction_files_do_patch()
+{
+    fflink_status_cmd.register_cmd();
 }
