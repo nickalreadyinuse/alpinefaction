@@ -177,7 +177,6 @@ static void process_pf_player_stats_packet(const void* data, size_t len, [[ mayb
                 get_player_additional_data(player).received_ac_status
                     = std::optional{static_cast<pf_pure_status>(in_stats.is_pure)};
             }
-            stats.received_accuracy = std::optional{in_stats.accuracy};
             stats.max_streak = in_stats.streak_max;
             stats.current_streak = in_stats.streak_current;
             stats.num_kills = in_stats.kills;
