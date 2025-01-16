@@ -182,7 +182,7 @@ set(SRCS
     purefaction/pf.h
     purefaction/pf_ac.h
     purefaction/pf_packets.h
-    purefaction/pf_ac_stubs.cpp
+    ${PF_AC_SRCS}
     ${EXPERIMENTAL_SRCS}
 )
 
