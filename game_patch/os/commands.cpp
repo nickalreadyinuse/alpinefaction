@@ -1,6 +1,7 @@
 #include <common/config/BuildConfig.h>
 #include <common/version/version.h>
 #include "console.h"
+#include "../misc/alpine_options.h"
 #include "../main/main.h"
 #include "../rf/player/camera.h"
 #include "../rf/multi.h"
@@ -136,6 +137,63 @@ ConsoleCommand2 level_info_ext_cmd{
             rf::console::print("Distance Fog: {}, {}, {}, near clip: {}, far clip: {}",
                 rf::level.distance_fog_color.red, rf::level.distance_fog_color.green, rf::level.distance_fog_color.blue,
                 rf::level.distance_fog_near_clip, rf::level.distance_fog_far_clip);
+
+            // Lightmap clamping floor
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
+                uint32_t clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+                auto [r, g, b, _] = extract_color_components(clamp_floor);
+                rf::console::print("Lightmap clamping floor: {}, {}, {}", r, g, b);
+            }
+
+            // Lightmap clamping ceiling
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
+                uint32_t clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
+                auto [r, g, b, _] = extract_color_components(clamp_ceiling);
+                rf::console::print("Lightmap clamping ceiling: {}, {}, {}", r, g, b);
+            }
+
+            // Player headlamp color
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor)) {
+                uint32_t headlamp_color = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor);
+                auto [r, g, b, _] = extract_color_components(headlamp_color);
+                rf::console::print("Player headlamp color: {}, {}, {}", r, g, b);
+            }
+
+            // Player headlamp range
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange)) {
+                float headlamp_range = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange);
+                rf::console::print("Player headlamp range: {}", headlamp_range);
+            }
+
+            // Player headlamp radius
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius)) {
+                float headlamp_radius = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius);
+                rf::console::print("Player headlamp radius: {}", headlamp_radius);
+            }
+
+            // Ideal player count
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::IdealPlayerCount)) {
+                int player_count = get_level_info_value<int>(rf::level.filename, AlpineLevelInfoID::IdealPlayerCount);
+                rf::console::print("Ideal player count: {}", player_count);
+            }
+
+            // Author contact
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::AuthorContact)) {
+                std::string author_contact = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::AuthorContact);
+                rf::console::print("Author contact: {}", author_contact);
+            }
+
+            // Author website
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::AuthorWebsite)) {
+                std::string author_website = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::AuthorWebsite);
+                rf::console::print("Author website: {}", author_website);
+            }
+
+            // Description
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::Description)) {
+                std::string desc = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::Description);
+                rf::console::print("Level description: {}", desc);
+            }
         }
         else {
             rf::console::print("No level loaded!");
