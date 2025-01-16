@@ -10,8 +10,8 @@ AppName=Alpine Faction
 AppVersion={#AppVer}
 AppPublisher=Goober
 AppPublisherURL=https://factionfiles.com/
-AppSupportURL=https://factionfiles.com/
-AppUpdatesURL=https://factionfiles.com/
+AppSupportURL=https://alpinefaction.com/help/
+AppUpdatesURL=https://alpinefaction.com/
 UninstallDisplayName=Alpine Faction
 UninstallDisplayIcon={app}\AlpineFactionLauncher.exe
 DefaultDirName={autopf}\Alpine Faction
@@ -29,9 +29,9 @@ WizardStyle=modern
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "rflassoc"; Description: "Associate the .rfl file extension with the Alpine Faction level editor"; GroupDescription: "Other options:"
 Name: "resetplayerscfg"; Description: "Back up and reset players.cfg (necessary to use new action binds)"; GroupDescription: "Other options:"
-Name: "replacerflauncher"; Description: "Replace the Red Faction launcher with the Alpine Faction launcher (enables Steam support)"; GroupDescription: "Other options:"; Flags: unchecked
+Name: "replacerflauncher"; Description: "Replace Red Faction launcher with the Alpine Faction launcher (required for Steam support)"; GroupDescription: "Other options:"
+Name: "rflassoc"; Description: "Associate the .rfl file extension with the Alpine Faction level editor"; GroupDescription: "Other options:"
 Name: "redvisualstyles"; Description: "Enable Windows visual styles for the level editor (experimental)"; GroupDescription: "Other options:"; Flags: unchecked
 
 [Files]
@@ -94,9 +94,9 @@ Root: HKCR; Subkey: "AlpineFactionLevelEditor"; ValueType: "string"; ValueData: 
 Root: HKCR; Subkey: "AlpineFactionLevelEditor\shell\open\command"; ValueType: "string"; ValueData: """{app}\AlpineFactionLauncher.exe"" -editor -level ""%1"""; Tasks: rflassoc
 
 [CustomMessages]
-RFExeLocation=Setup will attempt to locate RF.exe in your Red Faction install directory automatically. If the detected location is wrong, you need to correct it.%n%nIf you run into difficulty, join the Red Faction community Discord for assistance:%n- https://discord.gg/factionfiles%n
+RFExeLocation=The setup wizard will attempt to automatically locate RF.exe in your Red Faction install directory.%n%nIf the detected location is wrong, you must correct it to ensure Alpine Faction functions correctly.%n%n%n%nIMPORTANT: Please ensure the file you specify is named RF.exe, not RedFaction.exe%n%n
 GameNeedsPatches=Your Red Faction game version is not directly compatible with Alpine Faction. To resolve this, setup will apply the following patches:%n%n
-UnkGameExeVersion=The file at the selected location is not recognized.%nPlease make sure the location of RF.exe is correct. If you ignore this error, Alpine Faction may not function correctly.%n%nYou can find help at:%n- https://discord.gg/factionfiles%n- https://redfaction.help%n%nTechnical details:%nSHA1 = %1%n%nIgnore this error and continue?
+UnkGameExeVersion=The file at the selected location is not recognized.%nPlease make sure the location of RF.exe is correct. If you ignore this error, Alpine Faction will not function correctly.%n%nYou can find help at:%n- https://alpinefaction.com/help%n%nTechnical details:%nSHA1 = %1%n%nIgnore this error and continue?
 
 [Code]
 type
@@ -277,7 +277,7 @@ end;
 
 procedure CreateSelectGameExePage();
 begin
-    SelectGameExePage := CreateInputFilePage(wpSelectDir, 'Select RF.exe Location', 'This file can be found in your Red Faction game folder.', ExpandConstant('{cm:RFExeLocation}'));
+    SelectGameExePage := CreateInputFilePage(wpSelectDir, 'Specify the location of RF.exe', 'This file can be found in your Red Faction game folder.', ExpandConstant('{cm:RFExeLocation}'));
     SelectGameExePage.Add('Location of RF.exe:', 'Executable files|*.exe|All files|*.*', '.exe');
     SelectGameExePage.Values[0] := DetectGameExecutablePath;
     SelectGameExePage.OnNextButtonClick := @SelectGameExePageOnNextButtonClick;
@@ -421,9 +421,32 @@ end;
 
 // Event functions
 
-procedure InitializeWizard;
+// Event handler for the hyperlink click
+procedure HyperlinkClick(Sender: TObject);
+var
+  ErrCode: integer;
 begin
-    CreateSelectGameExePage;
+  ShellExec('open', 'https://alpinefaction.com/help', '', '', SW_SHOWNORMAL, ewNoWait, ErrCode);
+end;
+
+procedure InitializeWizard;
+var
+  Hyperlink: TNewStaticText;
+begin
+  WizardForm.WelcomeLabel1.Caption := 'Welcome to the Alpine Faction Installer!';
+  WizardForm.WelcomeLabel2.Caption := 'This wizard will install Alpine Faction v{#AppVer}.' + #13#10 + #13#10 + #13#10 + 'Please note that this is not a full game distribution. You must have an installed copy of Red Faction in order to use Alpine Faction.' + #13#10 + #13#10 + 'Alpine Faction is compatible with any full game distribution of Red Faction PC, including all retail releases (any language) and all digital releases like Steam and GoG.';
+
+  // help link
+  Hyperlink := TNewStaticText.Create(WizardForm);
+  Hyperlink.Parent := WizardForm.WelcomePage;
+  Hyperlink.Caption := 'If you encounter any issues or have questions, please visit:' + #13#10 + 'https://alpinefaction.com/help';
+  Hyperlink.Left := WizardForm.WelcomeLabel1.Left;
+  Hyperlink.Top := WizardForm.WelcomeLabel2.Top + WizardForm.WelcomeLabel2.Height + 10;
+  Hyperlink.Cursor := crHandPoint;
+  Hyperlink.Font.Color := clBlue;
+  Hyperlink.OnClick := @HyperlinkClick;
+
+  CreateSelectGameExePage;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
