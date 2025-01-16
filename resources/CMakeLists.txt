@@ -20,8 +20,20 @@ endfunction()
 
 
 add_packfile(alpinefaction.vpp
-    maps_df.txt
-    events.tbl
+    tables/maps_df.txt
+    tables/events.tbl
+
+    # compatibility _info.tbls
+    tables/pdm02_info.tbl
+    tables/dm_DVLIACsDesk2DDS1-1_info.tbl
+    tables/dm_DVLIACsDesk2DDS_info.tbl
+    tables/CTF_Jupiter3StationLO1-2_info.tbl
+    tables/CTF_Jupiter3StationLO1-1_info.tbl
+    tables/CTF_Jupiter3StationLO_info.tbl
+    tables/dm_Jupiter3StationLI1-1_info.tbl
+    tables/dm_Jupiter3StationLI_info.tbl
+    tables/dm_Jupiter3Station1-1_info.tbl
+    tables/dm_Jupiter3Station_info.tbl
 
     images/DF_green.tga
     images/DF_red.tga
