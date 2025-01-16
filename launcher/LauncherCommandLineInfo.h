@@ -1,7 +1,6 @@
 #pragma once
 
 #include <wxx_wincore.h>
-#include <atlconv.h>
 #include <string_view>
 #include <string>
 #include <optional>
