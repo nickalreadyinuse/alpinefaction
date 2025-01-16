@@ -1523,7 +1523,7 @@ namespace rf
 
             handlers[SetVarOpts::float2] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventSetDebris*>(event);
-                this_event->debris_velocity = std::stoi(value);
+                this_event->debris_velocity = std::stof(value);
             };
         }
 
