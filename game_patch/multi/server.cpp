@@ -1773,7 +1773,12 @@ FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_poi
             selected_index = random_index;
 
             if (avoid_last && last_index == selected_index && available_points.size() > 1) {
-                selected_index = (random_index == 0 ? 1 : 0);
+                for (size_t i = 0; i < available_points.size(); ++i) {
+                    if (i != last_index) {
+                        selected_index = i;
+                        break;
+                    }
+                }
             }
         }
 
@@ -1855,8 +1860,7 @@ void adjust_yaw_to_face_center(rf::Matrix3& orient, const rf::Vector3& pos, cons
 }
 
 void process_queued_spawn_points_from_items()
-{
-    
+{    
     if (g_additional_server_config.new_spawn_logic.allowed_respawn_items.empty()) {
         return; // early return if no spawn points are to be generated
     }
