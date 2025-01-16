@@ -602,16 +602,6 @@ void apply_af_level_editor_changes()
     LoadSaveLevel_patch.install();
     LoadSaveLevel_patch2.install();
 
-    // console_open();
-    // xlog::warn("console visible? {}", console_is_visible());
-    // console_print_cmd_list();
-    // console_init(1);
-
-    // Stop editor console window from turning red due to legacy geometry limits
-    AsmWriter(0x0043A544).jmp(0x0043A546); // verticies exceeded limit
-    AsmWriter(0x0043A53A).jmp(0x0043A546); // face verticies exceeded limit
-    AsmWriter(0x0043A530).jmp(0x0043A546); // faces exceeded limit
-
     // Remove legacy geometry maximums from build output window
     static char new_faces_string[] = "Faces: %d\n";                                  // Replace "Faces: %d/%d\n"
     static char new_face_vertices_string[] = "Face Vertices: %d\n";                  // Replace "Face Vertices: %d/%d\n"
@@ -628,13 +618,17 @@ void apply_af_level_editor_changes()
     AsmWriter(0x004262E2).jmp(0x0042630A);
 
     // Remove "You must rebuild geometry before texturing brushes"
-    AsmWriter(0x0042642E).jmp(0x00426456);
+    AsmWriter{0x0042642E}.jmp(0x00426456);
 
     // Stop adding faces to "fix ps2 tiling" when the surface UVs tile a lot
-    AsmWriter(0x0043A0A5).jmp(0x0043A0CC); // stop splitting movers
-    AsmWriter(0x0043A098).nop(5);          // stop spliting faces at build time
-    AsmWriter(0x0043A08D).nop(5);          // don't print "Fixing up texture uvs for ps2..." in output window
-    AsmWriter(0x0043A0E4).nop(5);          // don't print "Had to add X faces to fix ps2 tiling" in output window
+    AsmWriter{0x0043A081}.jmp(0x0043A0E9);
+    AsmWriter{0x0043A0EF}.nop(3);
+
+    // below likely not needed with above
+    //AsmWriter(0x0043A0A5).jmp(0x0043A0CC); // stop splitting movers
+    //AsmWriter(0x0043A098).nop(5);          // stop spliting faces at build time
+    //AsmWriter(0x0043A08D).nop(5);          // don't print "Fixing up texture uvs for ps2..." in output window
+    //AsmWriter(0x0043A0E4).nop(5);          // don't print "Had to add X faces to fix ps2 tiling" in output window
 }
 
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
@@ -787,6 +781,14 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     write_mem_ptr(0x004A71A6+1, found_faces_b);
     write_mem_ptr(0x004A72A2+3, found_faces_b);
     write_mem_ptr(0x004A72F9+1, found_faces_b);
+
+    // Display geometry limits according to pools sizes
+    //write_mem<std::uint32_t>(0x0043A49D + 1, 30000);
+    //write_mem<std::uint32_t>(0x0043A4C1 + 1, 150000);
+    //write_mem<std::uint32_t>(0x0043A4E5 + 1, 50000);
+
+    // Disable red background if geometry limits are crossed
+    AsmWriter{0x0043A528, 0x0043A546}.nop();
 
     return 1; // success
 }

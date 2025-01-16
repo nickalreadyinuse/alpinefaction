@@ -11,7 +11,6 @@ else()
     )
 endif()
 
-
 set(SRCS
     main/main.cpp
     main/main.h
@@ -241,4 +240,3 @@ target_link_libraries(AlpineFaction
     freetype
     stb_vorbis
 )
-

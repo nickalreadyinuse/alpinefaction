@@ -59,8 +59,8 @@ target_include_directories(AlpineFactionLauncher SYSTEM PRIVATE
 target_link_libraries(AlpineFactionLauncher
     LauncherCommon
     Xlog
-    zlib
     unzip
+    zlib    
     CrashHandlerStub
     comctl32
 )

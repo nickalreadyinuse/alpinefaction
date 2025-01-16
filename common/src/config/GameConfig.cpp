@@ -1,6 +1,6 @@
 #include <shlwapi.h>
 #include <algorithm>
-#include <xlog\xlog.h>
+#include <xlog/xlog.h>
 #include <common/config/GameConfig.h>
 #include <common/config/RegKey.h>
 #include <common/version/version.h>
