@@ -30,6 +30,7 @@ nick:
 
 natalie <webmistress@natalie.ee>:
 * Technical assistance and advice
+* code contributions
 
 HeyItsDuke:
 * Rocket launcher lock on reticle for Big HUD
