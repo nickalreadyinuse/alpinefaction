@@ -3,7 +3,7 @@
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
-#define BUILDNUM "1" // Change this to match your build number
+#define BUILDNUM "1" // build number
 
 void UpdateChecker::CheckForUpdates()
 {
@@ -12,15 +12,14 @@ void UpdateChecker::CheckForUpdates()
     xlog::info("Checking for updates: {}", update_url);
 
     // Create an HttpSession
-    HttpSession session("AlpineFactionLauncher");
+    HttpSession session("Alpine Faction Update");
 
     try {
-        // Pass the session to HttpRequest
         HttpRequest req(update_url, "GET", session);
 
         // Set a reasonable timeout for the request
-        session.set_connect_timeout(3000); // 3 seconds
-        session.set_receive_timeout(3000); // 3 seconds
+        session.set_connect_timeout(3000);
+        session.set_receive_timeout(3000);
 
         req.send();
 

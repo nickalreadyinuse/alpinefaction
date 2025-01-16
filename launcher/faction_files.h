@@ -23,7 +23,7 @@ public:
 
     FactionFilesAFLink();
     std::optional<FileInfo> get_file_info(int file_id);
-    bool download_and_extract(int file_id, std::function<bool(
+    bool download_and_extract(int file_id, std::string file_type, std::function<bool(
         unsigned bytes_received, std::chrono::milliseconds duration)> progress_callback);
 
 private:

@@ -197,7 +197,7 @@ bool FactionFilesAFLink::extract_zip(const std::string& zip_path, const std::str
 }
 
 bool FactionFilesAFLink::download_and_extract(
-    int file_id, std::function<bool(unsigned bytes_received, std::chrono::milliseconds duration)> progress_callback)
+    int file_id, std::string file_type, std::function<bool(unsigned bytes_received, std::chrono::milliseconds duration)> progress_callback)
 {
     // Load the game executable path from config
     GameConfig gameConfig;
@@ -215,16 +215,8 @@ bool FactionFilesAFLink::download_and_extract(
     // Get the base game directory
     std::string game_dir = game_exe_path.substr(0, game_exe_path.find_last_of("\\/"));
 
-    // Fetch file information
-    auto file_info = get_file_info(file_id);
-    if (!file_info) {
-        xlog::error("File not found: {}", file_id);
-        MessageBoxA(nullptr, "Error: File not found on FactionFiles!", "Error", MB_OK | MB_ICONERROR);
-        return false;
-    }
-
     // Determine paths
-    std::string extract_to = get_extraction_path(game_dir, file_info->file_type);
+    std::string extract_to = get_extraction_path(game_dir, file_type);
     std::string zip_path =
         extract_to + "\\" + std::to_string(file_id) + ".zip"; // Download ZIP directly to extraction folder
 
@@ -275,22 +267,7 @@ bool FactionFilesAFLink::download_and_extract(
 
     xlog::info("Download complete: {}", zip_path);
 
-    // shouldn't be needed, keeping until confirmed
-    /*// Verify that the file can be opened immediately
-    std::ifstream testFile(zip_path, std::ios::binary);
-    if (!testFile) {
-        xlog::error("File cannot be reopened immediately after closing: {}", zip_path);
-        MessageBoxA(nullptr, ("File cannot be reopened immediately: " + zip_path).c_str(), "Error",
-                    MB_OK | MB_ICONERROR);
-        return false;
-    }
-    testFile.close();
-
-    // Small delay to ensure Windows releases the file lock
-    xlog::info("Pausing briefly before extraction to ensure file is fully written.");
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));*/
-
-    // Extract file **in place** (since it's already in the correct directory)
+    // Extract file in place
     xlog::info("Extracting file in place: {} to {}", zip_path, extract_to);
     bool extraction_success = extract_zip(zip_path, extract_to);
 

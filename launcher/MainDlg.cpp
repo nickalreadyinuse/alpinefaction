@@ -362,7 +362,7 @@ std::string replace_html_breaks(const std::string& input)
 void MainDlg::FetchNews()
 {
     try {
-        HttpSession session{"AlpineFactionLauncher"};
+        HttpSession session{"Alpine Faction News"};
         HttpRequest req{"https://www.redfactionwiki.com/wiki/Alpine_Faction_News_Feed?action=raw", "GET", session};
         req.send();
 

@@ -75,14 +75,20 @@ int LauncherApp::Run()
 
         // Start the download in a separate thread
         std::thread downloadThread([&]() {
-            download_success = downloader.download_and_extract(
-                file_id, [&](unsigned bytes_received, std::chrono::milliseconds duration) {
-                    PostMessage(progressDlg.GetHwnd(), WM_UPDATE_PROGRESS, bytes_received, 0);
-                    return true; // Continue downloading
-                });
+            try {
+                download_success = downloader.download_and_extract(
+                    file_id, file_info->file_type, [&](unsigned bytes_received, std::chrono::milliseconds duration) {
+                        PostMessage(progressDlg.GetHwnd(), WM_UPDATE_PROGRESS, bytes_received, 0);
+                        return true; // Continue downloading
+                    });
 
-            // Notify the progress dialog that the download is complete
-            PostMessage(progressDlg.GetHwnd(), WM_DOWNLOAD_COMPLETE, download_success, 0);
+                // Notify the progress dialog that the download is complete
+                PostMessage(progressDlg.GetHwnd(), WM_DOWNLOAD_COMPLETE, download_success, 0);
+            }
+            catch (const std::exception& e) { // catch errors
+                xlog::error("Please try again. An error occured when downloading:: {}", e.what());
+                PostMessage(progressDlg.GetHwnd(), WM_DOWNLOAD_COMPLETE, FALSE, 0);
+            }
         });
 
         // Start the progress dialog
@@ -155,7 +161,7 @@ void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
     xlog::info("Validating AFLink token: {}", fflink_token);
 
     std::string verify_url = "https://link.factionfiles.com/aflauncher/v1/link_check.php?token=" + fflink_token;
-    xlog::info("AFLink validity check URL: {}", verify_url);
+    //xlog::info("AFLink validity check URL: {}", verify_url);
 
     HttpSession session("Alpine Faction Link");
 
