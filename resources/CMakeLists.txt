@@ -34,6 +34,9 @@ add_packfile(alpinefaction.vpp
     tables/dm_Jupiter3StationLI_info.tbl
     tables/dm_Jupiter3Station1-1_info.tbl
     tables/dm_Jupiter3Station_info.tbl
+    tables/DM_EuropaOneOutpost1-1AG_info.tbl
+    tables/DM_EuropaOneOutpost1-1_info.tbl
+    tables/CTF_EuropaOneOutpost_info.tbl
 
     images/DF_green.tga
     images/DF_red.tga
