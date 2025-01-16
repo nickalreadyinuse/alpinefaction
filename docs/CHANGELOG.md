@@ -1,8 +1,10 @@
-Alpine Faction Changelog
-========================
+===================================
+⚙️⛏ Alpine Faction Changelog ⛏⚙️
+===================================
 
-Version 1.0.0
+Version 1.0.0 (Maple)
 --------------------------------
+[@GooberRF](https://github.com/GooberRF)
 - Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
 - Add `lighting_color_range` command
 - Add `$DF CTF Flag Return Time` option in dedicated server config
@@ -116,7 +118,6 @@ Version 1.0.0
 - Add functions to launch a test listen server on-demand: `levelm` console command, `-levelm` command line, and `Play (multi)` button in RED
 - Add controls for vote yes, vote no, and ready for match
 - Add link drawing to `debug event` and `debug trigger`
-- Add Big HUD version of rocket lock on reticle (contribution from HeyItsDuke)
 - Add CTF flag dropping functionality and control
 - Add framework for `mapname_info.tbl` loading and initial set of options
 - Add support for `af://` protocol handler
@@ -125,13 +126,18 @@ Version 1.0.0
 - Add support for direct downloads from FactionFiles via `af://` protocol
 - Add support for endgame voting through FFLink
 - Add "Respect Resets" option for solo triggers
+
+[@natarii](https://github.com/natarii)
 - Fix music desyncing when entering menus in multiplayer
 
+[@HeyItsDuke](https://github.com/HeyItsDuke)
+- Add Big HUD version of rocket lock on reticle
 
 
 
-Dash Faction Changelog
-======================
+=================================
+Dash Faction (Upstream) Changelog
+=================================
 
 Version 1.9.0
 --------------------------------
