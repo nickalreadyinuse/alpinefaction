@@ -194,6 +194,22 @@ ConsoleCommand2 level_info_ext_cmd{
                 std::string desc = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::Description);
                 rf::console::print("Level description: {}", desc);
             }
+
+            // Mesh replacements
+            const auto& level_mesh_replacements = g_alpine_level_info_config.mesh_replacements;
+            auto mesh_replacements_it = level_mesh_replacements.find(rf::level.filename);
+
+            if (mesh_replacements_it != level_mesh_replacements.end()) {
+                const auto& replacements = mesh_replacements_it->second;
+
+                if (!replacements.empty()) {
+                    rf::console::print("Mesh replacements:");
+
+                    for (const auto& [original_mesh, replacement_mesh] : replacements) {
+                        rf::console::print(" - {} -> {}", original_mesh, replacement_mesh);
+                    }
+                }
+            }
         }
         else {
             rf::console::print("No level loaded!");
