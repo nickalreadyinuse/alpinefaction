@@ -371,9 +371,12 @@ bool multi_is_weapon_fire_allowed_server_side(rf::Entity *ep, int weapon_type, b
     else if (multi_is_selecting_weapon(pp)) {
         xlog::debug("Player {} attempted to fire weapon {} while selecting it", pp->name, weapon_type);
     }
-    else if (rf::entity_is_reloading(ep)) {
-        xlog::debug("Player {} attempted to fire weapon {} while reloading it", pp->name, weapon_type);
-    }
+    // causes shots fired immediately after reloading to be cancelled (especially noticable with shotgun)
+    // is because entity_is_reloading looks at anim length and some anims are longer than the actual reload time
+    // todo: make new entity_is_reloading function that calculates based on reload start and duration
+    //else if (rf::entity_is_reloading(ep)) {
+    //    xlog::debug("Player {} attempted to fire weapon {} while reloading it", pp->name, weapon_type);
+    //}
     else if (!multi_is_player_firing_too_fast(pp, weapon_type)) {
         return true;
     }
