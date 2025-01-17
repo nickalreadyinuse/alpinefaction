@@ -190,6 +190,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Big HUD", big_hud);
     result &= visitor(dash_faction_key, "Reticle Scale", reticle_scale);
     result &= visitor(dash_faction_key, "Mesh Static Lighting", mesh_static_lighting);
+    result &= visitor(dash_faction_key, "Enforce Power of 2 Textures", pow2tex);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
     result &= visitor(dash_faction_key, "Autosave", autosave);
     result &= visitor(dash_faction_key, "Server Net FPS", server_netfps);

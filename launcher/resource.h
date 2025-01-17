@@ -75,6 +75,13 @@
 #define IDC_INTERFACE_OPTIONS_BOX       1057
 #define IDC_RENDERER_COMBO              1058
 #define IDC_ALPINE_BRAND_CHECK          1059
+#define IDC_FULLBRIGHT                  1060
+#define IDC_LIGHTMAPS                   1061
+#define IDC_NEAREST                     1062
+#define IDC_MUZZLEFLASH                 1063
+#define IDC_SCREENSHAKE                 1064
+#define IDC_DAMAGEFLASH                 1065
+#define IDC_POW2TEX                     1066
 
 #define IDC_VERSION_TEXT                3050
 

@@ -440,6 +440,9 @@ CodeInjection gr_d3d_init_device_injection{
             DWORD anisotropy_level = setup_max_anisotropy();
             xlog::info("Anisotropic Filtering enabled (level: {})", anisotropy_level);
         }
+
+        // set initial pow2tex value
+        rf::gr::d3d::p2t = g_game_config.pow2tex;
     },
 };
 
@@ -627,12 +630,15 @@ CodeInjection gr_d3d_close_injection{
 };
 
 ConsoleCommand2 pow2_tex_cmd{
-    "pow2_tex",
+    "r_pow2tex",
     []() {
-        rf::gr::d3d::p2t = !rf::gr::d3d::p2t;
-        rf::console::print("Power of 2 textures: {}", rf::gr::d3d::p2t ? "on" : "off");
+        g_game_config.pow2tex = !g_game_config.pow2tex;
+        g_game_config.save();
+
+        rf::gr::d3d::p2t = g_game_config.pow2tex;        
+        rf::console::print("Enforcement of power of 2 textures is {}", g_game_config.pow2tex ? "enabled" : "disabled");
     },
-    "Forces usage of power of two textures. It may fix UV mappings in old levels. Only affects levels loaded after usage of this command.",
+    "Enforce power of 2 textures. Fixes textures in older levels, may cause issues with textures in newer ones. Only affects levels loaded after usage of this command.",
 };
 
 bool gr_d3d_is_d3d8to9()

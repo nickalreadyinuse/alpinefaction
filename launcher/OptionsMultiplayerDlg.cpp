@@ -26,9 +26,9 @@ BOOL OptionsMultiplayerDlg::OnInitDialog()
 void OptionsMultiplayerDlg::InitToolTip()
 {
     m_tool_tip.Create(*this);
-    m_tool_tip.AddTool(GetDlgItem(IDC_TRACKER_EDIT), "Hostname of tracker used to find avaliable Multiplayer servers");
-    m_tool_tip.AddTool(GetDlgItem(IDC_RATE_EDIT), "Internet connection speed in bytes/s (default value - 200000 - should work fine for all modern setups)");
-    m_tool_tip.AddTool(GetDlgItem(IDC_FORCE_PORT_CHECK), "If not checked automatic port is used");
+    m_tool_tip.AddTool(GetDlgItem(IDC_TRACKER_EDIT), "Tracker for finding avaliable multiplayer servers (click Reset to use default)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_RATE_EDIT), "Internet connection speed in bytes/s (recommended to leave the default value of 200000)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_FORCE_PORT_CHECK), "If not checked, port is randomly selected");
 }
 
 void OptionsMultiplayerDlg::OnSave()
