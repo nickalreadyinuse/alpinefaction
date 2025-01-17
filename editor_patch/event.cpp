@@ -795,8 +795,6 @@ void SaveCurrentFields(HWND hwndDlg)
 
 INT_PTR CALLBACK DialogProc(HWND hwndDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    char buffer[256];
-
     switch (uMsg) {
     case WM_INITDIALOG: {
         if (currentDedEvent) {
