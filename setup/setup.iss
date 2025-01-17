@@ -2,7 +2,7 @@
 #define SrcRootDir ".."
 #define BinDir "..\build\Release\bin"
 #define PatchesDir "patches\output"
-#define AppVer "0.0.1-beta3"
+#define AppVer "0.0.1-beta3_Maple"
 
 [Setup]
 AppId={{005AA7-D71920-FFC72C-4B6E-82D3-9F7B12A3C8D1}}
@@ -261,6 +261,9 @@ begin
         NativeHKLM := HKEY_LOCAL_MACHINE;
     if RegQueryStringValue(HKEY_CURRENT_USER, 'SOFTWARE\Volition\Red Faction\Alpine Faction', 'Executable Path', Result) then
         // Alpine Faction options - nothing to do
+    else if RegQueryStringValue(HKEY_CURRENT_USER, 'SOFTWARE\Volition\Red Faction\Dash Faction', 'Executable Path', Result) then
+        // Dash Faction
+        Result := Result
     else if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Volition\Red Faction', 'InstallPath', Result) then
         // Install from CD
         Result := Result + 'RF.exe'
