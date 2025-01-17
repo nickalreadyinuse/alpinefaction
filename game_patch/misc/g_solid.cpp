@@ -315,14 +315,14 @@ ConsoleCommand2 lighting_color_range_cmd{
             new_mode = GameConfig::ClampMode::ALL;
         }
         else {
-            rf::console::printf("Invalid option. Valid options are alpineonly, community, all");
+            rf::console::printf("Invalid option. Valid options are alpine (0), custom (1), all (2)");
             return;
         }
         g_game_config.clamp_mode = new_mode;
         g_game_config.save();
         rf::console::printf("Lighting color range set to %s", range_arg.value().c_str());
     },
-    "Set lighting color range. Valid options are alpineonly, community, all. Only affects levels loaded after usage of this command.",
+    "Set lighting color range. Only affects levels loaded after usage of this command.",
     "lighting_color_range [option]",
 };
 
