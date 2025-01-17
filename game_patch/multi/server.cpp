@@ -309,6 +309,7 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$UPnP Enabled:", g_additional_server_config.upnp_enabled, "UPnP Enabled");
     parse_boolean_option(parser, "$Send Player Stats Message:", g_additional_server_config.stats_message_enabled, "Send Player Stats Message");
     parse_boolean_option(parser, "$Drop Amps On Death:", g_additional_server_config.drop_amps, "Drop Amps On Death");
+    parse_boolean_option(parser, "$Flag Dropping:", g_additional_server_config.flag_dropping, "Flag Dropping");
     parse_boolean_option(parser, "$Saving Enabled:", g_additional_server_config.saving_enabled, "Saving Enabled");
     parse_boolean_option(parser, "$Allow Fullbright Meshes:", g_additional_server_config.allow_fullbright_meshes, "Allow Fullbright Meshes");
     parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_additional_server_config.allow_lightmaps_only, "Allow Lightmaps Only Mode");
@@ -628,11 +629,19 @@ void handle_whosready_command(rf::Player* player)
 
 static void handle_drop_flag_request(rf::Player* player)
 {
-    if (rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
-        if (rf::multi_ctf_get_red_flag_player() == player || rf::multi_ctf_get_blue_flag_player() == player) {
-            rf::multi_ctf_drop_flag(player);
-            rf::ctf_flag_cooldown_timestamp.set(750);
-        }
+    if (!rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
+        return; // can't drop flags unless in CTF
+    }
+
+    if (!g_additional_server_config.flag_dropping) {
+        send_chat_line_packet("\xA6 This server has disabled flag dropping.", player);
+        return;
+    }
+
+    // drop flag if held
+    if (rf::multi_ctf_get_red_flag_player() == player || rf::multi_ctf_get_blue_flag_player() == player) {
+        rf::multi_ctf_drop_flag(player);
+        rf::ctf_flag_cooldown_timestamp.set(750);
     }
 }
 

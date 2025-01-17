@@ -125,6 +125,7 @@ Version 1.0.0 (Maple)
 - Add support for direct downloads from FactionFiles via `af://` protocol
 - Add support for endgame voting through FFLink
 - Add "Respect Resets" option for solo triggers
+- Add `$Flag Dropping` svar to control whether flags can be dropped
 
 [@natarii](https://github.com/natarii)
 - Fix music desyncing when entering menus in multiplayer
