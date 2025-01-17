@@ -127,6 +127,7 @@ Version 1.0.0 (Maple)
 - Add "Respect Resets" option for solo triggers
 - Add `$Flag Dropping` svar to control whether flags can be dropped
 - Fixed shotgun (and potentially other weapons) dealing no damage in multiplayer if fired immediately after reloading
+- Add `mp_notifyonjoin` command
 
 [@natarii](https://github.com/natarii)
 - Fix music desyncing when entering menus in multiplayer

@@ -191,6 +191,17 @@ ConsoleCommand2 swap_grenade_controls_cmd{
     "Swap grenade controls",
 };
 
+ConsoleCommand2 play_join_beep_cmd{
+    "mp_notifyonjoin",
+    []() {
+        g_game_config.player_join_beep = !g_game_config.player_join_beep;
+        g_game_config.save();
+        rf::console::print("Out of focus player join notifications: {}",
+                     g_game_config.player_join_beep ? "enabled" : "disabled");
+    },
+    "Toggle notification beeps being played when a player joins the server you are in when your game doesn't have focus",
+};
+
 FunHook<void(rf::Player*, int)> player_make_weapon_current_selection_hook{
     0x004A4980,
     [](rf::Player* player, int weapon_type) {
@@ -425,8 +436,6 @@ void player_do_patch()
     player_fire_primary_weapon_hook.install();
     stop_continous_primary_fire_patch.install();
     stop_continous_alternate_fire_patch.install();
-    swap_assault_rifle_controls_cmd.register_cmd();
-    swap_grenade_controls_cmd.register_cmd();
 
     // Reset impact delay timers when switching weapon to avoid delayed fire after switching
     player_make_weapon_current_selection_hook.install();
@@ -480,4 +489,7 @@ void player_do_patch()
     // Commands
     damage_screen_flash_cmd.register_cmd();
     death_bars_cmd.register_cmd();
+    swap_assault_rifle_controls_cmd.register_cmd();
+    swap_grenade_controls_cmd.register_cmd();
+    play_join_beep_cmd.register_cmd();
 }
