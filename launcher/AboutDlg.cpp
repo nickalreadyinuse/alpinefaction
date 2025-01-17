@@ -27,7 +27,7 @@ BOOL AboutDlg::OnInitDialog()
     // Set version label text
     // Note: it is set here to avoid joining strings in .rc file (it is problematic in MSVC and not supported by
     // visual editor)
-    SetDlgItemTextA(IDC_APP_VERSION, "Version: " VERSION_STR);
+    SetDlgItemTextA(IDC_APP_VERSION, "Version: " VERSION_STR " (" VERSION_CODE ")");
 
     return TRUE;
 }

@@ -652,7 +652,7 @@ std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet(const std::byte* d
 std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_df_signature(std::byte* data, size_t len)
 {
     df_sign_packet_ext ext;
-    ext.df_signature = ALPINE_FACTION_SIGNATURE; // report to server list as Dash for player list reporting
+    ext.df_signature = ALPINE_FACTION_SIGNATURE;
     ext.version_major = VERSION_MAJOR;
     ext.version_minor = VERSION_MINOR;
     return extend_packet(data, len, ext);

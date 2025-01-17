@@ -19,9 +19,10 @@
 #define VERSION_MINOR          0
 #define VERSION_PATCH          1
 #define VERSION_TYPE           VERSION_TYPE_BETA
-#define VERSION_TYPE_REVISION  3
+#define VERSION_TYPE_REVISION  4
+#define VERSION_CODE           "maple"
 
-// Increment only when absolutely necessary! (will break level compatibility for older clients)
+// Increment only when absolutely necessary! Will break level compatibility for older clients.
 // Stock RF1 uses versions 156 - 200. RF2 uses version 295
 // AF can load levels with version 40 - 200 or 300 - MAXIMUM_RFL_VERSION
 #define MAXIMUM_RFL_VERSION    300

@@ -226,7 +226,7 @@ DcCommandAlias map_info_ext_cmd{
 ConsoleCommand2 version_cmd{
     "ver",
     []() {
-        rf::console::print("Alpine Faction {} (build date: {} {})", VERSION_STR, __DATE__, __TIME__);
+        rf::console::print("Alpine Faction {} ({}), build date: {} {}", VERSION_STR, VERSION_CODE, __DATE__, __TIME__);
     },
     "Display version info",
 };

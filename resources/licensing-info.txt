@@ -13,8 +13,8 @@ Licensing information for Dash Faction is below.
 The Alpine Faction source code is available on GitHub and licensed under the
 Mozilla Public License 2.0.
 
-Alpine Faction uses some open-source third-party components. Their licenses can
-be found below.
+Alpine Faction uses some open-source third-party components.
+Their licenses can be found below.
 
 ---------------------------------
 Special Thanks
