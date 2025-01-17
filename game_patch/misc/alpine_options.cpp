@@ -724,15 +724,8 @@ void apply_af_options_patches()
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::WalkableSlopeThreshold)) {
         static float walkable_slope_threshold = get_option_or_default<float>(AlpineOptionID::WalkableSlopeThreshold, 0.5f);
-        //uintptr_t walkable_slope_threshold_address = reinterpret_cast<uintptr_t>(&walkable_slope_threshold);
         AsmWriter(0x004A0A82).fcomp<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&walkable_slope_threshold)));
     }
-
-
-    //static float walkable_slope_threshold = 0.5f;
-    //uintptr_t walkable_slope_threshold_address = reinterpret_cast<uintptr_t>(&walkable_slope_threshold);
-
-    
 
     // ===========================
     // af_ui.tbl
@@ -867,13 +860,7 @@ void load_af_options_config()
 {
     xlog::debug("Loading Alpine Faction Options configuration");
 
-    // Load all af_client*.tbl files first
-    // af_client.tbl overrides numbered variations because its loaded later
-    /* for (int i = 0; i <= 9; ++i) {
-        std::string numbered_file = "af_client" + std::to_string(i) + ".tbl";
-        load_single_af_options_file(numbered_file);
-    }*/
-
+    // load af_client.tbl
     load_single_af_options_file("af_client.tbl");
 
     // if a TC mod is loaded, handle the other options files
