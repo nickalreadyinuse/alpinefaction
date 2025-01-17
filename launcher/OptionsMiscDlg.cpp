@@ -33,13 +33,14 @@ void OptionsMiscDlg::InitToolTip()
     m_tool_tip.Create(*this);
     m_tool_tip.AddTool(GetDlgItem(IDC_FAST_START_CHECK), "Skip game intro videos and go straight to main menu");
     m_tool_tip.AddTool(GetDlgItem(IDC_ALLOW_OVERWRITE_GAME_CHECK), "Allows files in custom level folders to override core game files. Recommended to keep disabled (client_mods should be used for this instead)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_REDUCED_SPEED_IN_BG_CHECK), "Run the game at reduced speed when it doesn't have focus");
     m_tool_tip.AddTool(GetDlgItem(IDC_PLAYER_JOIN_BEEP_CHECK), "Play a beep when a player joins the server you are in while your game doesn't have focus");
     m_tool_tip.AddTool(GetDlgItem(IDC_AUTOSAVE_CHECK), "Automatically save the game after a level transition");
     m_tool_tip.AddTool(GetDlgItem(IDC_ALPINE_BRAND_CHECK), "Display Alpine Faction branding where available");
-    m_tool_tip.AddTool(GetDlgItem(IDC_FULLBRIGHT), "Use fully bright lighting for all character meshes (in multiplayer, only applies if the server allows it");
-    m_tool_tip.AddTool(GetDlgItem(IDC_LIGHTMAPS), "Render levels using lightmaps only for increased visibility (in multiplayer, only applies if the server allows it");
-    m_tool_tip.AddTool(GetDlgItem(IDC_MUZZLEFLASH), "Disable blinking dynamic lights when players are shooting (in multiplayer, only applies if the server allows it");
-    m_tool_tip.AddTool(GetDlgItem(IDC_SCREENSHAKE), "Disable camera shake including when firing weapons (in multiplayer, only applies if the server allows it");
+    m_tool_tip.AddTool(GetDlgItem(IDC_FULLBRIGHT), "Use fully bright lighting for all character meshes (in multiplayer, only applies if the server allows it)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_LIGHTMAPS), "Render levels using lightmaps only for increased visibility (in multiplayer, only applies if the server allows it)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_MUZZLEFLASH), "Disable blinking dynamic lights when players are shooting (in multiplayer, only applies if the server allows it)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_SCREENSHAKE), "Disable camera shake including when firing weapons (in multiplayer, only applies if the server allows it)");
     m_tool_tip.AddTool(GetDlgItem(IDC_DAMAGEFLASH), "Show a bright red screen flash when you suffer damage");
     m_tool_tip.AddTool(GetDlgItem(IDC_POW2TEX), "Enforce for textures with nonstandard resolutions, fixes textures in older levels but may cause issues with textures in newer ones");
 }

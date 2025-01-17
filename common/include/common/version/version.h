@@ -20,7 +20,7 @@
 #define VERSION_PATCH          1
 #define VERSION_TYPE           VERSION_TYPE_BETA
 #define VERSION_TYPE_REVISION  4
-#define VERSION_CODE           "maple"
+#define VERSION_CODE           "Maple"
 
 // Increment only when absolutely necessary! Will break level compatibility for older clients.
 // Stock RF1 uses versions 156 - 200. RF2 uses version 295

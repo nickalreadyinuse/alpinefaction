@@ -103,13 +103,13 @@ BOOL MainDlg::OnInitDialog()
 
     // Setup tooltips
     m_tool_tip.Create(*this);
-    m_tool_tip.AddTool(m_mod_selector, "To find more mods, click the FactionFiles logo under Resources");
+    m_tool_tip.AddTool(m_mod_selector, "To find more mods, visit FactionFiles.com");
     m_tool_tip.AddTool(m_options_button, "Adjust settings");
     m_tool_tip.AddTool(m_play_button, "Launch Alpine Faction");
     m_tool_tip.AddTool(m_sm1_button, "Open the Alpine Faction level editor");
-    m_tool_tip.AddTool(m_sb2_button, "Join the Red Faction community Discord");
-    m_tool_tip.AddTool(m_sb3_button, "Find community-made mods and levels at FactionFiles.com");
-    m_tool_tip.AddTool(m_sb4_button, "Visit the Red Faction Wiki");
+    m_tool_tip.AddTool(m_sb2_button, "Join the active Red Faction Community Discord");
+    m_tool_tip.AddTool(m_sb3_button, "Visit FactionFiles.com to find community-made mods and levels or to link your account");
+    m_tool_tip.AddTool(m_sb4_button, "Visit the Red Faction Wiki to access documentation and information about Red Faction");
     m_tool_tip.AddTool(m_about_link, "Current version, click to learn more about Alpine Faction");
     m_tool_tip.AddTool(m_sm2_button, "Open your mods directory");
     m_tool_tip.AddTool(m_sm3_button, "Open your clientside mods directory");
@@ -259,10 +259,10 @@ INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
             SetBkMode(hdc, TRANSPARENT);           // Transparent background
             SetTextColor(hdc, RGB(255, 255, 255)); // Always white text
 
-            std::string version_text = std::format("AF {}", VERSION_STR);
+            std::string version_text = std::format("AF v{} ({})", VERSION_STR, VERSION_CODE);
 
 
-            DrawText(hdc, version_text.c_str(), -1, &lpDrawItem->rcItem, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+            DrawText(hdc, version_text.c_str(), -1, &lpDrawItem->rcItem, DT_RIGHT | DT_BOTTOM | DT_SINGLELINE);
 
             return TRUE;
         }
@@ -310,40 +310,6 @@ void MainDlg::RefreshModSelector()
 
     m_mod_selector.SetWindowTextA(selected_mod);
 }
-
-/* LRESULT MainDlg::OnUpdateCheck(WPARAM wparam, LPARAM lparam)
-{
-    UNREFERENCED_PARAMETER(wparam);
-    UNREFERENCED_PARAMETER(lparam);
-
-    UpdateChecker::CheckResult chk_result;
-    try {
-        chk_result = m_update_checker.get_result();
-    }
-    catch (std::exception& e) {
-        m_update_status.SetWindowText("Failed to check for update");
-        m_tool_tip.AddTool(m_update_status, e.what());
-        return 0;
-    }
-
-    if (!chk_result)
-        m_update_status.SetWindowText("No update is available.");
-    else {
-        m_update_status.SetWindowText("New version available!");
-        int result = MessageBoxA(chk_result.message.c_str(), "Update is available!",
-                                  MB_OKCANCEL | MB_ICONEXCLAMATION);
-        if (result == IDC_PLAY_BTN) {
-            HINSTANCE exec_res = ShellExecuteA(*this, "open", chk_result.url.c_str(), nullptr, nullptr, SW_SHOW);
-            auto exec_res_int = reinterpret_cast<INT_PTR>(exec_res);
-            if (exec_res_int <= 32) {
-                xlog::error("ShellExecuteA failed {}", exec_res_int);
-            }
-            EndDialog(0);
-        }
-    }
-
-    return 0;
-}*/
 
 std::string replace_html_breaks(const std::string& input)
 {
