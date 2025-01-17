@@ -434,9 +434,9 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         }
     }},
     {AlpineDedEventID::Set_Fog_Far_Clip, {
-        {FIELD_INT1},
+        {FIELD_FLOAT1},
         {
-            {FIELD_INT1, "Far clip distance (int1):"}
+            {FIELD_FLOAT1, "Far clip distance (float1):"}
         }
     }},
     {AlpineDedEventID::AF_When_Dead, {
@@ -468,9 +468,9 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         }
     }},
     {AlpineDedEventID::Set_Life, {
-        {FIELD_INT1},
+        {FIELD_FLOAT1},
         {
-            {FIELD_INT1, "New life value (int1):"}
+            {FIELD_FLOAT1, "New life value (float1):"}
         }
     }},
     {AlpineDedEventID::Set_Debris, {

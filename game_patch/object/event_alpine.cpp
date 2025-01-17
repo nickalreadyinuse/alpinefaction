@@ -462,7 +462,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Fog_Far_Clip));
             auto* event = dynamic_cast<rf::EventSetFogFarClip*>(base_event);
             if (event) {
-                event->far_clip = params.int1;
+                event->far_clip = params.float1;
             }
             return event;
         }
@@ -509,7 +509,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Life));
             auto* event = dynamic_cast<rf::EventSetLife*>(base_event);
             if (event) {
-                event->new_life = params.int1;
+                event->new_life = params.float1;
             }
             return event;
         }

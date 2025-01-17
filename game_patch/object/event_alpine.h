@@ -1213,16 +1213,16 @@ namespace rf
     // id 121
     struct EventSetFogFarClip : Event
     {
-        int far_clip = 0;
+        float far_clip = 0.0f;
 
         void register_variable_handlers() override
         {
             Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
-            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+            handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventSetFogFarClip*>(event);
-                this_event->far_clip = std::stoi(value);
+                this_event->far_clip = std::stof(value);
             };
         }
 
@@ -1462,16 +1462,16 @@ namespace rf
     // id 126
     struct EventSetLife : Event
     {
-        int new_life = 0;
+        float new_life = 0.0f;
 
         void register_variable_handlers() override
         {
             Event::register_variable_handlers();
 
             auto& handlers = variable_handler_storage[this];
-            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+            handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventSetLife*>(event);
-                this_event->new_life = std::stoi(value);
+                this_event->new_life = std::stof(value);
             };
         }
 
