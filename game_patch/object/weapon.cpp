@@ -128,8 +128,32 @@ CallHook<void(rf::Vector3&, float, float, int, int)> weapon_hit_wall_obj_apply_r
     },
 };
 
+ConsoleCommand2 multi_ricochet_cmd{
+    "mp_ricochet",
+    []() {
+        g_game_config.multi_ricochet = !g_game_config.multi_ricochet;
+        g_game_config.save();
+        rf::console::print("Multiplayer ricochets are {}", g_game_config.multi_ricochet ? "enabled" : "disabled");
+    },
+    "Toggles whether bullets ricochet in multiplayer (strictly visual, they deal no damage regardless)",
+};
+
+FunHook<bool(rf::Weapon*)> weapon_possibly_richochet {
+    0x004C9D30,
+    [](rf::Weapon* weapon) {
+        if (rf::is_multi && !g_game_config.multi_ricochet) {
+            return false;
+        }
+
+        return weapon_possibly_richochet.call_target(weapon);
+    },
+};
+
 void apply_weapon_patches()
 {
+    // Stop weapons visually richocheting in multiplayer
+    weapon_possibly_richochet.install();
+
     // Fix crashes caused by too many records in weapons.tbl file
     weapons_tbl_buffer_overflow_fix_1.install();
     weapons_tbl_buffer_overflow_fix_2.install();
@@ -155,8 +179,11 @@ void apply_weapon_patches()
 
     // Show enemy bullets
     rf::hide_enemy_bullets = !g_game_config.show_enemy_bullets;
-    show_enemy_bullets_cmd.register_cmd();
 
     // Fix rockets not making damage after hitting a detail brush
     weapon_hit_wall_obj_apply_radius_damage_hook.install();
+
+    // commands
+    multi_ricochet_cmd.register_cmd();
+    show_enemy_bullets_cmd.register_cmd();
 }
