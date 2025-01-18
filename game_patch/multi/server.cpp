@@ -2006,7 +2006,7 @@ CodeInjection entity_maybe_die_patch{
             rf::Entity* ep = regs.esi;
 
             if (ep) {
-                xlog::warn("{} died", ep->name);
+                //xlog::warn("{} died", ep->name);
                 rf::Player* player = rf::player_from_entity_handle(ep->handle);
 
                 if (rf::multi_powerup_has_player(player, 1)) {
@@ -2019,7 +2019,7 @@ CodeInjection entity_maybe_die_patch{
                         amp_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
                     }
 
-                    xlog::warn("amp count {}", amp_count);
+                    //xlog::warn("amp count {}", amp_count);
 
                     if (amp_count >= 1) {
                         entity_drop_powerup(ep, 1, amp_count); 
@@ -2031,7 +2031,7 @@ CodeInjection entity_maybe_die_patch{
                     int time_left = rf::multi_powerup_get_time_until(player, 0);
                     invuln_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
 
-                    xlog::warn("invuln count {}", invuln_count);
+                    //xlog::warn("invuln count {}", invuln_count);
 
                     if (invuln_count >= 1) {
                         entity_drop_powerup(ep, 0, invuln_count);
@@ -2053,7 +2053,7 @@ CodeInjection item_get_oldest_dynamic_patch{
             if (item) {
                 //xlog::warn("checked item {}, UID {}", item->name, item->uid);
                 if (item->name == "Multi Damage Amplifier") {
-                    xlog::warn("found bag item, ensuring it persists");
+                    //xlog::warn("found bag item, ensuring it persists");
                     regs.eip = 0x0045887E;
                 }
             }
