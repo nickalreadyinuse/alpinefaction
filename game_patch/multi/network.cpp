@@ -690,11 +690,31 @@ struct DashFactionJoinAcceptPacketExt
 template<>
 struct EnableEnumBitwiseOperators<DashFactionJoinAcceptPacketExt::Flags> : std::true_type {};
 
+struct DashFactionJoinReqPacketExt
+{
+    uint32_t df_signature = ALPINE_FACTION_SIGNATURE;
+    uint8_t version_major = VERSION_MAJOR;
+    uint8_t version_minor = VERSION_MINOR;
+
+    enum class Flags : uint32_t {
+        none                = 0,
+        yes = 1 << 0,
+    } flags = Flags::none;
+
+};
+template<>
+struct EnableEnumBitwiseOperators<DashFactionJoinReqPacketExt::Flags> : std::true_type {};
+
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
         // Add Alpine Faction signature to join_req packet
-        auto [new_data, new_len] = extend_packet_with_df_signature(data, len);
+        //auto [new_data, new_len] = extend_packet_with_df_signature(data, len);
+
+        DashFactionJoinReqPacketExt ext_data;
+        ext_data.flags |= DashFactionJoinReqPacketExt::Flags::yes;
+
+        auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_req_packet_hook.call_target(addr, new_data.get(), new_len);
     },
 };
@@ -761,6 +781,84 @@ CodeInjection process_join_accept_injection{
         }
         else {
             g_df_server_info.reset();
+        }
+    },
+};
+
+void log_player_connection(uint32_t ip_addr, uint16_t port)
+{
+    // Convert IP address and port from network byte order to host byte order
+    uint32_t ip_host = ntohl(ip_addr); // Convert IP address to host byte order
+    uint16_t port_host = ntohs(port);  // Convert port to host byte order
+
+    // Extract and log the IP address components
+    uint8_t octet1 = (ip_host >> 24) & 0xFF;
+    uint8_t octet2 = (ip_host >> 16) & 0xFF;
+    uint8_t octet3 = (ip_host >> 8) & 0xFF;
+    uint8_t octet4 = ip_host & 0xFF;
+
+    // Log the result
+    xlog::warn("connected {}.{}.{}.{}:{}", octet1, octet2, octet3, octet4, port_host);
+}
+
+FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
+    0x0047AC60,
+    [](int pPacket, rf::NetAddr *addr) {
+
+        process_join_req_packet_hook.call_target(pPacket, addr);
+
+        rf::Player* player = rf::multi_find_player_by_addr(*addr);
+        if (player) {
+        xlog::warn("player {}", player->name);
+        }
+        else {
+        xlog::warn("player is wrong");
+        }
+    },
+};
+
+CodeInjection process_join_req_injection{
+    0x0047AD99,
+    [](auto& regs) {
+        // Base pointer to the packet
+        std::byte* packet = regs.esi;
+        //rf::NetAddr* player_addr = reinterpret_cast<rf::NetAddr*>(regs.esp + 0x14C);
+        //log_player_connection(player_addr->ip_addr, player_addr->port);
+
+         for (size_t offset = 0x0; offset <= 0x14C; offset += 4) {
+            rf::NetAddr* player_addr = reinterpret_cast<rf::NetAddr*>(regs.esp - offset);
+
+            // Log the current offset being inspected
+            xlog::warn("Inspecting offset: regs.esp + 0x{:X}", offset);
+
+            // Call log_player_connection with the current address
+            log_player_connection(player_addr->ip_addr, player_addr->port);
+        }
+
+        /*rf::Player* player = rf::multi_find_player_by_addr(*player_addr);
+        if (player) {
+            xlog::warn("player {}", player->name);
+        }
+        else {
+            xlog::warn("player is wrong");
+        }*/
+
+        // Interpret the extended data
+        auto* extended_data = reinterpret_cast<const DashFactionJoinReqPacketExt*>(packet);
+
+        // Log and validate the extended data fields
+        xlog::warn("Inspecting extended packet data:");
+        xlog::warn("  df_signature: {:08X}", extended_data->df_signature);
+        xlog::warn("  version_major: {}", extended_data->version_major);
+        xlog::warn("  version_minor: {}", extended_data->version_minor);
+        xlog::warn("  flags: {:08X}", static_cast<uint32_t>(extended_data->flags));
+
+        if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {
+            xlog::warn("Valid Alpine Faction extension detected.");
+
+        }
+        else {
+            xlog::warn("Invalid or missing Alpine Faction extension.");
         }
     },
 };
@@ -1208,6 +1306,8 @@ void network_init()
     // Add Alpine Faction signature to game_info, join_req, join_accept packets
     send_game_info_packet_hook.install();
     send_join_req_packet_hook.install();
+    process_join_req_packet_hook.install();
+    process_join_req_injection.install();
     send_join_accept_packet_hook.install();
     process_join_accept_injection.install();
     process_join_accept_send_game_info_req_injection.install();
