@@ -33,6 +33,7 @@ struct GameConfig
 
     static unsigned min_fps_limit;
     static unsigned max_fps_limit;
+    static unsigned max_fps_limit_mp;
     CfgVar<unsigned> max_fps{240, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
     CfgVar<unsigned> server_max_fps{60, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
 

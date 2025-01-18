@@ -13,9 +13,11 @@ const char GameConfig::default_rf_tracker[] = "rfgt.factionfiles.com";
 #if VERSION_TYPE == VERSION_TYPE_DEV
 unsigned GameConfig::min_fps_limit = 1u;
 unsigned GameConfig::max_fps_limit = 10000u;
+unsigned GameConfig::max_fps_limit_mp = 240u;
 #else
 unsigned GameConfig::min_fps_limit = 10u;
 unsigned GameConfig::max_fps_limit = 10000u;
+unsigned GameConfig::max_fps_limit_mp = 240u;
 #endif
 
 const char fallback_executable_path[] = R"(C:\games\RedFaction\rf.exe)";
@@ -62,6 +64,21 @@ catch (...) {
 bool GameConfig::detect_game_path()
 {
     std::string install_path;
+
+    // Dash Faction
+    try
+    {
+        RegKey reg_key(HKEY_CURRENT_USER, "SOFTWARE\\Volition\\Red Faction\\Dash Faction", KEY_READ);
+        if (reg_key.read_value("Executable Path", &install_path))
+        {
+            game_executable_path = install_path;
+            return true;
+        }
+    }
+    catch (...)
+    {
+        // ignore
+    }
 
     // Standard RF installer
     try

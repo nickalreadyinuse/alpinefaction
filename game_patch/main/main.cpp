@@ -174,6 +174,7 @@ FunHook<void(bool)> level_init_post_hook{
         level_init_post_hook.call_target(transition);
         xlog::info("Level loaded: {}{}", rf::level.filename, transition ? " (transition)" : "");
 
+        apply_maximum_fps(); // set maximum FPS based on game state
         process_queued_spawn_points_from_items();
         evaluate_fullbright_meshes();
         update_player_flashlight();

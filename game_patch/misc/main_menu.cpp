@@ -17,6 +17,7 @@
 #include "../rf/os/os.h"
 #include "../main/main.h"
 #include "../graphics/gr.h"
+#include "../os/os.h"
 #include "misc.h"
 
 constexpr int EGG_ANIM_ENTER_TIME = 2000;
@@ -138,6 +139,14 @@ FunHook<int(const int&, const int&)> server_list_cmp_func_hook{
     },
 };
 
+FunHook<void()> mainmenu_init_hook{
+    0x00443270,
+    []() {
+        mainmenu_init_hook.call_target();
+        apply_maximum_fps(); // set maximum FPS
+    },
+};
+
 CodeInjection menu_draw_background_injection{
     0x00442D5C,
     [](auto& regs) {
@@ -233,6 +242,9 @@ CodeInjection snd_music_update_volume_hook{
 
 void apply_main_menu_patches()
 {
+    // Main menu init
+    mainmenu_init_hook.install();
+
     // Version in Main Menu
     UiLabel_create2_version_label_hook.install();
     main_menu_process_mouse_hook.install();

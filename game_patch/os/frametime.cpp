@@ -12,6 +12,7 @@
 #include "../rf/os/frametime.h"
 #include "../main/main.h"
 #include "../hud/hud.h"
+#include <xlog/xlog.h>
 
 static float g_frametime_history[1024];
 static int g_frametime_history_index = 0;
@@ -85,14 +86,35 @@ CallHook<void(int)> frametime_calculate_sleep_hook{
     },
 };
 
+float get_maximum_fps()
+{
+    return 1.0f / rf::frametime_min;
+}
+
+void apply_maximum_fps()
+{
+    unsigned max_fps;
+
+    if (rf::is_dedicated_server) {
+        max_fps = g_game_config.server_max_fps.value();
+    }
+    else if (rf::is_multi) {
+        max_fps = std::clamp(g_game_config.max_fps.value(), GameConfig::min_fps_limit, GameConfig::max_fps_limit_mp);
+    }
+    else {
+        max_fps = g_game_config.max_fps.value();
+    }
+
+    rf::frametime_min = 1.0f / static_cast<float>(max_fps);
+}
+
 FunHook<void()> frametime_reset_hook{
     0x00509490,
     []() {
         frametime_reset_hook.call_target();
 
         // Set initial FPS limit
-        unsigned max_fps = rf::is_dedicated_server ? g_game_config.server_max_fps.value() : g_game_config.max_fps.value();
-        rf::frametime_min = 1.0f / static_cast<float>(max_fps);
+        apply_maximum_fps();
     },
 };
 
@@ -108,10 +130,10 @@ ConsoleCommand2 max_fps_cmd{
                 g_game_config.max_fps = limit;
             }
             g_game_config.save();
-            rf::frametime_min = 1.0f / limit;
+            apply_maximum_fps();
         }
         else
-            rf::console::print("Maximal FPS: {:.1f}", 1.0f / rf::frametime_min);
+            rf::console::print("Maximal FPS: {:.1f}", get_maximum_fps());
     },
     "Sets maximal FPS",
     "maxfps <limit>",
