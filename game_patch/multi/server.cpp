@@ -161,24 +161,25 @@ void parse_gungame(rf::Parser& parser)
     if (parser.parse_optional("$GunGame:")) {
         g_additional_server_config.gungame.enabled = parser.parse_bool();
         rf::console::print("GunGame Enabled: {}", g_additional_server_config.gungame.enabled ? "true" : "false");
-
-        parse_boolean_option(parser, "+Dynamic Progression:", g_additional_server_config.gungame.dynamic_progression,
-                             "+Dynamic Progression");
-        parse_boolean_option(parser, "+Rampage Rewards:", g_additional_server_config.gungame.rampage_rewards,
-                             "+Rampage Rewards");
+        parse_boolean_option(parser, "+Dynamic Progression:", g_additional_server_config.gungame.dynamic_progression, "+Dynamic Progression");
+        parse_boolean_option(parser, "+Rampage Rewards:", g_additional_server_config.gungame.rampage_rewards, "+Rampage Rewards");
 
         if (parser.parse_optional("+Final Level:")) {
-            g_additional_server_config.gungame.final_level = {parser.parse_int(), parser.parse_int()};
+            int final_kill_level = parser.parse_int();
+            int final_weapon_level = parser.parse_int();
+            g_additional_server_config.gungame.final_level = std::make_pair(final_kill_level, final_weapon_level);
             rf::console::print("GunGame Final Level: Kill Level {} - Weapon Level {}",
-                               g_additional_server_config.gungame.final_level->first,
-                               g_additional_server_config.gungame.final_level->second);
+                g_additional_server_config.gungame.final_level->first,
+                g_additional_server_config.gungame.final_level->second);
         }
 
         while (parser.parse_optional("+Level:")) {
-            g_additional_server_config.gungame.levels.emplace_back(parser.parse_int(), parser.parse_int());
+            int kill_level = parser.parse_int();
+            int weapon_level = parser.parse_int();
+            g_additional_server_config.gungame.levels.emplace_back(kill_level, weapon_level);
             rf::console::print("GunGame Level Added: Kill Level {} - Weapon Level {}",
-                               g_additional_server_config.gungame.levels.back().first,
-                               g_additional_server_config.gungame.levels.back().second);
+                g_additional_server_config.gungame.levels.back().first,
+                g_additional_server_config.gungame.levels.back().second);
         }
     }
 }
