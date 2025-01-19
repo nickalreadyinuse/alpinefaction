@@ -33,7 +33,11 @@ void OptionsMultiplayerDlg::InitToolTip()
 
 void OptionsMultiplayerDlg::OnSave()
 {
-    m_conf.tracker = GetDlgItemTextA(IDC_TRACKER_EDIT).c_str();
+    // fix for strange bug that would blank tracker field if changing force port or maxfps
+    if (!GetDlgItemTextA(IDC_TRACKER_EDIT).GetString().empty()) {
+        m_conf.tracker = GetDlgItemTextA(IDC_TRACKER_EDIT).GetString();
+    }
+    
     bool force_port = IsDlgButtonChecked(IDC_FORCE_PORT_CHECK) == BST_CHECKED;
     m_conf.force_port = force_port ? GetDlgItemInt(IDC_PORT_EDIT, false) : 0;
     m_conf.update_rate = GetDlgItemInt(IDC_RATE_EDIT, false);

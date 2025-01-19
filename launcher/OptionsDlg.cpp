@@ -70,8 +70,11 @@ BOOL OptionsDlg::OnCommand(WPARAM wparam, LPARAM lparam)
 
 void OptionsDlg::OnBnClickedOk()
 {
-    m_conf.game_executable_path = GetDlgItemTextA(IDC_EXE_PATH_EDIT).GetString();
-
+    // fix for strange bug that would blank exe path field if changing force port or maxfps
+    if (!GetDlgItemTextA(IDC_EXE_PATH_EDIT).GetString().empty()) {
+        m_conf.game_executable_path = GetDlgItemTextA(IDC_EXE_PATH_EDIT).GetString();
+    }
+    
     // Nested dialogs
     m_display_dlg.OnSave();
     m_graphics_dlg.OnSave();
