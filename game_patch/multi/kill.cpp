@@ -46,8 +46,7 @@ public:
                                            ? g_additional_server_config.gungame.final_level->first
                                            : rf::multi_kill_limit;
 
-            xlog::warn("Initializing GunGame levels with Dynamic Progression. Tiers: {}, Kill Limit: {}",
-                       tiered_levels.size(), effective_kill_limit);
+            xlog::info("Initializing GunGame levels with Dynamic Progression. Tiers: {}, Kill Limit: {}", tiered_levels.size(), effective_kill_limit);
 
             // Calculate the total number of weapons
             int total_weapons = 0;
@@ -93,7 +92,7 @@ public:
             }            
         }
         else {
-            xlog::warn("Initializing GunGame levels with Manual Progression.");
+            xlog::info("Initializing GunGame levels with Manual Progression.");
 
             // Make sure the levels are ordered sequentially
             std::sort(g_additional_server_config.gungame.levels.begin(),
