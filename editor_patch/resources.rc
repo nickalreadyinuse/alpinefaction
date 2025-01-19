@@ -93,7 +93,7 @@ FONT 8, "MS Sans Serif", 0, 0, 1
     GROUPBOX        "Multiplayer Settings", -1, 154, 301, 80, 50, 0, WS_EX_LEFT
     AUTOCHECKBOX    "Is Solo", IDC_TRIGGER_SOLO, 160, 312, 69, 10, 0, WS_EX_LEFT
     AUTOCHECKBOX    "Is Clientside", IDC_TRIGGER_CLIENTSIDE, 160, 323, 69, 10, 0, WS_EX_LEFT
-    AUTOCHECKBOX    "Respect Resets", IDC_TRIGGER_TELEPORT, 160, 334, 69, 10, 0, WS_EX_LEFT
+    AUTOCHECKBOX    "Ignore Resets", IDC_TRIGGER_TELEPORT, 160, 334, 69, 10, 0, WS_EX_LEFT // reused for ignore resets
 }
 
 LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT

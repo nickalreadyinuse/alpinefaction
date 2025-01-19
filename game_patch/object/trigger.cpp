@@ -65,8 +65,8 @@ FunHook<void(rf::Trigger*, int32_t, bool)> trigger_activate_hook{
             // rf::console::print("Solo/Teleport trigger activated {}", trigger_name);
             if (player != rf::local_player) {
 
-                // AF reuses the now deprecated TRIGGER_TELEPORT for "Can Reset"
-                if (af_rfl_version(rf::level.version) && (ext_flags & TRIGGER_TELEPORT) != 0) {
+                // AF reuses the now deprecated TRIGGER_TELEPORT for "Ignore Resets"
+                if (af_rfl_version(rf::level.version) && (ext_flags & TRIGGER_TELEPORT) == 0) {
                     if (trigger->max_count != -1 &&
                         (trigger->count + 1) >= trigger->max_count &&
                         !(trigger->trigger_flags & 0x8)) {
@@ -75,7 +75,7 @@ FunHook<void(rf::Trigger*, int32_t, bool)> trigger_activate_hook{
                     if (trigger->reset_time_ms > 0) {
                         trigger->next_check.set(trigger->reset_time_ms);
                     }
-                    float* time_ptr = reinterpret_cast<float*>(0x006460F0);
+                    float* time_ptr = reinterpret_cast<float*>(0x006460F0); // used in base function for time ptr
                     if (time_ptr) {
                         trigger->time_last_activated = *time_ptr;
                     }
