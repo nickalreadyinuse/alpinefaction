@@ -314,14 +314,35 @@ bool multi_is_player_firing_too_fast(rf::Player* pp, int weapon_type)
     static std::vector<int> last_weapon_id(rf::multi_max_player_id, 0);
     static std::vector<int> last_weapon_fire(rf::multi_max_player_id, 0);
 
-    // for automatic weapons, use the minimum fire wait between both modes in weapons.tbl
-    int fire_wait_ms = std::min(rf::weapon_get_fire_wait_ms(weapon_type, 0), // primary
-                            rf::weapon_get_fire_wait_ms(weapon_type, 1)); // alt
+    int fire_wait_ms = 0;
+        
+    if (rf::weapon_is_semi_automatic(weapon_type)) {
 
-    // for semi auto weapons, if they have the default pistol/PR fire wait, use the override
-    if (rf::weapon_is_semi_automatic(weapon_type) && fire_wait_ms == 500) {
-        fire_wait_ms = get_semi_auto_fire_wait_override();
+        // if semi auto click limit is on
+        if (get_df_server_info().has_value() &&
+            get_df_server_info()->click_limit) {
+
+            // use override value for pistol/PR in stock game
+            // stock game pistol has alt fire wait of 200ms, so can't use normal min logic for it
+            if (rf::weapon_get_fire_wait_ms(weapon_type, 0) == 500) {
+                fire_wait_ms = get_semi_auto_fire_wait_override();
+            }
+            // otherwise use the minimum fire wait between both modes in weapons.tbl
+            else {
+                fire_wait_ms = std::min(rf::weapon_get_fire_wait_ms(weapon_type, 0),  // primary
+                    rf::weapon_get_fire_wait_ms(weapon_type, 1)); // alt
+            }
+        }
+        // otherwise, don't enforce a limit for semi autos
+        else {
+            fire_wait_ms = 0;
+        }
     }
+    // for automatic weapons, use the minimum fire wait between both modes in weapons.tbl
+    else {
+        fire_wait_ms = std::min(rf::weapon_get_fire_wait_ms(weapon_type, 0),  // primary
+            rf::weapon_get_fire_wait_ms(weapon_type, 1)); // alt
+    }    
 
     // reset if weapon changed
     if (last_weapon_id[player_id] != weapon_type) {
@@ -330,15 +351,14 @@ bool multi_is_player_firing_too_fast(rf::Player* pp, int weapon_type)
     }
 
     // check if time since last shot is less than minimum wait time
-    int time_since_last_shot = now - last_weapon_fire[player_id];
+    int time_since_last_shot = std::max(0, now - last_weapon_fire[player_id]); // ensure time is positive
 
     // calculate server-enforced cooldown from weapon fire wait, halfping, and 50ms jitter tolerance
-    int adjusted_ping = std::max(0, pp->net_data->ping); // ensure ping is a positive value
+    int adjusted_ping = std::max(0, pp->net_data->ping); // ensure ping is positive
     int cooldown_threshold = std::max(0, fire_wait_ms - (adjusted_ping / 2) - 50); // halfping and jitter tolerance
     if (time_since_last_shot < cooldown_threshold)
         {
-        send_private_message_for_cancelled_shot(pp, std::format(
-            "too fast! Time between shots: {}ms, server minimum: {}ms", time_since_last_shot, fire_wait_ms));
+        send_private_message_for_cancelled_shot(pp, "firing too fast!");
 
         return true;
     }
