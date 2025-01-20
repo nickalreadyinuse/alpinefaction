@@ -305,7 +305,7 @@ ConsoleCommand2 damage_screen_flash_cmd{
 };
 
 ConsoleCommand2 death_bars_cmd{
-    "cl_deathbars",
+    "mp_deathbars",
     []() {
         g_game_config.death_bars = !g_game_config.death_bars;
         g_game_config.save();
