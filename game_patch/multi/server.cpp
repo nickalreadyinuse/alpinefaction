@@ -305,7 +305,7 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$No Player Collide:", g_additional_server_config.no_player_collide, "No Player Collide");
     parse_boolean_option(parser, "$Dynamic Rotation:", g_additional_server_config.dynamic_rotation, "Dynamic Rotation");
     parse_boolean_option(parser, "$Require Client Mod:", g_additional_server_config.require_client_mod, "Clients Require Mod");
-    parse_int_option(parser, "$Semi Auto Minimum Fire Wait:", g_additional_server_config.click_limiter_fire_wait, "Semi Auto Minimum Fire Wait");
+    //parse_int_option(parser, "$Semi Auto Minimum Fire Wait:", g_additional_server_config.click_limiter_fire_wait, "Semi Auto Minimum Fire Wait");
     parse_float_option(parser, "$Player Damage Modifier:", g_additional_server_config.player_damage_modifier, "Player Damage Modifier");
     parse_boolean_option(parser, "$UPnP Enabled:", g_additional_server_config.upnp_enabled, "UPnP Enabled");
     parse_boolean_option(parser, "$Send Player Stats Message:", g_additional_server_config.stats_message_enabled, "Send Player Stats Message");
@@ -316,6 +316,7 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_additional_server_config.allow_lightmaps_only, "Allow Lightmaps Only Mode");
     parse_boolean_option(parser, "$Allow Disable Screenshake:", g_additional_server_config.allow_disable_screenshake, "Allow Disable Screenshake");
     parse_boolean_option(parser, "$Allow Disable Muzzle Flash Lights:", g_additional_server_config.allow_disable_muzzle_flash, "Allow Disable Muzzle Flash Lights");
+    //parse_boolean_option(parser, "$Enforce Semi Auto Fire Rate Limit:", g_additional_server_config.apply_click_limiter, "Semi Auto Fire Rate Limit");
 
     if (parser.parse_optional("$Welcome Message:")) {
         rf::String welcome_message;
@@ -377,8 +378,21 @@ void load_additional_server_config(rf::Parser& parser) {
         float max_fov = parser.parse_float();
         if (max_fov > 0.0f) {
             g_additional_server_config.max_fov = {max_fov};
+            rf::console::print("Max FOV: {}", g_additional_server_config.max_fov.value_or(180));
         }
     }
+
+    if (parser.parse_optional("$Enforce Semi Auto Fire Rate Limit:")) {
+        g_additional_server_config.apply_click_limiter = parser.parse_bool();
+        rf::console::print("Enforce Semi Auto Fire Rate Limit: {}",
+                            g_additional_server_config.overtime.enabled ? "true" : "false");
+        if (parser.parse_optional("+Cooldown:")) {
+            int fire_wait = parser.parse_int();
+            g_additional_server_config.semi_auto_cooldown = {fire_wait};
+            rf::console::print("+Cooldown: {}", g_additional_server_config.semi_auto_cooldown.value_or(0));
+        }
+    }
+
 
     // Repeatable config
     parse_item_respawn_time_override(parser);
@@ -2223,6 +2237,11 @@ bool server_no_player_collide()
 bool server_allow_disable_muzzle_flash()
 {
     return g_additional_server_config.allow_disable_muzzle_flash;
+}
+
+bool server_apply_click_limiter()
+{
+    return g_additional_server_config.apply_click_limiter;
 }
 
 bool server_weapon_items_give_full_ammo()

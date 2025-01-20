@@ -149,8 +149,68 @@ FunHook<bool(rf::Weapon*)> weapon_possibly_richochet {
     },
 };
 
+ConsoleCommand2 single_semi_auto_limit_cmd{
+    "sp_unlimitedsemiauto",
+    []() {
+        g_game_config.unlimited_semi_auto = !g_game_config.unlimited_semi_auto;
+        g_game_config.save();
+        rf::console::print("Fire rate cooldown for semi-automatic weapons in single player is {}",
+            g_game_config.unlimited_semi_auto ? "disabled" : "enabled");
+    },
+    "Toggles whether the fire rate for semi-automatic weapons in single player has a cooldown",
+};
+
+bool should_apply_click_limiter() {
+    if (!rf::is_multi && !g_game_config.unlimited_semi_auto) {
+        return true;
+    }
+
+    if (rf::is_multi && get_df_server_info().has_value() && get_df_server_info()->click_limit) {
+        return true;
+    }
+
+    return false;
+}
+
+// hack approach - fire wait override for player-controlled semi auto weapons that have
+// default fire wait 500ms like pistol and PR in stock weapons.tbl
+int get_semi_auto_fire_wait_override() {
+    if (rf::is_multi && get_df_server_info().has_value()) {
+        return get_df_server_info()->semi_auto_cooldown.value_or(90);
+    }
+    else {
+        return 90;
+    }
+}
+
+CodeInjection fire_primary_weapon_semi_auto_patch {
+    0x004A50BB,
+    [](auto& regs) {
+        rf::Entity* entity = regs.esi;
+        if (should_apply_click_limiter() && !entity->ai.next_fire_primary.elapsed()) {
+            regs.eip = 0x004A58B8;
+        }
+    },
+};
+
+CodeInjection entity_fire_primary_weapon_semi_auto_patch {
+    0x004259B8,
+    [](auto& regs) {
+        int fire_wait = regs.eax;
+        int weapon_type = regs.ebx;
+        rf::Entity* entity = regs.esi;
+        if (rf::obj_is_player(entity) && rf::weapon_is_semi_automatic(weapon_type) && fire_wait == 500) {
+            regs.eax = get_semi_auto_fire_wait_override();
+        }
+    },
+};
+
 void apply_weapon_patches()
 {
+    // Apply fire wait to semi auto weapons and adjust values to be reasonable
+    fire_primary_weapon_semi_auto_patch.install();
+    entity_fire_primary_weapon_semi_auto_patch.install();
+
     // Stop weapons visually richocheting in multiplayer
     weapon_possibly_richochet.install();
 

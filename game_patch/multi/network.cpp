@@ -682,9 +682,11 @@ struct DashFactionJoinAcceptPacketExt
         allow_no_ss         = 1 << 4,
         no_player_collide   = 1 << 5,
         allow_no_mf         = 1 << 6,
+        click_limit         = 1 << 7,
     } flags = Flags::none;
 
     float max_fov;
+    int semi_auto_cooldown;
 
 };
 template<>
@@ -726,6 +728,10 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_allow_disable_muzzle_flash()) {
             ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_no_mf;
         }
+        if (server_apply_click_limiter()) {
+            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::click_limit;
+            ext_data.semi_auto_cooldown = server_get_df_config().semi_auto_cooldown.value();
+        }
         auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
     },
@@ -752,10 +758,14 @@ CodeInjection process_join_accept_injection{
             server_info.allow_no_ss = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_ss);
             server_info.no_player_collide = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::no_player_collide);
             server_info.allow_no_mf = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_mf);
+            server_info.click_limit = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::click_limit);
 
             constexpr float default_fov = 90.0f;
             if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
                 server_info.max_fov = ext_data.max_fov;
+            }
+            if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::click_limit)) {
+                server_info.semi_auto_cooldown = ext_data.semi_auto_cooldown;
             }
             g_df_server_info = std::optional{server_info};
         }
