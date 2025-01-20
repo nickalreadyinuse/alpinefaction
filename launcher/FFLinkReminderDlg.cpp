@@ -11,6 +11,13 @@ BOOL FFLinkReminderDlg::OnInitDialog()
 {
     CDialog::OnInitDialog();
 
+    CFont m_largeFont;
+
+    m_largeFont.CreatePointFont(16, "MS Shell Dlg");
+
+    // Apply the font to the static text control
+    GetDlgItem(IDC_WELCOME_TEXT).SetFont(m_largeFont);
+
     // Set the default state of the checkbox to unchecked
     CheckDlgButton(IDC_DONT_SHOW_AGAIN, BST_UNCHECKED);
     return TRUE;

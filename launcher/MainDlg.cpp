@@ -2,6 +2,7 @@
 #include "LauncherApp.h"
 #include "OptionsDlg.h"
 #include "AboutDlg.h"
+#include "FFLinkReminderDlg.h"
 #include <wxx_wincore.h>
 #include <xlog/xlog.h>
 #include <common/version/version.h>
@@ -17,6 +18,7 @@
 #endif
 
 #define WM_UPDATE_CHECK (WM_USER + 10)
+#define WM_SHOW_FFLINK_REMINDER (WM_USER + 20)
 
 MainDlg::MainDlg() : CDialog(IDD_MAIN)
 {
@@ -34,13 +36,8 @@ BOOL MainDlg::OnInitDialog()
     std::string username = game_config.fflink_username.value();
 
     // Determine window title
-    std::string window_title;
-    if (username.empty()) {
-        window_title = "Alpine Faction Launcher - Not Linked to a FactionFiles Account";
-    }
-    else {
-        window_title = "Alpine Faction Launcher - Linked as " + username;
-    }
+    std::string window_title = username.empty() ? "Alpine Faction Launcher - Not Linked to a FactionFiles Account"
+                                                : "Alpine Faction Launcher - Linked as " + username;
 
     // Set window title
     SetWindowText(window_title.c_str());
@@ -57,7 +54,6 @@ BOOL MainDlg::OnInitDialog()
     // Set header bitmap
     auto* hbm = static_cast<HBITMAP>(GetApp()->LoadImage(MAKEINTRESOURCE(IDB_HEADER), IMAGE_BITMAP, 0, 0, 0));
     m_picture.SetBitmap(hbm);
-
 
     // Fill mod selector
     RefreshModSelector();
@@ -118,12 +114,28 @@ BOOL MainDlg::OnInitDialog()
     // Set placeholder text for mod box when no selection
     SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"No mod selected...");
 
-#ifdef NDEBUG
-    HWND hwnd = GetHwnd();
-    //m_update_checker.check_async([=]() { ::PostMessageA(hwnd, WM_UPDATE_CHECK, 0, 0); });
-#endif
+    // show reminder if first launch
+    if (!game_config.suppress_fflink_reminder) {
+        HWND hwnd = GetHwnd();
+        PostMessageA(hwnd, WM_SHOW_FFLINK_REMINDER, 0, 0);
+
+        // todo: uncomment below before push
+        //game_config.suppress_fflink_reminder = true;
+        //game_config.save();
+    }
 
     return TRUE; // return TRUE  unless you set the focus to a control
+}
+
+LRESULT MainDlg::OnShowFFLinkReminder(WPARAM wparam, LPARAM lparam)
+{
+    UNREFERENCED_PARAMETER(wparam);
+    UNREFERENCED_PARAMETER(lparam);
+
+    FFLinkReminderDlg reminderDlg;
+    reminderDlg.DoModal(GetHwnd());
+
+    return 0;
 }
 
 void MainDlg::OnOK()
@@ -272,6 +284,10 @@ INT_PTR MainDlg::DialogProc(UINT msg, WPARAM wparam, LPARAM lparam)
         HDC hdcButton = (HDC)wparam;
         SetBkMode(hdcButton, TRANSPARENT);
         return (LRESULT)GetStockObject(NULL_BRUSH); // Transparent background
+    }
+
+    if (msg == WM_SHOW_FFLINK_REMINDER) {
+        return OnShowFFLinkReminder(wparam, lparam);
     }
 
     return CDialog::DialogProc(msg, wparam, lparam);

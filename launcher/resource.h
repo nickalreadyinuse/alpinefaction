@@ -140,6 +140,17 @@
 #define IDC_STATIC_PROGRESS             3085
 #define IDC_PROGRESS_BAR                3082
 
+// FFLink reminder prompt
+#define IDD_FFLINK_REMINDER             2001
+#define IDC_DONT_SHOW_AGAIN             2002
+#define IDC_MESSAGE_TEXT                2003
+#define IDC_LEARN_MORE_BUTTON           2004
+#define IDC_CONTINUE_BUTTON             2005
+#define IDC_VBAR1                       2006
+#define IDC_VBAR2                       2007
+#define IDB_DIVIDER                     2008
+#define IDC_WELCOME_TEXT                2009
+
 
 // Next default values for new objects
 //

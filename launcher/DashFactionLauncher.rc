@@ -109,6 +109,8 @@ IDB_SM4_NORMAL          BITMAP                  "res/smb4_normal.bmp"
 IDB_SM4_HOVER           BITMAP                  "res/smb4_hover.bmp"
 IDB_SM4_PRESSED         BITMAP                  "res/smb4_normal.bmp"
 
+IDB_DIVIDER             BITMAP                  "res/divider.bmp"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -280,6 +282,31 @@ BEGIN
     CONTROL         "<a href=""https://github.com/GooberRF/alpinefaction"">Source code</a>",IDC_SRC_LINK,"SysLink",WS_TABSTOP,12,82,100,8
     CONTROL         "<a>Licensing information</a>",IDC_LICENSE_LINK,"SysLink",WS_TABSTOP,12,94,100,8
     DEFPUSHBUTTON   "OK",IDOK,62,110,50,14
+END
+
+IDD_FFLINK_REMINDER DIALOGEX 0, 0, 380, 135
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Alpine Faction First Launch"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT "Welcome to Alpine Faction!",IDC_WELCOME_TEXT,0,4,380,20, SS_CENTER | WS_VISIBLE
+    LTEXT "This Alpine Faction client is not currently linked with FactionFiles!\n\n\nLinking with your FactionFiles.com account provides access to additional new in-game features. \n\nWould you like to learn more?", IDC_MESSAGE_TEXT, 6, 200, 230, 60
+
+    LTEXT "Join the FactionFiles Discord,\ncommunity hub for Red Faction.\n\nEveryone is welcome!", IDC_STATIC, 2, 45, 120, 50, SS_CENTER
+    PUSHBUTTON "Join the Discord", IDC_LEARN_MORE_BUTTON, 29, 90, 64, 16, WS_TABSTOP
+    //CONTROL "Don't show this again", IDC_DONT_SHOW_AGAIN, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 170, 105, 200, 12
+    CONTROL IDB_DIVIDER,IDC_VBAR1,"Static",SS_BITMAP|SS_REALSIZECONTROL,125,28,2,120
+
+    LTEXT "Browse over 5000 levels and mods\n+\nLink this client to your FactionFiles account for additional features.", IDC_STATIC, 128, 45, 120, 50, SS_CENTER
+    PUSHBUTTON "Learn more", IDC_LEARN_MORE_BUTTON, 155, 90, 64, 16, WS_TABSTOP
+
+    CONTROL IDB_DIVIDER,IDC_VBAR2,"Static",SS_BITMAP|SS_REALSIZECONTROL,250,28,2,120
+
+    LTEXT "Customize Alpine Faction settings\n\nClick the gear icon on the launcher window.", IDC_STATIC, 255, 45, 120, 50, SS_CENTER
+
+    LTEXT "Before you start playing, we recommend...", IDC_STATIC, 0, 18, 380, 20, SS_CENTER | WS_VISIBLE
+    
+    DEFPUSHBUTTON "Continue...", IDC_CONTINUE_BUTTON, 308, 111, 64, 16, WS_TABSTOP //285
 END
 
 // Download progress window

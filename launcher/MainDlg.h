@@ -18,6 +18,7 @@ protected:
     void OnOK() override;
     BOOL OnCommand(WPARAM wparam, LPARAM lparam) override;
     LRESULT OnNotify(WPARAM wparam, LPARAM lparam) override;
+    LRESULT OnShowFFLinkReminder(WPARAM wparam, LPARAM lparam);
     INT_PTR DialogProc(UINT msg, WPARAM wparam, LPARAM lparam) override;
 
 private:

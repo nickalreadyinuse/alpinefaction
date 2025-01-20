@@ -214,6 +214,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Alpine Branding", af_branding);
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
     result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
+    result &= visitor(dash_faction_key, "FFLink Suppress Reminder", suppress_fflink_reminder);
     result &= visitor(dash_faction_key, "Multi Ricochet", multi_ricochet);
 
     return result;
