@@ -149,7 +149,7 @@ FunHook<bool(rf::Weapon*)> weapon_possibly_richochet {
     },
 };
 
-ConsoleCommand2 single_semi_auto_limit_cmd{
+ConsoleCommand2 unlimited_semi_auto_cmd{
     "sp_unlimitedsemiauto",
     []() {
         g_game_config.unlimited_semi_auto = !g_game_config.unlimited_semi_auto;
@@ -246,4 +246,5 @@ void apply_weapon_patches()
     // commands
     multi_ricochet_cmd.register_cmd();
     show_enemy_bullets_cmd.register_cmd();
+    unlimited_semi_auto_cmd.register_cmd();
 }
