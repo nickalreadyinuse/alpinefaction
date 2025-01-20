@@ -2066,8 +2066,8 @@ CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int
     0x004A41D3,
     [](int type, const char* name, int parent_handle, rf::Vector3* pos, rf::Matrix3* orient, int create_flags, int mp_character) {
 
-        if (get_df_server_info()->no_player_collide) {
-            create_flags = 5;
+        if (get_df_server_info().has_value() && get_df_server_info()->no_player_collide) {
+            create_flags |= 0x4;
         }
 
         return entity_create_no_collide_hook.call_target(type, name, parent_handle, pos, orient, create_flags, mp_character);
