@@ -314,24 +314,13 @@ bool multi_is_player_firing_too_fast(rf::Player* pp, int weapon_type)
     static std::vector<int> last_weapon_id(rf::multi_max_player_id, 0);
     static std::vector<int> last_weapon_fire(rf::multi_max_player_id, 0);
 
-    int fire_wait_ms = 0;
+    // for automatic weapons, use the minimum fire wait between both modes in weapons.tbl
+    int fire_wait_ms = std::min(rf::weapon_get_fire_wait_ms(weapon_type, 0), // primary
+                            rf::weapon_get_fire_wait_ms(weapon_type, 1)); // alt
 
-    if (rf::weapon_is_semi_automatic(weapon_type)) {
-        // for semi-auto weapons, use the server's fire wait setting
-        fire_wait_ms = g_additional_server_config.click_limiter_fire_wait;
-    }
-    else {
-        // for automatic weapons, use the minimum fire wait between both modes in weapons.tbl
-        fire_wait_ms = std::min(rf::weapon_get_fire_wait_ms(weapon_type, 0), // primary
-                                rf::weapon_get_fire_wait_ms(weapon_type, 1)  // alt
-        );
-    }
-
-    // apply a 10% buffer for auto weapons
-    if (!rf::weapon_is_semi_automatic(weapon_type))
-    {
-        fire_wait_ms = static_cast<int>(fire_wait_ms * 0.9f);
-        
+    // for semi auto weapons, if they have the default pistol/PR fire wait, use the override
+    if (rf::weapon_is_semi_automatic(weapon_type) && fire_wait_ms == 500) {
+        fire_wait_ms = get_semi_auto_fire_wait_override();
     }
 
     // reset if weapon changed
@@ -343,7 +332,10 @@ bool multi_is_player_firing_too_fast(rf::Player* pp, int weapon_type)
     // check if time since last shot is less than minimum wait time
     int time_since_last_shot = now - last_weapon_fire[player_id];
 
-    if (time_since_last_shot < fire_wait_ms)
+    // calculate server-enforced cooldown from weapon fire wait, halfping, and 50ms jitter tolerance
+    int adjusted_ping = std::max(0, pp->net_data->ping); // ensure ping is a positive value
+    int cooldown_threshold = std::max(0, fire_wait_ms - (adjusted_ping / 2) - 50); // halfping and jitter tolerance
+    if (time_since_last_shot < cooldown_threshold)
         {
         send_private_message_for_cancelled_shot(pp, std::format(
             "too fast! Time between shots: {}ms, server minimum: {}ms", time_since_last_shot, fire_wait_ms));

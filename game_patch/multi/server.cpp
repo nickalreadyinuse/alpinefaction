@@ -305,7 +305,6 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$No Player Collide:", g_additional_server_config.no_player_collide, "No Player Collide");
     parse_boolean_option(parser, "$Dynamic Rotation:", g_additional_server_config.dynamic_rotation, "Dynamic Rotation");
     parse_boolean_option(parser, "$Require Client Mod:", g_additional_server_config.require_client_mod, "Clients Require Mod");
-    //parse_int_option(parser, "$Semi Auto Minimum Fire Wait:", g_additional_server_config.click_limiter_fire_wait, "Semi Auto Minimum Fire Wait");
     parse_float_option(parser, "$Player Damage Modifier:", g_additional_server_config.player_damage_modifier, "Player Damage Modifier");
     parse_boolean_option(parser, "$UPnP Enabled:", g_additional_server_config.upnp_enabled, "UPnP Enabled");
     parse_boolean_option(parser, "$Send Player Stats Message:", g_additional_server_config.stats_message_enabled, "Send Player Stats Message");
@@ -316,7 +315,6 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_additional_server_config.allow_lightmaps_only, "Allow Lightmaps Only Mode");
     parse_boolean_option(parser, "$Allow Disable Screenshake:", g_additional_server_config.allow_disable_screenshake, "Allow Disable Screenshake");
     parse_boolean_option(parser, "$Allow Disable Muzzle Flash Lights:", g_additional_server_config.allow_disable_muzzle_flash, "Allow Disable Muzzle Flash Lights");
-    //parse_boolean_option(parser, "$Enforce Semi Auto Fire Rate Limit:", g_additional_server_config.apply_click_limiter, "Semi Auto Fire Rate Limit");
 
     if (parser.parse_optional("$Welcome Message:")) {
         rf::String welcome_message;
@@ -373,7 +371,7 @@ void load_additional_server_config(rf::Parser& parser) {
     // Misc config
     parse_miscellaneous_options(parser);
 
-    // separate for now because it needs to use std::optional<float>
+    // separate for now because they need to use std::optional
     if (parser.parse_optional("$Max FOV:")) {
         float max_fov = parser.parse_float();
         if (max_fov > 0.0f) {

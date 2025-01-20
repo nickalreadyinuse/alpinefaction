@@ -140,7 +140,6 @@ struct ServerAdditionalConfig
     bool apply_click_limiter = true;
     std::optional<int> semi_auto_cooldown = 90;
     int anticheat_level = 0;
-    int click_limiter_fire_wait = 50;
     bool stats_message_enabled = true;
     bool drop_amps = false;
     bool dynamic_rotation = false;
