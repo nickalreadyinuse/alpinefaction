@@ -117,6 +117,7 @@ struct GameConfig
     CfgVar<bool> reduced_speed_in_background = false;
     CfgVar<bool> player_join_beep = false;
     CfgVar<bool> autosave = true;
+    CfgVar<bool> unlimited_semi_auto = false;
 
     // Internal
     CfgVar<std::string> alpine_faction_version{""};

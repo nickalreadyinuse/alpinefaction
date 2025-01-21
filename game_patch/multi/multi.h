@@ -84,11 +84,13 @@ struct DashFactionServerInfo
     uint8_t version_minor = 0;
     bool saving_enabled = false;
     std::optional<float> max_fov;
-    bool allow_fb_mesh = true;
-    bool allow_lmap = true;
-    bool allow_no_ss = true;
+    bool allow_fb_mesh = false;
+    bool allow_lmap = false;
+    bool allow_no_ss = false;
     bool no_player_collide = false;
-    bool allow_no_mf = true;
+    bool allow_no_mf = false;
+    bool click_limit = false;
+    std::optional<int> semi_auto_cooldown;
 };
 
 void multi_level_download_update();
@@ -103,3 +105,4 @@ void multi_ban_apply_patch();
 void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
 void start_level_in_multi(std::string filename);
 std::optional<std::string> multi_ban_unban_last();
+int get_semi_auto_fire_wait_override();
