@@ -699,7 +699,6 @@ struct DashFactionJoinReqPacketExt
 
     enum class Flags : uint32_t {
         none                = 0,
-        yes = 1 << 0,
     } flags = Flags::none;
 
 };
@@ -709,11 +708,9 @@ struct EnableEnumBitwiseOperators<DashFactionJoinReqPacketExt::Flags> : std::tru
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
-        // Add Alpine Faction signature to join_req packet
-        //auto [new_data, new_len] = extend_packet_with_df_signature(data, len);
 
+        // Add Alpine Faction signature to join_req packet
         DashFactionJoinReqPacketExt ext_data;
-        ext_data.flags |= DashFactionJoinReqPacketExt::Flags::yes;
 
         auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_req_packet_hook.call_target(addr, new_data.get(), new_len);
@@ -806,7 +803,6 @@ CodeInjection process_join_req_injection{
     0x0047AD99,
     [](auto& regs) {
         std::byte* packet = regs.esi;
-        rf::NetAddr* player_addr = reinterpret_cast<rf::NetAddr*>(regs.esp + 0x150);
         auto* extended_data = reinterpret_cast<const DashFactionJoinReqPacketExt*>(packet);
 
         // matched an alpine client
