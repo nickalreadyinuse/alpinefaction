@@ -85,6 +85,7 @@ Version 1.0.0 (Maple)
 	- Add link drawing for `debug event` and `debug trigger`
 	- Add support for endgame voting through FFLink
 	- Add `Ignore Resets` option to triggers to replicate legacy functionality (default is off)
+    - UX-focused updates to installer application
 
 [@natarii](https://github.com/natarii)
 - Fix music desyncing when entering menus in multiplayer
