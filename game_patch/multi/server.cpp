@@ -110,7 +110,7 @@ void parse_float_option(rf::Parser& parser, const char* key, float& option, cons
 
 void parse_vote_config(const char* vote_name, VoteConfig& config, rf::Parser& parser)
 {
-    std::string vote_option_name = std::format("${}:", vote_name);
+    std::string vote_option_name = std::format("{}:", vote_name);
     if (parser.parse_optional(vote_option_name.c_str())) {
         config.enabled = parser.parse_bool();
         rf::console::print("{}: {}", vote_name, config.enabled ? "true" : "false");
@@ -245,7 +245,7 @@ void parse_weapon_ammo_settings(rf::Parser& parser) {
         g_additional_server_config.weapon_items_give_full_ammo = parser.parse_bool();
         rf::console::print("Weapon Items Give Full Ammo: {}", g_additional_server_config.weapon_items_give_full_ammo ? "true" : "false");
 
-        parse_boolean_option(parser, "+Infinite Magazines:", g_additional_server_config.weapon_infinite_magazines, "Infinite Magazines");
+        parse_boolean_option(parser, "+Infinite Magazines:", g_additional_server_config.weapon_infinite_magazines, "+Infinite Magazines");
     }
 }
 
@@ -259,7 +259,7 @@ void parse_default_player_weapon(rf::Parser& parser) {
         if (parser.parse_optional("+Initial Ammo:")) {
             auto ammo = parser.parse_uint();
             g_additional_server_config.default_player_weapon_ammo = {ammo};
-            rf::console::print("Initial Ammo for Default Weapon: {}", ammo);
+            rf::console::print("+Initial Ammo: {}", ammo);
 
             auto weapon_type = rf::weapon_lookup_type(g_additional_server_config.default_player_weapon.c_str());
             if (weapon_type >= 0) {
@@ -302,7 +302,6 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$Use SP Damage Calculation:", g_additional_server_config.use_sp_damage_calculation, "Use SP Damage Calculation");
     parse_int_option(parser, "$CTF Flag Return Time:", g_additional_server_config.ctf_flag_return_time_ms, "CTF Flag Return Time");
     parse_int_option(parser, "$Anticheat Level:", g_additional_server_config.anticheat_level, "Anticheat Level");
-    parse_boolean_option(parser, "$No Player Collide:", g_additional_server_config.no_player_collide, "No Player Collide");
     parse_boolean_option(parser, "$Dynamic Rotation:", g_additional_server_config.dynamic_rotation, "Dynamic Rotation");
     parse_boolean_option(parser, "$Require Client Mod:", g_additional_server_config.require_client_mod, "Clients Require Mod");
     parse_float_option(parser, "$Player Damage Modifier:", g_additional_server_config.player_damage_modifier, "Player Damage Modifier");
@@ -321,6 +320,18 @@ void parse_miscellaneous_options(rf::Parser& parser) {
         parser.parse_string(&welcome_message);
         g_additional_server_config.welcome_message = welcome_message.c_str();
         rf::console::print("Welcome Message Set: {}", g_additional_server_config.welcome_message);
+        parse_boolean_option(parser, "+Only Welcome Alpine Faction Clients:", g_additional_server_config.only_welcome_alpine, "+Only Welcome Alpine Faction Clients");
+    }
+}
+
+void parse_alpine_locking(rf::Parser& parser) {
+    parse_boolean_option(parser, "$Advertise Alpine Faction:", g_additional_server_config.advertise_alpine, "Advertise Alpine Faction");
+    if (parser.parse_optional("$Clients Require Alpine Faction:")) {
+        g_additional_server_config.clients_require_alpine = parser.parse_bool();
+        rf::console::print("Clients Require Alpine Faction: {}", g_additional_server_config.clients_require_alpine ? "true" : "false");
+
+        parse_boolean_option(parser, "+No Player Collide:", g_additional_server_config.no_player_collide, "+No Player Collide");
+        parse_vote_config("+Match Mode", g_additional_server_config.vote_match, parser);
     }
 }
 
@@ -346,14 +357,13 @@ void parse_item_replacements(rf::Parser& parser) {
 
 void load_additional_server_config(rf::Parser& parser) {
     // Vote config
-    parse_vote_config("Vote Kick", g_additional_server_config.vote_kick, parser);
-    parse_vote_config("Vote Level", g_additional_server_config.vote_level, parser);
-    parse_vote_config("Vote Extend", g_additional_server_config.vote_extend, parser);
-    parse_vote_config("Vote Restart", g_additional_server_config.vote_restart, parser);
-    parse_vote_config("Vote Next", g_additional_server_config.vote_next, parser);
-    parse_vote_config("Vote Random", g_additional_server_config.vote_rand, parser);
-    parse_vote_config("Vote Previous", g_additional_server_config.vote_previous, parser);
-    parse_vote_config("Vote Match", g_additional_server_config.vote_match, parser);
+    parse_vote_config("$Vote Kick", g_additional_server_config.vote_kick, parser);
+    parse_vote_config("$Vote Level", g_additional_server_config.vote_level, parser);
+    parse_vote_config("$Vote Extend", g_additional_server_config.vote_extend, parser);
+    parse_vote_config("$Vote Restart", g_additional_server_config.vote_restart, parser);
+    parse_vote_config("$Vote Next", g_additional_server_config.vote_next, parser);
+    parse_vote_config("$Vote Random", g_additional_server_config.vote_rand, parser);
+    parse_vote_config("$Vote Previous", g_additional_server_config.vote_previous, parser);
 
     // Core config
     parse_spawn_protection(parser);
@@ -370,6 +380,7 @@ void load_additional_server_config(rf::Parser& parser) {
 
     // Misc config
     parse_miscellaneous_options(parser);
+    parse_alpine_locking(parser);
 
     // separate for now because they need to use std::optional
     if (parser.parse_optional("$Max FOV:")) {
@@ -1258,6 +1269,11 @@ void remove_ready_player(rf::Player* player)
 
 void set_ready_status(rf::Player* player, bool is_ready)
 {
+    if (!get_player_additional_data(player).is_alpine) {
+        send_chat_line_packet("Only Alpine Faction clients can ready for matches. Learn more: alpinefaction.com", player);
+        return;
+    }
+
     if (g_match_info.pre_match_active) {
         if (is_ready) {
             add_ready_player(player);
@@ -1349,17 +1365,21 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (g_additional_server_config.force_player_character) {
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }
+        if (g_additional_server_config.clients_require_alpine && !get_player_additional_data(player).is_alpine) {
+            send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
+            return;
+        }
         if (!check_player_ac_status(player)) {
             return;
         }
         if (g_match_info.match_active && !is_player_in_match(player)) {
-            send_chat_line_packet("You cannot spawn because a match is in progress. Please feel free to spectate.", player);
+            send_chat_line_packet("\xA6 You cannot spawn because a match is in progress. Please feel free to spectate.", player);
             return;
         }
         if (g_additional_server_config.desired_player_count < 32 &&
             ends_with(player->name, " (Bot)") &&
             count_spawned_players() >= g_additional_server_config.desired_player_count) {
-            std::string msg = std::format("You're a bot and you can't spawn right now.");
+            std::string msg = std::format("\xA6 You're a bot and you can't spawn right now.");
 
             send_chat_line_packet(msg.c_str(), player);
             return;
@@ -1453,15 +1473,26 @@ FunHook<void(rf::Entity*, rf::Weapon*)> multi_lag_comp_weapon_fire_hook{
 
 void server_reliable_socket_ready(rf::Player* player)
 {
+    // welcome players, restricting to only welcoming alpine clients if configured
     if (!g_additional_server_config.welcome_message.empty()) {
-        auto msg = string_replace(g_additional_server_config.welcome_message, "$PLAYER", player->name.c_str());
-        send_chat_line_packet(msg.c_str(), player);
+        if (!g_additional_server_config.only_welcome_alpine || get_player_additional_data(player).is_alpine) {
+            auto msg = string_replace(g_additional_server_config.welcome_message, "$PLAYER", player->name.c_str());
+            send_chat_line_packet(msg.c_str(), player);
+        }
     }
-    if (g_match_info.pre_match_active) {    
+
+    // alert alpine clients to the queued match on join
+    if (g_match_info.pre_match_active && get_player_additional_data(player).is_alpine) {    
         auto msg = std::format("\xA6 {}v{} match is queued and waiting for players! Use \"/ready\" to ready up.",
             g_match_info.team_size, g_match_info.team_size);
 
         send_chat_line_packet(msg.c_str(), nullptr);
+    }
+
+    // advertise AF to non-alpine clients if configured
+    if (g_additional_server_config.advertise_alpine && !get_player_additional_data(player).is_alpine) {
+        auto msg = std::format("\xA6 Heard of Alpine Faction? It's a new patch with tons of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
+        send_chat_line_packet(msg.c_str(), player);
     }
 }
 

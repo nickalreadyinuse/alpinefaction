@@ -48,6 +48,7 @@
 #endif
 
 int g_update_rate = 30; // client netfps
+bool g_joining_player_is_alpine = false;
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 
@@ -692,11 +693,28 @@ struct DashFactionJoinAcceptPacketExt
 template<>
 struct EnableEnumBitwiseOperators<DashFactionJoinAcceptPacketExt::Flags> : std::true_type {};
 
+struct DashFactionJoinReqPacketExt
+{
+    uint32_t df_signature = ALPINE_FACTION_SIGNATURE;
+    uint8_t version_major = VERSION_MAJOR;
+    uint8_t version_minor = VERSION_MINOR;
+
+    enum class Flags : uint32_t {
+        none                = 0,
+    } flags = Flags::none;
+
+};
+template<>
+struct EnableEnumBitwiseOperators<DashFactionJoinReqPacketExt::Flags> : std::true_type {};
+
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
+
         // Add Alpine Faction signature to join_req packet
-        auto [new_data, new_len] = extend_packet_with_df_signature(data, len);
+        DashFactionJoinReqPacketExt ext_data;
+
+        auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_req_packet_hook.call_target(addr, new_data.get(), new_len);
     },
 };
@@ -771,6 +789,35 @@ CodeInjection process_join_accept_injection{
         }
         else {
             g_df_server_info.reset();
+        }
+    },
+};
+
+FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
+    0x0047AC60,
+    [](int pPacket, rf::NetAddr* addr) {        
+        process_join_req_packet_hook.call_target(pPacket, addr);
+
+        if (g_joining_player_is_alpine) {
+            rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
+            if (alpine_player){
+                get_player_additional_data(alpine_player).is_alpine = true;
+                //xlog::warn("{} is an Alpine client!, {}", alpine_player->name, get_player_additional_data(alpine_player).is_alpine);
+            }
+            g_joining_player_is_alpine = false;
+        }
+    },
+};
+
+CodeInjection process_join_req_injection{
+    0x0047AD99,
+    [](auto& regs) {
+        std::byte* packet = regs.esi;
+        auto* extended_data = reinterpret_cast<const DashFactionJoinReqPacketExt*>(packet);
+
+        // matched an alpine client
+        if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {
+            g_joining_player_is_alpine = true;
         }
     },
 };
@@ -1218,6 +1265,8 @@ void network_init()
     // Add Alpine Faction signature to game_info, join_req, join_accept packets
     send_game_info_packet_hook.install();
     send_join_req_packet_hook.install();
+    process_join_req_packet_hook.install();
+    process_join_req_injection.install();
     send_join_accept_packet_hook.install();
     process_join_accept_injection.install();
     process_join_accept_send_game_info_req_injection.install();

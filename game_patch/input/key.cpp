@@ -270,13 +270,11 @@ CodeInjection player_execute_action_patch2{
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote yes", nullptr);
-                xlog::warn("voting yes");
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote no", nullptr);
-                xlog::warn("voting no");
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_READY) &&
