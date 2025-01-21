@@ -115,13 +115,12 @@ BOOL MainDlg::OnInitDialog()
     SendMessage(m_mod_selector.GetHwnd(), CB_SETCUEBANNER, 0, (LPARAM)L"No mod selected...");
 
     // show reminder if first launch
-    if (!game_config.suppress_fflink_reminder) {
+    if (!game_config.suppress_first_launch_window) {
         HWND hwnd = GetHwnd();
         PostMessageA(hwnd, WM_SHOW_FFLINK_REMINDER, 0, 0);
 
-        // todo: uncomment below before push
-        //game_config.suppress_fflink_reminder = true;
-        //game_config.save();
+        game_config.suppress_first_launch_window = true;
+        game_config.save();
     }
 
     return TRUE; // return TRUE  unless you set the focus to a control
@@ -129,9 +128,6 @@ BOOL MainDlg::OnInitDialog()
 
 LRESULT MainDlg::OnShowFFLinkReminder(WPARAM wparam, LPARAM lparam)
 {
-    UNREFERENCED_PARAMETER(wparam);
-    UNREFERENCED_PARAMETER(lparam);
-
     FFLinkReminderDlg reminderDlg;
     reminderDlg.DoModal(GetHwnd());
 

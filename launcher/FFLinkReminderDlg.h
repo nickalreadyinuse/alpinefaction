@@ -18,6 +18,8 @@ protected:
     BOOL OnCommand(WPARAM wparam, LPARAM lparam) override;
     void OnLearnMoreClicked();
     void OnContinueClicked();
+    void OnAccountLinkClicked();
+    void OnDiscordClicked();
 
 private:
     bool m_dont_show_again = false;

@@ -18,8 +18,6 @@ BOOL FFLinkReminderDlg::OnInitDialog()
     // Apply the font to the static text control
     GetDlgItem(IDC_WELCOME_TEXT).SetFont(m_largeFont);
 
-    // Set the default state of the checkbox to unchecked
-    CheckDlgButton(IDC_DONT_SHOW_AGAIN, BST_UNCHECKED);
     return TRUE;
 }
 
@@ -32,6 +30,12 @@ BOOL FFLinkReminderDlg::OnCommand(WPARAM wparam, LPARAM lparam)
     case IDC_CONTINUE_BUTTON:
         OnContinueClicked();
         return TRUE;
+    case IDC_ACCOUNT_LINK_BUTTON:
+        OnAccountLinkClicked();
+        return TRUE;
+    case IDC_DISCORD_BUTTON:
+        OnDiscordClicked();
+        return TRUE;
     }
 
     return CDialog::OnCommand(wparam, lparam);
@@ -39,13 +43,21 @@ BOOL FFLinkReminderDlg::OnCommand(WPARAM wparam, LPARAM lparam)
 
 void FFLinkReminderDlg::OnLearnMoreClicked()
 {
-    ShellExecuteW(nullptr, L"open", L"https://www.redfactionwiki.com/wiki/Link_Alpine_Faction_to_a_FactionFiles_Account", nullptr, nullptr, SW_SHOW);
-    m_dont_show_again = (IsDlgButtonChecked(IDC_DONT_SHOW_AGAIN) == BST_CHECKED);
-    EndDialog(IDNO);
+    ShellExecuteW(nullptr, L"open", L"https://www.factionfiles.com", nullptr, nullptr, SW_SHOW);
 }
 
 void FFLinkReminderDlg::OnContinueClicked()
 {
-    m_dont_show_again = (IsDlgButtonChecked(IDC_DONT_SHOW_AGAIN) == BST_CHECKED);
+    m_dont_show_again = true;
     EndDialog(IDNO);
+}
+
+void FFLinkReminderDlg::OnAccountLinkClicked()
+{
+    ShellExecuteW(nullptr, L"open", L"https://www.redfactionwiki.com/wiki/Link_Alpine_Faction_to_a_FactionFiles_Account", nullptr, nullptr, SW_SHOW);
+}
+
+void FFLinkReminderDlg::OnDiscordClicked()
+{
+    ShellExecuteW(nullptr, L"open", L"https://discord.gg/factionfiles", nullptr, nullptr, SW_SHOW);
 }
