@@ -216,6 +216,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
     result &= visitor(dash_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);
     result &= visitor(dash_faction_key, "Multi Ricochet", multi_ricochet);
+    result &= visitor(dash_faction_key, "Unlimited Semi Auto", unlimited_semi_auto);
 
     return result;
 }
