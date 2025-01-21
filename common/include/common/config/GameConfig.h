@@ -123,6 +123,7 @@ struct GameConfig
     CfgVar<std::string> alpine_faction_version{""};
     CfgVar<std::string> fflink_token{""};
     CfgVar<std::string> fflink_username{""};
+    CfgVar<bool> suppress_first_launch_window = false;
 
     bool load();
     void save();
