@@ -169,6 +169,9 @@ struct ServerAdditionalConfig
     float kill_reward_effective_health = 0.0f;
     bool kill_reward_health_super = false;
     bool kill_reward_armor_super = false;
+    bool clients_require_alpine = false;
+    bool only_welcome_alpine = false;
+    bool advertise_alpine = false;
 };
 
 struct MatchInfo
