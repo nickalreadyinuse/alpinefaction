@@ -31,7 +31,6 @@ Version 1.0.0 (Maple)
 	- Add map-specific tables to configure settings for that map
 	- Enable clientside mods to edit "safe" stock game tables (those that cannot be used to cheat)
 	- Scale geomod crater textures based on texture dimensions
-	- Allow mod developers to customize `bluebeard.bty` for custom ambient/looping sounds
 	- Full documentation of Alpine mod development features is available here: https://www.redfactionwiki.com/wiki/Alpine_Faction_Mod_Development
 
 - New competitive play features (all configurable by server):
@@ -69,7 +68,6 @@ Version 1.0.0 (Maple)
 	- Reimplement cut stock game gibbing feature for enemies
 	- Add player headlamp (flashlight)
 	- Allow picking up Super Health and Super Armor in single player
-	- Display TC mod name on main menu
 	- Spawn players at Player Start position in multiplayer if level has no respawn points
 	- Improved handling for players leaving/joining games during votes
 	- Add `/hasmap` chat command
