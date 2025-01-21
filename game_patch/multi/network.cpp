@@ -48,7 +48,7 @@
 #endif
 
 int g_update_rate = 30; // client netfps
-std::vector<NetAddrKey> g_alpine_player_addresses; // temporary storage of addresses for alpine clients
+bool g_joining_player_is_alpine = false;
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 
@@ -791,20 +791,13 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     [](int pPacket, rf::NetAddr* addr) {        
         process_join_req_packet_hook.call_target(pPacket, addr);
 
-        // check if the IP and port exist in the vector
-        auto it = std::find_if(
-            g_alpine_player_addresses.begin(), g_alpine_player_addresses.end(),
-            [addr](const NetAddrKey& entry) { return entry.ip_addr == addr->ip_addr && entry.port == addr->port; });
-
-
-        if (it != g_alpine_player_addresses.end()) {
+        if (g_joining_player_is_alpine) {
             rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
-            if (alpine_player) {
+            if (alpine_player){
                 get_player_additional_data(alpine_player).is_alpine = true;
-                //xlog::warn("{} is an Alpine client!", alpine_player->name);
+                //xlog::warn("{} is an Alpine client!, {}", alpine_player->name, get_player_additional_data(alpine_player).is_alpine);
             }
-            // remove found address from the list
-            g_alpine_player_addresses.erase(it);
+            g_joining_player_is_alpine = false;
         }
     },
 };
@@ -817,8 +810,8 @@ CodeInjection process_join_req_injection{
         auto* extended_data = reinterpret_cast<const DashFactionJoinReqPacketExt*>(packet);
 
         // matched an alpine client
-        if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {           
-            g_alpine_player_addresses.push_back({player_addr->ip_addr, player_addr->port});
+        if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {
+            g_joining_player_is_alpine = true;
         }
     },
 };
