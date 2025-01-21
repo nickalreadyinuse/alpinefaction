@@ -1040,6 +1040,7 @@ ConsoleCommand2 netfps_cmd{
         if (update_rate) {
             // By default server-side update-rate is set to 1/0.085 ~= 12
             g_game_config.server_netfps = std::clamp(update_rate.value(), 12, 300);
+            g_game_config.save();
         }
         rf::console::print("Server netfps: {}", g_game_config.server_netfps.value());
     },
