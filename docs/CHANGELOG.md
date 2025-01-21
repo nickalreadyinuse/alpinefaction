@@ -4,131 +4,89 @@
 Version 1.0.0 (Maple)
 --------------------------------
 [@GooberRF](https://github.com/GooberRF)
-- Add `Lighting Color Range` option to launcher, allows level lighting to use full range of available colors
-- Add `lighting_color_range` command
-- Add `$DF CTF Flag Return Time` option in dedicated server config
-- Add gibbing when enemies die from explosives (enable with `gibs` command)
-- Add `r_lightmap`, `r_fullbright`, and `disable_screenshake` commands
-- Add `$DF Allow Lightmaps Only Mode`, `$DF Allow Fullbright Meshes`, and `$DF Allow Disable Screenshake` dedicated server config options
-- Add mod name to main menu
-- Make game spawn players at Player Start position if level has no respawn points
-- Add respawn point selection logic settings to dedicated server config
-- Raise limit on number of multiplayer respawn points per level from 32 to 2048
-- Add match mode ready up system (controlled by `$DF Vote Match` option in dedicated server config)
-- Improve handling for players leaving/joining multiplayer games during votes
-- Add `/hasmap` server chat command
-- Add handling of level filename extensions with `/vote level` server chat command
-- Change spawn protection option in dedicated server config to allow it to use Invulnerability powerup
-- Add correct scaling for geomod crater texture based on resolution
-- Add `server_password` command
-- Add `server_rcon_password` command
-- Add `$DF Overtime Enabled` option in dedicated server config
-- Add support for bluebeard.bty (sound config file) in mods
-- Add `toggle_crouch` command to allow players to switch between toggle crouch and hold crouch (default)
-- Add `version` command
-- Add `spectate_mode_follow_killer` command (when player you are spectating dies, spectate their killer)
-- Add current server player count to scoreboard
-- Enable commands `drop_clutter`, `drop_entity`, `drop_item`, `teleport`, `pcollide` in single player
-- Add missing help strings for builtin cheat commands
-- Make `spectate` command set camera to free look when issued in single player
-- Make value of `spectate_mode_minimal_ui` persist between game launches
-- Add `map_rand` command to change to a random level on the rotation
-- Add `vote rand` vote type to initiate a level change to a random level on the rotation
-- Add `$DF Dynamic Rotation` option in dedicated server config
-- Add `$DF Weapon Stay Exemptions` option in dedicated server config- 
-- Add `$DF Item Respawn Time Override` option in dedicated server config
-- Add `$DF Critical Hits` option in dedicated server config
-- Add `muzzle_flash` command
-- Fix some fire packets being wrongfully dropped by click limiter (DF bug)
-- Add `$DF Semi Auto Click Rate Limit` option in dedicated server config
-- Add `scope_sensitivity_modifier` and `scanner_sensitivity_modifier` commands
-- Allow clientside mods to edit table files that can't be used to cheat (strings, hud, hud_personas, personas, credits, endgame, ponr)
-- Add support for `client_mods` folder for loading clientside mods and made launcher switch restore legacy behavior
-- Add support for mod authors to change hardcoded values via new `.tbl` files in mod folder
-- Add support for clientside mod authors to change some safe hardcoded values via `af_client.tbl` in `client_mods`
-- Lower minimum character count for console tab complete to 1
-- Add `$DF GunGame` option in dedicated server config
-- Add framework in game and editor for custom events
-- Add stock event `Set_Liquid_Depth` to editor objects list
-- Remove `You must rebuild geometry before X` warnings in editor
-- Stop editor output window from turning red when map exceeds legacy RF geometry limits
-- Remove references to legacy geometry limits from build report in editor output window
-- Stop faces being added to "fix PS2 tiling" at build time in editor
-- Stop mover brushes being split to "fix PS2 tiling" in editor
-- Add framework for real-time modification of defined event properties
-- Allow `Super Health` and `Super Armor` in single player in Alpine levels
-- Make level editor save files with new rfl version, and display a warning when opening files with older versions
-- Make game load level files up to current Alpine level version
-- Add support for dynamic lights in in Alpine levels
-- Add custom Alpine events for use in Alpine levels:
-    - `Set_Variable`
-    - `Clone_Entity`
-    - `Set_Player_World_Collide`
-    - `Switch_Random`
-    - `Difficulty_Gate`
-    - `HUD_Message`
-    - `Play_Video`
-    - `Set_Level_Hardness`
-    - `Sequence`
-    - `Clear_Queued`
-    - `Remove_Link`
-    - `Route_Node`
-    - `Add_Link`
-    - `Valid_Gate`
-    - `Goal_Math`
-    - `Goal_Gate`
-    - `Scope_Gate`
-    - `Inside_Gate`
-    - `Anchor_Marker`
-    - `Force_Unhide`
-    - `Set_Difficulty`
-    - `Set_Fog_Far_Clip`
-    - `AF_When_Dead`
-    - `Gametype_Gate`
-    - `When_Picked_Up`
-    - `Set_Skybox`
-    - `Set_Life`
-    - `Set_Debris`
-    - `Set_Fog_Color`
-    - `Set_Entity_Flag`
-    - `AF_Teleport_Player`
-    - `AF_Heal`
-- Moved placement for new `dedicated_server.txt` lines to above `$Map` lines
-- Make `Headlamp_State` affect player (flashlight) if it has no links in Alpine levels
-- Add support for turning off `Holster_Weapon` and `Holster_Player_Weapon` to draw holstered weapon in Alpine levels
-- Allow events to be triggered normally in multiplayer maps in Alpine levels
-- Added denylist for events that would cause serious problems if triggered in multiplayer
-- Fix delay parameter breaking the following events in Alpine levels:
-    - `Play_Sound`
-    - `Cyclic_Timer`
-    - `Make_Invulnerable`
-    - `Alarm_Siren`
-    - `Unhide`
-- Disable level editor lightmap clamping when loading level files
-- Add `$No Player Collide` and `$Drop Amp on Death` to dedicated server config
-- Move custom dedicated server config options up with the others (above `$Map` lines)
-- Allow autocomplete for map filenames from 1 character
-- Update `/whosready` chat command (for match mode ready up system) to broadcast to all players
-- Add 3D arrows to level editor for stock events `Play_Vclip` and `Teleport` (as well as some new AF events)
-- Implement framework for custom AF controls, and controls for flashlight, kill self, and skip cutscene
-- Implement new launcher GUI
-- Raise max FPS limit to 10000
-- Adjust default settings: linear pitch on, directinput on, vsync off, fps limit 240, resolution 1920x1080
-- Add functions to launch a test listen server on-demand: `levelm` console command, `-levelm` command line, and `Play (multi)` button in RED
-- Add controls for vote yes, vote no, and ready for match
-- Add link drawing to `debug event` and `debug trigger`
-- Add CTF flag dropping functionality and control
-- Add framework for `mapname_info.tbl` loading and initial set of options
-- Add support for `af://` protocol handler
-- Register `af://` protocol handler during setup
-- Add FactionFiles account linking system (FFLink) via `af://` protocol
-- Add support for direct downloads from FactionFiles via `af://` protocol
-- Add support for endgame voting through FFLink
-- Add "Respect Resets" option for solo triggers
-- Add `$Flag Dropping` svar to control whether flags can be dropped
-- Fixed shotgun (and potentially other weapons) dealing no damage in multiplayer if fired immediately after reloading
-- Add `mp_notifyonjoin` command
-- Add `mp_ricochet` command
+- Introduce Alpine levels, using new rfl file version (300 current):
+	- Add many new events (full documentation at wiki link below)
+	- Fix triggers not being able to activate events in MP
+	- Fix delay param on some events breaking them
+	- Add additional functionality
+	- Remove lightmap clamping
+	- Allow use of dynamic lights placed in levels
+	- Limit on Multiplayer Respawn Point objects raised from 32 to 2048
+	- Full documentation of Alpine level features is available here: https://www.redfactionwiki.com/wiki/Alpine_Level_Design
+
+- Enhance level editor functionality:
+	- Add button to playtest levels in multiplayer
+	- Stop editor output window from turning red when map exceeds legacy RF geometry limits
+	- Remove references to legacy geometry limits from build report in editor output window
+	- Stop faces being added to "fix PS2 tiling" at build time in editor
+	- Stop mover brushes being split to "fix PS2 tiling" in editor
+	- Add stock event `Set_Liquid_Depth` to editor objects list
+	- Disable legacy level editor lightmap clamping when loading level files
+	- Add 3D arrows to level editor for stock events that save orientation
+	- Remove `You must rebuild geometry before X` warnings in editor
+	
+- Expanded capabilities for mod developers:
+	- Add new `client_mods` folder for loading clientside mods
+	- Expose many previously hardcoded features for customization via new table files in mods
+	- Add map-specific tables to configure settings for that map
+	- Enable clientside mods to edit "safe" stock game tables (those that cannot be used to cheat)
+	- Scale geomod crater textures based on texture dimensions
+	- Allow mod developers to customize `bluebeard.bty` for custom ambient/looping sounds
+	- Full documentation of Alpine mod development features is available here: https://www.redfactionwiki.com/wiki/Alpine_Faction_Mod_Development
+
+- New competitive play features (all configurable by server):
+	- Full match mode ready up system for participants
+	- Overtime mode when tied
+	- Modern semi auto fire rate limiting system
+	- Allow players to turn off camera shake, muzzle flash blinking, and level textures
+	- Allow players to render all character meshes fullbright for visibility
+	- Lock servers to Alpine clients only
+		
+- New configurable control binds:
+	- Toggle player headlamp
+	- Skip cutscenes
+	- Vote yes/no on server votes in multiplayer
+	- Ready for queued match
+	- On-demand	self kill and respawn
+	- Drop held flag
+
+- New revamped Alpine Faction launcher featuring:
+	- Overhauled layout, designed to optimize UX
+	- Integration with `af://` protocol handler for directly installing files from FF
+	- Integration with `af://` protocol handler for linking AF clients to FF accounts
+	- Community News feed
+	- Update notification system
+	- On-UI links to custom content folders and community resources
+	- Many additional configurable settings in options panel
+
+- Many new console commands, and some renamed existing commands from upstream
+	- Full list of AF console commands is available here: WIP
+	
+- Many new dedicated server config options, revamped config approach, and enhanced logging and error messaging
+	- Full list of AF dedicated server config options is available here: WIP
+	
+- Miscellaneous changes and updates
+	- Reimplement cut stock game gibbing feature for enemies
+	- Add player headlamp (flashlight)
+	- Allow picking up Super Health and Super Armor in single player
+	- Display TC mod name on main menu
+	- Spawn players at Player Start position in multiplayer if level has no respawn points
+	- Improved handling for players leaving/joining games during votes
+	- Add `/hasmap` chat command
+	- Add handling for rfl extensions for `/vote level` chat command
+	- Add "follow killer" option for first person spectate
+	- Display current player count on scoreboard
+	- Add missing help strings for builtin cheat commands
+	- Alias `spectate` command to camera free look when issued in single player
+	- Add `/vote rand` chat command
+	- Fix multiple bugs that resulted in some fire requests being wrongfully dropped by servers
+	- Lower minimum character count for console command and level filename tab complete to 1
+	- Move placement of dedicated server config lines to above `$Map` lines
+	- Add `/whosready` chat command (for match mode)
+	- Set FPS maximum limit to 10000 for single player and menus, maintain 240 limit for multiplayer due to impactful bugs
+	- Add link drawing for `debug event` and `debug trigger`
+	- Add support for endgame voting through FFLink
+	- Add `Ignore Resets` option to triggers to replicate legacy functionality (default is off)
 
 [@natarii](https://github.com/natarii)
 - Fix music desyncing when entering menus in multiplayer
