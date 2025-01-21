@@ -48,6 +48,7 @@
 #endif
 
 int g_update_rate = 30; // client netfps
+std::vector<NetAddrKey> g_alpine_player_addresses; // temporary storage of addresses for alpine clients
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 
@@ -792,58 +793,57 @@ void log_player_connection(uint32_t ip_addr, uint16_t port)
     uint16_t port_host = ntohs(port);  // Convert port to host byte order
 
     // Extract and log the IP address components
-    uint8_t octet1 = (ip_host >> 24) & 0xFF;
-    uint8_t octet2 = (ip_host >> 16) & 0xFF;
-    uint8_t octet3 = (ip_host >> 8) & 0xFF;
-    uint8_t octet4 = ip_host & 0xFF;
+    uint8_t octet1 = (ip_host >> 0) & 0xFF;
+    uint8_t octet2 = (ip_host >> 8) & 0xFF;
+    uint8_t octet3 = (ip_host >> 16) & 0xFF;
+    uint8_t octet4 = (ip_host >> 24) & 0xFF;
 
     // Log the result
-    xlog::warn("connected {}.{}.{}.{}:{}", octet1, octet2, octet3, octet4, port_host);
+    xlog::warn("connected {}.{}.{}.{}:{}", octet1, octet2, octet3, octet4, port);
 }
 
 FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     0x0047AC60,
-    [](int pPacket, rf::NetAddr *addr) {
+    [](int pPacket, rf::NetAddr* addr) {        
+        xlog::warn("Known good result is {}:{}", addr->ip_addr, addr->port);
+        log_player_connection(addr->ip_addr, addr->port);
 
+        // Call the original function first
         process_join_req_packet_hook.call_target(pPacket, addr);
 
-        rf::Player* player = rf::multi_find_player_by_addr(*addr);
-        if (player) {
-        xlog::warn("player {}", player->name);
+        // Use std::find_if to check if the IP and port exist in the vector
+        auto it = std::find_if(
+            g_alpine_player_addresses.begin(), g_alpine_player_addresses.end(),
+            [addr](const NetAddrKey& entry) { return entry.ip_addr == addr->ip_addr && entry.port == addr->port; });
+
+
+        if (it != g_alpine_player_addresses.end()) {
+            rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
+            if (alpine_player) {
+                get_player_additional_data(alpine_player).is_alpine = true;
+                xlog::warn("Player {} is an Alpine client! Removing them from temp address list.", alpine_player->name);
+            }
+
+            // Remove the found address from the list after processing
+            g_alpine_player_addresses.erase(it);
         }
         else {
-        xlog::warn("player is wrong");
+            xlog::warn("Address not found in tracking list.");
         }
     },
 };
 
+
 CodeInjection process_join_req_injection{
     0x0047AD99,
     [](auto& regs) {
-        // Base pointer to the packet
         std::byte* packet = regs.esi;
-        //rf::NetAddr* player_addr = reinterpret_cast<rf::NetAddr*>(regs.esp + 0x14C);
-        //log_player_connection(player_addr->ip_addr, player_addr->port);
+        rf::NetAddr* player_addr = reinterpret_cast<rf::NetAddr*>(regs.esp + 0x150);
 
-         for (size_t offset = 0x0; offset <= 0x14C; offset += 4) {
-            rf::NetAddr* player_addr = reinterpret_cast<rf::NetAddr*>(regs.esp - offset);
+        xlog::warn("after result is {}:{}", player_addr->ip_addr, player_addr->port);
+        log_player_connection(player_addr->ip_addr, player_addr->port);
 
-            // Log the current offset being inspected
-            xlog::warn("Inspecting offset: regs.esp + 0x{:X}", offset);
-
-            // Call log_player_connection with the current address
-            log_player_connection(player_addr->ip_addr, player_addr->port);
-        }
-
-        /*rf::Player* player = rf::multi_find_player_by_addr(*player_addr);
-        if (player) {
-            xlog::warn("player {}", player->name);
-        }
-        else {
-            xlog::warn("player is wrong");
-        }*/
-
-        // Interpret the extended data
+        // Interpret the packet data
         auto* extended_data = reinterpret_cast<const DashFactionJoinReqPacketExt*>(packet);
 
         // Log and validate the extended data fields
@@ -855,7 +855,8 @@ CodeInjection process_join_req_injection{
 
         if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {
             xlog::warn("Valid Alpine Faction extension detected.");
-
+            
+            g_alpine_player_addresses.push_back({player_addr->ip_addr, player_addr->port});
         }
         else {
             xlog::warn("Invalid or missing Alpine Faction extension.");

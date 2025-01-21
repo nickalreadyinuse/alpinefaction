@@ -1336,6 +1336,10 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (g_additional_server_config.force_player_character) {
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }
+        if (!get_player_additional_data(player).is_alpine) {
+            send_chat_line_packet("You cannot spawn because this server requires you to be running Alpine Faction.", player);
+            return;
+        }
         if (!check_player_ac_status(player)) {
             return;
         }

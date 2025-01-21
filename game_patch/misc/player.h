@@ -31,6 +31,7 @@ struct PlayerAdditionalData
     rf::Vector3 last_teleport_pos;
     rf::TimestampRealtime last_teleport_timestamp;
     std::optional<int> last_spawn_point_index;
+    bool is_alpine = false;
 };
 
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer);

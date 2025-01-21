@@ -16,6 +16,25 @@ namespace rf
     struct Player;
 }
 
+// used for client detection
+struct NetAddrKey
+{
+    uint32_t ip_addr;
+    uint16_t port;
+
+    // equality operator for comparison
+    bool operator==(const NetAddrKey& other) const
+    {
+        return ip_addr == other.ip_addr && port == other.port;
+    }
+
+    // less-than operator for sorting
+    bool operator<(const NetAddrKey& other) const
+    {
+        return std::tie(ip_addr, port) < std::tie(other.ip_addr, other.port);
+    }
+};
+
 struct SpawnProtectionConfig
 {
     bool enabled = true;
