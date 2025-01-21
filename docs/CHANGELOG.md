@@ -8,7 +8,7 @@ Version 1.0.0 (Maple)
 	- Add many new events (full documentation at wiki link below)
 	- Fix triggers not being able to activate events in MP
 	- Fix delay param on some events breaking them
-	- Add additional functionality
+	- Add additional functionality to some existing stock game events
 	- Remove lightmap clamping
 	- Allow use of dynamic lights placed in levels
 	- Limit on Multiplayer Respawn Point objects raised from 32 to 2048
