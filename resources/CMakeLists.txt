@@ -24,7 +24,12 @@ add_packfile(alpinefaction.vpp
     tables/events.tbl
 
     # compatibility _info.tbls
+    tables/pdm01_info.tbl
     tables/pdm02_info.tbl
+    tables/pdm03_info.tbl
+    tables/pdm04_info.tbl
+    tables/pdm05_info.tbl
+    tables/pdm06_info.tbl
     tables/dm_DVLIACsDesk2DDS1-1_info.tbl
     tables/dm_DVLIACsDesk2DDS_info.tbl
     tables/CTF_Jupiter3StationLO1-2_info.tbl
