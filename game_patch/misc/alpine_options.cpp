@@ -6,6 +6,7 @@
 #include <patch_common/AsmWriter.h>
 #include <regex>
 #include "player.h"
+#include "../misc/vpackfile.h"
 #include "../os/console.h"
 #include "../rf/file/file.h"
 #include "../rf/gr/gr.h"
@@ -17,7 +18,6 @@
 #include "../rf/os/os.h"
 #include <algorithm>
 #include <iostream>
-//#include <filesystem>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -29,8 +29,6 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <xlog/xlog.h>
-
-//namespace fs = std::filesystem;
 
 AlpineOptionsConfig g_alpine_options_config;
 AlpineLevelInfoConfig g_alpine_level_info_config;
@@ -56,7 +54,7 @@ std::string trim(const std::string& str, bool remove_quotes = false)
 
 // Helper functions for individual data types
 
-// parse hex formatted colors to 0-255 ints
+// parse colors to 0-255 ints
 std::tuple<int, int, int, int> extract_color_components(uint32_t color)
 {
     return std::make_tuple((color >> 24) & 0xFF, // red
@@ -66,7 +64,7 @@ std::tuple<int, int, int, int> extract_color_components(uint32_t color)
     );
 }
 
-// parse hex formatted colors to 0.0-1.0 floats
+// parse colors to 0.0-1.0 floats
 std::tuple<float, float, float, float> extract_normalized_color_components(uint32_t color)
 {
     return std::make_tuple(
@@ -85,16 +83,47 @@ std::optional<OptionValue> parse_string(const std::string& value)
     return trim(value, true);
 }
 
-// colors can be provided in quotation marks or not
+// colors can be provided in quotation marks or not, and can be hex formatted or RF-style
 std::optional<OptionValue> parse_color(const std::string& value)
 {
     std::string trimmed_value = trim(value, true);
+
     try {
-        return std::stoul(trimmed_value, nullptr, 16);
+        // Check if it's a valid hex string (6 or 8 characters)
+        if (!trimmed_value.empty() && trimmed_value.length() <= 8 &&
+            std::all_of(trimmed_value.begin(), trimmed_value.end(), ::isxdigit)) {
+            uint32_t color = std::stoul(trimmed_value, nullptr, 16); // Parse hex
+
+            // If it's a 24-bit color (6 characters), add full alpha (0xFF)
+            if (trimmed_value.length() == 6)
+                color = (color << 8) | 0xFF;
+
+            return color;
+        }
+
+        // Check for RGB formats using regex
+        std::regex rgb_pattern(R"([\{\<]?\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*[\>\}]?)");
+        std::smatch matches;
+
+        if (std::regex_match(trimmed_value, matches, rgb_pattern)) {
+            if (matches.size() == 4) { // First match is the full string, next 3 are R, G, B
+                int r = std::stoi(matches[1].str());
+                int g = std::stoi(matches[2].str());
+                int b = std::stoi(matches[3].str());
+
+                // Ensure values are within the valid range
+                if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+                    uint32_t color = (r << 24) | (g << 16) | (b << 8) | 0xFF; // Add full alpha
+                    return color;
+                }
+            }
+        }
     }
     catch (...) {
-        return std::nullopt;
+        return std::nullopt; // Return null if parsing fails
     }
+
+    return std::nullopt;
 }
 
 // floats, ints, and bools do not use quotation marks
@@ -142,6 +171,7 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Multiplayer Crouch Walk Speed", {AlpineOptionID::MultiplayerCrouchWalkSpeed, "af_game.tbl", parse_float, true}},
     {"$Walkable Slope Threshold", {AlpineOptionID::WalkableSlopeThreshold, "af_game.tbl", parse_float}},
     {"$Player Headlamp Color", {AlpineOptionID::PlayerHeadlampColor, "af_game.tbl", parse_color}},
+    {"$Player Headlamp Intensity", {AlpineOptionID::PlayerHeadlampIntensity, "af_game.tbl", parse_float}},
     {"$Player Headlamp Range", {AlpineOptionID::PlayerHeadlampRange, "af_game.tbl", parse_float}},
     {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}}
 };
@@ -241,6 +271,7 @@ const std::unordered_map<std::string, LevelInfoMetadata> level_info_metadata = {
     {"$Author Website", {AlpineLevelInfoID::AuthorWebsite, parse_string_level}},
     {"$Description", {AlpineLevelInfoID::Description, parse_string_level}},
     {"$Player Headlamp Color", {AlpineLevelInfoID::PlayerHeadlampColor, parse_color_level}},
+    {"$Player Headlamp Intensity", {AlpineLevelInfoID::PlayerHeadlampIntensity, parse_float_level}},
     {"$Player Headlamp Range", {AlpineLevelInfoID::PlayerHeadlampRange, parse_float_level}},
     {"$Player Headlamp Radius", {AlpineLevelInfoID::PlayerHeadlampRadius, parse_float_level}},
 };
@@ -840,7 +871,7 @@ void load_single_af_options_file(const std::string& file_name)
         }
         else if (meta_it != option_metadata.end()) {
             if (meta_it->second.filename != file_name && !is_af_client_variant) {
-                xlog::warn("Option {} in {} skipped (wrong tbl file)", option_name, file_name);
+                xlog::warn("Option {} in {} skipped (wrong alpine tbl file)", option_name, file_name);
             }
             else if (rf::is_dedicated_server && !meta_it->second.apply_on_server) {
                 xlog::debug("Option {} in {} skipped (not needed on dedicated server)", option_name, file_name);
@@ -860,8 +891,13 @@ void load_af_options_config()
 {
     xlog::debug("Loading Alpine Faction Options configuration");
 
-    // load af_client.tbl
-    load_single_af_options_file("af_client.tbl");
+    // load af_client_*.tbl
+    vpackfile_find_matching_files(
+        StringMatcher().prefix("af_client_").suffix(".tbl"),
+        [](const char* filename) {
+            //xlog::info("Loading configuration file: {}", filename);
+            load_single_af_options_file(filename);
+        });
 
     // if a TC mod is loaded, handle the other options files
     if (rf::mod_param.found()) {

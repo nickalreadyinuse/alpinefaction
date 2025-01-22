@@ -367,23 +367,40 @@ void update_player_flashlight() {
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor)) {
         auto headlamp_color =
             get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor);
-
-        std::tie(g_local_headlamp_settings.r, g_local_headlamp_settings.g, g_local_headlamp_settings.b,
-                 g_local_headlamp_settings.intensity) = extract_normalized_color_components(headlamp_color);
-    }
-    else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampColor)) {
-        auto headlamp_color = get_option_value<uint32_t>(AlpineOptionID::PlayerHeadlampColor);
+        float _a;
 
         std::tie(g_local_headlamp_settings.r,
             g_local_headlamp_settings.g,
             g_local_headlamp_settings.b,
-            g_local_headlamp_settings.intensity) =
+            _a) = // alpha is discarded
+            extract_normalized_color_components(headlamp_color);
+    }
+    else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampColor)) {
+        auto headlamp_color = get_option_value<uint32_t>(AlpineOptionID::PlayerHeadlampColor);
+        float _a;
+
+        std::tie(g_local_headlamp_settings.r,
+            g_local_headlamp_settings.g,
+            g_local_headlamp_settings.b,
+            _a) = // alpha is discarded
             extract_normalized_color_components(headlamp_color);
     }    
     else {
         g_local_headlamp_settings.r = 1.0f;
         g_local_headlamp_settings.g = 0.872f;
         g_local_headlamp_settings.b = 0.75f;
+    }
+
+    //intensity
+    if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity)) {
+        g_local_headlamp_settings.intensity = std::clamp(
+            get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity), 0.0f, 0.99f);
+    }
+    else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampIntensity)) {
+        g_local_headlamp_settings.intensity =
+            std::clamp(get_option_value<float>(AlpineOptionID::PlayerHeadlampIntensity), 0.0f, 0.99f);
+    }    
+    else {
         g_local_headlamp_settings.intensity = 0.6f;
     }
 

@@ -159,6 +159,12 @@ ConsoleCommand2 level_info_ext_cmd{
                 rf::console::print("Player headlamp color: {}, {}, {}", r, g, b);
             }
 
+            // Player headlamp intensity
+            if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity)) {
+                float headlamp_intensity = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity);
+                rf::console::print("Player headlamp intensity: {}", headlamp_intensity);
+            }
+
             // Player headlamp range
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange)) {
                 float headlamp_range = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange);

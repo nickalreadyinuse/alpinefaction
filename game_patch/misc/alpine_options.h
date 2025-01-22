@@ -55,6 +55,7 @@ enum class AlpineOptionID
     MultiplayerCrouchWalkSpeed,
     WalkableSlopeThreshold,
     PlayerHeadlampColor,
+    PlayerHeadlampIntensity,
     PlayerHeadlampRange,
     PlayerHeadlampRadius,
     _optioncount // dummy for total count
@@ -120,6 +121,7 @@ enum class AlpineLevelInfoID
     AuthorWebsite,
     Description,
     PlayerHeadlampColor,
+    PlayerHeadlampIntensity,
     PlayerHeadlampRange,
     PlayerHeadlampRadius,
     _optioncount       // dummy for total count
