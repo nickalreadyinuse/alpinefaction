@@ -80,8 +80,6 @@ struct GameConfig
 
     // Audio
     CfgVar<float> level_sound_volume = 1.0f;
-    CfgVar<float> scope_sensitivity_modifier = 1.0f;
-    CfgVar<float> scanner_sensitivity_modifier = 1.0f;
     CfgVar<bool> eax_sound = true;
 
     // Multiplayer
@@ -100,6 +98,8 @@ struct GameConfig
     CfgVar<bool> linear_pitch = true;
     CfgVar<bool> swap_assault_rifle_controls = false;
     CfgVar<bool> swap_grenade_controls = false;
+    CfgVar<bool> scope_static_sensitivity = false;
+    CfgVar<float> zoom_sensitivity_modifier = 0.25f;
 
     // Interface
     CfgVar<bool> fps_counter = true;
