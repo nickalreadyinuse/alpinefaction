@@ -596,11 +596,29 @@ CodeInjection LoadSaveLevel_patch2{
     }
 };
 
+// disable splash screen if editor is launched with -level switch, fixes splash screen issue with version popup
+CodeInjection disable_splash_screen_on_load_level {
+    0x00482672, [](auto& regs) {
+        static auto& argv = addr_as_ref<char**>(0x01DBF8E4);
+        static auto& argc = addr_as_ref<int>(0x01DBF8E0);
+        for (int i = 1; i < argc; ++i) {
+            std::string_view arg = argv[i];
+            if (arg == "-level") {
+                ++i;
+                if (i < argc) {
+                    regs.eip = 0x0048268E; // skip past the splash screen 
+                }
+            }
+        }
+    }
+};
+
 void apply_af_level_editor_changes()
 {
     // Use new version for saved rfls
     LoadSaveLevel_patch.install();
     LoadSaveLevel_patch2.install();
+    disable_splash_screen_on_load_level.install();
 
     // Remove legacy geometry maximums from build output window
     static char new_faces_string[] = "Faces: %d\n";                                  // Replace "Faces: %d/%d\n"
@@ -623,12 +641,6 @@ void apply_af_level_editor_changes()
     // Stop adding faces to "fix ps2 tiling" when the surface UVs tile a lot
     AsmWriter{0x0043A081}.jmp(0x0043A0E9);
     AsmWriter{0x0043A0EF}.nop(3);
-
-    // below likely not needed with above
-    //AsmWriter(0x0043A0A5).jmp(0x0043A0CC); // stop splitting movers
-    //AsmWriter(0x0043A098).nop(5);          // stop spliting faces at build time
-    //AsmWriter(0x0043A08D).nop(5);          // don't print "Fixing up texture uvs for ps2..." in output window
-    //AsmWriter(0x0043A0E4).nop(5);          // don't print "Had to add X faces to fix ps2 tiling" in output window
 }
 
 extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
@@ -642,7 +654,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Apply AF-specific changes only if legacy mode isn't active
     if (get_is_saving_af_version()) {
         apply_af_level_editor_changes();
-    }      
+    }
 
     // Change command for Play Level action to use AF launcher
     g_launcher_pathname = get_module_dir(g_module) + LAUNCHER_FILENAME;

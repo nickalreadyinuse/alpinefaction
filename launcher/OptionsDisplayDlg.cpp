@@ -63,7 +63,7 @@ void OptionsDisplayDlg::InitToolTip()
     m_tool_tip.AddTool(GetDlgItem(IDC_RENDERING_CACHE_EDIT), "RAM allocated for level geometry rendering, max 32 MB");
     m_tool_tip.AddTool(GetDlgItem(IDC_RESOLUTIONS_COMBO), "Select resolution from provided dropdown list or type a resolution manually");
     m_tool_tip.AddTool(GetDlgItem(IDC_VSYNC_CHECK), "Enable vertical synchronization (reduces tearing but adds input latency)");
-    m_tool_tip.AddTool(GetDlgItem(IDC_MAX_FPS_EDIT), "Limit maximum FPS (beyond this setting, a limit of 240 is enforced in multiplayer due to relevant bugs)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_MAX_FPS_EDIT), "Limit maximum FPS (in addition to this setting, a limit of 240 is enforced in multiplayer due to relevant bugs)");
 }
 
 void OptionsDisplayDlg::UpdateAdapterCombo()

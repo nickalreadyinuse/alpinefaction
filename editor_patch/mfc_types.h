@@ -321,7 +321,6 @@ struct Color
 };
 static_assert(sizeof(Color) == 0x4, "Color size mismatch!");
 
-
 struct DedObject
 {
     void* vtbl;
