@@ -431,7 +431,7 @@ void console_commands_init()
     register_builtin_command("sp_difficulty", "Set game difficulty", 0x00434EB0);
     // register_builtin_command("ms", "Set mouse sensitivity", 0x0043CE90);
     // register_builtin_command("level_info", "Show level info", 0x0045C210);
-    register_builtin_command("map_verify", "Verify level", 0x0045E1F0);
+    register_builtin_command("dbg_verifylevel", "Verify level", 0x0045E1F0);
     register_builtin_command("ui_playernames", "Toggle player names on HUD", 0x0046CB80);
     register_builtin_command("sv_countclients", "Show number of connected clients", 0x0046CD10);
     register_builtin_command("sv_kickall", "Kick all clients", 0x0047B9E0);
@@ -448,7 +448,7 @@ void console_commands_init()
     register_builtin_command("drop_item", "Spawn an item by class name", 0x00458530);
     // register_builtin_command("pcollide", "Toggle if player collides with the world", 0x004A0F60);
     register_builtin_command("teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
-    register_builtin_command("level_hardness", "Set default hardness for geomods", 0x004663E0);
+    register_builtin_command("sp_levelhardness", "Set default hardness for geomods", 0x004663E0);
     register_builtin_command("save_commands", "Print all console commands to a text file named console_commands.txt", 0x00509920);
 
 #ifdef DEBUG
