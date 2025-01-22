@@ -99,7 +99,8 @@ struct GameConfig
     CfgVar<bool> swap_assault_rifle_controls = false;
     CfgVar<bool> swap_grenade_controls = false;
     CfgVar<bool> scope_static_sensitivity = false;
-    CfgVar<float> zoom_sensitivity_modifier = 0.25f;
+    CfgVar<float> scope_sensitivity_modifier = 0.25f;
+    CfgVar<float> scanner_sensitivity_modifier = 0.25f;
 
     // Interface
     CfgVar<bool> fps_counter = true;

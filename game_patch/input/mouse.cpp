@@ -13,7 +13,10 @@
 #include "../rf/entity.h"
 #include "../main/main.h"
 
-static float zoom_sensitivity_value = 0.25f;
+static float scope_sensitivity_value = 0.25f;
+static float scanner_sensitivity_value = 0.25f;
+static float applied_static_sensitivity_value = 0.25f; // value written by AsmWriter
+static float applied_dynamic_sensitivity_value = 1.0f; // value written by AsmWriter
 
 bool set_direct_input_enabled(bool enabled)
 {
@@ -114,9 +117,17 @@ ConsoleCommand2 ms_cmd{
     "ms <value>",
 };
 
-void update_zoom_sensitivity()
+void update_scope_sensitivity()
 {
-    zoom_sensitivity_value = g_game_config.zoom_sensitivity_modifier;
+    scope_sensitivity_value = g_game_config.scope_sensitivity_modifier.value();
+
+    applied_dynamic_sensitivity_value =
+        (1 / (4 * g_game_config.scope_sensitivity_modifier.value())) * rf::scope_sensitivity_constant;
+}
+
+void update_scanner_sensitivity()
+{
+    scanner_sensitivity_value = g_game_config.scanner_sensitivity_modifier;
 }
 
 ConsoleCommand2 static_scope_sens_cmd{
@@ -129,39 +140,62 @@ ConsoleCommand2 static_scope_sens_cmd{
     "Toggle whether scope mouse sensitivity is static or dynamic (based on zoom level)."
 };
 
-ConsoleCommand2 zoom_sens_cmd{
-    "cl_zoomsens",
+ConsoleCommand2 scope_sens_cmd{
+    "cl_scopesens",
     [](std::optional<float> value_opt) {
         if (value_opt) {
-            g_game_config.zoom_sensitivity_modifier = std::clamp(value_opt.value(), 0.0f, 10.0f);
+            g_game_config.scope_sensitivity_modifier = std::clamp(value_opt.value(), 0.01f, 10.0f);
             g_game_config.save();
-            update_zoom_sensitivity();            
+            update_scope_sensitivity();
         }
         else {
-            rf::console::print("Zoom sensitivity modifier: {:.2f}", g_game_config.zoom_sensitivity_modifier.value());
+            rf::console::print("Scope sensitivity modifier: {:.2f}",
+                g_game_config.scope_sensitivity_modifier.value());
         }
     },
-    "Sets mouse sensitivity modifier used while in a scope or scanner.",
-    "cl_zoomsens <value> (valid range: 0.0 - 10.0)",
+    "Sets mouse sensitivity modifier used while in a scope.",
+    "cl_scopesens <value> (valid range: 0.0 - 10.0)",
 };
 
-CodeInjection static_scope_sensitivity_patch {
+ConsoleCommand2 scanner_sens_cmd{
+    "cl_scannersens",
+    [](std::optional<float> value_opt) {
+        if (value_opt) {
+            g_game_config.scanner_sensitivity_modifier = std::clamp(value_opt.value(), 0.01f, 10.0f);
+            g_game_config.save();
+            update_scanner_sensitivity();
+        }
+        else {
+            rf::console::print("Scanner sensitivity modifier: {:.2f}",
+                g_game_config.scanner_sensitivity_modifier.value());
+        }
+    },
+    "Sets mouse sensitivity modifier used while in a scanner.",
+    "cl_scannersens <value> (valid range: 0.0 - 10.0)",
+};
+
+CodeInjection static_zoom_sensitivity_patch {
     0x004309A2,
     [](auto& regs) {
         if (g_game_config.scope_static_sensitivity) {
-            regs.eip = 0x004309D0; // use normal camera/rail sens calculation for scopes
+            regs.eip = 0x004309D0; // use static sens calculation method for scopes (same as scanner and unscoped)
         }
     },
 };
 
-CodeInjection static_scope_sensitivity_patch2 {
+CodeInjection static_zoom_sensitivity_patch2 {
     0x004309D6,
     [](auto& regs) {
         rf::Player* player = regs.edi;
-        // decision point on whether to apply scanner sensitivity modifier
-        // player_fpgun_is_zoomed does not include scanner, only scopes
-        if (g_game_config.scope_static_sensitivity && player && rf::player_fpgun_is_zoomed(player)) {
-            regs.al = static_cast<int8_t>(1); // make 0x004309DA test true if in scope, already tests true if in scanner
+
+        if (player && rf::player_fpgun_is_zoomed(player)) {
+            applied_static_sensitivity_value = scope_sensitivity_value;
+            if (g_game_config.scope_static_sensitivity) {
+                regs.al = static_cast<int8_t>(1); // make cmp at 0x004309DA test true
+            }
+        }
+        else {
+            applied_static_sensitivity_value = scanner_sensitivity_value;
         }
     },
 };
@@ -297,11 +331,13 @@ ConsoleCommand2 linear_pitch_cmd{
 
 void mouse_apply_patch()
 {
-    // Handle scope sens customization
-    static_scope_sensitivity_patch.install();
-    static_scope_sensitivity_patch2.install();
-    AsmWriter{0x004309DE}.fmul<float>(AsmRegMem{&zoom_sensitivity_value});
-    update_zoom_sensitivity();
+    // Handle zoom sens customization
+    static_zoom_sensitivity_patch.install();
+    static_zoom_sensitivity_patch2.install();
+    AsmWriter{0x004309DE}.fmul<float>(AsmRegMem{&applied_static_sensitivity_value});
+    AsmWriter{0x004309B1}.fmul<float>(AsmRegMem{&applied_dynamic_sensitivity_value});
+    update_scope_sensitivity();
+    update_scanner_sensitivity();
 
     // Disable mouse when window is not active
     mouse_eval_deltas_hook.install();
@@ -324,6 +360,7 @@ void mouse_apply_patch()
     input_mode_cmd.register_cmd();
     ms_cmd.register_cmd();
     static_scope_sens_cmd.register_cmd();
-    zoom_sens_cmd.register_cmd();
+    scope_sens_cmd.register_cmd();
+    scanner_sens_cmd.register_cmd();
     linear_pitch_cmd.register_cmd();
 }
