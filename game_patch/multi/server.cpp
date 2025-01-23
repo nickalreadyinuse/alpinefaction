@@ -301,7 +301,6 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
     parse_boolean_option(parser, "$Use SP Damage Calculation:", g_additional_server_config.use_sp_damage_calculation, "Use SP Damage Calculation");
     parse_int_option(parser, "$CTF Flag Return Time:", g_additional_server_config.ctf_flag_return_time_ms, "CTF Flag Return Time");
-    parse_int_option(parser, "$Anticheat Level:", g_additional_server_config.anticheat_level, "Anticheat Level");
     parse_boolean_option(parser, "$Dynamic Rotation:", g_additional_server_config.dynamic_rotation, "Dynamic Rotation");
     parse_boolean_option(parser, "$Require Client Mod:", g_additional_server_config.require_client_mod, "Clients Require Mod");
     parse_float_option(parser, "$Player Damage Modifier:", g_additional_server_config.player_damage_modifier, "Player Damage Modifier");
@@ -401,7 +400,6 @@ void load_additional_server_config(rf::Parser& parser) {
             rf::console::print("+Cooldown: {}", g_additional_server_config.semi_auto_cooldown.value_or(0));
         }
     }
-
 
     // Repeatable config
     parse_item_respawn_time_override(parser);
