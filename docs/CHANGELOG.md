@@ -59,10 +59,40 @@ Version 1.0.0 (Maple)
 	- Many additional configurable settings in options panel
 
 - Many new console commands, and some renamed existing commands from upstream
-	- Full list of AF console commands is available here: WIP
+	- Full list of console commands available in AF is here: https://www.redfactionwiki.com/wiki/Red_Faction_Console_Commands#Alpine_Faction
+    - New commands:
+        - `cl_gorelevel`
+        - `cl_scannersens`
+        - `cl_scopesens`
+        - `cl_screenshake`
+        - `cl_staticscopesens`
+        - `cl_togglecrouch`
+        - `dbg_goal`
+        - `drop_clutter`
+        - `drop_entity`
+        - `drop_item`
+        - `fflink_status`
+        - `level_info_ext`
+        - `levelm`
+        - `mp_deathbars`
+        - `mp_notifyonjoin`
+        - `mp_ricochet`
+        - `pcollide`
+        - `r_fullbright`
+        - `r_lightmaps`
+        - `r_muzzleflash`
+        - `r_scopefullrangelights`
+        - `sp_difficulty`
+        - `sp_levelhardness`
+        - `sp_unlimitedsemiauto`
+        - `spectate_followkiller`
+        - `sv_netfps`
+        - `sv_pass`
+        - `sv_rconpass`
+        - `teleport`
 	
-- Many new dedicated server config options, revamped config approach, and enhanced logging and error messaging
-	- Full list of AF dedicated server config options is available here: WIP
+- Revamped approach to dedicated server configuration, including many new config options and enhanced logging
+	- Full documentation of dedicated server config options available in AF is here: WIP
 	
 - Miscellaneous changes and updates
 	- Reimplement cut stock game gibbing feature for enemies

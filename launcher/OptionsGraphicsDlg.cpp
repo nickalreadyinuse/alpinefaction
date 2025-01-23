@@ -101,10 +101,11 @@ void OptionsGraphicsDlg::InitToolTip()
     m_tool_tip.AddTool(GetDlgItem(IDC_CLAMP_COMBO), "Stock game does not allow full color range for lighting, AF fixes that. Use this option to apply this to older maps.");
     m_tool_tip.AddTool(GetDlgItem(IDC_FAST_ANIMS_CHECK), "Reduce animation smoothness for far models");
     m_tool_tip.AddTool(GetDlgItem(IDC_DISABLE_LOD_CHECK), "Use more detailed LOD models for objects in the distance");
-    m_tool_tip.AddTool(GetDlgItem(IDC_ANISOTROPIC_CHECK), "Improve far textures quality");
+    m_tool_tip.AddTool(GetDlgItem(IDC_ANISOTROPIC_CHECK), "Improve render quality of textures at far distances");
     m_tool_tip.AddTool(GetDlgItem(IDC_HIGH_SCANNER_RES_CHECK), "Increase scanner resolution (used by Rail Driver, Rocket Launcher and Fusion Launcher)");
     m_tool_tip.AddTool(GetDlgItem(IDC_HIGH_MON_RES_CHECK), "Increase monitors and mirrors resolution");
     m_tool_tip.AddTool(GetDlgItem(IDC_TRUE_COLOR_TEXTURES_CHECK), "Increase texture color depth - especially visible for lightmaps and shadows");
+    m_tool_tip.AddTool(GetDlgItem(IDC_MESH_STATIC_LIGHTING_CHECK), "Use static lighting for meshes instead of legacy ambient lighting");
     m_tool_tip.AddTool(GetDlgItem(IDC_NEAREST), "Use nearest neighbour texture filtering (hard pixel edges)");
 }
 

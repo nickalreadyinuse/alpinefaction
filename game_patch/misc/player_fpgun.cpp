@@ -166,6 +166,8 @@ ConsoleCommand2 fpgun_fov_scale_cmd{
         }
         rf::console::print("Fpgun FOV scale: {:.4f}", g_game_config.fpgun_fov_scale.value());
     },
+    "Set scale value applied to FOV setting for first person weapon models.",
+    "r_fpgunfov [scale]",
 };
 
 CodeInjection player_fpgun_render_main_player_entity_injection{

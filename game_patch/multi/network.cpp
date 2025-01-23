@@ -1044,6 +1044,7 @@ ConsoleCommand2 netfps_cmd{
         }
         rf::console::print("Server netfps: {}", g_game_config.server_netfps.value());
     },
+    "Set number of updates sent from server to clients per second",
 };
 
 CodeInjection obj_interp_rotation_fix{

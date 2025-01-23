@@ -510,6 +510,11 @@ ConsoleCommand2 which_packfile_cmd{
     "Prints packfile path that the provided file is included in",
 };
 
+DcCommandAlias where_cmd{
+    "where",
+    which_packfile_cmd,
+};
+
 void force_file_from_packfile(const char* name, const char* packfile_name)
 {
     rf::VPackfile* packfile = vpackfile_find_packfile(packfile_name);
@@ -606,6 +611,7 @@ static void vpackfile_init_new()
 
     // Commands
     which_packfile_cmd.register_cmd();
+    where_cmd.register_cmd();
 }
 
 static void vpackfile_cleanup_new()

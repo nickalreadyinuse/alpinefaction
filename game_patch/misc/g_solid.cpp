@@ -302,28 +302,39 @@ CodeInjection level_load_lightmaps_color_conv_patch{
 };
 
 ConsoleCommand2 lighting_color_range_cmd{
-    "lighting_color_range", [] (std::optional<std::string> range_arg)
+    "r_scopefullrangelights", [] (std::optional<std::string> range_arg)
     {
         GameConfig::ClampMode new_mode;
+        bool set = false;
+
         if (range_arg == "alpine" || range_arg == "af" || range_arg == "alpineonly" || range_arg == "0") {
             new_mode = GameConfig::ClampMode::ALPINEONLY;
+            set = true;
         }
         else if (range_arg == "community" || range_arg == "custom" || range_arg == "1") {
             new_mode = GameConfig::ClampMode::COMMUNITY;
+            set = true;
         }
         else if (range_arg == "all" || range_arg == "2") {
             new_mode = GameConfig::ClampMode::ALL;
+            set = true;
         }
-        else {
-            rf::console::printf("Invalid option. Valid options are alpine (0), custom (1), all (2)");
+        else if (range_arg.has_value() && range_arg != "?") {
+            rf::console::printf("Invalid option. Valid options are alpine, community, all");
             return;
         }
-        g_game_config.clamp_mode = new_mode;
-        g_game_config.save();
-        rf::console::printf("Lighting color range set to %s", range_arg.value().c_str());
+
+        if (set) {
+            g_game_config.clamp_mode = new_mode;
+            g_game_config.save();
+        }
+        
+        rf::console::printf("Level scope for full range lighting is: %s", g_game_config.clamp_mode ==
+                GameConfig::ClampMode::ALPINEONLY ? "alpine" : g_game_config.clamp_mode ==
+                GameConfig::ClampMode::COMMUNITY ? "community" : "all");
     },
-    "Set lighting color range. Only affects levels loaded after usage of this command.",
-    "lighting_color_range [option]",
+    "Set level scope for full range lighting. Only affects levels loaded after usage of this command.",
+    "r_scopefullrangelights [alpine, community, or all]",
 };
 
 CodeInjection shadow_render_one_injection{
