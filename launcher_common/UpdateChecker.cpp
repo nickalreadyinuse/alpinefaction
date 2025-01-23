@@ -9,7 +9,7 @@ void UpdateChecker::CheckForUpdates()
 {
     // Construct update check URL
     std::string update_url = "https://update.alpinefaction.com/update_check.php?current=" BUILDNUM;
-    xlog::info("Checking for updates: {}", update_url);
+    xlog::info("Checking for updates...");
 
     // Create an HttpSession
     HttpSession session("Alpine Faction Update");
@@ -38,12 +38,11 @@ void UpdateChecker::CheckForUpdates()
         // Trim whitespace (just in case)
         response.erase(response.find_last_not_of(" \n\r\t") + 1);
 
-        // Log response
-        xlog::info("Update check response: {}", response);
+        //xlog::info("Update check response: {}", response);
 
         // If response is empty or "0", assume no update
         if (response.empty() || response == "0") {
-            xlog::info("No update required.");
+            xlog::info("No update available.");
             return;
         }
 
@@ -64,7 +63,7 @@ void UpdateChecker::CheckForUpdates()
     }
     catch (const std::exception& e) {
         // Log the error and assume no update
-        xlog::warn("Update check failed: {}. Assuming no update required.", e.what());
+        xlog::warn("Update check failed: {}. Assuming no update available.", e.what());
         return;
     }
 }

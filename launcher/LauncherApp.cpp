@@ -158,7 +158,7 @@ int LauncherApp::Run()
 
 void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
 {
-    xlog::info("Validating AFLink token: {}", fflink_token);
+    xlog::info("Validating FactionFiles link token: {}", fflink_token);
 
     std::string verify_url = "https://link.factionfiles.com/aflauncher/v1/link_check.php?token=" + fflink_token;
     //xlog::info("AFLink validity check URL: {}", verify_url);
@@ -182,33 +182,33 @@ void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
         }
 
         response.erase(response.find_last_not_of(" \n\r\t") + 1);
-        xlog::info("AFLink verification response: {}", response);
+        //xlog::info("AFLink verification response: {}", response);
 
         GameConfig game_config;
         game_config.load();
 
         if (response.empty()) {
-            xlog::warn("AFLink check failed: No response received. Retaining existing values.");
+            xlog::warn("FactionFiles link check failed: No response received.");
         }
         else if (response == "notfound") {
-            xlog::warn("Invalid AFLink token detected. Resetting values.");
+            xlog::warn("Invalid FactionFiles link token detected.");
             game_config.fflink_token = "";
             game_config.fflink_username = "";
             game_config.save();
         }
-        else if (response.rfind("found", 0) == 0) {   // Ensure "found " prefix
+        else if (response.rfind("found", 0) == 0) {
             std::string username = response.substr(6); // Extract username
-            xlog::info("AFLink valid. Username: {}", username);
+            xlog::info("Validated FactionFiles link for username: {}", username);
             game_config.fflink_token = fflink_token;
             game_config.fflink_username = username;
             game_config.save();
         }
         else {
-            xlog::warn("Unexpected response from AFLink check: {}. Retaining existing values.", response);
+            xlog::warn("Unexpected response from FactionFiles link check: {}.", response);
         }
     }
     catch (const std::exception& e) {
-        xlog::warn("AFLink check failed: {}. Retaining existing values.", e.what());
+        xlog::warn("FactionFiles link check failed: {}.", e.what());
     }
 }
 
@@ -217,7 +217,7 @@ void LauncherApp::MigrateConfig()
     try {
         GameConfig config;
         if (config.load() && config.alpine_faction_version.value() != VERSION_STR) {
-            xlog::info("Migrating config");
+            xlog::info("Old version detected, migrating config");
             //if (config.tracker.value() == "rf.thqmultiplay.net" && config.alpine_faction_version->empty()) // < 1.1.0
             if (config.alpine_faction_version->empty()) // always set FF tracker if new install
                 config.tracker = GameConfig::default_rf_tracker;
