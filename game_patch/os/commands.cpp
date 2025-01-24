@@ -298,6 +298,16 @@ FunHook<void()> verify_level_cmd_hook{
     }
 };
 
+ConsoleCommand2 autosave_cmd{
+    "sp_autosave",
+    []() {
+        g_game_config.autosave = !g_game_config.autosave;
+        g_game_config.save();
+        rf::console::print("Autosave is {}", g_game_config.autosave ? "enabled" : "disabled");
+    },
+    "Toggle autosave",
+};
+
 ConsoleCommand2 pcollide_cmd{
     "pcollide",
     []() {
@@ -512,6 +522,7 @@ void console_commands_init()
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();
     verify_level_cmd_hook.install();
+    autosave_cmd.register_cmd();
 
     // Hooks for builtin commands
     camera1_cmd_hook.install();
