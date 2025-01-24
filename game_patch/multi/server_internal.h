@@ -138,6 +138,7 @@ struct ServerAdditionalConfig
     bool allow_disable_screenshake = true;
     bool allow_disable_muzzle_flash = true;
     bool apply_click_limiter = true;
+    bool allow_unlimited_fps = false;
     std::optional<int> semi_auto_cooldown = 90;
     int anticheat_level = 0;
     bool stats_message_enabled = true;
@@ -152,6 +153,7 @@ struct ServerAdditionalConfig
     bool kill_reward_health_super = false;
     bool kill_reward_armor_super = false;
     bool clients_require_alpine = false;
+    bool reject_non_alpine_clients = false;
     bool only_welcome_alpine = false;
     bool advertise_alpine = false;
 };

@@ -684,6 +684,7 @@ struct DashFactionJoinAcceptPacketExt
         no_player_collide   = 1 << 5,
         allow_no_mf         = 1 << 6,
         click_limit         = 1 << 7,
+        unlimited_fps       = 1 << 8,
     } flags = Flags::none;
 
     float max_fov;
@@ -750,6 +751,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
             ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::click_limit;
             ext_data.semi_auto_cooldown = server_get_df_config().semi_auto_cooldown.value();
         }
+        if (server_allow_unlimited_fps()) {
+            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::unlimited_fps;
+        }
         auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
     },
@@ -777,6 +781,7 @@ CodeInjection process_join_accept_injection{
             server_info.no_player_collide = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::no_player_collide);
             server_info.allow_no_mf = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_mf);
             server_info.click_limit = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::click_limit);
+            server_info.unlimited_fps = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::unlimited_fps);
 
             constexpr float default_fov = 90.0f;
             if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
@@ -818,6 +823,15 @@ CodeInjection process_join_req_injection{
         // matched an alpine client
         if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {
             g_joining_player_is_alpine = true;
+        }
+    },
+};
+
+CodeInjection process_join_req_injection2 {
+    0x0047ADAB,
+    [](auto& regs) {
+        if (!g_joining_player_is_alpine && g_additional_server_config.reject_non_alpine_clients) {
+            regs.eax = 8; // uses string 874 as join rejection message
         }
     },
 };
@@ -1269,6 +1283,7 @@ void network_init()
     send_join_req_packet_hook.install();
     process_join_req_packet_hook.install();
     process_join_req_injection.install();
+    process_join_req_injection2.install();
     send_join_accept_packet_hook.install();
     process_join_accept_injection.install();
     process_join_accept_send_game_info_req_injection.install();

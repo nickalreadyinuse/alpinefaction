@@ -10,6 +10,7 @@
 #include "../rf/gameseq.h"
 #include "../rf/hud.h"
 #include "../rf/os/frametime.h"
+#include "../multi/multi.h"
 #include "../main/main.h"
 #include "../hud/hud.h"
 #include <xlog/xlog.h>
@@ -99,7 +100,13 @@ void apply_maximum_fps()
         max_fps = g_game_config.server_max_fps.value();
     }
     else if (rf::is_multi) {
-        max_fps = std::clamp(g_game_config.max_fps.value(), GameConfig::min_fps_limit, GameConfig::max_fps_limit_mp);
+        const auto& server_info_opt = get_df_server_info();
+        if (server_info_opt && server_info_opt->unlimited_fps) {
+            max_fps = g_game_config.max_fps.value();
+        }
+        else {
+            max_fps = std::clamp(g_game_config.max_fps.value(), GameConfig::min_fps_limit, GameConfig::max_fps_limit_mp);
+        }
     }
     else {
         max_fps = g_game_config.max_fps.value();

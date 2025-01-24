@@ -313,6 +313,7 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_additional_server_config.allow_lightmaps_only, "Allow Lightmaps Only Mode");
     parse_boolean_option(parser, "$Allow Disable Screenshake:", g_additional_server_config.allow_disable_screenshake, "Allow Disable Screenshake");
     parse_boolean_option(parser, "$Allow Disable Muzzle Flash Lights:", g_additional_server_config.allow_disable_muzzle_flash, "Allow Disable Muzzle Flash Lights");
+    parse_boolean_option(parser, "$Allow Client Unlimited FPS:", g_additional_server_config.allow_unlimited_fps, "Allow Client Unlimited FPS");
 
     if (parser.parse_optional("$Welcome Message:")) {
         rf::String welcome_message;
@@ -329,6 +330,7 @@ void parse_alpine_locking(rf::Parser& parser) {
         g_additional_server_config.clients_require_alpine = parser.parse_bool();
         rf::console::print("Clients Require Alpine Faction: {}", g_additional_server_config.clients_require_alpine ? "true" : "false");
 
+        parse_boolean_option(parser, "+Reject Legacy Clients:", g_additional_server_config.reject_non_alpine_clients, "+Reject Legacy Clients");
         parse_boolean_option(parser, "+No Player Collide:", g_additional_server_config.no_player_collide, "+No Player Collide");
         parse_vote_config("+Match Mode", g_additional_server_config.vote_match, parser);
     }
@@ -2269,6 +2271,11 @@ bool server_allow_disable_muzzle_flash()
 bool server_apply_click_limiter()
 {
     return g_additional_server_config.apply_click_limiter;
+}
+
+bool server_allow_unlimited_fps()
+{
+    return g_additional_server_config.allow_unlimited_fps;
 }
 
 bool server_weapon_items_give_full_ammo()
