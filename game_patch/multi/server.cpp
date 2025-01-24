@@ -336,6 +336,24 @@ void parse_alpine_locking(rf::Parser& parser) {
     }
 }
 
+void parse_inactivity_settings(rf::Parser& parser) {
+    if (parser.parse_optional("$Kick Inactive Players:")) {
+        g_additional_server_config.inactivity.enabled = parser.parse_bool();
+        rf::console::print("Kick Inactive Players: {}", g_additional_server_config.inactivity.enabled ? "true" : "false");
+
+        parse_uint_option(parser, "+Grace Period:", g_additional_server_config.inactivity.new_player_grace_ms, "+Grace Period");
+        parse_uint_option(parser, "+Maximum Idle Time:", g_additional_server_config.inactivity.allowed_inactive_ms, "+Maximum Idle Time");
+        parse_uint_option(parser, "+Warning Period:", g_additional_server_config.inactivity.warning_duration_ms, "+Warning Period");
+
+        if (parser.parse_optional("+Idle Warning Message:")) {
+            rf::String kick_message;
+            parser.parse_string(&kick_message);
+            g_additional_server_config.inactivity.kick_message = kick_message.c_str();
+            rf::console::print("+Idle Warning Message: {}", g_additional_server_config.inactivity.kick_message);
+        }
+    }
+}
+
 void parse_item_respawn_time_override(rf::Parser& parser) {
     while (parser.parse_optional("$Item Respawn Time Override:")) {
         rf::String item_name;
@@ -382,6 +400,7 @@ void load_additional_server_config(rf::Parser& parser) {
     // Misc config
     parse_miscellaneous_options(parser);
     parse_alpine_locking(parser);
+    parse_inactivity_settings(parser);
 
     // separate for now because they need to use std::optional
     if (parser.parse_optional("$Max FOV:")) {
@@ -822,6 +841,8 @@ CodeInjection detect_browser_player_patch{
             auto& pdata = get_player_additional_data(player);
             pdata.is_browser = true;
         }
+
+        update_player_active_status(player); // active pulse on join
     },
 };
 
@@ -1057,6 +1078,9 @@ CodeInjection send_ping_time_wrap_fix{
             io_stats.send_ping_packet_timestamp.set(3000);
             rf::multi_ping_player(player);
             io_stats.last_ping_time = rf::timer_get(1000);
+
+            // check if player is idle
+            player_idle_check(player);
         }
         regs.eip = 0x0047CD64;
     },
@@ -1359,9 +1383,71 @@ int count_spawned_players()
     });
 }
 
+void update_player_active_status(rf::Player* player)
+{
+    if (rf::is_dedicated_server && g_additional_server_config.inactivity.enabled) {
+        auto& additional_data = get_player_additional_data(player);
+        additional_data.idle_kick_timestamp.invalidate();
+        additional_data.idle_check_timestamp.set(g_additional_server_config.inactivity.allowed_inactive_ms);    
+        //xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
+    }
+}
+
+bool is_player_idle(rf::Player* player)
+{
+    // Check if the player's idle timer has elapsed
+    const auto& additional_data = get_player_additional_data(player);
+    bool is_idle = additional_data.idle_check_timestamp.valid()
+        ? additional_data.idle_check_timestamp.elapsed()
+        : false;
+
+    // Player is idle if timer has elapsed and they're not spawned
+    return is_idle && rf::player_is_dead(player);
+}
+
+void player_idle_check(rf::Player* player)
+{
+    const auto& additional_data = get_player_additional_data(player);
+    if (!g_additional_server_config.inactivity.enabled) {
+        return; // don't continue if inactivity monitoring is disabled
+    }
+
+    if (additional_data.idle_kick_timestamp.valid()) {
+        if (additional_data.idle_kick_timestamp.elapsed()) {
+            kick_player_delayed(player);
+        }
+        return; // don't continue if a kick is already pending
+    }
+
+    if (additional_data.is_browser) {
+        return; // don't mark browsers as idle
+    }
+
+    if (g_match_info.match_active || g_match_info.pre_match_active) {
+        return; // don't mark players as idle during a match or pre-match
+    }
+
+    if (player->net_data->join_time_ms > (rf::timer_get_milliseconds() - g_additional_server_config.inactivity.new_player_grace_ms)) {
+        return; // don't mark new players as idle
+    }
+
+    if (is_player_idle(player)) {
+        rf::console::print("{} is idle and will be kicked if they don't spawn within 10 seconds.", player->name);
+        std::string msg = std::format("\xA6 {}", g_additional_server_config.inactivity.kick_message);
+        send_chat_line_packet(msg.c_str(), player);
+
+        // set timer to kick them after 10 seconds
+        if (!additional_data.idle_kick_timestamp.valid()) {
+            get_player_additional_data(player).idle_kick_timestamp.set(g_additional_server_config.inactivity.warning_duration_ms);
+        }
+    }
+}
+
 FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
     0x00480820,
     [](rf::Player* player) {
+        update_player_active_status(player); // active pulse on spawn
+
         if (g_additional_server_config.force_player_character) {
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }

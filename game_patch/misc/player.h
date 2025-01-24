@@ -32,6 +32,9 @@ struct PlayerAdditionalData
     rf::TimestampRealtime last_teleport_timestamp;
     std::optional<int> last_spawn_point_index;
     bool is_alpine = false;
+    int last_activity_ms = 0;
+    rf::TimestampRealtime idle_check_timestamp;
+    rf::TimestampRealtime idle_kick_timestamp;
 };
 
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer);

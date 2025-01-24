@@ -437,6 +437,8 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
         print_kill_message(killed_player, killer_player);
     }
 
+    update_player_active_status(killed_player); // active pulse on killed
+
     auto* killed_stats = static_cast<PlayerStatsNew*>(killed_player->stats);
     killed_stats->inc_deaths();
 

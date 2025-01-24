@@ -93,7 +93,7 @@ Version 1.0.0 (Maple)
         - `teleport`
 	
 - Revamped approach to dedicated server configuration, including many new config options and enhanced logging
-	- Full documentation of dedicated server config options available in AF is here: WIP
+	- Full documentation of dedicated server config options available in AF is here: https://www.redfactionwiki.com/wiki/Alpine_Faction_Dedicated_Server_Config
 	
 - Miscellaneous changes and updates
 	- Reimplement cut stock game gibbing feature for enemies

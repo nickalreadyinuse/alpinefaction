@@ -23,6 +23,15 @@ struct SpawnProtectionConfig
     bool use_powerup = false;
 };
 
+struct InactivityConfig
+{
+    bool enabled = false;
+    int new_player_grace_ms = 120000;
+    int allowed_inactive_ms = 30000;
+    int warning_duration_ms = 10000;
+    std::string kick_message = "You have been marked as idle due to inactivity! You will be kicked from the game unless you respawn in the next 10 seconds.";
+};
+
 struct VoteConfig
 {
     bool enabled = false;
@@ -156,6 +165,7 @@ struct ServerAdditionalConfig
     bool reject_non_alpine_clients = false;
     bool only_welcome_alpine = false;
     bool advertise_alpine = false;
+    InactivityConfig inactivity;
 };
 
 struct MatchInfo
@@ -219,5 +229,6 @@ void load_prev_level();
 void server_vote_on_player_leave(rf::Player* player);
 void server_vote_on_limbo_state_enter();
 void process_delayed_kicks();
+void kick_player_delayed(rf::Player* player);
 bool ends_with(const rf::String& str, const std::string& suffix);
 const ServerAdditionalConfig& server_get_df_config();
