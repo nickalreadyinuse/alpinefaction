@@ -119,7 +119,9 @@ void player_fpgun_set_player(rf::Player* pp)
 void player_fpgun_on_player_death(rf::Player* pp)
 {
     // Reset fpgun animation when player dies
-    rf::vmesh_stop_all_actions(pp->weapon_mesh_handle);
+    if (pp->weapon_mesh_handle) {
+        rf::vmesh_stop_all_actions(pp->weapon_mesh_handle); // prevent occasional crash where fpgun mesh is invalid
+    }    
     rf::player_fpgun_clear_all_action_anim_sounds(pp);
 }
 
