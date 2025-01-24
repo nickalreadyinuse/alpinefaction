@@ -1491,7 +1491,7 @@ void server_reliable_socket_ready(rf::Player* player)
 
     // advertise AF to non-alpine clients if configured
     if (g_additional_server_config.advertise_alpine && !get_player_additional_data(player).is_alpine) {
-        auto msg = std::format("\xA6 Heard of Alpine Faction? It's a new patch with tons of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
+        auto msg = std::format("\xA6 Have you heard of Alpine Faction? It's a new patch with lots of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
         send_chat_line_packet(msg.c_str(), player);
     }
 }
