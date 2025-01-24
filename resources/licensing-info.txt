@@ -37,9 +37,12 @@ HeyItsDuke:
 
 Beta testers:
 * nick
+* natalie
 * Intharth
 * BATEMAN
 * MysticaL-AceR
+* Haze202
+* Vel
 
 ###############################################################################
 ## Dash Faction
