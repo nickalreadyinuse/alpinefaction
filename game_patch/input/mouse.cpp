@@ -316,7 +316,7 @@ CodeInjection linear_pitch_patch{
 };
 
 ConsoleCommand2 linear_pitch_cmd{
-    "linear_pitch",
+    "cl_linearpitch",
     []() {
 #ifdef DEBUG
         linear_pitch_test();
