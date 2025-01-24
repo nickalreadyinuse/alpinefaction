@@ -82,6 +82,7 @@ Version 1.0.0 (Maple)
         - `r_lightmaps`
         - `r_muzzleflash`
         - `r_scopefullrangelights`
+        - `sp_autosave`
         - `sp_difficulty`
         - `sp_levelhardness`
         - `sp_unlimitedsemiauto`
