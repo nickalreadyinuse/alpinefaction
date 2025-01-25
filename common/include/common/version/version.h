@@ -15,11 +15,11 @@
 
 // Variables to be modified during the release process
 #define PRODUCT_NAME           "Alpine Faction"
-#define VERSION_MAJOR          0
+#define VERSION_MAJOR          1
 #define VERSION_MINOR          0
-#define VERSION_PATCH          1
-#define VERSION_TYPE           VERSION_TYPE_BETA
-#define VERSION_TYPE_REVISION  4
+#define VERSION_PATCH          0
+#define VERSION_TYPE           VERSION_TYPE_RELEASE
+#define VERSION_TYPE_REVISION  0
 #define VERSION_CODE           "Maple"
 
 // Increment only when absolutely necessary! Will break level compatibility for older clients.

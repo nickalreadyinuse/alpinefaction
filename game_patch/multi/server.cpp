@@ -2298,7 +2298,7 @@ void server_init()
     multi_on_new_player_injection.install();
     AsmWriter(0x0047B061, 0x0047B064).add(asm_regs::esp, 0x14);
 
-    // DF respawn point selection logic
+    // respawn point selection logic
     multi_respawn_level_init_hook.install();
     multi_respawn_create_point_hook.install();
     multi_respawn_get_next_point_hook.install();

@@ -44,7 +44,6 @@ Beta testers:
 * Haze202
 * HeyItsDuke
 * Vel
-* MartianMadman
 * BATEMAN
 * MysticaL-AceR
 * liq

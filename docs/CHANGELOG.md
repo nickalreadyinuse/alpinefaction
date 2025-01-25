@@ -121,6 +121,7 @@ Version 1.0.0 (Maple)
 	- Allow picking up Super Health and Super Armor in single player
 	- Spawn players at Player Start position in multiplayer if level has no respawn points
 	- Improved handling for players leaving/joining games during votes
+    - Handle tied votes after all players have voted
 	- Add `/hasmap` chat command
 	- Add handling for rfl extensions for `/vote level` chat command
 	- Add "follow killer" option for first person spectate
