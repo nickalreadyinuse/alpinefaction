@@ -421,6 +421,11 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
                     break;
                 }
             }
+
+            // remove ready up prompt if match is cancelled prematurely
+            if (string_starts_with_ignore_case(msg, "\xA6 Vote passed: The match has been canceled")) {
+                draw_hud_ready_notification(false);
+            }
         }        
         process_chat_line_packet_hook.call_target(data, addr);
     },
