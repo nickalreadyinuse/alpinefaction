@@ -44,7 +44,7 @@
 const char* g_rcon_cmd_whitelist[] = {
     "kick",
     "level",
-    "server_password",
+    "sv_pass",
     "map",
     "ban",
     "ban_ip",
@@ -53,6 +53,11 @@ const char* g_rcon_cmd_whitelist[] = {
     "map_next",
     "map_rand",
     "map_prev",
+    "sv_caplimit",
+    "sv_fraglimit",
+    "sv_geolimit",
+    "sv_timelimit",
+    "unban_last"
 };
 
 std::vector<rf::RespawnPoint> new_multi_respawn_points; // new storage of spawn points to avoid hard limits

@@ -109,14 +109,14 @@ CallHook<void(rf::Player*, int)> process_create_entity_packet_switch_weapon_fix{
 };
 
 ConsoleCommand2 show_enemy_bullets_cmd{
-    "show_enemy_bullets",
+    "cl_showenemybullets",
     []() {
         g_game_config.show_enemy_bullets = !g_game_config.show_enemy_bullets;
         g_game_config.save();
         rf::hide_enemy_bullets = !g_game_config.show_enemy_bullets;
-        rf::console::print("Enemy bullets are {}", g_game_config.show_enemy_bullets ? "enabled" : "disabled");
+        rf::console::print("Enemy bullet impact effects are {}", g_game_config.show_enemy_bullets ? "enabled" : "disabled");
     },
-    "Toggles enemy bullets visibility",
+    "Toggles visibility of enemy bullet impacts",
 };
 
 CallHook<void(rf::Vector3&, float, float, int, int)> weapon_hit_wall_obj_apply_radius_damage_hook{
