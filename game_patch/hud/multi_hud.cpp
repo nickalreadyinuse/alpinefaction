@@ -198,7 +198,9 @@ void hud_render_ready_notification()
         "Press " + ready_key_text + " to ready up for the match";
 
     rf::gr::set_color(255, 255, 255, 225);
-    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, (rf::gr::screen_width() / 2), ((rf::gr::screen_height() - 500) / 2), ready_notification_text.c_str(), 0);
+    int center_x = rf::gr::screen_width() / 2;
+    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.25f);
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, ready_notification_text.c_str(), 0);
 }
 
 void draw_hud_ready_notification(bool draw)
@@ -218,9 +220,8 @@ void hud_render_vote_notification()
         "ACTIVE QUESTION: \n" + g_active_vote_type + "\n\n" + vote_yes_key_text + " to vote yes\n" + vote_no_key_text + " to vote no";
 
     rf::gr::set_color(255, 255, 255, 225);
-    int h = static_cast<int>(300);
-    int y = (static_cast<int>(rf::gr::screen_height()) - h) / 3;
-    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 8, y, vote_notification_text.c_str(), 0);
+    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.25f);
+    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 8, notification_y, vote_notification_text.c_str(), 0);
 }
 
 void draw_hud_vote_notification(std::string vote_type)
