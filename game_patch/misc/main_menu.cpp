@@ -200,7 +200,6 @@ FunHook<void()> main_menu_stop_music_hook{
             rf::snd_pc_stop(g_game_music_sig_to_restore);
             g_game_music_sig_to_restore = -1;
         }
-        g_game_music_start_sig = -1;
     },
 };
 
