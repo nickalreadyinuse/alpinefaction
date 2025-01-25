@@ -21,16 +21,18 @@ Special Thanks
 ---------------------------------
 
 Rafalh:
-* Creating the Dash Faction codebase
-* An unbelievable amount of RE work on Red Faction and its editor
+* Authoring the Dash Faction codebase
+* An enormous amount of RE work on the game, level editor, and asset formats
 * Technical assistance
 
 nick:
-* Extensive advice on virtually every aspect of the project
+* Extensive support and advice on virtually every aspect of the project
+* Being a firm sounding board for even the most outlandish and ambitious ideas
 
 natalie <webmistress@natalie.ee>:
-* Technical assistance and advice
-* code contributions
+* Technical assistance and extensive advice
+* FactionFiles API work to support integration with AF features
+* Code contributions
 
 HeyItsDuke:
 * Rocket launcher lock on reticle for Big HUD
@@ -39,10 +41,23 @@ Beta testers:
 * nick
 * natalie
 * Intharth
+* Haze202
+* HeyItsDuke
+* Vel
+* MartianMadman
 * BATEMAN
 * MysticaL-AceR
-* Haze202
-* Vel
+* liq
+* EasyOnMe
+* space9h0st
+* DVL_IAC
+* Everyone who tried a test build and provided feedback
+
+The entire Red Faction community:
+* Your constant and steady stream of suggestions, feedback, and bug reports
+  which helped this project in more ways than I could possibly put into words.
+* Your continued support and enthusiasm for the game and my efforts with this
+  project. Alpine Faction is for each and every one of us, I hope you enjoy!
 
 ###############################################################################
 ## Dash Faction
