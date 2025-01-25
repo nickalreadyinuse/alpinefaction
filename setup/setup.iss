@@ -118,7 +118,7 @@ var
 
 function GetFinalGameExePath(Param: String): String;
 begin
-    if WizardIsTaskSelected('patchgame') and (GameExeFileNameAfterPatches <> '') then
+    if (GetArrayLength(Patches) > 0) and (GameExeFileNameAfterPatches <> '') then
         Result := ExtractFileDir(SelectGameExePage.Values[0]) + '\' + GameExeFileNameAfterPatches
     else
         Result := SelectGameExePage.Values[0];
@@ -346,7 +346,7 @@ procedure ApplyPatches;
 var
     i: Integer;
 begin
-    if WizardIsTaskSelected('patchgame') and (GetArrayLength(Patches) > 0) then
+    if (GetArrayLength(Patches) > 0) then
     begin
         Log('Applying patches...');
         for i := 0 to GetArrayLength(Patches) - 1 do
@@ -417,10 +417,10 @@ end;
 
 // Check functions
 
-//function PatchGameTaskCheck(): Boolean;
-//begin
-//    Result := GetArrayLength(Patches) > 0;
-//end;
+function PatchGameTaskCheck(): Boolean;
+begin
+    Result := GetArrayLength(Patches) > 0;
+end;
 
 // Event functions
 
