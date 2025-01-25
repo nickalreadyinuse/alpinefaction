@@ -3,6 +3,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../hud/hud.h"
 #include "../multi/multi.h"
 #include "../multi/endgame_votes.h"
 #include "../rf/input.h"
@@ -270,21 +271,23 @@ CodeInjection player_execute_action_patch2{
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote yes", nullptr);
+                remove_hud_vote_notification();
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/vote no", nullptr);
+                remove_hud_vote_notification();
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_READY) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/ready", nullptr);
+                draw_hud_ready_notification(false);
             }
             /* else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU) &&
                 rf::is_multi) {
-                //send_chat_line_packet("/ready", nullptr);
                 xlog::warn("chat menu pressed");
             }*/
         }

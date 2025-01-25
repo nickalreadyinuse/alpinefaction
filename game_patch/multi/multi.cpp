@@ -8,6 +8,7 @@
 #include "endgame_votes.h"
 #include "multi_private.h"
 #include "server_internal.h"
+#include "../hud/hud.h"
 #include "../rf/file/file.h"
 #include "../rf/level.h"
 #include "../os/console.h"
@@ -98,6 +99,12 @@ FunHook<void()> multi_limbo_init{
         // don't let clients vote if the map has been played for less than 1 min
         else if(rf::level.time >= 60.0f) {
             multi_player_set_can_endgame_vote(true);
+        }
+
+        // purge any vote or ready notifications on level end
+        if (!rf::is_server && !rf::is_dedicated_server) {
+            remove_hud_vote_notification();
+            draw_hud_ready_notification(false);
         }
     },
 };

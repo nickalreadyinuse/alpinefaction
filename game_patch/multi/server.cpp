@@ -1225,10 +1225,18 @@ void start_pre_match()
         g_match_info.time_limit_on_pre_match_start = rf::multi_time_limit;
         rf::multi_time_limit = 0.0f;
 
-        auto msg = std::format("\n>>>>>>>>>>>>>>>>> {}v{} MATCH QUEUED <<<<<<<<<<<<<<<<<\n"
-                               "Waiting for players. Use \"/ready\" to ready up, or \"/vote nomatch\" to call a vote to cancel.",
-                               g_match_info.team_size, g_match_info.team_size);
-        send_chat_line_packet(msg.c_str(), nullptr);
+        for (rf::Player* player : get_current_player_list(false)) {
+            if (!player) continue;
+
+            std::string msg = std::format(
+                "\n>>>>>>>>>>>>>>>>> {}v{} MATCH QUEUED <<<<<<<<<<<<<<<<<\n"
+                "Waiting for players. Ready up or use \"/vote nomatch\" to call a vote to cancel the match.",
+                g_match_info.team_size, g_match_info.team_size);
+        
+            send_chat_line_packet(msg.c_str(), player);
+        }
+
+
 
         for (rf::Player* player : get_current_player_list(false)) {
             update_pre_match_powerups(player);
@@ -1242,19 +1250,19 @@ void add_ready_player(rf::Player* player)
     const std::string_view team_name = (player->team == 0) ? "RED" : "BLUE";
 
     if (team_ready_list.contains(player)) {
-        send_chat_line_packet("You are already ready.", player);
+        send_chat_line_packet("\xA6 You are already ready.", player);
         return;
     }
 
     if (team_ready_list.size() >= g_match_info.team_size) {
-        send_chat_line_packet("Your team is full.", player);
+        send_chat_line_packet("\xA6 Your team is full.", player);
         return;
     }
 
     team_ready_list.insert(player);
     update_pre_match_powerups(player);
 
-    auto ready_msg = std::format("{} ({}) is ready!", player->name.c_str(), team_name);
+    auto ready_msg = std::format("\xA6 {} ({}) is ready!", player->name.c_str(), team_name);
     send_chat_line_packet(ready_msg.c_str(), nullptr);
 
     const auto ready_red = g_match_info.ready_players_red.size();
@@ -1267,7 +1275,7 @@ void add_ready_player(rf::Player* player)
         start_match(); // Start the match
     }
     else {
-        auto waiting_msg = std::format("Still waiting for players - RED: {}, BLUE: {}.", required_players - ready_red,
+        auto waiting_msg = std::format("\xA6 Still waiting for players - RED: {}, BLUE: {}.", required_players - ready_red,
                                        required_players - ready_blue);
         send_chat_line_packet(waiting_msg.c_str(), nullptr);
     }
@@ -1285,16 +1293,30 @@ void remove_ready_player(rf::Player* player)
 
     update_pre_match_powerups(player);
 
-    auto msg = std::format("{} is no longer ready! Still waiting for players - RED: {}, BLUE: {}.",
+    auto msg_source = std::format("\xA6 You are no longer ready! Still waiting for players - RED: {}, BLUE: {}.",
                            player->name.c_str(), g_match_info.team_size - g_match_info.ready_players_red.size(),
                            g_match_info.team_size - g_match_info.ready_players_blue.size());
-    send_chat_line_packet(msg.c_str(), nullptr);
+
+    auto msg_others = std::format("\xA6 {} is no longer ready! Still waiting for players - RED: {}, BLUE: {}.",
+                           player->name.c_str(), g_match_info.team_size - g_match_info.ready_players_red.size(),
+                           g_match_info.team_size - g_match_info.ready_players_blue.size());
+
+    // send the message to the player who unreadied
+    send_chat_line_packet(msg_source.c_str(), player);
+
+    // send the message to other players
+    for (rf::Player* proc_player : get_current_player_list(false)) {
+        if (!proc_player || proc_player == player) {
+            continue; // skip the player who started the vote
+        }
+        send_chat_line_packet(msg_others.c_str(), proc_player);
+    }
 }
 
 void set_ready_status(rf::Player* player, bool is_ready)
 {
     if (!get_player_additional_data(player).is_alpine) {
-        send_chat_line_packet("Only Alpine Faction clients can ready for matches. Learn more: alpinefaction.com", player);
+        send_chat_line_packet("\xA6 Only Alpine Faction clients can ready for matches. Learn more: alpinefaction.com", player);
         return;
     }
 
@@ -1307,7 +1329,7 @@ void set_ready_status(rf::Player* player, bool is_ready)
         }
     }
     else {
-        send_chat_line_packet("No match is queued. Use \"/vote match\" to queue a match.", player);
+        send_chat_line_packet("\xA6 No match is queued. Use \"/vote match\" to queue a match.", player);
     }
 }
 
@@ -1348,7 +1370,7 @@ void match_do_frame()
                 if (!is_player_ready(player)) {                    
                     auto msg = std::format(
                         "\xA6 You are NOT ready! {}v{} match queued, waiting for players - RED: {}, BLUE: {}.\n"
-                        "Use \"/ready\" to ready up, or \"/vote nomatch\" to call a vote to cancel the match.",
+                        "Ready up or use \"/vote nomatch\" to call a vote to cancel the match.",
                         g_match_info.team_size, g_match_info.team_size,
                         g_match_info.team_size - ready_red, g_match_info.team_size - ready_blue);
                     send_chat_line_packet(msg.c_str(), player);
@@ -1419,8 +1441,8 @@ void player_idle_check(rf::Player* player)
         return; // don't continue if a kick is already pending
     }
 
-    if (additional_data.is_browser) {
-        return; // don't mark browsers as idle
+    if (additional_data.is_browser || ends_with(player->name, " (Bot)")) {
+        return; // don't mark browsers or bots as idle
     }
 
     if (g_match_info.match_active || g_match_info.pre_match_active) {
@@ -1569,7 +1591,7 @@ void server_reliable_socket_ready(rf::Player* player)
 
     // alert alpine clients to the queued match on join
     if (g_match_info.pre_match_active && get_player_additional_data(player).is_alpine) {    
-        auto msg = std::format("\xA6 {}v{} match is queued and waiting for players! Use \"/ready\" to ready up.",
+        auto msg = std::format("\xA6 Match is queued and waiting for players: {}v{}! Use \"/ready\" to ready up.",
             g_match_info.team_size, g_match_info.team_size);
 
         send_chat_line_packet(msg.c_str(), nullptr);

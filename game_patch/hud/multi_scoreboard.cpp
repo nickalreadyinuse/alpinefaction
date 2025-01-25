@@ -74,7 +74,7 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
     cur_y += font_h + 8;
 
     // Draw endgame voting text
-    int y_vote = y / 3;
+    int y_vote = (y + 100) / 3;
     if (!dry_run && g_player_can_endgame_vote) {
         std::string vote_yes_key_text =
             get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES));

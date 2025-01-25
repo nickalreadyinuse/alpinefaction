@@ -94,6 +94,26 @@ Version 1.0.0 (Maple)
 	
 - Revamped approach to dedicated server configuration, including many new config options and enhanced logging
 	- Full documentation of dedicated server config options available in AF is here: https://www.redfactionwiki.com/wiki/Alpine_Faction_Dedicated_Server_Config
+    - New dedicated server config options:
+        - $Player Respawn Logic
+        - $GunGame
+        - $Critical Hits
+        - $Overtime Enabled
+        - $Weapon Stay Exemptions
+        - $Desired Player Count
+        - $Use SP Damage Calculation
+        - $Dynamic Rotation
+        - $Drop Amps On Death
+        - $Allow Fullbright Meshes
+        - $Allow Lightmaps Only Mode
+        - $Allow Disable Screenshake
+        - $Allow Disable Muzzle Flash Lights
+        - $Allow Client Unlimited FPS
+        - $Advertise Alpine Faction
+        - $Clients Require Alpine Faction
+        - $Kick Inactive Players
+        - $Enforce Semi Auto Fire Rate Limit
+        - $Item Respawn Time Override
 	
 - Miscellaneous changes and updates
 	- Reimplement cut stock game gibbing feature for enemies
@@ -118,6 +138,7 @@ Version 1.0.0 (Maple)
 	- Add `Ignore Resets` option to triggers to replicate legacy functionality (default is off)
     - Add first launch information window
     - UX-focused updates to installer application
+    - Add HUD notifications for voting and match mode ready up system
 
 [@natarii](https://github.com/natarii)
 - Fix music desyncing when entering menus in multiplayer

@@ -3,6 +3,7 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
 #include <xlog/xlog.h>
+#include "../input/input.h"
 #include "../rf/hud.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
@@ -16,6 +17,9 @@
 
 static bool g_big_team_scores_hud = false;
 constexpr bool g_debug_team_scores_hud = false;
+static bool g_draw_vote_notification = false;
+static std::string g_active_vote_type = "";
+static bool g_draw_ready_notification = false;
 
 namespace rf
 {
@@ -185,6 +189,67 @@ FunHook<void()> multi_hud_init_hook{
     },
 };
 
+void hud_render_ready_notification()
+{
+    std::string ready_key_text =
+        get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY));
+
+    std::string ready_notification_text =
+        "Press " + ready_key_text + " to ready up for the match";
+
+    rf::gr::set_color(255, 255, 255, 225);
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, (rf::gr::screen_width() / 2), ((rf::gr::screen_height() - 325) / 2), ready_notification_text.c_str(), 0);
+}
+
+void draw_hud_ready_notification(bool draw)
+{
+    draw ? g_draw_ready_notification = true : g_draw_ready_notification = false;
+}
+
+void hud_render_vote_notification()
+{
+    std::string vote_yes_key_text =
+        get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES));
+
+    std::string vote_no_key_text =
+        get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO));
+
+    std::string vote_notification_text =
+        "ACTIVE QUESTION: \n" + g_active_vote_type + "\n\n" + vote_yes_key_text + " to vote yes\n" + vote_no_key_text + " to vote no";
+
+    rf::gr::set_color(255, 255, 255, 225);
+    int h = static_cast<int>(300);
+    int y = (static_cast<int>(rf::gr::screen_height()) - h) / 3;
+    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 8, y, vote_notification_text.c_str(), 0);
+}
+
+void draw_hud_vote_notification(std::string vote_type)
+{
+    if (!vote_type.empty()) {
+        g_draw_vote_notification = true;
+        g_active_vote_type = vote_type;
+    }
+}
+
+void remove_hud_vote_notification()
+{
+    g_draw_vote_notification = false;
+    g_active_vote_type = "";
+}
+
+CodeInjection hud_render_patch_alpine {
+    0x00476D9D,
+    [](auto& regs) {
+        if (g_draw_vote_notification) {
+            hud_render_vote_notification();
+        }
+
+        if (g_draw_ready_notification) {
+            hud_render_ready_notification();
+        }
+    }
+};
+
 CodeInjection hud_render_patch_chatbox {
     0x00437CA1,
     [](auto& regs) {        
@@ -206,6 +271,7 @@ void multi_hud_apply_patches()
     // WIP for MP chatbox
     //hud_render_patch_chatbox.install();
 
+    hud_render_patch_alpine.install();
     AsmWriter{0x00477790}.jmp(hud_render_team_scores);
     hud_render_power_ups_gr_bitmap_hook.install();
     render_level_info_hook.install();

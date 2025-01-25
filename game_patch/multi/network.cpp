@@ -26,6 +26,7 @@
 #include "server.h"
 #include "server_internal.h"
 #include "../main/main.h"
+#include "../hud/hud.h"
 #include "../rf/multi.h"
 #include "../rf/misc.h"
 #include "../rf/player/player.h"
@@ -369,6 +370,58 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             if (check_server_chat_command(msg, src_player))
                 return;
         }
+        else if (!rf::is_dedicated_server) {
+            char* msg = data + 2;
+            const char* vote_start_prefix = "\n=============== VOTE STARTING ===============\n";
+
+            if (string_starts_with_ignore_case(msg, vote_start_prefix)) {
+
+                // Move past the prefix to start parsing the actual vote title
+                msg += strlen(vote_start_prefix);
+
+                // Find the position of " vote started by"
+                const char* vote_end = strstr(msg, " vote started by");
+                if (vote_end) {
+                    // Extract vote type by copying characters up to the found position
+                    std::string vote_type(msg, vote_end - msg);
+
+                    // Pass extracted vote type to the handler
+                    draw_hud_vote_notification(vote_type.c_str());
+                }
+            }
+
+            // possible messages that end a vote
+            const std::array<const char*, 4> vote_end_messages = {
+                "\xA6 Vote failed",
+                "\xA6 Vote passed",
+                "\xA6 Vote canceled",
+                "\xA6 Vote timed out"
+            };
+
+            // remove the vote notification if the vote has ended
+            for (const auto& end_msg : vote_end_messages) {
+                if (string_starts_with_ignore_case(msg, end_msg)) {
+                    remove_hud_vote_notification();
+                    break;
+                }
+            }
+
+            // possible messages that indicate ready up state
+            const std::array<const char*, 4> ready_messages = {
+                "\xA6 You are NOT ready",
+                "\n>>>>>>>>>>>>>>>>> ", // For initial match queue
+                "\xA6 Match is queued and waiting for players",
+                "\xA6 You are no longer ready"
+            };
+
+            // display the notification if player should ready
+            for (const auto& ready_msg : ready_messages) {
+                if (string_starts_with_ignore_case(msg, ready_msg)) {
+                    draw_hud_ready_notification(true);
+                    break;
+                }
+            }
+        }        
         process_chat_line_packet_hook.call_target(data, addr);
     },
 };

@@ -120,7 +120,9 @@ public:
 
             for (rf::Player* player : current_player_list) {
                 if (players_who_voted.find(player) == players_who_voted.end()) {
-                    send_chat_line_packet("\xA6 Send message \"/vote yes\" or \"/vote no\" to vote.", player);
+                    if (!get_player_additional_data(player).is_alpine) { // don't send reminder pings to alpine clients
+                        send_chat_line_packet("\xA6 Send message \"/vote yes\" or \"/vote no\" to vote.", player);
+                    }
                 }
             }
             reminder_sent = true;
@@ -138,8 +140,6 @@ public:
         send_chat_line_packet("\xA6 Vote canceled!", nullptr);
         return true;
     }
-
-
 
 protected:
     [[nodiscard]] virtual std::string get_title() const = 0;
@@ -162,13 +162,33 @@ protected:
 
     void send_vote_starting_msg(rf::Player* source)
     {
+        if (!source) {
+            return; // should never happen
+        }
+
         auto title = get_title();
-        auto msg = std::format(
-            "\n=============== VOTE STARTING ===============\n"
-            "{} vote started by {}.\n"
-            "Send message \"/vote yes\" or \"/vote no\" to participate.",
-            title.c_str(), source->name.c_str());
-        send_chat_line_packet(msg.c_str(), nullptr);
+        std::string base_msg = std::format("{} vote started by {}.\n", title, source->name);
+
+        // Notify the player who started the vote
+        send_chat_line_packet(base_msg.c_str(), source);
+
+        // Prepare messages for other players
+        std::string msg_non_alpine = "\n=============== VOTE STARTING ===============\n" + base_msg +
+                                     "Send message \"/vote yes\" or \"/vote no\" to participate.";
+
+        std::string msg_alpine = "\n=============== VOTE STARTING ===============\n" + base_msg;
+
+        // Send the message to other players
+        for (rf::Player* player : get_current_player_list(false)) {
+            if (!player || player == source) {
+                continue; // skip the player who started the vote
+            }
+
+            const std::string& message_to_send =
+                get_player_additional_data(player).is_alpine ? msg_alpine : msg_non_alpine;
+
+            send_chat_line_packet(message_to_send.c_str(), player);
+        }
     }
 
     void finish_vote(bool is_accepted)
