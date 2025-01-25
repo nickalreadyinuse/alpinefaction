@@ -407,7 +407,8 @@ begin
         if RenameFile(PlayersCfgPath, PlayersCfgPath + '_bak') then
             Log('Successfully backed up players.cfg to players.cfg_bak.')
         else
-            MsgBox('Failed to back up players.cfg. You will need to manually delete or rename the file.', mbError, MB_OK);
+            Log('Failed to back up players.cfg because backup file players.cfg_bak already exists.')
+            //MsgBox('Failed to back up players.cfg because backup file players.cfg_bak already exists. You will need to manually delete or rename the file.', mbError, MB_OK);
     end
     else
     begin
