@@ -222,14 +222,24 @@ protected:
         const int no_votes =
             players_who_voted.size() - yes_votes;
 
+        // success
         if (yes_votes > no_votes + remaining_players_count) {
             finish_vote(true);
             return false;
         }
+
+        // failure
         if (no_votes > yes_votes + remaining_players_count) {
             finish_vote(false);
             return false;
         }
+
+        // tie (failure)
+        if (remaining_players_count == 0) {
+            finish_vote(yes_votes > no_votes);
+            return false;
+        }
+
         return true;
     }
 };
