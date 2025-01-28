@@ -648,6 +648,23 @@ CodeInjection level_read_events_patch {
     }
 };
 
+// set p_data orient for Anchor_Marker_Orient when event is created (required for use in moving groups)
+CodeInjection level_read_events_patch2 {
+    0x0046294F, [](auto& regs) {
+        if (af_rfl_version(rf::level.version)) {
+            rf::Event* event = regs.esi;
+
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker_Orient)) {
+                rf::Matrix3 event_orient = event->orient;
+
+                event->start_orient = event_orient;
+                event->p_data.orient = event_orient;
+                event->p_data.next_orient = event_orient;
+            }
+        }
+    }
+};
+
 CodeInjection event_activate_route_node{
     0x004B8B97,
     [](auto& regs) {
@@ -730,11 +747,12 @@ rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, 
 
 void apply_alpine_events()
 {
-    AsmWriter(0x004B68A3).jmp(0x004B68A9);        // make event_create process events with any ID (params specified)
-    event_lookup_type_hook.install();             // define AF event IDs
-    event_allocate_hook.install();                // load AF events at level start
-    event_deallocate_hook.install();              // unload AF events at level end
-    event_type_forwards_messages_patch.install(); // handle AF events that shouldn't forward messages by default
-    level_read_events_patch.install();            // assign factories for AF events
-    event_activate_route_node.install();         // handle activations for Route_Node event
+    AsmWriter(0x004B68A3).jmp(0x004B68A9);          // make event_create process events with any ID (params specified)
+    event_lookup_type_hook.install();               // define AF event IDs
+    event_allocate_hook.install();                  // load AF events at level start
+    event_deallocate_hook.install();                // unload AF events at level end
+    event_type_forwards_messages_patch.install();   // handle AF events that shouldn't forward messages by default
+    level_read_events_patch.install();              // assign factories for AF events
+    event_activate_route_node.install();            // handle activations for Route_Node event
+    level_read_events_patch2.install();             // handle p_data orient assignment for Anchor_Marker_Orient event    
 }

@@ -288,12 +288,12 @@ CodeInjection mover_process_post_patch{
                     // check for an object - Note objects store handles in link int rather than UID
                     if (auto* obj =
                             static_cast<rf::Object*>(rf::obj_from_handle(linked_uid))) {
-                        obj->pos = event->pos;
-                        obj->p_data.pos = event->pos;
-                        obj->p_data.next_pos = event->pos;
+                        rf::Vector3 new_obj_pos = event->pos;
+                        obj->pos = new_obj_pos;
+                        obj->p_data.pos = new_obj_pos;
+                        obj->p_data.next_pos = new_obj_pos;
 
-                        rf::Matrix3 new_obj_dir;
-                        new_obj_dir.make_quick(event->orient.fvec);
+                        rf::Matrix3 new_obj_dir = event->orient;
                         obj->orient = new_obj_dir;
                         obj->p_data.next_orient = new_obj_dir;
                         obj->p_data.orient = new_obj_dir;
@@ -318,9 +318,7 @@ CodeInjection mover_process_post_patch{
                             static_cast<rf::PushRegion*>(rf::level_get_push_region_from_uid(linked_uid))) {
                         push_region->pos = event->pos;
 
-                        rf::Matrix3 new_push_reg_dir;
-                        new_push_reg_dir.make_quick(event->orient.fvec);
-                        push_region->orient = new_push_reg_dir;
+                        push_region->orient = event->orient;
                     }
                 }
             }
