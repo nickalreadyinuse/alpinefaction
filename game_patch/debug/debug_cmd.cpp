@@ -123,6 +123,9 @@ CodeInjection event_render_patch{
 
         if (event) {
             rf::Vector3 event_pos = event->pos;
+            std::string str1 = "test";
+            
+            rf::gr::gr_string_3d(&event->pos, &event->orient, 0.5f, str1.c_str(), 2, rf::gr::bitmap_wrap_mode);
             for (int link : event->links) {
                 rf::Object* link_target = rf::obj_from_handle(link);
                 if (link_target) {
