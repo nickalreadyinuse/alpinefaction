@@ -573,7 +573,9 @@ struct VoteRandom : public Vote
     void on_accepted() override
     {
         send_chat_line_packet("\xA6 Vote passed: loading random level from rotation", nullptr);
-        load_rand_level();
+
+        // if dynamic rotation is on, just load the next level
+        g_additional_server_config.dynamic_rotation ? load_next_level() : load_rand_level();
     }
 
     [[nodiscard]] bool is_allowed_in_limbo_state() const override
