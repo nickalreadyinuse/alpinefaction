@@ -603,6 +603,11 @@ CodeInjection level_read_events_patch {
                 regs.eax = reinterpret_cast<rf::Matrix3*>(regs.esp + 0x9C - 0x30);
                 file->read_matrix(regs.eax, 300, &rf::file_default_matrix);
             }
+
+            if (event_type == static_cast<int>(rf::EventType::Anchor_Marker_Orient)) {
+                regs.eax = reinterpret_cast<rf::Matrix3*>(regs.esp + 0x9C - 0x30);
+                file->read_matrix(regs.eax, 301, &rf::file_default_matrix);
+            }
         }
     }
 };

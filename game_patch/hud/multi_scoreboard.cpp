@@ -82,7 +82,7 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
         std::string vote_no_key_text =
             get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO));
 
-        std::string endgame_vote_text = "Like this map?\n\n" + vote_yes_key_text + " for yes\n" + vote_no_key_text + " for no";
+        std::string endgame_vote_text = "Did you enjoy this game?\n\n" + vote_yes_key_text + " for yes\n" + vote_no_key_text + " for no";
 
         rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 8, y_vote, endgame_vote_text.c_str(), 0);
     }

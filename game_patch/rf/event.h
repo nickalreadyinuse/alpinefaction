@@ -322,7 +322,9 @@ namespace rf
         Set_Entity_Flag,
         AF_Teleport_Player,
         Set_Item_Drop,
-        AF_Heal
+        AF_Heal,
+        Anchor_Marker_Orient,
+        Light_State
     };
 
     // int to EventType

@@ -17,6 +17,8 @@
 #include "../rf/math/ix.h"
 #include "../rf/gameseq.h"
 #include "../misc/alpine_options.h"
+#include "../misc/misc.h"
+#include "event_alpine.h"
 #include "object.h"
 #include "object_private.h"
 
@@ -253,7 +255,7 @@ CodeInjection mover_process_post_patch{
 
             if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker)) {
                 for (const auto& linked_uid : event->links) {
-
+                    
                     // check for an object - Note objects store handles in link int rather than UID
                     if (auto* obj =
                             static_cast<rf::Object*>(rf::obj_from_handle(linked_uid))) {
@@ -276,6 +278,49 @@ CodeInjection mover_process_post_patch{
                     if (auto* push_region =
                             static_cast<rf::PushRegion*>(rf::level_get_push_region_from_uid(linked_uid))) {
                         push_region->pos = event->pos;
+                    }
+                }
+            }
+
+            if (event->event_type == rf::event_type_to_int(rf::EventType::Anchor_Marker_Orient)) {
+                for (const auto& linked_uid : event->links) {
+                    
+                    // check for an object - Note objects store handles in link int rather than UID
+                    if (auto* obj =
+                            static_cast<rf::Object*>(rf::obj_from_handle(linked_uid))) {
+                        obj->pos = event->pos;
+                        obj->p_data.pos = event->pos;
+                        obj->p_data.next_pos = event->pos;
+
+                        rf::Matrix3 new_obj_dir;
+                        new_obj_dir.make_quick(event->orient.fvec);
+                        obj->orient = new_obj_dir;
+                        obj->p_data.next_orient = new_obj_dir;
+                        obj->p_data.orient = new_obj_dir;
+                    }
+
+                    // check for a light
+                    if (auto* light = static_cast<rf::gr::Light*>(
+                            rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)))) {
+                        light->vec = event->pos;
+                    }
+
+                    // check for a particle emitter
+                    if (auto* emitter =
+                            static_cast<rf::ParticleEmitter*>(rf::level_get_particle_emitter_from_uid(linked_uid))) {
+                        emitter->pos = event->pos;
+
+                        emitter->dir = event->orient.fvec;
+                    }
+
+                    // check for a push region
+                    if (auto* push_region =
+                            static_cast<rf::PushRegion*>(rf::level_get_push_region_from_uid(linked_uid))) {
+                        push_region->pos = event->pos;
+
+                        rf::Matrix3 new_push_reg_dir;
+                        new_push_reg_dir.make_quick(event->orient.fvec);
+                        push_region->orient = new_push_reg_dir;
                     }
                 }
             }

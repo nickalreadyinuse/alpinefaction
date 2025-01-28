@@ -5,6 +5,10 @@ Version 1.1.0 (Not yet released)
 --------------------------------
 [@GooberRF](https://github.com/GooberRF)
 - Fix bug where server log output for status of `$Enforce Semi Auto Fire Rate Limit` was incorrect
+- Add `Anchor_Market_Orient` event
+- Add `Light_State` event
+- Bump RFL version to 301
+- Make endgame voting text prompt more appropriate
 
 Version 1.0.0 (Maple)
 --------------------------------

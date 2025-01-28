@@ -18,11 +18,13 @@
 #include "../rf/mover.h"
 #include "../rf/clutter.h"
 #include "../rf/trigger.h"
+#include "../rf/particle_emitter.h"
 #include "../main/main.h"
 #include "../object/object.h"
 #include "../rf/player/player.h"
 #include "../rf/os/timestamp.h"
 #include "../rf/os/array.h"
+#include "../rf/gr/gr_light.h"
 
 void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale);
 rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, rf::Matrix3& new_orient);
@@ -1160,7 +1162,7 @@ namespace rf
     };
 
     // id 118
-    struct EventAnchorMarker : Event {}; // no allocations needed, logic handled in object.cpp
+    struct EventAnchorMarker : Event {}; // logic handled in object.cpp
 
     // id 119
     struct EventForceUnhide : Event
@@ -1959,6 +1961,31 @@ namespace rf
                         }
                     }
                     break;
+                }
+            }
+        }
+    };
+
+    // id 133
+    struct EventAnchorMarkerOrient : Event {}; // logic handled in object.cpp
+
+    // id 134
+    struct EventLightState : Event
+    {
+        void turn_on() override
+        {
+            for (const auto& linked_uid : this->links) {
+                if (auto* light = static_cast<rf::gr::Light*>(rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)))) {
+                    light->on = true;
+                }
+            }
+        }
+
+        void turn_off() override
+        {
+            for (const auto& linked_uid : this->links) {
+                if (auto* light = static_cast<rf::gr::Light*>(rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)))) {
+                    light->on = false;
                 }
             }
         }

@@ -437,6 +437,12 @@ $RFE Level1:      "AF_Utility"
 $Event Name:      "Anchor_Marker"
 $RFE Level1:      "AF_Utility"
 
+$Event Name:      "Anchor_Marker_Orient"
+$RFE Level1:      "AF_Utility"
+
+$Event Name:      "Light_State"
+$RFE Level1:      "AF_Utility"
+
 #End
 
 // ------------------------------------------------

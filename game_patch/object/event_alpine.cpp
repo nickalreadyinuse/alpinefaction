@@ -75,6 +75,8 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"AF_Teleport_Player", 130},
                 {"Set_Item_Drop", 131},
                 {"AF_Heal", 132},
+                {"Anchor_Marker_Orient", 133},
+                {"Light_State", 134},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -133,6 +135,8 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {130, []() { return new rf::EventAFTeleportPlayer(); }},
                 {131, []() { return new rf::EventSetItemDrop(); }},
                 {132, []() { return new rf::EventAFHeal(); }},
+                {133, []() { return new rf::EventAnchorMarkerOrient(); }},
+                {134, []() { return new rf::EventLightState(); }},
             };
 
             // find type and allocate
@@ -195,6 +199,8 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {130, [](rf::Event* e) { delete static_cast<rf::EventAFTeleportPlayer*>(e); }},
                 {131, [](rf::Event* e) { delete static_cast<rf::EventSetItemDrop*>(e); }},
                 {132, [](rf::Event* e) { delete static_cast<rf::EventAFHeal*>(e); }},
+                {133, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarkerOrient*>(e); }},
+                {134, [](rf::Event* e) { delete static_cast<rf::EventLightState*>(e); }},
             };
 
             // find type and deallocate
@@ -232,7 +238,8 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::AF_When_Dead,
         rf::EventType::Gametype_Gate,
         rf::EventType::When_Picked_Up,
-        rf::EventType::Set_Entity_Flag
+        rf::EventType::Set_Entity_Flag,
+        rf::EventType::Light_State
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();

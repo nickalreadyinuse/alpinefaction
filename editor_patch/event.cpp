@@ -34,7 +34,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 34; // must be 1 higher than actual count
+constexpr int new_event_count = 36; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -73,6 +73,8 @@ const char* additional_event_names[new_event_count] = {
     "AF_Teleport_Player",
     "Set_Item_Drop",
     "AF_Heal",
+    "Anchor_Marker_Orient",
+    "Light_State",
     "_dummy"
 };
 
@@ -988,7 +990,8 @@ CodeInjection DedEvent__exchange_patch {
         VFile* file = regs.edi;
 
         if (event->event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player) ||
-            event->event_type == static_cast<int>(AlpineDedEventID::Clone_Entity)) {
+            event->event_type == static_cast<int>(AlpineDedEventID::Clone_Entity) ||
+            event->event_type == static_cast<int>(AlpineDedEventID::Anchor_Marker_Orient)) {
 
             // save orientation to rfl file
             // NOTE: the game MUST read this properly or very bad things will happen
@@ -1010,7 +1013,8 @@ CodeInjection arrows_for_events_patch {
         if (event_type == 41 || // Play_VClip
             event_type == 69 || // Teleport
             event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player) ||
-            event_type == static_cast<int>(AlpineDedEventID::Clone_Entity)) {
+            event_type == static_cast<int>(AlpineDedEventID::Clone_Entity) ||
+            event_type == static_cast<int>(AlpineDedEventID::Anchor_Marker_Orient)) {
             regs.eip = 0x00421661; // draw 3d arrow
         }
     }

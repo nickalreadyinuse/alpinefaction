@@ -53,7 +53,9 @@ enum class AlpineDedEventID : int
     Set_Entity_Flag,
     AF_Teleport_Player,
     Set_Item_Drop,
-    AF_Heal
+    AF_Heal,
+    Anchor_Marker_Orient,
+    Light_State
 };
 
 constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept
