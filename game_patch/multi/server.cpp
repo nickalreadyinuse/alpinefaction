@@ -2142,12 +2142,12 @@ void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
         dropped_item = rf::item_create(32, "Multi Invulnerability", count, -1, &drop_position, &drop_orient, -1, 0, 0);
         break;
     default:
-        xlog::warn("Unknown powerup type: {}", powerup_type);
+        //xlog::debug("Unknown powerup type: {}", powerup_type);
         return;
     }
 
     if (dropped_item) {
-        xlog::warn("Dropped {} with count {}", dropped_item->name, count);
+        xlog::debug("Dropped {} with count {}", dropped_item->name, count);
         dropped_item->item_flags |= 8u;
         rf::send_obj_kill_packet(ep, dropped_item, nullptr);
     }
