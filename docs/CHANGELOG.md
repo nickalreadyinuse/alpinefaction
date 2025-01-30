@@ -10,6 +10,7 @@ Version 1.1.0 (Not yet released)
 - Bump RFL version to 301
 - Make endgame voting text prompt more appropriate
 - Make `vote rand` the same as `vote next` if $Dynamic Rotation is on (avoids repeats)
+- Fix bug where `AF_Teleport_Player` events would sometimes not correctly translate player velocity
 
 Version 1.0.0 (Maple)
 --------------------------------

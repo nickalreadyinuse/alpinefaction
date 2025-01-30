@@ -27,7 +27,7 @@
 #include "../rf/gr/gr_light.h"
 
 void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale);
-rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, rf::Matrix3& new_orient);
+rf::Vector3 rotate_velocity(const rf::Vector3& old_velocity, const rf::Matrix3& old_orient, const rf::Matrix3& new_orient);
 
 namespace rf
 {

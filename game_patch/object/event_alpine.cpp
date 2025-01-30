@@ -728,19 +728,22 @@ CodeInjection event_activate_route_node{
     }
 };
 
-rf::Vector3 rotate_velocity(rf::Vector3& old_velocity, rf::Matrix3& old_orient, rf::Matrix3& new_orient)
+rf::Vector3 transform_vector(const rf::Matrix3& mat, const rf::Vector3& vec)
 {
-    // Convert velocity to world space using the old orientation
-    rf::Vector3 world_velocity;
-    world_velocity.x = old_orient.rvec.dot_prod(old_velocity);
-    world_velocity.y = old_orient.uvec.dot_prod(old_velocity);
-    world_velocity.z = old_orient.fvec.dot_prod(old_velocity);
+    return {
+        mat.rvec.x * vec.x + mat.uvec.x * vec.y + mat.fvec.x * vec.z,
+        mat.rvec.y * vec.x + mat.uvec.y * vec.y + mat.fvec.y * vec.z,
+        mat.rvec.z * vec.x + mat.uvec.z * vec.y + mat.fvec.z * vec.z
+    };
+}
 
-    // Rotate world velocity to the new orientation's local space
-    rf::Vector3 new_velocity;
-    new_velocity.x = new_orient.rvec.dot_prod(-world_velocity);
-    new_velocity.y = new_orient.uvec.dot_prod(world_velocity);
-    new_velocity.z = new_orient.fvec.dot_prod(-world_velocity);
+rf::Vector3 rotate_velocity(const rf::Vector3& old_velocity, const rf::Matrix3& old_orient, const rf::Matrix3& new_orient)
+{
+    // Convert velocity to world space
+    rf::Vector3 world_velocity = transform_vector(old_orient, old_velocity);
+
+    // Convert world velocity to new local space
+    rf::Vector3 new_velocity = transform_vector(new_orient, world_velocity);
 
     return new_velocity;
 }
