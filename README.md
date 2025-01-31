@@ -2,19 +2,20 @@ Alpine Faction
 ============
 <img src="https://raw.githubusercontent.com/GooberRF/alpinefaction/refs/heads/master/docs/alpinelogo1.png">
 
+Alpine Faction website: <a href="https://alpinefaction.com">alpinefaction.com</a>
+
 About
 -----
-Alpine Faction is a patch/modification for the 2001 FPS game Red Faction. While Alpine Faction
-is not a source port, its goals and features are similar to what you might expect from one.
+Alpine Faction is a patch/modification for the 2001 FPS game Red Faction. While Alpine Faction is not a source port, its goals and features are similar to what you might expect from one.
 
-Alpine Faction is a fork of rafalh's <a href="https://github.com/rafalh/dashfaction">Dash Faction</a>.
+Alpine Faction is a fork of and uses Rafalh's incredible <a href="https://github.com/rafalh/dashfaction">Dash Faction</a> project as its foundation.
 
 Alpine Faction project goals:
 * Fix bugs in the original game
 * Resolve security vulnerabilites
 * Improve compatibility with modern hardware and operating systems
+* Modernize the Red Faction experience by adding features expected in modern games
 * Enhance engine performance and graphical quality
-* Modernize the game by adding features expected in modern games
 * Restore cut functionality from the original game
 * Empower players with extensive control over their gameplay experience
 * Offer server operators enhanced flexibility to customize their servers as desired
@@ -34,6 +35,7 @@ Most important:
 * Fix for infamous submarine explosion bug (and other FPS-related issues)
 * Enemies explode into gibs when killed by explosives
 * Autosave at the start of every level
+* Player headlamp (flashlight)
 * Support for any resolution and aspect ratio
 * Fullscreen, windowed, borderless window modes
 * Enhanced mouse input
@@ -57,20 +59,22 @@ Multiplayer:
 * `rf://` protocol handler for joining servers
 
 Level/mod development:
-* DDS texture support
-* OGG audio support
-* Many new event scripting objects for use crafting logic in maps
+* 30+ new event scripting objects for crafting advanced logic systems in maps
 * Support for dynamic lights in maps
 * Support for using dynamic lights, particle emitters, and push regions with movers
+* Enhanced and more immersive skyboxes
 * Removed legacy PS2 compatibility measures that resulted in decreased map performance
 * Access for many hardcoded settings to be customized in mods
 * Support for custom HUDs and translation packs as clientside mods
 * Ability to use custom meshes in multiplayer
 * Enhanced trigger options for multiplayer
 * Full color range lightmaps (removed lightmap clamping)
-* Support for custom BIK videos in mods
+* DDS texture support
+* OGG audio support
+* Support for custom BIK videos and bluebeard.bty in mods
+* Advanced debugging features for developing maps and mods
 * Many engine geometry and object limits raised or removed
-* Many level editor bug fixes and performance improvements
+* Many level editor bug fixes, performance, and workflow improvements
 
 See the [CHANGELOG file](docs/CHANGELOG.md) for a detailed list of all features.
 
@@ -87,32 +91,31 @@ If you are somehow using an unsupported game executable, the installer and launc
 
 Usage
 -----
-1. Either unpack the zip release or run the installer. Note that Alpine Faction does NOT have to be installed to your Red Faction folder.
+1. Install with the installer. Note that Alpine Faction does NOT have to be installed to your Red Faction folder.
 
 2. Run `AlpineFactionLauncher.exe`.
 
-3. Adjust options as desired.
+3. Click the gear icon (next to "Play") to adjust options as desired.
 
-4. Click the "Play Game" button to start playing.
+4. Click the "Play" button to start playing.
 
 Advanced usage
 --------------
-This readme file is a work in progress. Alpine Faction has many new client and server commands that are not yet documented.
-If you want to try them out now, use `. <FRAGMENT>` to search for available commands.
+Alpine Faction adds many new console commands, command line options, and dedicated server configuration settings. You can find full documentation on the RF Wiki:
+* https://www.redfactionwiki.com/wiki/Red_Faction_Console_Commands#Alpine_Faction
+* https://www.redfactionwiki.com/wiki/Red_Faction_Command_Line_Parameters#Alpine_Faction
+* https://www.redfactionwiki.com/wiki/Alpine_Faction_Dedicated_Server_Config
 
-To use Red Faction command line options with Alpine Faction, use them with `AlpineFactionLauncher.exe`. They will be forwarded to the Red Faction process.
+NOTE: To use Red Faction or RED command line options with Alpine Faction, use them with `AlpineFactionLauncher.exe`. They will be forwarded to the launched process.
 
-Alpine Faction additionally supports the following command line options:
-
-* `-game` - launch the game (do not display the launcher)
-* `-editor` - launch the level editor (do not display the launcher)
-* `-win32-console` - if launching a dedicated server, use a native Win32 console window
-* `-exe-path` - use the specified path to RF.exe or RED.exe instead of the `Game Executable` field in options
+Alpine Faction also adds many new features for level designers and mod developers. You can find full documentation on the RF Wiki:
+* https://www.redfactionwiki.com/wiki/Alpine_Faction_Level_Design
+* https://www.redfactionwiki.com/wiki/Alpine_Faction_Mod_Development
 
 Problems
 --------
 If your antivirus software detects Alpine Faction as malicious, you may need to explicitly allow it to run.
-While Alpine Faction is safe to use, many antivirus vendors wrongly flag new programs as malicious/suspicious.
+While Alpine Faction is safe to use, many antivirus vendors wrongfully flag new programs as malicious/suspicious.
 If you do not trust officially provided Alpine Faction distributions, you can review the code and compile it yourself.
 
 If you run into any problems or have questions, please ask in the Faction Files Discord server: https://discord.gg/factionfiles
