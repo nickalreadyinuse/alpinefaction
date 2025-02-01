@@ -15,8 +15,9 @@ Version 1.1.0 (Not yet released)
 - Add `cl_worldhudoverdraw` command for toggling objective world HUD sprites drawing through the world
 - Add world HUD icons for CTF flags
 - Add `cl_worldhudctf` command for toggling world HUD icons for CTF flags
+- Add support for loading packfiles from `user_maps\projects` (intended for WIP projects)
 
-Version 1.0.0 (Maple)
+Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
 [@GooberRF](https://github.com/GooberRF)
 - Introduce Alpine levels, using new rfl file version (300 current):
@@ -168,7 +169,7 @@ Version 1.0.0 (Maple)
 Dash Faction (Upstream) Changelog
 =================================
 
-Version 1.9.0
+Version 1.9.0 (Unreleased)
 --------------------------------
 [@rafalh](https://github.com/rafalh)
 - Added experimental D3D11 renderer

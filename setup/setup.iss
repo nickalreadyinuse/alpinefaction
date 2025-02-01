@@ -60,6 +60,7 @@ Source: "{#PatchesDir}\tables-gog-gr.vpp.mbsdiff"; Flags: dontcopy
 ; Allow write by non-admin users in directories used by the game (may be needed when elevation is not used)
 [Dirs]
 Name: "{code:GetGameDir}"; Permissions: users-modify
+Name: "{code:GetGameDir}\user_maps\projects"; Permissions: users-modify
 Name: "{code:GetGameDir}\user_maps\multi"; Permissions: users-modify
 Name: "{code:GetGameDir}\user_maps\single"; Permissions: users-modify
 Name: "{code:GetGameDir}\mods"; Permissions: users-modify

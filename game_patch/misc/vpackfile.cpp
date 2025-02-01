@@ -233,7 +233,10 @@ static int vpackfile_add_new(const char* filename, const char* dir)
     packfile->num_files = 0;
     // packfile->is_user_maps = rf::vpackfile_loading_user_maps; // this is set to true for user_maps
     // check for is_user_maps based on dir (like is_client_mods) instead of 0x01BDB21C
-    packfile->is_user_maps = (dir && (stricmp(dir, "user_maps\\multi\\") == 0 || stricmp(dir, "user_maps\\single\\") == 0));
+    packfile->is_user_maps = (dir && (
+            stricmp(dir, "user_maps\\projects\\") == 0 ||
+            stricmp(dir, "user_maps\\multi\\") == 0 ||
+            stricmp(dir, "user_maps\\single\\") == 0));
     packfile->is_client_mods = (dir && stricmp(dir, "client_mods\\") == 0);
 
     xlog::debug("Packfile {} is from {}user_maps, {}client_mods", filename, packfile->is_user_maps ? "" : "NOT ",
@@ -643,6 +646,7 @@ static void load_vpp_files_from_directory(const char* files, const char* directo
 static void load_additional_packfiles_new()
 {
     // load VPP files from user_maps\single and user_maps\multi first
+    load_vpp_files_from_directory("user_maps\\projects\\*.vpp", "user_maps\\projects\\");
     load_vpp_files_from_directory("user_maps\\single\\*.vpp", "user_maps\\single\\");
     load_vpp_files_from_directory("user_maps\\multi\\*.vpp", "user_maps\\multi\\");
 
