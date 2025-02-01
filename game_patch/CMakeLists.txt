@@ -102,6 +102,8 @@ set(SRCS
     hud/hud_internal.h
     hud/hud.cpp
     hud/hud.h
+    hud/hud_world.cpp
+    hud/hud_world.h
     hud/multi_scoreboard.cpp
     hud/multi_scoreboard.h
     hud/multi_spectate.cpp

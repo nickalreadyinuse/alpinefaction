@@ -335,6 +335,11 @@ namespace rf::gr
     static auto& rect_mode = addr_as_ref<Mode>(0x017756C0);
     static auto& bitmap_wrap_mode = addr_as_ref<Mode>(0x017756DC);
     static auto& line_mode = addr_as_ref<Mode>(0x01775B00);
+    static auto& text_3d_mode = addr_as_ref<Mode>(0x01775B28);
+    static auto& bitmap_3d_mode = addr_as_ref<Mode>(0x01775AF8);
+    static auto& bitmap_3d_wrap_mode = addr_as_ref<Mode>(0x017756E4);
+    static auto& glow_3d_bitmap_mode = addr_as_ref<Mode>(0x01775B30);
+    static auto& glow_3d_poly_no_z_mode = addr_as_ref<Mode>(0x01775B14);
 
     static auto& view_matrix = addr_as_ref<Matrix3>(0x018186C8);
     static auto& view_pos = addr_as_ref<Vector3>(0x01818690);
@@ -384,6 +389,8 @@ namespace rf::gr
     static auto& gr_line_arrow = addr_as_ref<void(float x1, float y1, float z1, float x2, float y2, float z2, int r, int g, int b)>(0x00516AD0);
     static auto& gr_3d_cursor = addr_as_ref<void(Vector3* pos, Matrix3* orient, float scale)>(0x00516B10);
     static auto& gr_string_3d = addr_as_ref<void(Vector3* pos, Matrix3* orient, float scale, const char* string, int font_num, Mode mode)>(0x00520020);
+    static auto& gr_3d_bitmap = addr_as_ref<void(Vector3* pos, Matrix3* orient, float scale, Mode mode)>(0x00515B10);
+    static auto& gr_3d_bitmap_angle = addr_as_ref<void(Vector3* pos, float angle, float scale, Mode mode)>(0x00515B40);
 
     inline void set_color(ubyte r, ubyte g, ubyte b, ubyte a = screen.current_color.alpha)
     {

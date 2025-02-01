@@ -43,6 +43,10 @@ add_packfile(alpinefaction.vpp
     tables/DM_EuropaOneOutpost1-1_info.tbl
     tables/CTF_EuropaOneOutpost_info.tbl
 
+    images/af_wh_ctf_blue_a.tga
+    images/af_wh_ctf_red_a.tga
+    images/af_wh_ctf_blue_d.tga
+    images/af_wh_ctf_red_d.tga
     images/DF_green.tga
     images/DF_red.tga
     images/scope_zoom_corner256_red.tga

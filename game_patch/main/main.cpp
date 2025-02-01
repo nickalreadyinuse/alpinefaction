@@ -21,6 +21,7 @@
 #include "../debug/debug.h"
 #include "../graphics/gr.h"
 #include "../hud/hud.h"
+#include "../hud/hud_world.h"
 #include "../hud/multi_scoreboard.h"
 #include "../hud/multi_spectate.h"
 #include "../object/object.h"
@@ -77,6 +78,7 @@ CodeInjection after_full_game_init_hook{
         console_init();
         multi_after_full_game_init();
         debug_init();
+        load_world_hud_assets();
 
         xlog::info("Game fully initialized");
         xlog::LoggerConfig::get().flush_appenders();
@@ -130,6 +132,7 @@ CodeInjection after_level_render_hook{
         experimental_render_in_game();
 #endif
         debug_render();
+        hud_world_do_frame();
     },
 };
 

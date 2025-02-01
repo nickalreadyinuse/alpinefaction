@@ -435,4 +435,5 @@ void hud_apply_patches()
     multi_hud_chat_apply_patches();
     multi_hud_apply_patches();
     message_log_apply_patch();
+    hud_world_apply_patch();
 }
