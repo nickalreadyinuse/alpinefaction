@@ -337,6 +337,7 @@ namespace rf::gr
     static auto& line_mode = addr_as_ref<Mode>(0x01775B00);
     static auto& text_3d_mode = addr_as_ref<Mode>(0x01775B28);
     static auto& bitmap_3d_mode = addr_as_ref<Mode>(0x01775AF8);
+    static auto& bitmap_3d_mode_no_z = addr_as_ref<Mode>(0x017C7C58);
     static auto& bitmap_3d_wrap_mode = addr_as_ref<Mode>(0x017756E4);
     static auto& glow_3d_bitmap_mode = addr_as_ref<Mode>(0x01775B30);
     static auto& glow_3d_poly_no_z_mode = addr_as_ref<Mode>(0x01775B14);

@@ -111,7 +111,7 @@ struct GameConfig
     CfgVar<bool> spectate_mode_minimal_ui = false;
     CfgVar<bool> af_branding = true;
     CfgVar<bool> world_hud_ctf = false;
-    CfgVar<bool> world_hud_cp = true;
+    CfgVar<bool> world_hud_overdraw = true;
 
     // Misc
     CfgVar<bool> fast_start = true;

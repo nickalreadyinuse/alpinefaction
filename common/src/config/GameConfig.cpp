@@ -219,7 +219,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Multi Ricochet", multi_ricochet);
     result &= visitor(dash_faction_key, "Unlimited Semi Auto", unlimited_semi_auto);
     result &= visitor(dash_faction_key, "World HUD CTF", world_hud_ctf);
-    result &= visitor(dash_faction_key, "World HUD CP", world_hud_cp);
+    result &= visitor(dash_faction_key, "World HUD Overdraw", world_hud_overdraw);
 
     return result;
 }
