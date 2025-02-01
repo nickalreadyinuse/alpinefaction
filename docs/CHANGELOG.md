@@ -11,8 +11,10 @@ Version 1.1.0 (Not yet released)
 - Make endgame voting text prompt more appropriate
 - Make `vote rand` the same as `vote next` if $Dynamic Rotation is on (avoids repeats)
 - Fix bug where `AF_Teleport_Player` events would sometimes not correctly translate player velocity
+- Add framework for world HUD sprite rendering
+- Add `cl_worldhudoverdraw` command for toggling objective world HUD sprites drawing through the world
 - Add world HUD icons for CTF flags
-- Add `mp_worldhudctf` command for toggling world HUD icons for CTF flags
+- Add `cl_worldhudctf` command for toggling world HUD icons for CTF flags
 
 Version 1.0.0 (Maple)
 --------------------------------
