@@ -39,17 +39,15 @@ void do_render_world_hud_sprite(rf::Vector3 pos, float base_scale, int bitmap_ha
 
     // handle render mode
     switch (render_mode) {
-        case WorldHUDRenderMode::no_overdraw:
-            bitmap_mode = rf::gr::bitmap_3d_mode_no_z;
-            break;
         case WorldHUDRenderMode::no_overdraw_glow:
             bitmap_mode = rf::gr::glow_3d_bitmap_mode;
             break;
         case WorldHUDRenderMode::overdraw:
             bitmap_mode = rf::gr::bitmap_3d_mode;
             break;
+        case WorldHUDRenderMode::no_overdraw:
         default:
-            // Fallback to default
+            bitmap_mode = rf::gr::bitmap_3d_mode_no_z;
             break;
     }
 

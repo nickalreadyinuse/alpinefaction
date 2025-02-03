@@ -1,7 +1,7 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.1.0 (Not yet released)
+Version 1.1.0 (Codename TBD): Not yet released
 --------------------------------
 [@GooberRF](https://github.com/GooberRF)
 - Fix bug where server log output for status of `$Enforce Semi Auto Fire Rate Limit` was incorrect
