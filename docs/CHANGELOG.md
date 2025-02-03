@@ -16,6 +16,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Add world HUD icons for CTF flags
 - Add `cl_worldhudctf` command for toggling world HUD icons for CTF flags
 - Add support for loading packfiles from `user_maps\projects` (intended for WIP projects)
+- Fix bug where `r_fullbright` would sometimes apply to the host in listen servers even when not turned on
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------

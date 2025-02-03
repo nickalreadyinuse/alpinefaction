@@ -180,9 +180,11 @@ FunHook<void(bool)> level_init_post_hook{
         apply_maximum_fps(); // set maximum FPS based on game state
         process_queued_spawn_points_from_items();
 
-        if (!rf::is_server && !rf::is_dedicated_server) {
+        if (!rf::is_dedicated_server) {
             evaluate_fullbright_meshes();
-            update_player_flashlight();
+            if (!rf::is_multi) {
+                update_player_flashlight();
+            }
             if (g_game_config.try_lightmaps_only) {
                 evaluate_lightmaps_only();
             }
