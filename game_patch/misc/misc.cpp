@@ -431,6 +431,9 @@ CodeInjection vfile_read_stack_corruption_fix{
 CodeInjection game_set_file_paths_injection{
     0x004B1810,
     []() {
+        std::string client_mods_dir = "client_mods\\";
+        rf::file_add_path(client_mods_dir.c_str(), ".bik", false);
+
         if (tc_mod_is_loaded()) {
             std::string mod_dir = "mods\\";
             mod_dir += rf::mod_param.get_arg();

@@ -19,6 +19,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Fix bug where `r_fullbright` would sometimes apply to the host in listen servers even when not turned on
 - Make `Ready for match` action bind toggle ready status
 - Deprecated `/unready` chat command
+- Allow .bik video files to be loaded from `client_mods`
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
