@@ -20,6 +20,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Make `Ready for match` action bind toggle ready status
 - Deprecated `/unready` chat command
 - Allow .bik video files to be loaded from `client_mods`
+- Add handling for `Active Distance` setting in Particle Emitter properties (level designers can use to optimize performance)
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------

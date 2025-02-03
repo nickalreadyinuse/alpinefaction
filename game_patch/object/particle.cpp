@@ -4,9 +4,13 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../misc/misc.h"
 #include "../rf/particle_emitter.h"
 #include "../rf/geometry.h"
 #include "../rf/multi.h"
+#include "../rf/level.h"
+#include "../rf/player/player.h"
+#include "../rf/player/camera.h"
 
 FunHook<rf::ParticleEmitter*(int, rf::ParticleEmitterType&, rf::GRoom*, rf::Vector3&, bool)> particle_emitter_create_hook{
     0x00497CA0,
@@ -31,6 +35,22 @@ CodeInjection particle_update_accel_patch{
         if (vel->len() < 0.0001f) {
             regs.eip = 0x00495301;
         }
+    },
+};
+
+CallHook<void(int, rf::ParticleCreateInfo&, rf::GRoom*, rf::Vector3*, int, rf::Particle**, rf::ParticleEmitter*)> particle_create_level_emitter_hook{
+    0x00496DBC,
+    [](int pool_id, rf::ParticleCreateInfo& pci, rf::GRoom* room, rf::Vector3 *a4, int parent_obj, rf::Particle** result, rf::ParticleEmitter* emitter) {
+        // On AF levels, create particles only within the active distance
+        // Applies to particle emitters placed in level file
+        if (af_rfl_version(rf::level.version) && parent_obj == 0 && emitter->uid > 0) {
+            rf::Vector3 camera_pos = rf::camera_get_pos(rf::local_player->cam);
+            float dist = camera_pos.distance_to(emitter->pos);
+            if (emitter->active_distance != 0.0f && emitter->active_distance <= dist) {
+                return;
+            }
+        }
+        particle_create_level_emitter_hook.call_target(pool_id, pci, room, a4, parent_obj, result, emitter);
     },
 };
 
@@ -100,6 +120,9 @@ CallHook<void(rf::ParticleEmitter*, const rf::Vector3*, const rf::Vector3*, floa
 
 void particle_do_patch()
 {
+    // Make particle emitters placed in AF level files respect the Active Distance param
+    particle_create_level_emitter_hook.install();
+
     // Fix particle damage on dedicated servers, e.g., flame thrower.
     particle_should_take_damage_injection.install();
 
