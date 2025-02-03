@@ -785,10 +785,7 @@ bool handle_server_chat_command(std::string_view server_command, rf::Player* sen
         handle_has_map_command(sender, cmd_arg);
     }
     else if (cmd_name == "ready") {
-        set_ready_status(sender, 1);
-    }
-    else if (cmd_name == "unready") {
-        set_ready_status(sender, 0);
+        toggle_ready_status(sender);
     }
     else if (cmd_name == "matchinfo") {
         handle_matchinfo_command(sender);
@@ -1318,6 +1315,29 @@ void remove_ready_player(rf::Player* player)
     }
 }
 
+void toggle_ready_status(rf::Player* player)
+{
+    if (!g_match_info.pre_match_active) {
+        send_chat_line_packet("\xA6 No match is queued. Use \"/vote match\" to queue a match.", player);
+        return;
+    }
+
+    if (!get_player_additional_data(player).is_alpine) {
+        send_chat_line_packet("\xA6 Only Alpine Faction clients can ready for matches. Learn more: alpinefaction.com",
+                              player);
+        return;
+    }
+
+    // Toggle based on current ready status
+    if (get_ready_status(player)) {
+        remove_ready_player(player);
+    }
+    else {
+        add_ready_player(player);
+    }
+}
+
+
 void set_ready_status(rf::Player* player, bool is_ready)
 {
     if (!get_player_additional_data(player).is_alpine) {
@@ -1337,6 +1357,19 @@ void set_ready_status(rf::Player* player, bool is_ready)
         send_chat_line_packet("\xA6 No match is queued. Use \"/vote match\" to queue a match.", player);
     }
 }
+
+bool get_ready_status(const rf::Player* player)
+{
+    const auto& blue_team = g_match_info.ready_players_blue;
+    const auto& red_team = g_match_info.ready_players_red;
+
+    // Check both teams
+    auto is_ready_in_blue = std::find(blue_team.begin(), blue_team.end(), player) != blue_team.end();
+    auto is_ready_in_red = std::find(red_team.begin(), red_team.end(), player) != red_team.end();
+
+    return is_ready_in_blue || is_ready_in_red;
+}
+
 
 void match_do_frame()
 {
