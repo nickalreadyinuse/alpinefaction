@@ -206,7 +206,6 @@ namespace rf
             }
         }
 
-
         void rand_quick()
         {
             constexpr float TWO_PI = 6.2831855f;
@@ -221,6 +220,53 @@ namespace rf
 
             x = std::cos(angle) * scale;
             y = std::sin(angle) * scale;
+        }
+
+        // bell-curve bullet spread with more probable distribution of shots near the reticle center
+        // replacement for bullet spread RNG logic, uses gaussian spread with spherical coordinate transformation
+        void rand_around_dir_gaussian(const Vector3& dir, float sigma)
+        {
+            float maxAngle = std::acos(sigma); // reverse cos operation applied at 0x00426627 before this is called
+            float effectiveSigma = maxAngle * 0.5f; // reduce max angle to align more closely with stock behaviour
+
+            // Compute an orthonormal basis for the space with 'dir' as the z–axis.
+            Vector3 right, up;
+
+            // Choose a helper vector that is not parallel to dir.
+            Vector3 helper = (fabs(dir.z) < 0.999f) ? Vector3(0, 0, 1) : Vector3(1, 0, 0);
+
+            // right is perpendicular to both dir and helper.
+            right = dir.cross(helper);
+            right.normalize();
+
+            // up is perpendicular to both dir and right.
+            up = right.cross(dir);
+            up.normalize();
+
+            // Create distributions:
+            // - For the angular deviation theta (from the central direction), we use a normal distribution.
+            std::normal_distribution<float> normalDist(0.0f, effectiveSigma);
+            // - For the azimuthal angle phi, we use a uniform distribution over 0 to 2π.
+            std::uniform_real_distribution<float> uniformDist(0.0f, 6.283185307f); // 2π
+
+            // Sample the angular deviation from the central direction.
+            float theta = normalDist(g_rng);
+            // Sample the azimuth angle uniformly.
+            float phi = uniformDist(g_rng);
+
+            // Compute sine and cosine values.
+            float sinTheta = std::sin(theta);
+            float cosTheta = std::cos(theta);
+            float sinPhi = std::sin(phi);
+            float cosPhi = std::cos(phi);
+
+            // In the coordinate system where 'dir' is the z–axis, the random vector is:
+            // (sinθ*cosφ, sinθ*sinφ, cosθ)
+            // Now transform this vector to world space using the computed basis.
+            Vector3 result = right * (sinTheta * cosPhi) + up * (sinTheta * sinPhi) + dir * (cosTheta);
+
+            // Set this vector to the output (the 'this' vector).
+            *this = result;
         }
     };
     static_assert(sizeof(Vector3) == 0xC);

@@ -92,6 +92,7 @@ struct DashFactionServerInfo
     bool click_limit = false;
     std::optional<int> semi_auto_cooldown;
     bool unlimited_fps = false;
+    bool gaussian_spread = false;
 };
 
 void multi_level_download_update();

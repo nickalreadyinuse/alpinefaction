@@ -416,6 +416,7 @@ void load_additional_server_config(rf::Parser& parser) {
         }
     }
 
+    parse_boolean_option(parser, "$Use Gaussian Bullet Spread:", g_additional_server_config.gaussian_spread, "Use Gaussian Bullet Spread");
     if (parser.parse_optional("$Enforce Semi Auto Fire Rate Limit:")) {
         g_additional_server_config.apply_click_limiter = parser.parse_bool();
         rf::console::print("Enforce Semi Auto Fire Rate Limit: {}",
@@ -2422,6 +2423,11 @@ bool server_apply_click_limiter()
 bool server_allow_unlimited_fps()
 {
     return g_additional_server_config.allow_unlimited_fps;
+}
+
+bool server_gaussian_spread()
+{
+    return g_additional_server_config.gaussian_spread;
 }
 
 bool server_weapon_items_give_full_ammo()

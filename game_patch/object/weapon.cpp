@@ -149,6 +149,32 @@ FunHook<bool(rf::Weapon*)> weapon_possibly_richochet {
     },
 };
 
+ConsoleCommand2 gaussian_spread_cmd{
+    "sp_spreadmode",
+    []() {
+        g_game_config.gaussian_spread = !g_game_config.gaussian_spread;
+        g_game_config.save();
+        rf::console::print("Random bullet spread calculation is using the {} method",
+            g_game_config.gaussian_spread ? "new (gaussian)" : "legacy (uniform)");
+    },
+    "Toggles whether bullet spread randomness uses the new gaussian method or the legacy uniform method",
+};
+
+bool should_use_gaussian_spread()
+{
+    if (!rf::is_multi && g_game_config.gaussian_spread) {
+        return true;
+    }
+    else if ((rf::is_dedicated_server || rf::is_server) && g_additional_server_config.gaussian_spread) {
+        return true;
+    }
+    else if (rf::is_multi && get_df_server_info().has_value() && get_df_server_info()->gaussian_spread) {
+        return true;
+    }
+
+    return false;
+}
+
 ConsoleCommand2 unlimited_semi_auto_cmd{
     "sp_unlimitedsemiauto",
     []() {
@@ -196,17 +222,61 @@ CodeInjection fire_primary_weapon_semi_auto_patch {
 CodeInjection entity_fire_primary_weapon_semi_auto_patch {
     0x004259B8,
     [](auto& regs) {
+        // override fire wait for stock semi auto weapons (hack, to avoid needing to modify weapons.tbl)
+        // Note this is relevant both to first shot accuracy and semi auto click limit
         int fire_wait = regs.eax;
         int weapon_type = regs.ebx;
         rf::Entity* entity = regs.esi;
         if (rf::obj_is_player(entity) && rf::weapon_is_semi_automatic(weapon_type) && fire_wait == 500) {
             regs.eax = get_semi_auto_fire_wait_override();
         }
+
+        // apply first shot accuracy if 2x the weapon's fire wait has elapsed since the last shot
+        // Note this also disables the difficulty-based rapid fire spread increase for the pistol in SP
+        if (should_use_gaussian_spread()) {
+            int fire_wait2 = regs.eax;
+            if (rf::obj_is_player(entity)){
+                if (!rf::weapon_is_shotgun(weapon_type) && entity->last_fired_timestamp.time_since() > (fire_wait2 * 2)) {
+                    entity->rapid_fire_spread_modifier = 0.0f;
+                }
+                else {
+                    entity->rapid_fire_spread_modifier = 1.0f;
+                }
+            }
+        }
+    },
+};
+
+using Vector3_rand_around_dir = void __fastcall(rf::Vector3*, rf::Vector3, float);
+extern CallHook<Vector3_rand_around_dir> Vector3_rand_around_dir_hook;
+void __fastcall Vector3_rand_around_dir_new (rf::Vector3* self, rf::Vector3 dir, float dotfactor)
+{
+    if (should_use_gaussian_spread()) {
+        self->rand_around_dir_gaussian(dir, dotfactor); // replace stock RNG function
+    }
+    else {
+        Vector3_rand_around_dir_hook.call_target(self, dir, dotfactor); // maintain stock behaviour
+    }
+}
+CallHook<Vector3_rand_around_dir> Vector3_rand_around_dir_hook{0x00426639, Vector3_rand_around_dir_new};
+
+CodeInjection entity_get_weapon_spread_first_shot_patch {
+    0x0042D0C2,
+    [](auto& regs) {
+        // apply rapid_fire_spread_modifier to all weapons, not just pistol
+        if (should_use_gaussian_spread()) {
+            regs.esp += 0x4;
+            regs.eip = 0x0042D0CE;
+        }
     },
 };
 
 void apply_weapon_patches()
 {
+    // Apply new spread method using gaussian distribution and first shot accuracy
+    Vector3_rand_around_dir_hook.install();
+    entity_get_weapon_spread_first_shot_patch.install();
+
     // Apply fire wait to semi auto weapons and adjust values to be reasonable
     fire_primary_weapon_semi_auto_patch.install();
     entity_fire_primary_weapon_semi_auto_patch.install();
@@ -246,5 +316,6 @@ void apply_weapon_patches()
     // commands
     multi_ricochet_cmd.register_cmd();
     show_enemy_bullets_cmd.register_cmd();
+    gaussian_spread_cmd.register_cmd();
     unlimited_semi_auto_cmd.register_cmd();
 }

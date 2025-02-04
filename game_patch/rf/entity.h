@@ -314,7 +314,7 @@ namespace rf
         int reload_clip_ammo;
         int reload_reserve_ammo;
         int reload_weapon_type;
-        float handgun_spread_factor;
+        float rapid_fire_spread_modifier;
         Vector3 stationary_fvec;
         int driller_rot_angle;
         float driller_rot_speed;

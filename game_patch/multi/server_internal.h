@@ -166,6 +166,7 @@ struct ServerAdditionalConfig
     bool only_welcome_alpine = false;
     bool advertise_alpine = false;
     InactivityConfig inactivity;
+    bool gaussian_spread = false;
 };
 
 struct MatchInfo

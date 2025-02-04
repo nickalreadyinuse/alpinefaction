@@ -18,6 +18,7 @@ bool server_no_player_collide();
 bool server_allow_disable_muzzle_flash();
 bool server_apply_click_limiter();
 bool server_allow_unlimited_fps();
+bool server_gaussian_spread();
 void server_reliable_socket_ready(rf::Player* player);
 bool server_weapon_items_give_full_ammo();
 bool server_weapon_infinite_magazines();

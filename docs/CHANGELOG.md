@@ -21,6 +21,10 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Deprecated `/unready` chat command
 - Allow .bik video files to be loaded from `client_mods`
 - Add handling for `Active Distance` setting in Particle Emitter properties (level designers can use to optimize performance)
+- Add new gaussian bullet spread method (bell-curve distribution weighted to center of reticle)
+- Add `sp_spreadmode` command to toggle gaussian bullet spread in single player
+- Add `$Use Gaussian Bullet Spread` dedicated server config option to use gaussian bullet spread for damage calculation
+- Make clientside visual representation of bullet impacts use gaussian spread in servers with it enabled
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------

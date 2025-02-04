@@ -28,6 +28,11 @@ namespace rf
             return AddrCaller{0x004FA420}.this_call<int>(this);
         }
 
+        [[nodiscard]] int time_since() const
+        {
+            return AddrCaller{0x004FA460}.this_call<int>(this);
+        }
+
         void invalidate()
         {
             AddrCaller{0x004FA3E0}.this_call(this);

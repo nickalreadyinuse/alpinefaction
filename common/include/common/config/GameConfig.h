@@ -121,6 +121,7 @@ struct GameConfig
     CfgVar<bool> player_join_beep = false;
     CfgVar<bool> autosave = true;
     CfgVar<bool> unlimited_semi_auto = false;
+    CfgVar<bool> gaussian_spread = false;
 
     // Internal
     CfgVar<std::string> alpine_faction_version{""};

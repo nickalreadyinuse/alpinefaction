@@ -743,6 +743,7 @@ struct DashFactionJoinAcceptPacketExt
         allow_no_mf         = 1 << 6,
         click_limit         = 1 << 7,
         unlimited_fps       = 1 << 8,
+        gaussian_spread     = 1 << 9,
     } flags = Flags::none;
 
     float max_fov;
@@ -812,6 +813,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_allow_unlimited_fps()) {
             ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::unlimited_fps;
         }
+        if (server_gaussian_spread()) {
+            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::gaussian_spread;
+        }
         auto [new_data, new_len] = extend_packet(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
     },
@@ -840,6 +844,7 @@ CodeInjection process_join_accept_injection{
             server_info.allow_no_mf = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_mf);
             server_info.click_limit = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::click_limit);
             server_info.unlimited_fps = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::unlimited_fps);
+            server_info.gaussian_spread = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::gaussian_spread);
 
             constexpr float default_fov = 90.0f;
             if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
