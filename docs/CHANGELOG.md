@@ -25,6 +25,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Add `sp_spreadmode` command to toggle gaussian bullet spread in single player
 - Add `$Use Gaussian Bullet Spread` dedicated server config option to use gaussian bullet spread for damage calculation
 - Make clientside visual representation of bullet impacts use gaussian spread in servers with it enabled
+- Fix bug where character meshes would not respect level ambient light when `r_fullbright` is off
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
