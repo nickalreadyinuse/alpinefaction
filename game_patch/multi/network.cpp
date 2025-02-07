@@ -680,55 +680,104 @@ CallHook<int(void*, int, int, rf::NetAddr&, int)> net_get_tracker_hook{
 constexpr uint32_t DASH_FACTION_SIGNATURE = 0xDA58FAC7;
 constexpr uint32_t ALPINE_FACTION_SIGNATURE = 0x4E4C5246;
 
-// Appended to game_info and join_req packets
-struct df_sign_packet_ext
+// Appended to game_info packets
+struct af_sign_packet_ext
 {
-    uint32_t df_signature = ALPINE_FACTION_SIGNATURE;
+    uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
     uint8_t version_major = VERSION_MAJOR;
     uint8_t version_minor = VERSION_MINOR;
+    uint8_t version_patch = VERSION_PATCH;
+    uint8_t version_type = VERSION_TYPE;
+    uint32_t af_flags = 0;
+
+    void set_flags(const AFGameInfoFlags& flags)
+    {
+        af_flags = flags.game_info_flags_to_uint32();
+    }
 };
 
 template<typename T>
-std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet(const std::byte* data, size_t len, const T& ext_data)
+std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_fixed(const std::byte* data, size_t len, const T& ext_data)
 {
-    auto new_data = std::make_unique<std::byte[]>(len + sizeof(ext_data));
+    size_t total_ext_size = sizeof(ext_data);
+    auto new_data = std::make_unique<std::byte[]>(len + total_ext_size);
 
     // Modify size in packet header
     RF_GamePacketHeader header;
     std::memcpy(&header, data, sizeof(header));
-    header.size += sizeof(ext_data);
+    header.size += static_cast<uint32_t>(total_ext_size);
     std::memcpy(new_data.get(), &header, sizeof(header));
 
     // Copy old data
     std::memcpy(new_data.get() + sizeof(header), data + sizeof(header), len - sizeof(header));
 
-    // Append extension data
+    // Append struct data
     std::memcpy(new_data.get() + len, &ext_data, sizeof(ext_data));
 
-    return {std::move(new_data), len + sizeof(ext_data)};
+    return {std::move(new_data), len + total_ext_size};
 }
 
-std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_df_signature(std::byte* data, size_t len)
+template<typename T>
+std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_variable(
+    const std::byte* data, size_t len, 
+    const T& ext_data, 
+    const std::byte* extra_data, size_t extra_len)
 {
-    df_sign_packet_ext ext;
-    ext.df_signature = ALPINE_FACTION_SIGNATURE;
+    size_t total_ext_size = sizeof(ext_data) + extra_len;
+    auto new_data = std::make_unique<std::byte[]>(len + total_ext_size);
+
+    // Modify size in packet header
+    RF_GamePacketHeader header;
+    std::memcpy(&header, data, sizeof(header));
+    header.size += static_cast<uint32_t>(total_ext_size);
+    std::memcpy(new_data.get(), &header, sizeof(header));
+
+    // Copy old data
+    std::memcpy(new_data.get() + sizeof(header), data + sizeof(header), len - sizeof(header));
+
+    // Append struct data
+    std::memcpy(new_data.get() + len, &ext_data, sizeof(ext_data));
+
+    // Append extra variable-length data
+    if (extra_data && extra_len > 0) {
+        std::memcpy(new_data.get() + len + sizeof(ext_data), extra_data, extra_len);
+    }
+
+    return {std::move(new_data), len + total_ext_size};
+}
+
+std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_af_signature(std::byte* data, size_t len)
+{
+    // Allows for 64 characters (63 + terminator). Actual filename will never be greater than 60 characters
+    std::string filename_copy = rf::level.filename.substr(0, 63);
+    std::string_view filename = filename_copy;
+
+    // Calculate filename length
+    uint8_t filename_len = static_cast<uint8_t>(filename.size() + 1);
+
+    // Create the extension struct (fixed-size portion)
+    af_sign_packet_ext ext;
+    ext.af_signature = ALPINE_FACTION_SIGNATURE;
     ext.version_major = VERSION_MAJOR;
     ext.version_minor = VERSION_MINOR;
-    return extend_packet(data, len, ext);
+    ext.set_flags(g_game_info_server_flags);
+
+    // Extend the packet with the struct and level filename
+    return extend_packet_variable(data, len, ext, reinterpret_cast<const std::byte*>(filename.data()), filename_len);
 }
 
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook{
     0x0047B287,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
-        // Add Alpine Faction signature to game_info packet
-        auto [new_data, new_len] = extend_packet_with_df_signature(data, len);
+        // Add Alpine Faction info to game_info packet
+        auto [new_data, new_len] = extend_packet_with_af_signature(data, len);
         return send_game_info_packet_hook.call_target(addr, new_data.get(), new_len);
     },
 };
 
-struct DashFactionJoinAcceptPacketExt
+struct AlpineFactionJoinAcceptPacketExt
 {
-    uint32_t df_signature = ALPINE_FACTION_SIGNATURE;
+    uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
     uint8_t version_major = VERSION_MAJOR;
     uint8_t version_minor = VERSION_MINOR;
 
@@ -751,11 +800,11 @@ struct DashFactionJoinAcceptPacketExt
 
 };
 template<>
-struct EnableEnumBitwiseOperators<DashFactionJoinAcceptPacketExt::Flags> : std::true_type {};
+struct EnableEnumBitwiseOperators<AlpineFactionJoinAcceptPacketExt::Flags> : std::true_type {};
 
-struct DashFactionJoinReqPacketExt
+struct AlpineFactionJoinReqPacketExt
 {
-    uint32_t df_signature = ALPINE_FACTION_SIGNATURE;
+    uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
     uint8_t version_major = VERSION_MAJOR;
     uint8_t version_minor = VERSION_MINOR;
 
@@ -765,16 +814,16 @@ struct DashFactionJoinReqPacketExt
 
 };
 template<>
-struct EnableEnumBitwiseOperators<DashFactionJoinReqPacketExt::Flags> : std::true_type {};
+struct EnableEnumBitwiseOperators<AlpineFactionJoinReqPacketExt::Flags> : std::true_type {};
 
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
 
         // Add Alpine Faction signature to join_req packet
-        DashFactionJoinReqPacketExt ext_data;
+        AlpineFactionJoinReqPacketExt ext_data;
 
-        auto [new_data, new_len] = extend_packet(data, len, ext_data);
+        auto [new_data, new_len] = extend_packet_fixed(data, len, ext_data);
         return send_join_req_packet_hook.call_target(addr, new_data.get(), new_len);
     },
 };
@@ -783,40 +832,40 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
     0x0047A825,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
         // Add Alpine Faction signature to join_accept packet
-        DashFactionJoinAcceptPacketExt ext_data;
+        AlpineFactionJoinAcceptPacketExt ext_data;
         if (server_is_saving_enabled()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::saving_enabled;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::saving_enabled;
         }
         if (server_get_df_config().max_fov) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::max_fov;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::max_fov;
             ext_data.max_fov = server_get_df_config().max_fov.value();
         }
         if (server_allow_fullbright_meshes()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_fb_mesh;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_fb_mesh;
         }
         if (server_allow_lightmaps_only()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_lmap;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_lmap;
         }
         if (server_allow_disable_screenshake()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_no_ss;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_no_ss;
         }
         if (server_no_player_collide()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::no_player_collide;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::no_player_collide;
         }
         if (server_allow_disable_muzzle_flash()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::allow_no_mf;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_no_mf;
         }
         if (server_apply_click_limiter()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::click_limit;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::click_limit;
             ext_data.semi_auto_cooldown = server_get_df_config().semi_auto_cooldown.value();
         }
         if (server_allow_unlimited_fps()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::unlimited_fps;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::unlimited_fps;
         }
         if (server_gaussian_spread()) {
-            ext_data.flags |= DashFactionJoinAcceptPacketExt::Flags::gaussian_spread;
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::gaussian_spread;
         }
-        auto [new_data, new_len] = extend_packet(data, len, ext_data);
+        auto [new_data, new_len] = extend_packet_fixed(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
     },
 };
@@ -826,31 +875,31 @@ CodeInjection process_join_accept_injection{
     [](auto& regs) {
         std::byte* packet = regs.ebp;
         auto ext_offset = regs.esi + 5;
-        DashFactionJoinAcceptPacketExt ext_data;
-        std::copy(packet + ext_offset, packet + ext_offset + sizeof(DashFactionJoinAcceptPacketExt),
+        AlpineFactionJoinAcceptPacketExt ext_data;
+        std::copy(packet + ext_offset, packet + ext_offset + sizeof(AlpineFactionJoinAcceptPacketExt),
             reinterpret_cast<std::byte*>(&ext_data));
-        xlog::debug("Checking for join_accept DF extension: {:08X}", ext_data.df_signature);
-        if (ext_data.df_signature == ALPINE_FACTION_SIGNATURE) {
+        xlog::debug("Checking for join_accept AF extension: {:08X}", ext_data.af_signature);
+        if (ext_data.af_signature == ALPINE_FACTION_SIGNATURE) {
             DashFactionServerInfo server_info;
             server_info.version_major = ext_data.version_major;
             server_info.version_minor = ext_data.version_minor;
             xlog::debug("Got DF server info: {} {} {}", ext_data.version_major, ext_data.version_minor,
                 static_cast<int>(ext_data.flags));
-            server_info.saving_enabled = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::saving_enabled);
-            server_info.allow_fb_mesh = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_fb_mesh);
-            server_info.allow_lmap = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_lmap);
-            server_info.allow_no_ss = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_ss);
-            server_info.no_player_collide = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::no_player_collide);
-            server_info.allow_no_mf = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::allow_no_mf);
-            server_info.click_limit = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::click_limit);
-            server_info.unlimited_fps = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::unlimited_fps);
-            server_info.gaussian_spread = !!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::gaussian_spread);
+            server_info.saving_enabled = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::saving_enabled);
+            server_info.allow_fb_mesh = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_fb_mesh);
+            server_info.allow_lmap = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_lmap);
+            server_info.allow_no_ss = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_no_ss);
+            server_info.no_player_collide = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::no_player_collide);
+            server_info.allow_no_mf = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_no_mf);
+            server_info.click_limit = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::click_limit);
+            server_info.unlimited_fps = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::unlimited_fps);
+            server_info.gaussian_spread = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::gaussian_spread);
 
             constexpr float default_fov = 90.0f;
-            if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
+            if (!!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
                 server_info.max_fov = ext_data.max_fov;
             }
-            if (!!(ext_data.flags & DashFactionJoinAcceptPacketExt::Flags::click_limit)) {
+            if (!!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::click_limit)) {
                 server_info.semi_auto_cooldown = ext_data.semi_auto_cooldown;
             }
             g_df_server_info = std::optional{server_info};
@@ -881,10 +930,10 @@ CodeInjection process_join_req_injection{
     0x0047AD99,
     [](auto& regs) {
         std::byte* packet = regs.esi;
-        auto* extended_data = reinterpret_cast<const DashFactionJoinReqPacketExt*>(packet);
+        auto* extended_data = reinterpret_cast<const AlpineFactionJoinReqPacketExt*>(packet);
 
         // matched an alpine client
-        if (extended_data->df_signature == ALPINE_FACTION_SIGNATURE) {
+        if (extended_data->af_signature == ALPINE_FACTION_SIGNATURE) {
             g_joining_player_is_alpine = true;
         }
     },

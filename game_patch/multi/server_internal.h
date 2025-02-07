@@ -16,6 +16,31 @@ namespace rf
     struct Player;
 }
 
+// used for game_info packets
+struct AFGameInfoFlags
+{
+    bool modded_server          = false;
+    bool alpine_only            = false;
+    bool reject_legacy_clients  = false;
+    bool click_limiter          = false;
+    bool no_player_collide      = false;
+    bool match_mode             = false;
+    bool saving_enabled         = false;
+    bool gaussian_spread        = false;
+
+    uint32_t game_info_flags_to_uint32() const
+    {
+        return (static_cast<uint32_t>(modded_server)            << 0) |
+               (static_cast<uint32_t>(alpine_only)              << 1) |
+               (static_cast<uint32_t>(reject_legacy_clients)    << 2) |
+               (static_cast<uint32_t>(click_limiter)            << 3) |
+               (static_cast<uint32_t>(no_player_collide)        << 4) |
+               (static_cast<uint32_t>(match_mode)               << 5) |
+               (static_cast<uint32_t>(saving_enabled)           << 6) |
+               (static_cast<uint32_t>(gaussian_spread)          << 7);
+    }
+};
+
 struct SpawnProtectionConfig
 {
     bool enabled = true;
@@ -204,6 +229,7 @@ struct MatchInfo
 };
 
 extern ServerAdditionalConfig g_additional_server_config;
+extern AFGameInfoFlags g_game_info_server_flags;
 extern std::string g_prev_level;
 extern MatchInfo g_match_info;
 
@@ -235,3 +261,5 @@ void process_delayed_kicks();
 void kick_player_delayed(rf::Player* player);
 bool ends_with(const rf::String& str, const std::string& suffix);
 const ServerAdditionalConfig& server_get_df_config();
+const AFGameInfoFlags& server_get_game_info_flags();
+void initialize_game_info_server_flags();

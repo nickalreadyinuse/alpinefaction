@@ -26,6 +26,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Add `$Use Gaussian Bullet Spread` dedicated server config option to use gaussian bullet spread for damage calculation
 - Make clientside visual representation of bullet impacts use gaussian spread in servers with it enabled
 - Fix bug where character meshes would not respect level ambient light when `r_fullbright` is off
+- Add AF flags, level filename, patch version, and build type to `game_info` packets
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------

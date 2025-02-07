@@ -73,6 +73,7 @@ static const std::vector<std::string> possible_central_item_names = {
 int current_center_item_priority = possible_central_item_names.size();
 
 ServerAdditionalConfig g_additional_server_config;
+AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
 
@@ -506,7 +507,8 @@ CodeInjection dedicated_server_load_config_patch{
     0x0046E103, // above $Map lines
     [](auto& regs) {
         auto& parser = *reinterpret_cast<rf::Parser*>(regs.esp - 4 + 0x4C0 - 0x470);
-        load_additional_server_config(parser);
+        load_additional_server_config(parser); // custom AF dedicated server config
+        initialize_game_info_server_flags(); // build global flags var used in game_info packets
 
         // Insert server name in window title when hosting dedicated server
         std::string wnd_name;
@@ -2438,4 +2440,51 @@ bool server_weapon_items_give_full_ammo()
 const ServerAdditionalConfig& server_get_df_config()
 {
     return g_additional_server_config;
+}
+
+bool server_is_modded()
+{
+    return !g_additional_server_config.require_client_mod && rf::mod_param.found();
+}
+
+bool server_is_match_mode_enabled()
+{
+    return g_additional_server_config.vote_match.enabled;
+}
+
+bool server_is_alpine_only_enabled()
+{
+    return g_additional_server_config.clients_require_alpine;
+}
+
+bool server_rejects_legacy_clients()
+{
+    return g_additional_server_config.reject_non_alpine_clients;
+}
+
+bool server_enforces_click_limiter()
+{
+    return g_additional_server_config.apply_click_limiter;
+}
+
+bool server_enforces_no_player_collide()
+{
+    return g_additional_server_config.no_player_collide;
+}
+
+const AFGameInfoFlags& server_get_game_info_flags()
+{
+    return g_game_info_server_flags;
+}
+
+void initialize_game_info_server_flags()
+{
+    g_game_info_server_flags.modded_server = server_is_modded();
+    g_game_info_server_flags.alpine_only = server_is_alpine_only_enabled();
+    g_game_info_server_flags.reject_legacy_clients = server_rejects_legacy_clients();
+    g_game_info_server_flags.click_limiter = server_enforces_click_limiter();
+    g_game_info_server_flags.no_player_collide = server_enforces_no_player_collide();
+    g_game_info_server_flags.match_mode = server_is_match_mode_enabled();
+    g_game_info_server_flags.saving_enabled = server_is_saving_enabled();
+    g_game_info_server_flags.gaussian_spread = server_gaussian_spread();
 }
