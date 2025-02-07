@@ -24,6 +24,8 @@ void load_world_hud_assets() {
     g_world_hud_assets.flag_blue_d = rf::bm::load("af_wh_ctf_blue_d.tga", -1, true);
     g_world_hud_assets.flag_red_a = rf::bm::load("af_wh_ctf_red_a.tga", -1, true);
     g_world_hud_assets.flag_blue_a = rf::bm::load("af_wh_ctf_blue_a.tga", -1, true);
+    g_world_hud_assets.flag_red_s = rf::bm::load("af_wh_ctf_red_s.tga", -1, true);
+    g_world_hud_assets.flag_blue_s = rf::bm::load("af_wh_ctf_blue_s.tga", -1, true);
 }
 
 void do_render_world_hud_sprite(rf::Vector3 pos, float base_scale, int bitmap_handle,
@@ -105,10 +107,20 @@ void build_ctf_flag_icons()
         // Choose texture based on team and flag type
         int bitmap_handle = -1;
         if (flag_team) {
-            bitmap_handle = player_team ? g_world_hud_assets.flag_blue_d : g_world_hud_assets.flag_blue_a;
+            if (rf::multi_ctf_is_blue_flag_in_base()) {
+                bitmap_handle = player_team ? g_world_hud_assets.flag_blue_d : g_world_hud_assets.flag_blue_a;
+            }
+            else {
+                bitmap_handle = g_world_hud_assets.flag_blue_s;
+            }
         }
         else {
-            bitmap_handle = player_team ? g_world_hud_assets.flag_red_a : g_world_hud_assets.flag_red_d;
+            if (rf::multi_ctf_is_red_flag_in_base()) {
+                bitmap_handle = player_team ? g_world_hud_assets.flag_red_a : g_world_hud_assets.flag_red_d;
+            }
+            else {
+                bitmap_handle = g_world_hud_assets.flag_red_s;
+            }
         }
 
         auto render_mode = g_game_config.world_hud_overdraw ? WorldHUDRenderMode::overdraw : WorldHUDRenderMode::no_overdraw;
