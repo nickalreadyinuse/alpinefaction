@@ -1848,8 +1848,7 @@ FunHook<void()> multi_respawn_level_init_hook {
 };
 
 // more flexible replacement for get_nearest_other_player_dist_sq in stock game
-float get_nearest_other_player(const rf::Player* player, const rf::Vector3* spawn_pos,
-    rf::Vector3* other_player_pos_out, bool only_enemies = false)
+float get_nearest_other_player(const rf::Player* player, const rf::Vector3* spawn_pos, bool only_enemies = false)
 {
     float min_dist_sq = std::numeric_limits<float>::max();
     const bool is_team_game = multi_is_team_game_type();
@@ -1858,145 +1857,126 @@ float get_nearest_other_player(const rf::Player* player, const rf::Vector3* spaw
     auto player_list = get_current_player_list(false);
 
     for (const auto* other_player : player_list) {
-        if (other_player == player || (only_enemies && is_team_game && other_player->team == player_team)) {
+        if (other_player == player) {
             continue;
         }
 
-        if (auto* other_entity = rf::entity_from_handle(other_player->entity_handle)) {
-            const float dist_sq = rf::vec_dist_squared(spawn_pos, &other_entity->pos);
+        if (only_enemies && is_team_game && other_player->team == player_team) {
+            continue;
+        }
 
-            if (dist_sq < min_dist_sq) {
-                min_dist_sq = dist_sq;
-                if (other_player_pos_out) {
-                    *other_player_pos_out = other_entity->pos;
-                }
-            }
+        auto* other_entity = rf::entity_from_handle(other_player->entity_handle);
+        if (!other_entity) {
+            continue;
+        }
+
+        const float dist_sq = rf::vec_dist_squared(spawn_pos, &other_entity->pos);
+        //xlog::debug("Distance to {}: {}", other_player->name, std::sqrt(dist_sq));
+
+        if (dist_sq < min_dist_sq) {
+            min_dist_sq = dist_sq;
         }
     }
 
     return min_dist_sq;
 }
 
-FunHook<int(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_point_hook{
-    0x00470300,
-    [](rf::Vector3* pos, rf::Matrix3* orient, rf::Player* player) {
+FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_point_hook{
+    0x00470300, [](rf::Vector3* pos, rf::Matrix3* orient, rf::Player* player) {
 
-        // if map has no respawn points
+        // Level has no respawn points
         if (new_multi_respawn_points.empty()) {
             *pos = rf::level.player_start_pos;
             *orient = rf::level.player_start_orient;
             xlog::warn("No Multiplayer Respawn Points found. Spawning {} at the Player Start.", player->name);
-            return -1;
+            return;
         }
 
-        // if player is invalid (should never happen)
+        // Use full RNG if player is invalid (strictly for safety, this should never happen)
         if (!player) {
             std::uniform_int_distribution<int> dist(0, new_multi_respawn_points.size() - 1);
             int index = dist(g_rng);
             *pos = new_multi_respawn_points[index].position;
             *orient = new_multi_respawn_points[index].orientation;
-            return 0;
+            xlog::warn("A respawn point was requested for an invalid player.");
+            return;
         }
 
         auto& pdata = get_player_additional_data(player);
         const int team = player->team;
         const int last_index = pdata.last_spawn_point_index.value_or(-1);
         const bool is_team_game = multi_is_team_game_type();
+        const auto& config = g_additional_server_config.new_spawn_logic;
 
-        const bool avoid_last = g_additional_server_config.new_spawn_logic.always_avoid_last;
-        const bool avoid_players = g_additional_server_config.new_spawn_logic.try_avoid_players;
-        const bool use_furthest = g_additional_server_config.new_spawn_logic.always_use_furthest;
-        const bool respect_team_spawns = g_additional_server_config.new_spawn_logic.respect_team_spawns;
-        const bool only_enemies = g_additional_server_config.new_spawn_logic.only_avoid_enemies;
+        //xlog::debug("Spawn point requested! Player: {}, Team: {}, Last Spawn Index: {}", player->name, team, last_index);
 
-        std::vector<const rf::RespawnPoint*> available_points;
-        bool players_found = false;
-
+        // Step 1: Build a list of eligible spawn points for this request
+        std::vector<rf::RespawnPoint*> eligible_points;
         for (auto& point : new_multi_respawn_points) {
-            if (is_team_game && respect_team_spawns) {
+            if (config.respect_team_spawns && is_team_game) {
                 if ((team == 0 && !point.red_team) || (team == 1 && !point.blue_team)) {
-                    continue;
+                    continue; // Only use correct team spawn points in team games
                 }
             }
-
-            const float dist = get_nearest_other_player(player, &point.position, nullptr, only_enemies);
-            point.dist_other_player = dist;
-
-            if (dist != std::numeric_limits<float>::max()) {
-                players_found = true;
+            if (config.always_avoid_last && last_index == (&point - &new_multi_respawn_points[0])) {
+                continue; // If avoid_last is on, remove this player's last spawn point
             }
 
-            available_points.push_back(&point);
+            // Calculate this point's distance from the nearest other player
+            point.dist_other_player = get_nearest_other_player(player, &point.position, config.only_avoid_enemies);
+
+            eligible_points.push_back(&point);
         }
 
-        // handle case where no valid spawns are found (full rng)
-        if (available_points.empty()) {
+        // If no valid spawn points remain, use full RNG
+        if (eligible_points.empty()) {
             std::uniform_int_distribution<int> dist(0, new_multi_respawn_points.size() - 1);
-            const int index = dist(g_rng);
+            int index = dist(g_rng);
             *pos = new_multi_respawn_points[index].position;
             *orient = new_multi_respawn_points[index].orientation;
-            return 1;
+            xlog::warn("No eligible respawn points were found. Spawning {} at a random respawn point {}.", player->name, index);
+            return;
         }
 
-        // handle case where no players are spawned but use_furthest is on (full rng within valid)
-        if (use_furthest && !players_found) {
-            std::uniform_int_distribution<int> dist(0, available_points.size() - 1);
-            int index = dist(g_rng);
-            *pos = available_points[index]->position;
-            *orient = available_points[index]->orientation;
-            pdata.last_spawn_point_index = index;
-            return 1;
-        }
-
-        // sort valid points by distance from nearest other player (prefer further)
-        if (avoid_players || use_furthest) {
-            std::sort(available_points.begin(), available_points.end(),
+        // Step 2: If needed, sort the list based on distance from the nearest other player
+        if (config.try_avoid_players || config.always_use_furthest) {
+            std::sort(eligible_points.begin(), eligible_points.end(),
                       [](const rf::RespawnPoint* a, const rf::RespawnPoint* b) {
                           return a->dist_other_player > b->dist_other_player;
                       });
         }
 
+        // Step 3: Select a spawn point
         int selected_index = 0;
-
-        
-        if (use_furthest) { // select always using furthest (no RNG)
-            selected_index = std::distance(
-                available_points.begin(), std::find(available_points.begin(),
-                    available_points.end(), available_points[0]));
-
-            if (avoid_last && last_index == selected_index && available_points.size() > 1) {
-                selected_index = std::distance(
-                    available_points.begin(), std::find(available_points.begin(),
-                        available_points.end(), available_points[1]));
+        if (config.always_use_furthest && eligible_points[0]->dist_other_player < std::numeric_limits<float>::max()) {
+            selected_index = 0; // Always pick the furthest point
+            if (config.always_avoid_last &&
+                last_index == std::distance(new_multi_respawn_points.data(), eligible_points[0]) &&
+                eligible_points.size() > 1) {
+                selected_index = 1; // Pick second furthest if the last spawn was the furthest
             }
         }
-        else if (!avoid_players) { // select with full RNG if we don't care about distance from players
-            std::uniform_int_distribution<int> dist(0, available_points.size() - 1);
+        else if (config.try_avoid_players) {
+            // Weighted RNG to favor further spawns
+            std::uniform_real_distribution<double> real_dist(0.0, 1.0);
+            selected_index = static_cast<int>(std::sqrt(real_dist(g_rng)) * (eligible_points.size() - 1) + 0.5);
+        }
+        else {
+            // Full RNG if we don't care about player distance
+            std::uniform_int_distribution<int> dist(0, eligible_points.size() - 1);
             selected_index = dist(g_rng);
         }
-        else { // select with weighted RNG if we do care about distance from players
-            std::uniform_real_distribution<double> real_dist(0.0, 1.0);
-            int random_index = static_cast<int>(std::sqrt(real_dist(g_rng)) * (available_points.size() - 1) + 0.5);
 
-            selected_index = random_index;
+        // Convert selected_index (from eligible_points) to new_multi_respawn_points index
+        int global_index = std::distance(new_multi_respawn_points.data(), eligible_points[selected_index]);
 
-            if (avoid_last && last_index == selected_index && available_points.size() > 1) {
-                for (size_t i = 0; i < available_points.size(); ++i) {
-                    if (i != last_index) {
-                        selected_index = i;
-                        break;
-                    }
-                }
-            }
-        }
+        // Return position and orientation of the selected spawn point
+        *pos = eligible_points[selected_index]->position;
+        *orient = eligible_points[selected_index]->orientation;
+        pdata.last_spawn_point_index = global_index; // Record this spawn for future avoid_last checks
 
-        *pos = available_points[selected_index]->position;
-        *orient = available_points[selected_index]->orientation;
-        pdata.last_spawn_point_index = selected_index;
-        //xlog::warn("Player {} (blue? {}) requested a spawn point. Giving them index {}. its red? {}, blue? {}", player->name, player->team, selected_index,
-        //    available_points[selected_index]->red_team, available_points[selected_index]->blue_team);
-
-        return 1;
+        // Log final selection
+        //xlog::debug("Selected a spawn point for {}: Eligible Spawns Index {} (Global Index {})", player->name, selected_index, global_index);
     }
 };
 
