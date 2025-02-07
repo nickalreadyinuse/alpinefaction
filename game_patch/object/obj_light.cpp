@@ -244,9 +244,9 @@ CodeInjection dynamic_light_load_patch{
 void obj_light_apply_patch()
 {
     // Support fullbright character meshes
-    AsmWriter{0x0052DB3E}.fld<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&g_character_ambient_light_r)));
-    AsmWriter{0x0052DB50}.fld<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&g_character_ambient_light_g)));
-    AsmWriter{0x0052DB62}.fld<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&g_character_ambient_light_b)));
+    AsmWriter{0x0052DB3E}.fld<float>(AsmRegMem(&g_character_ambient_light_r));
+    AsmWriter{0x0052DB50}.fld<float>(AsmRegMem(&g_character_ambient_light_g));
+    AsmWriter{0x0052DB62}.fld<float>(AsmRegMem(&g_character_ambient_light_b));
 
     // Allow dynamic lights in levels
     dynamic_light_load_patch.install(); // in LevelLight__load
