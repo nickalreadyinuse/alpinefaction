@@ -37,6 +37,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Add world HUD icons for multiplayer respawn points
 - Draw multiplayer respawn point world HUD icons in pre-match
 - Add `dbg_worldhudmpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
+- Add compatibility table (lightmap clamp floor) for `dm-SpecialForces.rfl`
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
