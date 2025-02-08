@@ -27,6 +27,7 @@ struct AFGameInfoFlags
     bool match_mode             = false;
     bool saving_enabled         = false;
     bool gaussian_spread        = false;
+    bool hitsounds              = false;
 
     uint32_t game_info_flags_to_uint32() const
     {
@@ -37,7 +38,8 @@ struct AFGameInfoFlags
                (static_cast<uint32_t>(no_player_collide)        << 4) |
                (static_cast<uint32_t>(match_mode)               << 5) |
                (static_cast<uint32_t>(saving_enabled)           << 6) |
-               (static_cast<uint32_t>(gaussian_spread)          << 7);
+               (static_cast<uint32_t>(gaussian_spread)          << 7) |
+               (static_cast<uint32_t>(hitsounds)                << 7);
     }
 };
 
@@ -232,8 +234,6 @@ extern ServerAdditionalConfig g_additional_server_config;
 extern AFGameInfoFlags g_game_info_server_flags;
 extern std::string g_prev_level;
 extern MatchInfo g_match_info;
-
-
 
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);

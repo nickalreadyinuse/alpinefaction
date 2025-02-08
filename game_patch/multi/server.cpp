@@ -60,7 +60,7 @@ const char* g_rcon_cmd_whitelist[] = {
     "unban_last"
 };
 
-std::vector<rf::RespawnPoint> new_multi_respawn_points; // new storage of spawn points to avoid hard limits
+std::vector<rf::RespawnPoint> g_new_multi_respawn_points; // new storage of spawn points to avoid hard limits
 std::vector<std::tuple<std::string, rf::Vector3, rf::Matrix3>> queued_item_spawn_points; // queued generated spawns
 std::optional<rf::Vector3> likely_position_of_central_item; // guess at the center of the map for generated spawns
 static const std::vector<std::string> possible_central_item_names = {
@@ -1806,11 +1806,11 @@ FunHook<int(const char*, uint8_t, const rf::Vector3*, const rf::Matrix3*, bool, 
     {
         constexpr size_t max_respawn_points = 2048; // raise limit 32 -> 2048
         
-        if (new_multi_respawn_points.size() >= max_respawn_points) {
+        if (g_new_multi_respawn_points.size() >= max_respawn_points) {
             return -1;
         }
 
-        new_multi_respawn_points.emplace_back(rf::RespawnPoint{
+        g_new_multi_respawn_points.emplace_back(rf::RespawnPoint{
             rf::String(name),
             team, // unused
             *pos,
@@ -1827,7 +1827,7 @@ FunHook<int(const char*, uint8_t, const rf::Vector3*, const rf::Matrix3*, bool, 
             xlog::debug("Position: ({}, {}, {})", pos->x, pos->y, pos->z);
         }
 
-        xlog::debug("Current number of spawn points: {}", new_multi_respawn_points.size());
+        xlog::debug("Current number of spawn points: {}", g_new_multi_respawn_points.size());
 
         return 0;
     }
@@ -1837,7 +1837,7 @@ FunHook<int(const char*, uint8_t, const rf::Vector3*, const rf::Matrix3*, bool, 
 FunHook<void()> multi_respawn_level_init_hook {
     0x00470180,
     []() {
-        new_multi_respawn_points.clear();        
+        g_new_multi_respawn_points.clear();        
         
         auto player_list = get_current_player_list(false);
         std::for_each(player_list.begin(), player_list.end(),
@@ -1885,7 +1885,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
     0x00470300, [](rf::Vector3* pos, rf::Matrix3* orient, rf::Player* player) {
 
         // Level has no respawn points
-        if (new_multi_respawn_points.empty()) {
+        if (g_new_multi_respawn_points.empty()) {
             *pos = rf::level.player_start_pos;
             *orient = rf::level.player_start_orient;
             xlog::warn("No Multiplayer Respawn Points found. Spawning {} at the Player Start.", player->name);
@@ -1894,10 +1894,10 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
 
         // Use full RNG if player is invalid (strictly for safety, this should never happen)
         if (!player) {
-            std::uniform_int_distribution<int> dist(0, new_multi_respawn_points.size() - 1);
+            std::uniform_int_distribution<int> dist(0, g_new_multi_respawn_points.size() - 1);
             int index = dist(g_rng);
-            *pos = new_multi_respawn_points[index].position;
-            *orient = new_multi_respawn_points[index].orientation;
+            *pos = g_new_multi_respawn_points[index].position;
+            *orient = g_new_multi_respawn_points[index].orientation;
             xlog::warn("A respawn point was requested for an invalid player.");
             return;
         }
@@ -1912,13 +1912,13 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
 
         // Step 1: Build a list of eligible spawn points for this request
         std::vector<rf::RespawnPoint*> eligible_points;
-        for (auto& point : new_multi_respawn_points) {
+        for (auto& point : g_new_multi_respawn_points) {
             if (config.respect_team_spawns && is_team_game) {
                 if ((team == 0 && !point.red_team) || (team == 1 && !point.blue_team)) {
                     continue; // Only use correct team spawn points in team games
                 }
             }
-            if (config.always_avoid_last && last_index == (&point - &new_multi_respawn_points[0])) {
+            if (config.always_avoid_last && last_index == (&point - &g_new_multi_respawn_points[0])) {
                 continue; // If avoid_last is on, remove this player's last spawn point
             }
 
@@ -1930,10 +1930,10 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
 
         // If no valid spawn points remain, use full RNG
         if (eligible_points.empty()) {
-            std::uniform_int_distribution<int> dist(0, new_multi_respawn_points.size() - 1);
+            std::uniform_int_distribution<int> dist(0, g_new_multi_respawn_points.size() - 1);
             int index = dist(g_rng);
-            *pos = new_multi_respawn_points[index].position;
-            *orient = new_multi_respawn_points[index].orientation;
+            *pos = g_new_multi_respawn_points[index].position;
+            *orient = g_new_multi_respawn_points[index].orientation;
             xlog::warn("No eligible respawn points were found. Spawning {} at a random respawn point {}.", player->name, index);
             return;
         }
@@ -1951,7 +1951,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         if (config.always_use_furthest && eligible_points[0]->dist_other_player < std::numeric_limits<float>::max()) {
             selected_index = 0; // Always pick the furthest point
             if (config.always_avoid_last &&
-                last_index == std::distance(new_multi_respawn_points.data(), eligible_points[0]) &&
+                last_index == std::distance(g_new_multi_respawn_points.data(), eligible_points[0]) &&
                 eligible_points.size() > 1) {
                 selected_index = 1; // Pick second furthest if the last spawn was the furthest
             }
@@ -1967,8 +1967,8 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
             selected_index = dist(g_rng);
         }
 
-        // Convert selected_index (from eligible_points) to new_multi_respawn_points index
-        int global_index = std::distance(new_multi_respawn_points.data(), eligible_points[selected_index]);
+        // Convert selected_index (from eligible_points) to g_new_multi_respawn_points index
+        int global_index = std::distance(g_new_multi_respawn_points.data(), eligible_points[selected_index]);
 
         // Return position and orientation of the selected spawn point
         *pos = eligible_points[selected_index]->position;
@@ -1979,6 +1979,10 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         //xlog::debug("Selected a spawn point for {}: Eligible Spawns Index {} (Global Index {})", player->name, selected_index, global_index);
     }
 };
+
+std::vector<rf::RespawnPoint> get_new_multi_respawn_points() {
+    return g_new_multi_respawn_points;
+}
 
 bool are_flags_initialized()
 {
@@ -2087,7 +2091,7 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
 
             auto it = allowed_items.find(name);
             if (it != allowed_items.end() &&
-                (!it->second || it->second == 0 || *it->second > static_cast<int>(new_multi_respawn_points.size()))) {
+                (!it->second || it->second == 0 || *it->second > static_cast<int>(g_new_multi_respawn_points.size()))) {
 
                 queued_item_spawn_points.emplace_back(std::string(name), *pos, *orient);                
             }
@@ -2452,6 +2456,11 @@ bool server_enforces_no_player_collide()
     return g_additional_server_config.no_player_collide;
 }
 
+bool server_has_hitsounds()
+{
+    return g_additional_server_config.hit_sounds.enabled;
+}
+
 const AFGameInfoFlags& server_get_game_info_flags()
 {
     return g_game_info_server_flags;
@@ -2467,4 +2476,5 @@ void initialize_game_info_server_flags()
     g_game_info_server_flags.match_mode = server_is_match_mode_enabled();
     g_game_info_server_flags.saving_enabled = server_is_saving_enabled();
     g_game_info_server_flags.gaussian_spread = server_gaussian_spread();
+    g_game_info_server_flags.hitsounds = server_has_hitsounds();
 }

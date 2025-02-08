@@ -5,6 +5,7 @@ namespace rf
 {
     struct Player;
     struct Entity;
+    struct RespawnPoint;
 }
 
 void server_init();
@@ -31,3 +32,4 @@ void player_idle_check(rf::Player* player);
 void send_sound_packet_throwaway(rf::Player* target, int sound_id);
 const char* get_rand_level_filename();
 void shuffle_level_array();void process_queued_spawn_points_from_items();
+std::vector<rf::RespawnPoint> get_new_multi_respawn_points();
