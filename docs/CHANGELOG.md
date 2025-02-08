@@ -3,20 +3,27 @@
 
 Version 1.1.0 (Codename TBD): Not yet released
 --------------------------------
+== Bug fixes ==
 [@GooberRF](https://github.com/GooberRF)
-- Fix bug where server log output for status of `$Enforce Semi Auto Fire Rate Limit` was incorrect
+- Fix server log output for status of `$Enforce Semi Auto Fire Rate Limit` being incorrect
+- Fix `AF_Teleport_Player` events sometimes not correctly translating player velocity
+- Fix `r_fullbright` sometimes applying to the host in listen servers even when not turned on
+- Fix character meshes not respecting level ambient light when `r_fullbright` is off
+- Fix pre-match ready up prompt sometimes displaying even when ready
+- Fix several niche issues where multiplayer spawn point selection would not work as intended
+
+== New features and enhancements ==
+[@GooberRF](https://github.com/GooberRF)
 - Add `Anchor_Marker_Orient` event
 - Add `Light_State` event
 - Bump RFL version to 301
 - Make endgame voting text prompt more appropriate
 - Make `vote rand` the same as `vote next` if $Dynamic Rotation is on (avoids repeats)
-- Fix bug where `AF_Teleport_Player` events would sometimes not correctly translate player velocity
 - Add framework for world HUD sprite rendering
 - Add `cl_worldhudoverdraw` command for toggling objective world HUD sprites drawing through the world
 - Add world HUD icons for CTF flags
 - Add `cl_worldhudctf` command for toggling world HUD icons for CTF flags
 - Add support for loading packfiles from `user_maps\projects` (intended for WIP projects)
-- Fix bug where `r_fullbright` would sometimes apply to the host in listen servers even when not turned on
 - Make `Ready for match` action bind toggle ready status
 - Deprecated `/unready` chat command
 - Allow .bik video files to be loaded from `client_mods`
@@ -25,10 +32,12 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Add `sp_spreadmode` command to toggle gaussian bullet spread in single player
 - Add `$Use Gaussian Bullet Spread` dedicated server config option to use gaussian bullet spread for damage calculation
 - Make clientside visual representation of bullet impacts use gaussian spread in servers with it enabled
-- Fix bug where character meshes would not respect level ambient light when `r_fullbright` is off
 - Add AF flags, level filename, patch version, and build type to `game_info` packets
 - Optimize spawn point selection methods and resolve niche logic issues
-- Fix bug where pre-match ready up prompt would sometimes display even when ready
+- Add world HUD icons for multiplayer respawn points
+- Draw multiplayer respawn point world HUD icons in pre-match
+- Add `dbg_worldhudmpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
+
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
