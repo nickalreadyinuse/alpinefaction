@@ -8,6 +8,8 @@ namespace rf
     struct HudPoint;
 }
 
+extern bool g_pre_match_active;
+
 void hud_status_apply_patches();
 void hud_status_set_big(bool is_big);
 void hud_personas_apply_patches();

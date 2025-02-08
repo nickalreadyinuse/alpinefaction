@@ -8,6 +8,7 @@ struct WorldHUDAssets
     int flag_blue_a;
     int flag_red_s;
     int flag_blue_s;
+    int mp_respawn;
 };
 
 struct WorldHUDRender

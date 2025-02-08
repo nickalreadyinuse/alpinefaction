@@ -1,5 +1,6 @@
 #include "hud_internal.h"
 #include "hud_world.h"
+#include "../multi/server.h"
 #include "../rf/hud.h"
 #include "../rf/player/player.h"
 #include "../rf/player/camera.h"
@@ -18,6 +19,7 @@
 #include <xlog/xlog.h>
 
 WorldHUDAssets g_world_hud_assets;
+bool draw_mp_spawn_world_hud = false;
 
 void load_world_hud_assets() {
     g_world_hud_assets.flag_red_d = rf::bm::load("af_wh_ctf_red_d.tga", -1, true);
@@ -26,6 +28,7 @@ void load_world_hud_assets() {
     g_world_hud_assets.flag_blue_a = rf::bm::load("af_wh_ctf_blue_a.tga", -1, true);
     g_world_hud_assets.flag_red_s = rf::bm::load("af_wh_ctf_red_s.tga", -1, true);
     g_world_hud_assets.flag_blue_s = rf::bm::load("af_wh_ctf_blue_s.tga", -1, true);
+    g_world_hud_assets.mp_respawn = rf::bm::load("af_wh_mp_spawn.tga", -1, true);
 }
 
 void do_render_world_hud_sprite(rf::Vector3 pos, float base_scale, int bitmap_handle,
@@ -133,16 +136,51 @@ void build_ctf_flag_icons()
     build_and_render_flag_icon(team, true);  // blue
 }
 
+void build_mp_respawn_icons() {
+    auto all_respawn_points = get_new_multi_respawn_points();
+
+    for (auto& point : all_respawn_points) {
+        // build colour for icon and arrow
+        int r = 200;
+        int g = 200;
+        int b = 200;
+
+        if (point.red_team && !point.blue_team) {
+            r = 167;
+            g = 0;
+            b = 0;
+        }
+        else if (point.blue_team && !point.red_team) {
+            r = 52;
+            g = 78;
+            b = 167;
+        }
+
+        // draw an arrow in the direction of the spawn point
+        rf::Vector3 arrow_end = point.position + (point.orientation.fvec * 1.5f);
+        rf::gr::gr_line_arrow(
+            point.position.x, point.position.y, point.position.z,
+            arrow_end.x, arrow_end.y, arrow_end.z,
+            r, g, b);
+
+        rf::gr::set_color(r, g, b);
+        do_render_world_hud_sprite(point.position, 1.0, g_world_hud_assets.mp_respawn,
+                                   WorldHUDRenderMode::no_overdraw_glow, false, false, true);
+    }
+}
+
 void hud_world_do_frame() {
     if (g_game_config.world_hud_ctf && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
+    }
+    if (g_pre_match_active || (draw_mp_spawn_world_hud && (!rf::is_multi || rf::is_server))) {
+        build_mp_respawn_icons();
     }
 }
 
 ConsoleCommand2 worldhudctf_cmd{
     "cl_worldhudctf",
     []() {
-
         g_game_config.world_hud_ctf = !g_game_config.world_hud_ctf;
         g_game_config.save();
         rf::console::print("CTF world HUD is {}", g_game_config.world_hud_ctf ? "enabled" : "disabled");
@@ -154,7 +192,6 @@ ConsoleCommand2 worldhudctf_cmd{
 ConsoleCommand2 worldhudoverdraw_cmd{
     "cl_worldhudoverdraw",
     []() {
-
         g_game_config.world_hud_overdraw = !g_game_config.world_hud_overdraw;
         g_game_config.save();
         rf::console::print("World HUD overdraw is {}", g_game_config.world_hud_overdraw ? "enabled" : "disabled");
@@ -163,9 +200,25 @@ ConsoleCommand2 worldhudoverdraw_cmd{
     "cl_worldhudoverdraw",
 };
 
+ConsoleCommand2 worldhudmpspawns_cmd{
+    "dbg_worldhudmpspawns",
+    []() {
+        draw_mp_spawn_world_hud = !draw_mp_spawn_world_hud;
+
+        rf::console::print("World HUD multiplayer respawn points are {}", draw_mp_spawn_world_hud ? "enabled" : "disabled");
+
+        if (draw_mp_spawn_world_hud && rf::is_multi && !rf::is_server) {
+            rf::console::print("World HUD multiplayer respawn points will only be visible in single player or if you are the server host");
+        }
+    },
+    "Toggle whether world HUD indicators for multiplayer respawn points are drawn",
+    "dbg_worldhudmpspawns",
+};
+
 void hud_world_apply_patch()
 {
     // register commands
     worldhudctf_cmd.register_cmd();
     worldhudoverdraw_cmd.register_cmd();
+    worldhudmpspawns_cmd.register_cmd();
 }

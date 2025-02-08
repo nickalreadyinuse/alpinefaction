@@ -20,6 +20,7 @@ constexpr bool g_debug_team_scores_hud = false;
 static bool g_draw_vote_notification = false;
 static std::string g_active_vote_type = "";
 static bool g_draw_ready_notification = false;
+bool g_pre_match_active = false;
 
 namespace rf
 {
@@ -206,6 +207,12 @@ void hud_render_ready_notification()
 void draw_hud_ready_notification(bool draw)
 {
     draw ? g_draw_ready_notification = true : g_draw_ready_notification = false;
+}
+
+void set_local_pre_match_active(bool set_active) {
+    set_active ? g_pre_match_active = true : g_pre_match_active = false;
+
+    draw_hud_ready_notification(set_active);
 }
 
 void hud_render_vote_notification()

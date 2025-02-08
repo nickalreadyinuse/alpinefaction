@@ -417,14 +417,14 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             // display the notification if player should ready
             for (const auto& ready_msg : ready_messages) {
                 if (string_starts_with_ignore_case(msg, ready_msg)) {
-                    draw_hud_ready_notification(true);
+                    set_local_pre_match_active(true);
                     break;
                 }
             }
 
             // remove ready up prompt if match is cancelled prematurely
             if (string_starts_with_ignore_case(msg, "\xA6 Vote passed: The match has been canceled")) {
-                draw_hud_ready_notification(false);
+                set_local_pre_match_active(false);
             }
         }        
         process_chat_line_packet_hook.call_target(data, addr);
@@ -760,6 +760,8 @@ std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_af_signature(
     ext.af_signature = ALPINE_FACTION_SIGNATURE;
     ext.version_major = VERSION_MAJOR;
     ext.version_minor = VERSION_MINOR;
+    ext.version_patch = VERSION_PATCH;
+    ext.version_type = VERSION_TYPE;
     ext.set_flags(g_game_info_server_flags);
 
     // Extend the packet with the struct and level filename

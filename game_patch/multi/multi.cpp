@@ -104,7 +104,7 @@ FunHook<void()> multi_limbo_init{
         // purge any vote or ready notifications on level end
         if (!rf::is_server && !rf::is_dedicated_server) {
             remove_hud_vote_notification();
-            draw_hud_ready_notification(false);
+            set_local_pre_match_active(false);
         }
     },
 };
