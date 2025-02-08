@@ -3,7 +3,7 @@
 
 Version 1.1.0 (Codename TBD): Not yet released
 --------------------------------
-== Bug fixes ==
+### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix server log output for status of `$Enforce Semi Auto Fire Rate Limit` being incorrect
 - Fix `AF_Teleport_Player` events sometimes not correctly translating player velocity
@@ -12,7 +12,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Fix pre-match ready up prompt sometimes displaying even when ready
 - Fix several niche issues where multiplayer spawn point selection would not work as intended
 
-== New features and enhancements ==
+### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Add `Anchor_Marker_Orient` event
 - Add `Light_State` event
