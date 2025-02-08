@@ -1175,7 +1175,7 @@ void update_pre_match_powerups(rf::Player* player)
 void start_match()
 {
     auto msg = std::format(
-        "\n>>>>>>>>>>>>>>>>> {}v{} MATCH STARTING NOW <<<<<<<<<<<<<<<<<\n"
+        "\n>>>>>>>>>>>>>>>> {}v{} MATCH STARTING NOW <<<<<<<<<<<<<<<<\n"
         "RED TEAM: {}\n"
         "BLUE TEAM: {}\n",
         g_match_info.team_size, g_match_info.team_size,
@@ -1635,7 +1635,7 @@ void server_reliable_socket_ready(rf::Player* player)
         auto msg = std::format("\xA6 Match is queued and waiting for players: {}v{}! Use \"/ready\" to ready up.",
             g_match_info.team_size, g_match_info.team_size);
 
-        send_chat_line_packet(msg.c_str(), nullptr);
+        send_chat_line_packet(msg.c_str(), player);
     }
 
     // advertise AF to non-alpine clients if configured
