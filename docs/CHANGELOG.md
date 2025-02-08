@@ -18,7 +18,7 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Add `Light_State` event
 - Bump RFL version to 301
 - Make endgame voting text prompt more appropriate
-- Make `vote rand` the same as `vote next` if $Dynamic Rotation is on (avoids repeats)
+- Make `vote rand` the same as `vote next` if `$Dynamic Rotation` is on (avoids repeats)
 - Add framework for world HUD sprite rendering
 - Add `cl_worldhudoverdraw` command for toggling objective world HUD sprites drawing through the world
 - Add world HUD icons for CTF flags
