@@ -39,7 +39,7 @@ struct AFGameInfoFlags
                (static_cast<uint32_t>(match_mode)               << 5) |
                (static_cast<uint32_t>(saving_enabled)           << 6) |
                (static_cast<uint32_t>(gaussian_spread)          << 7) |
-               (static_cast<uint32_t>(hitsounds)                << 7);
+               (static_cast<uint32_t>(hitsounds)                << 8);
     }
 };
 
