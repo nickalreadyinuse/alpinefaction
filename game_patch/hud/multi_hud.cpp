@@ -133,7 +133,16 @@ const ChatMenuMessages chat_menu_command_message_defaults{
     .key6_msg = "/nextmap",
     .key7_msg = "/whosready",
     .key8_msg = "/matchinfo",
-    .key9_msg = "/info"
+    .key9_msg = "/info",
+    .short_key1_msg = "Vote next map",
+    .short_key2_msg = "Vote previous map",
+    .short_key3_msg = "Vote restart map",
+    .short_key4_msg = "Vote extend round",
+    .short_key5_msg = "Print my stats",
+    .short_key6_msg = "Which map is next?",
+    .short_key7_msg = "Who isn't ready?",
+    .short_key8_msg = "Print match info",
+    .short_key9_msg = "Print server info"
 };
 
 namespace rf
@@ -735,7 +744,7 @@ void chat_menu_action_handler(rf::Key key) {
             if (g_chat_menu_active == ChatMenuType::Taunts) {
                 if (!g_taunt_timer.valid() || g_taunt_timer.elapsed()) {
                     g_taunt_timer.set(10000); // 10 seconds between taunts
-                    const std::string& msg = "[Taunt] " + menu_messages->*it->second;
+                    const std::string& msg = "\xA8[Taunt] " + menu_messages->*it->second;
                     if (!msg.empty()) {
                         rf::multi_chat_say(msg.c_str(), use_team_chat);
                     }
@@ -744,6 +753,13 @@ void chat_menu_action_handler(rf::Key key) {
                     rf::String msg{"You must wait a little while between taunts"};
                     rf::String prefix;
                     rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+                }
+            }
+            else if (g_chat_menu_active == ChatMenuType::Commands) {
+                const std::string& msg = menu_messages->*it->second;
+                if (!msg.empty()) {
+                    send_chat_line_packet(msg.c_str(), nullptr);
+                    //rf::multi_chat_say(msg.c_str(), use_team_chat);
                 }
             }
             else {
