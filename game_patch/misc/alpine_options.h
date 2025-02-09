@@ -58,6 +58,15 @@ enum class AlpineOptionID
     PlayerHeadlampIntensity,
     PlayerHeadlampRange,
     PlayerHeadlampRadius,
+    ChatCommand1,
+    ChatCommand2,
+    ChatCommand3,
+    ChatCommand4,
+    ChatCommand5,
+    ChatCommand6,
+    ChatCommand7,
+    ChatCommand8,
+    ChatCommand9,
     _optioncount // dummy for total count
 };
 
@@ -124,6 +133,24 @@ enum class AlpineLevelInfoID
     PlayerHeadlampIntensity,
     PlayerHeadlampRange,
     PlayerHeadlampRadius,
+    ChatCTF1,
+    ChatCTF2,
+    ChatCTF3,
+    ChatCTF4,
+    ChatCTF5,
+    ChatCTF6,
+    ChatCTF7,
+    ChatCTF8,
+    ChatCTF9,
+    ChatTeamDM1,
+    ChatTeamDM2,
+    ChatTeamDM3,
+    ChatTeamDM4,
+    ChatTeamDM5,
+    ChatTeamDM6,
+    ChatTeamDM7,
+    ChatTeamDM8,
+    ChatTeamDM9,
     _optioncount       // dummy for total count
 };
 

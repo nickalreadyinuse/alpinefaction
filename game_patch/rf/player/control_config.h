@@ -46,6 +46,8 @@ namespace rf
         AF_ACTION_READY = 0x5,
         AF_ACTION_DROP_FLAG = 0x6,
 		AF_ACTION_CHAT_MENU = 0x7,
+        AF_ACTION_TAUNT_MENU = 0x8,
+        AF_ACTION_COMMAND_MENU = 0x9,
     };
 
     struct ControlConfigItem

@@ -173,9 +173,17 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Player Headlamp Color", {AlpineOptionID::PlayerHeadlampColor, "af_game.tbl", parse_color}},
     {"$Player Headlamp Intensity", {AlpineOptionID::PlayerHeadlampIntensity, "af_game.tbl", parse_float}},
     {"$Player Headlamp Range", {AlpineOptionID::PlayerHeadlampRange, "af_game.tbl", parse_float}},
-    {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}}
+    {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}},
+    {"$Chat Menu Command 1", {AlpineOptionID::ChatCommand1, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 2", {AlpineOptionID::ChatCommand2, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 3", {AlpineOptionID::ChatCommand3, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 4", {AlpineOptionID::ChatCommand4, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 5", {AlpineOptionID::ChatCommand5, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 6", {AlpineOptionID::ChatCommand6, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 7", {AlpineOptionID::ChatCommand7, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 8", {AlpineOptionID::ChatCommand8, "af_client.tbl", parse_string}},
+    {"$Chat Menu Command 9", {AlpineOptionID::ChatCommand9, "af_client.tbl", parse_string}}
 };
-
 
 // ===== Parsers for Alpine level info =====
 
@@ -274,6 +282,24 @@ const std::unordered_map<std::string, LevelInfoMetadata> level_info_metadata = {
     {"$Player Headlamp Intensity", {AlpineLevelInfoID::PlayerHeadlampIntensity, parse_float_level}},
     {"$Player Headlamp Range", {AlpineLevelInfoID::PlayerHeadlampRange, parse_float_level}},
     {"$Player Headlamp Radius", {AlpineLevelInfoID::PlayerHeadlampRadius, parse_float_level}},
+    {"$Chat Menu CTF 1", {AlpineLevelInfoID::ChatCTF1, parse_string_level}},
+    {"$Chat Menu CTF 2", {AlpineLevelInfoID::ChatCTF2, parse_string_level}},
+    {"$Chat Menu CTF 3", {AlpineLevelInfoID::ChatCTF3, parse_string_level}},
+    {"$Chat Menu CTF 4", {AlpineLevelInfoID::ChatCTF4, parse_string_level}},
+    {"$Chat Menu CTF 5", {AlpineLevelInfoID::ChatCTF5, parse_string_level}},
+    {"$Chat Menu CTF 6", {AlpineLevelInfoID::ChatCTF6, parse_string_level}},
+    {"$Chat Menu CTF 7", {AlpineLevelInfoID::ChatCTF7, parse_string_level}},
+    {"$Chat Menu CTF 8", {AlpineLevelInfoID::ChatCTF8, parse_string_level}},
+    {"$Chat Menu CTF 9", {AlpineLevelInfoID::ChatCTF9, parse_string_level}},
+    {"$Chat Menu TeamDM 1", {AlpineLevelInfoID::ChatTeamDM1, parse_string_level}},
+    {"$Chat Menu TeamDM 2", {AlpineLevelInfoID::ChatTeamDM2, parse_string_level}},
+    {"$Chat Menu TeamDM 3", {AlpineLevelInfoID::ChatTeamDM3, parse_string_level}},
+    {"$Chat Menu TeamDM 4", {AlpineLevelInfoID::ChatTeamDM4, parse_string_level}},
+    {"$Chat Menu TeamDM 5", {AlpineLevelInfoID::ChatTeamDM5, parse_string_level}},
+    {"$Chat Menu TeamDM 6", {AlpineLevelInfoID::ChatTeamDM6, parse_string_level}},
+    {"$Chat Menu TeamDM 7", {AlpineLevelInfoID::ChatTeamDM7, parse_string_level}},
+    {"$Chat Menu TeamDM 8", {AlpineLevelInfoID::ChatTeamDM8, parse_string_level}},
+    {"$Chat Menu TeamDM 9", {AlpineLevelInfoID::ChatTeamDM9, parse_string_level}}
 };
 
 // Load level info from filename_info.tbl

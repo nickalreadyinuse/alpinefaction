@@ -79,6 +79,7 @@ CodeInjection after_full_game_init_hook{
         multi_after_full_game_init();
         debug_init();
         load_world_hud_assets();
+        build_chat_menu_clientside_messages();
 
         xlog::info("Game fully initialized");
         xlog::LoggerConfig::get().flush_appenders();
@@ -185,6 +186,11 @@ FunHook<void(bool)> level_init_post_hook{
             if (!rf::is_multi) {
                 update_player_flashlight();
             }
+            else {
+                toggle_chat_menu(ChatMenuType::None);
+                build_chat_menu_comms_messages();
+            }
+
             if (g_game_config.try_lightmaps_only) {
                 evaluate_lightmaps_only();
             }

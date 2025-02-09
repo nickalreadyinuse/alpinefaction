@@ -38,6 +38,10 @@ Version 1.1.0 (Codename TBD): Not yet released
 - Draw multiplayer respawn point world HUD icons in pre-match
 - Add `dbg_worldhudmpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
 - Add compatibility table (lightmap clamp floor) for `dm-SpecialForces.rfl`
+- Add framework for chat menus
+- Add action binds for `Team communication menu`, `Taunt menu`, and `Command menu`
+- Add support for `$Chat Menu CTF 1` and `$Chat Menu TeamDM 1` (1 - 9) to `MAPNAME_info.tbl` (overrides defaults on that map)
+- Add support for `$Chat Menu Command 1` (1 - 9) to `af_client.tbl` (overrides defaults)
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025

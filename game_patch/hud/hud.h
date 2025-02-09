@@ -1,5 +1,15 @@
 #pragma once
 
+#include "../rf/input.h"
+
+enum class ChatMenuType : int
+{
+    None,
+    Comms,
+    Taunts,
+    Commands
+};
+
 void hud_apply_patches();
 int hud_get_small_font();
 int hud_get_default_font();
@@ -9,3 +19,10 @@ void draw_hud_vote_notification(std::string vote_type);
 void remove_hud_vote_notification();
 void draw_hud_ready_notification(bool draw);
 void set_local_pre_match_active(bool set_active);
+void build_chat_menu_clientside_messages();
+void build_chat_menu_comms_messages();
+void toggle_chat_menu(ChatMenuType state);
+bool get_chat_menu_is_active();
+int get_chat_menu_level();
+void hud_render_draw_chat_menu();
+void chat_menu_action_handler(rf::Key key);

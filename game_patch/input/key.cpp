@@ -215,8 +215,12 @@ CodeInjection control_config_init_patch{
             ccp, "(AF) Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
         alpine_control_config_add_item(
             ccp, "(AF) Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
-        /* alpine_control_config_add_item(
-            ccp, "(AF) Chat menu", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);*/
+        alpine_control_config_add_item( // V
+            ccp, "(AF) Team communication menu", 0, 0x2F, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
+        alpine_control_config_add_item(
+            ccp, "(AF) Taunt menu", 0, 0x30, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU);
+        alpine_control_config_add_item(
+            ccp, "(AF) Command menu", 0, 0x31, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU);
     },
 };
 
@@ -236,12 +240,6 @@ CodeInjection player_execute_action_patch{
                     ? rf::entity_headlamp_turn_off(rf::local_player_entity)
                     : rf::entity_headlamp_turn_on(rf::local_player_entity);
             }
-            // handled in cutscene.cpp
-            /* else if (action_index ==
-                              starting_alpine_control_index +
-                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE) &&
-                !rf::is_multi) {                
-            }*/
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL) &&
                 rf::is_multi) {
@@ -285,11 +283,21 @@ CodeInjection player_execute_action_patch2{
                 send_chat_line_packet("/ready", nullptr);
                 draw_hud_ready_notification(false);
             }
-            /* else if (action_index == starting_alpine_control_index +
+            else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU) &&
-                rf::is_multi) {
-                xlog::warn("chat menu pressed");
-            }*/
+                rf::is_multi && !rf::is_dedicated_server) {
+                toggle_chat_menu(ChatMenuType::Comms);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU) &&
+                rf::is_multi && !rf::is_dedicated_server) {
+                toggle_chat_menu(ChatMenuType::Taunts);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU) &&
+                rf::is_multi && !rf::is_dedicated_server) {
+                toggle_chat_menu(ChatMenuType::Commands);
+            }
         }
     },
 };
@@ -327,15 +335,38 @@ CodeInjection controls_process_patch{
 
         // C++ doesn't have a way to dynamically get the last enum index, so just update this when adding new controls
         if (index >= starting_alpine_control_index &&
-            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG)) {
+            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU)) {
             //xlog::warn("passing control {}", index);
             regs.eip = 0x00430E24;
         }
     },
 };
 
+CodeInjection controls_process_chat_menu_patch{
+    0x00430E19,
+    [](auto& regs) {
+
+        // only consume numline keys if a chat menu is active + chat box and console are hidden
+        if (get_chat_menu_is_active() && !rf::console::console_is_visible() && !rf::multi_chat_is_say_visible()) {
+            if (rf::key_get_and_reset_down_counter(rf::KEY_0) > 0) {
+                toggle_chat_menu(ChatMenuType::None);
+            }
+            else {
+                for (int key = rf::KEY_1; key <= rf::KEY_9; ++key) {
+                    if (rf::key_get_and_reset_down_counter(static_cast<rf::Key>(key)) > 0) {
+                        chat_menu_action_handler(static_cast<rf::Key>(key));
+                    }
+                }
+            }
+        }
+    },
+};
+
 void key_apply_patch()
 {
+    // Handle Alpine chat menus
+    controls_process_chat_menu_patch.install();
+
     // Handle Alpine controls
     control_config_init_patch.install();
     player_execute_action_patch.install();
