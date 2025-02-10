@@ -36,22 +36,21 @@ ChatMenuMessages g_chat_menu_powerup_messages;
 rf::TimestampRealtime g_chat_menu_timer;
 
 const ChatMenuMessages chat_menu_ctf_message_defaults{
-    .key1_msg = "Enemy going high!",
-    .key2_msg = "Enemy going middle!",
-    .key3_msg = "Enemy going low!",
-    .key4_msg = "Enemy flag carrier is hiding!",
-    .key5_msg = "Enemy base is empty",
-    .key6_msg = "I will cover the flag steal",
-    .key7_msg = "Covering our flag carrier",
+    .key1_msg = "Enemy is going HIGH",
+    .key2_msg = "Enemy is going MID",
+    .key3_msg = "Enemy is going LOW",
+    .key4_msg = "Ready to attack the base",
+    .key5_msg = "Our base is lost",
+    .key6_msg = "Our base is safe",
+    .key7_msg = "",
     .key8_msg = "",
-    .key9_msg = "",
-    .short_key1_msg = "High!",
+    .key9_msg = ""
 };
 
 const ChatMenuMessages chat_menu_tdm_message_defaults{
-    .key1_msg = "Enemies are going high!",
-    .key2_msg = "Enemies are going middle!",
-    .key3_msg = "Enemies are going low!",
+    .key1_msg = "Enemy is going HIGH",
+    .key2_msg = "Enemy is going MID",
+    .key3_msg = "Enemy is going LOW",
     .key4_msg = "",
     .key5_msg = "",
     .key6_msg = "",
@@ -61,11 +60,11 @@ const ChatMenuMessages chat_menu_tdm_message_defaults{
 };
 
 const ChatMenuMessages chat_menu_defense_message_defaults{
-    .key1_msg = "Enemy incoming high!",
-    .key2_msg = "Enemy incoming middle!",
-    .key3_msg = "Enemy incoming low!",
-    .key4_msg = "Our base is safe",
-    .key5_msg = "Enemies are in our base",
+    .key1_msg = "Enemy incoming HIGH",
+    .key2_msg = "Enemy incoming MID",
+    .key3_msg = "Enemy incoming LOW",
+    .key4_msg = "",
+    .key5_msg = "",
     .key6_msg = "",
     .key7_msg = "",
     .key8_msg = "",
@@ -73,10 +72,10 @@ const ChatMenuMessages chat_menu_defense_message_defaults{
 };
 
 const ChatMenuMessages chat_menu_offense_message_defaults{
-    .key1_msg = "Going high.",
-    .key2_msg = "Going middle.",
-    .key3_msg = "Going low.",
-    .key4_msg = "Hiding until our base is safe",
+    .key1_msg = "Attacking HIGH",
+    .key2_msg = "Attacking MID",
+    .key3_msg = "Attacking LOW",
+    .key4_msg = "",
     .key5_msg = "",
     .key6_msg = "",
     .key7_msg = "",
