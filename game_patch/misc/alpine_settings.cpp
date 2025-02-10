@@ -5,10 +5,12 @@
 #include "alpine_settings.h"
 #include <common/version/version.h>
 #include "../os/console.h"
+#include "../rf/ui.h"
 #include "../rf/os/console.h"
 #include "../rf/player/player.h"
 #include "../rf/sound/sound.h"
 #include "../rf/gr/gr.h"
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -20,6 +22,7 @@
 #include <xlog/xlog.h>
 
 bool g_loaded_alpine_settings_file = false;
+int g_temp_num_bindings_compatibility = 0;
 
 std::string alpine_get_settings_filename()
 {
@@ -162,7 +165,7 @@ bool alpine_player_settings_load(rf::Player* player)
                     player->settings.controls.bindings[bind_id].scan_codes[1] = scan2.empty() ? -1 : std::stoi(scan2);
                     player->settings.controls.bindings[bind_id].mouse_btn_id = mouse_btn.empty() ? -1 : std::stoi(mouse_btn);
 
-                    xlog::info("Loaded Bind: {} = {}, {}, {}, {}", action_name, bind_id, scan1, scan2, mouse_btn);
+                    //xlog::info("Loaded Bind: {} = {}, {}, {}, {}", action_name, bind_id, scan1, scan2, mouse_btn);
                 }
                 else {
                     xlog::warn("Invalid Bind ID {} for action {} found in config file!", bind_id, action_name);
@@ -190,12 +193,12 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
 
     // Key bind format: Bind:ActionName=ID,PrimaryScanCode,SecondaryScanCode,MouseButtonID
     for (int i = 0; i < cc.num_bindings; ++i) {
-        xlog::info("Saving Bind: {} = {}, {}, {}, {}", 
+        /* xlog::info("Saving Bind: {} = {}, {}, {}, {}", 
                    cc.bindings[i].name, 
                    i, 
                    cc.bindings[i].scan_codes[0], 
                    cc.bindings[i].scan_codes[1], 
-                   cc.bindings[i].mouse_btn_id);
+                   cc.bindings[i].mouse_btn_id);*/
 
         file << "Bind:" << cc.bindings[i].name << "=" 
              << i << "," 
@@ -283,8 +286,18 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
     0x004B2726,
     [](rf::Player* player) {
         if (!alpine_player_settings_load(player)) {
-            rf::console::print("Alpine Faction settings file could not be loaded. Loading legacy Red Faction settings file...");
+            xlog::info("Alpine Faction settings file not found. Importing legacy settings file.");
             player_settings_load_hook.call_target(player); // players.cfg
+
+            // Display legacy RF settings import popup
+            const char* choices[2] = {"Continue anyway", "Quit game"};
+            void (*callbacks[2])() = {nullptr, rf::ui::mainmenu_quit_game_confirmed};
+            int keys[2] = {-1, 1};
+                        
+            rf::ui::popup_custom(
+                "Legacy Red Faction Settings Imported",
+                "You must restart Alpine Faction to finish initializing settings.",
+                2, choices, callbacks, 1, keys);
         }
     }
 };
@@ -320,10 +333,11 @@ ConsoleCommand2 save_settings_cmd{
 
 void alpine_settings_apply_patch()
 {
+    // Handle loading and saving settings ini file
     player_settings_load_hook.install();
     player_settings_save_hook.install();
 
-    // commands
+    // Register commands
     load_settings_cmd.register_cmd();
     save_settings_cmd.register_cmd();
 }

@@ -101,6 +101,8 @@ namespace rf::ui
     static auto& popup_abort = addr_as_ref<void()>(0x004559C0);
     static auto& popup_set_text = addr_as_ref<void(const char *text)>(0x00455A50);
 
+    static auto& mainmenu_quit_game_confirmed = addr_as_ref<void()>(0x00443CB0);
+
     static auto& get_gadget_from_pos = addr_as_ref<int(int x, int y, Gadget * const gadgets[], int num_gadgets)>(0x00442ED0);
     static auto& update_input_box_cursor = addr_as_ref<void()>(0x00456960);
 
