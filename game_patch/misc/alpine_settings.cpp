@@ -2,6 +2,7 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
+#include <common/utils/os-utils.h>
 #include "alpine_settings.h"
 #include <common/version/version.h>
 #include "../os/console.h"
@@ -10,6 +11,9 @@
 #include "../rf/player/player.h"
 #include "../rf/sound/sound.h"
 #include "../rf/gr/gr.h"
+#include <shlwapi.h>
+#include <windows.h>
+#include <shellapi.h>
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -21,8 +25,9 @@
 #include <unordered_map>
 #include <xlog/xlog.h>
 
-bool g_loaded_alpine_settings_file = false;
-int g_temp_num_bindings_compatibility = 0;
+static bool g_loaded_alpine_settings_file = false;
+static bool g_loaded_players_cfg_file = false;
+static bool g_restart_on_close = false;
 
 std::string alpine_get_settings_filename()
 {
@@ -165,7 +170,7 @@ bool alpine_player_settings_load(rf::Player* player)
                     player->settings.controls.bindings[bind_id].scan_codes[1] = scan2.empty() ? -1 : std::stoi(scan2);
                     player->settings.controls.bindings[bind_id].mouse_btn_id = mouse_btn.empty() ? -1 : std::stoi(mouse_btn);
 
-                    //xlog::info("Loaded Bind: {} = {}, {}, {}, {}", action_name, bind_id, scan1, scan2, mouse_btn);
+                    xlog::info("Loaded Bind: {} = {}, {}, {}, {}", action_name, bind_id, scan1, scan2, mouse_btn);
                 }
                 else {
                     xlog::warn("Invalid Bind ID {} for action {} found in config file!", bind_id, action_name);
@@ -193,12 +198,12 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
 
     // Key bind format: Bind:ActionName=ID,PrimaryScanCode,SecondaryScanCode,MouseButtonID
     for (int i = 0; i < cc.num_bindings; ++i) {
-        /* xlog::info("Saving Bind: {} = {}, {}, {}, {}", 
+        xlog::info("Saving Bind: {} = {}, {}, {}, {}", 
                    cc.bindings[i].name, 
                    i, 
                    cc.bindings[i].scan_codes[0], 
                    cc.bindings[i].scan_codes[1], 
-                   cc.bindings[i].mouse_btn_id);*/
+                   cc.bindings[i].mouse_btn_id);
 
         file << "Bind:" << cc.bindings[i].name << "=" 
              << i << "," 
@@ -282,34 +287,73 @@ void alpine_player_settings_save(rf::Player* player)
     return;
 }
 
+void close_and_restart_game() {
+    g_restart_on_close = true;
+    rf::ui::mainmenu_quit_game_confirmed();
+}
+
 CallHook<void(rf::Player*)> player_settings_load_hook{
     0x004B2726,
     [](rf::Player* player) {
         if (!alpine_player_settings_load(player)) {
-            xlog::info("Alpine Faction settings file not found. Importing legacy settings file.");
-            player_settings_load_hook.call_target(player); // players.cfg
+            xlog::warn("Alpine Faction settings file not found. Attempting to import legacy RF settings file.");
+            player_settings_load_hook.call_target(player); // load players.cfg
 
-            // Display legacy RF settings import popup
-            const char* choices[2] = {"Continue anyway", "Quit game"};
-            void (*callbacks[2])() = {nullptr, rf::ui::mainmenu_quit_game_confirmed};
-            int keys[2] = {-1, 1};
+            //  Display restart popup due to players.cfg import
+            if (g_loaded_players_cfg_file) {
+                const char* choices[1] = {"Restart now"};
+                void (*callbacks[1])() = {close_and_restart_game};
+                int keys[1] = {1};
                         
-            rf::ui::popup_custom(
-                "Legacy Red Faction Settings Imported",
-                "You must restart Alpine Faction to finish initializing settings.",
-                2, choices, callbacks, 1, keys);
+                rf::ui::popup_custom(
+                    "Legacy Red Faction Settings Imported",
+                    "Alpine Faction must restart to finish applying imported settings.\n\nIf you have any questions, visit alpinefaction.com/help",
+                    1, choices, callbacks, 1, keys);
+            }
+            else {
+                xlog::warn("Legacy RF settings file not found. Applying default settings.");
+            }
         }
     }
 };
 
-CallHook<void(rf::Player*)> player_settings_save_hook{
-    {
-        0x004B2D77,
-        0x0044F1AF
-    },
+FunHook<void(rf::Player*)> player_settings_save_hook{
+    0x004A8F50,
     [](rf::Player* player) {
         alpine_player_settings_save(player);
-        //player_settings_save_hook.call_target(player); // players.cfg
+    }
+};
+
+CallHook<void(rf::Player*)> player_settings_save_quit_hook{
+    0x004B2D77,
+    [](rf::Player* player) {
+        player_settings_save_quit_hook.call_target(player);
+
+        if (g_restart_on_close) {
+            xlog::info("Restarting Alpine Faction to finish applying imported settings.");
+            std::string af_install_dir = get_module_dir(g_hmodule);
+            std::string af_launcher_filename = "AlpineFactionLauncher.exe";
+            std::string af_launcher_arguments = " -game";
+
+            if (rf::mod_param.found()) {
+                std::string mod_name = rf::mod_param.get_arg();
+                af_launcher_arguments = " -game -mod " + mod_name;
+            }
+
+            std::string af_launcher_path = af_install_dir + af_launcher_filename;
+            xlog::warn("executing {}{}", af_launcher_path, af_launcher_arguments);
+            if (PathFileExistsA(af_launcher_path.c_str())) {
+                ShellExecuteA(nullptr, "open", af_launcher_path.c_str(), af_launcher_arguments.c_str(), nullptr, SW_SHOWNORMAL);
+            }
+        }
+    }
+};
+
+CodeInjection player_settings_load_players_cfg_patch{
+    0x004A8E6F,
+    []() {
+        xlog::warn("Successfully imported legacy RF settings file. Client must restart to finish applying imported settings.");
+        g_loaded_players_cfg_file = true;
     }
 };
 
@@ -336,6 +380,8 @@ void alpine_settings_apply_patch()
     // Handle loading and saving settings ini file
     player_settings_load_hook.install();
     player_settings_save_hook.install();
+    player_settings_save_quit_hook.install();
+    player_settings_load_players_cfg_patch.install();
 
     // Register commands
     load_settings_cmd.register_cmd();
