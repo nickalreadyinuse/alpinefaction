@@ -483,7 +483,6 @@ void misc_init()
     //gr_set_far_clip_hook.install();
     //AsmWriter{0x0051806F}.jmp(0x00518083); // stops far clip from derendering geometry covered by fog, buggy
 
-
     // Allow loading of rfl files with supported AF-specific versions
     level_read_header_patch.install();
 
@@ -494,18 +493,9 @@ void misc_init()
     //level_read_geometry_header_patch.install();
     //AsmWriter(0x00461A5C).nop(6);
 
-
-
-
-
-
-
-
-    //AsmWriter{0x004B629D}.push(0x80); // 128 entities in savegame block
-
     // Display a more informative message to user if they try to load an unsupported rfl
     static char new_unsupported_version_message[] =
-        "Unsupported version (%d).\nVisit https://redfaction.help to find a compatible client version.\n";
+        "Unsupported version (%d).\nVisit alpinefaction.com to find a compatible client version.\n";
     AsmWriter{0x004615C6}.push(reinterpret_cast<int32_t>(new_unsupported_version_message));
 
     // Window title (client and server)
