@@ -299,12 +299,14 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
             xlog::warn("Alpine Faction settings file not found. Attempting to import legacy RF settings file.");
             player_settings_load_hook.call_target(player); // load players.cfg
 
-            //  Display restart popup due to players.cfg import
+            // Display restart popup due to players.cfg import
+            // players.cfg from legacy client version will import fine on first load, apart from Alpine controls
+            // Restart cleanly loads game without baggage from players.cfg, and adds Alpine controls without issue
             if (g_loaded_players_cfg_file) {
                 const char* choices[1] = {"Restart now"};
                 void (*callbacks[1])() = {close_and_restart_game};
                 int keys[1] = {1};
-                        
+                
                 rf::ui::popup_custom(
                     "Legacy Red Faction Settings Imported",
                     "Alpine Faction must restart to finish applying imported settings.\n\nIf you have any questions, visit alpinefaction.com/help",
