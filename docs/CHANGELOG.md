@@ -1,7 +1,7 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.1.0 (Codename TBD): Not yet released
+Version 1.1.0 (Tamarack): Not yet released
 --------------------------------
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

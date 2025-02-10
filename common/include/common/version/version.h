@@ -20,7 +20,7 @@
 #define VERSION_PATCH          0
 #define VERSION_TYPE           VERSION_TYPE_DEV
 #define VERSION_TYPE_REVISION  0
-#define VERSION_CODE           "Maple"
+#define VERSION_CODE           "Tamarack"
 
 // Increment only when absolutely necessary! Will break level compatibility for older clients.
 // Stock RF1 uses versions 156 - 200. RF2 uses version 295
