@@ -42,6 +42,7 @@ void camera_do_patch();
 void ui_apply_patch();
 void game_apply_patch();
 void character_apply_patch();
+void alpine_settings_apply_patch();
 
 struct JoinMpGameData
 {
@@ -616,6 +617,7 @@ void misc_init()
     all_table_files_loaded_injection.install();
 
     // Apply patches from other files
+    alpine_settings_apply_patch();
     apply_main_menu_patches();
     apply_save_restore_patches();
     apply_sound_patches();

@@ -86,6 +86,9 @@ namespace rf
     static auto& sound_listener_rvec = addr_as_ref<Vector3>(0x01753C28);
     static auto& snd_music_sig = addr_as_ref<int>(0x017543D0);
 
+    static auto snd_get_group_volume = addr_as_ref<float(int group)>(0x00454A20);
+    static auto snd_set_group_volume = addr_as_ref<void(int group, float volume)>(0x00505840);
+
     static auto& sound_pc_inited = addr_as_ref<bool>(0x01CFC5D0);
 
     static auto snd_load_hint = addr_as_ref<int(int handle)>(0x005054D0);
