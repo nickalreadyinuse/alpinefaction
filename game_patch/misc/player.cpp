@@ -63,7 +63,7 @@ FunHook<void(rf::Player*)> player_destroy_hook{
         reset_player_additional_data(player);
         player_destroy_hook.call_target(player);
         if (rf::is_server) {
-            set_ready_status(player, 0);
+            remove_ready_player_silent(player);
             server_vote_on_player_leave(player);
         }
     },

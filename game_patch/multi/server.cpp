@@ -1286,6 +1286,12 @@ void add_ready_player(rf::Player* player)
     }
 }
 
+void remove_ready_player_silent(rf::Player* player)
+{
+    g_match_info.ready_players_red.erase(player) > 0;
+    g_match_info.ready_players_blue.erase(player) > 0;
+}
+
 void remove_ready_player(rf::Player* player)
 {
     bool was_in_red = g_match_info.ready_players_red.erase(player) > 0;

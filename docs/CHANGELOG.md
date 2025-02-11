@@ -13,6 +13,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix several niche issues where multiplayer spawn point selection would not work as intended
 - Fix match ready up prompt not being properly reset for players who leave the server during pre-match
 - Fix incorrect information in "You are no longer ready" message
+- Fix players leaving server during pre-match not always being removed from list of ready players
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)

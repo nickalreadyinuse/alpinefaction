@@ -246,6 +246,7 @@ void start_match();
 void cancel_match();
 void start_pre_match();
 void set_ready_status(rf::Player* player, bool is_ready);
+void remove_ready_player_silent(rf::Player* player);
 void toggle_ready_status(rf::Player* player);
 bool get_ready_status(const rf::Player* player);
 void server_vote_do_frame();
