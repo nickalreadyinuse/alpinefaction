@@ -22,6 +22,9 @@
 #define VERSION_TYPE_REVISION  0
 #define VERSION_CODE           "Tamarack"
 
+// Version used for alpine_settings.ini settings files
+#define AFS_VERSION            "1"
+
 // Increment only when absolutely necessary! Will break level compatibility for older clients.
 // Stock RF1 uses versions 156 - 200. RF2 uses version 295
 // AF can load levels with version 40 - 200 or 300 - MAXIMUM_RFL_VERSION
