@@ -32,6 +32,51 @@ static bool g_restart_on_close = false;
 std::vector<std::string> orphaned_lines;
 int loaded_afs_version = -1;
 
+void resolve_scan_code_conflicts(rf::ControlConfig& config)
+{
+    std::unordered_set<int> used_keys; // Track already assigned scan codes
+
+    for (int i = 0; i < config.num_bindings; ++i) {
+        auto& binding = config.bindings[i];
+
+        for (int j = 0; j < 2; ++j) { // Check both scan_codes[0] and scan_codes[1]
+            int key = binding.scan_codes[j];
+
+            if (key != -1) {
+                // If this key is already assigned earlier, unbind it
+                if (used_keys.find(key) != used_keys.end()) {
+                    xlog::warn("Scan code conflict detected: Key {} already used, unbinding action {}", key, i);
+                    binding.scan_codes[j] = -1;
+                }
+                else {
+                    used_keys.insert(key);
+                }
+            }
+        }
+    }
+}
+
+void resolve_mouse_button_conflicts(rf::ControlConfig& config)
+{
+    std::unordered_set<int> used_buttons; // Track already assigned mouse buttons
+
+    for (int i = 0; i < config.num_bindings; ++i) {
+        auto& binding = config.bindings[i];
+        int button = binding.mouse_btn_id;
+
+        if (button != -1) {
+            // If this button is already assigned earlier, unbind it
+            if (used_buttons.find(button) != used_buttons.end()) {
+                xlog::warn("Mouse button conflict detected: Button {} already used, unbinding action {}", button, i);
+                binding.mouse_btn_id = -1;
+            }
+            else {
+                used_buttons.insert(button);
+            }
+        }
+    }
+}
+
 std::string alpine_get_settings_filename()
 {
     if (rf::mod_param.found()) {
@@ -218,6 +263,11 @@ bool alpine_player_settings_load(rf::Player* player)
         }
     }
 
+    // Iterate through newly loaded bindings and resolve conflicts
+    // Earlier bind takes priority when conflicts occur
+    resolve_scan_code_conflicts(player->settings.controls);
+    resolve_mouse_button_conflicts(player->settings.controls);
+
     // Store orphaned settings
     for (const auto& [key, value] : settings) {
         if (processed_keys.find(key) == processed_keys.end() && !string_starts_with(key, "AFS")) {
@@ -225,6 +275,8 @@ bool alpine_player_settings_load(rf::Player* player)
             orphaned_lines.push_back(key + "=" + value);
         }
     }
+
+
 
     rf::console::printf("Successfully loaded settings from %s", filename);
     g_loaded_alpine_settings_file = true;
@@ -313,7 +365,7 @@ void alpine_player_settings_save(rf::Player* player)
     bool first = true;
     for (int i = 0; i < 32; ++i) {
         int weapon_id = player->weapon_prefs[i];
-        if (weapon_id > -1) { // Only save valid weapons
+        if (weapon_id > -1 && weapon_id < 255) { // Only save valid weapons
             if (!first) {
                 file << ",";
             }
