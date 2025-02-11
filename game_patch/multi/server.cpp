@@ -1299,12 +1299,13 @@ void remove_ready_player(rf::Player* player)
     update_pre_match_powerups(player);
 
     auto msg_source = std::format("\xA6 You are no longer ready! Still waiting for players - RED: {}, BLUE: {}.",
-                           player->name.c_str(), g_match_info.team_size - g_match_info.ready_players_red.size(),
-                           g_match_info.team_size - g_match_info.ready_players_blue.size());
+        g_match_info.team_size - g_match_info.ready_players_red.size(),
+        g_match_info.team_size - g_match_info.ready_players_blue.size());
 
     auto msg_others = std::format("\xA6 {} is no longer ready! Still waiting for players - RED: {}, BLUE: {}.",
-                           player->name.c_str(), g_match_info.team_size - g_match_info.ready_players_red.size(),
-                           g_match_info.team_size - g_match_info.ready_players_blue.size());
+        player->name.c_str(),
+        g_match_info.team_size - g_match_info.ready_players_red.size(),
+        g_match_info.team_size - g_match_info.ready_players_blue.size());
 
     // send the message to the player who unreadied
     send_chat_line_packet(msg_source.c_str(), player);
@@ -1339,7 +1340,6 @@ void toggle_ready_status(rf::Player* player)
         add_ready_player(player);
     }
 }
-
 
 void set_ready_status(rf::Player* player, bool is_ready)
 {
