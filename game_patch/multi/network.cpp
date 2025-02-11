@@ -1138,11 +1138,11 @@ FunHook<void()> tracker_do_broadcast_server_hook{
 FunHook<void()> multi_stop_hook{
     0x0046E2C0,
     []() {
-        // Clear server info when leaving
-        g_df_server_info.reset();
+        g_df_server_info.reset(); // Clear server info when leaving
+        set_local_pre_match_active(false); // clear pre-match state when leaving
         multi_stop_hook.call_target();
         if (rf::local_player) {
-            reset_player_additional_data(rf::local_player);
+            reset_player_additional_data(rf::local_player); // clear player additional data when leaving
         }
     },
 };
