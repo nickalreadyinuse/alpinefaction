@@ -122,7 +122,14 @@ bool alpine_player_settings_load(rf::Player* player)
 
     // Load player settings
     if (settings.count("PlayerName")) {
-        player->name = settings["PlayerName"].c_str();
+        std::string player_name = settings["PlayerName"];
+
+        if (player_name.length() > 31) {
+            xlog::warn("PlayerName in {} is too long and has been truncated.", filename);
+            player_name = player_name.substr(0, 31);
+        }
+
+        player->name = player_name.c_str();
         processed_keys.insert("PlayerName");
     }
     if (settings.count("MultiplayerCharacter")) {
