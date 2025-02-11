@@ -50,6 +50,7 @@
 
 int g_update_rate = 30; // client netfps
 bool g_joining_player_is_alpine = false;
+std::optional<int> g_desired_multiplayer_character; // caches local mp character when forced by server
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 
@@ -961,6 +962,35 @@ CodeInjection process_join_accept_send_game_info_req_injection{
     },
 };
 
+CodeInjection process_entity_create_packet_injection{
+    0x0047559B,
+    [](auto& regs) {
+        rf::Player* player = regs.ebx;
+        int mp_character = regs.edx;
+
+        // save my current character if the server forced me to spawn with a different one
+        if (player == rf::local_player && player->settings.multi_character != mp_character) {
+            g_desired_multiplayer_character = player->settings.multi_character;
+            xlog::debug("Server forced spawn as character {}. Caching current character {}.",
+                mp_character, g_desired_multiplayer_character.value_or(-1));
+        }
+    },
+};
+
+CodeInjection process_entity_create_packet_injection2{
+    0x0047560E,
+    [](auto& regs) {
+        rf::Player* player = regs.ebx;
+
+        // after spawning, set my character back to the one I want
+        if (player == rf::local_player && g_desired_multiplayer_character.has_value()) {
+            xlog::debug("Setting character to cached value {}.", g_desired_multiplayer_character.value());
+            player->settings.multi_character = g_desired_multiplayer_character.value();
+            g_desired_multiplayer_character.reset();
+        }
+    },
+};
+
 std::optional<std::string> determine_local_ip_address()
 {
     ULONG forward_table_size = 0;
@@ -1342,6 +1372,8 @@ void network_init()
     process_entity_create_packet_hook.install();
     process_reload_packet_hook.install();
     process_reload_request_packet_hook.install();
+    process_entity_create_packet_injection.install(); // save char if server forces it
+    process_entity_create_packet_injection2.install(); // reset char after server forced it
 
     // Fix obj_update packet handling
     process_obj_update_check_flags_injection.install();

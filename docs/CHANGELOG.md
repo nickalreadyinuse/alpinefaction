@@ -45,6 +45,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Implement settings saving/loading using readable `alpine_settings.ini` and remove reliance on legacy encoded file `players.cfg`
 - Import settings from `players.cfg` on launch if `alpine_settings.ini` is not found
 - Support TC mods with new settings file approach - `alpine_settings_MODNAME.ini`
+- Prevent MP character from being permanently changed after spawning in a server with `$Force Player Character` configured
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
