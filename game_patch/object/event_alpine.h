@@ -1156,7 +1156,7 @@ namespace rf
             }
 
             if (pass) {
-                xlog::warn("Test passed for Inside_Gate UID {}", this->uid);
+                xlog::debug("Test passed for Inside_Gate UID {}", this->uid);
                 activate_links(this->trigger_handle, this->triggered_by_handle, true);
             }
         }
