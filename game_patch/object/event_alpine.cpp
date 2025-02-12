@@ -7,6 +7,7 @@
 #include <cassert>
 #include <unordered_set>
 #include "event_alpine.h"
+#include "../hud/hud_world.h"
 #include "../misc/misc.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
@@ -77,6 +78,7 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"AF_Heal", 132},
                 {"Anchor_Marker_Orient", 133},
                 {"Light_State", 134},
+                {"World_HUD_Sprite", 135},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -137,6 +139,7 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {132, []() { return new rf::EventAFHeal(); }},
                 {133, []() { return new rf::EventAnchorMarkerOrient(); }},
                 {134, []() { return new rf::EventLightState(); }},
+                {135, []() { return new rf::EventWorldHUDSprite(); }},
             };
 
             // find type and allocate
@@ -201,6 +204,7 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {132, [](rf::Event* e) { delete static_cast<rf::EventAFHeal*>(e); }},
                 {133, [](rf::Event* e) { delete static_cast<rf::EventAnchorMarkerOrient*>(e); }},
                 {134, [](rf::Event* e) { delete static_cast<rf::EventLightState*>(e); }},
+                {135, [](rf::Event* e) { delete static_cast<rf::EventWorldHUDSprite*>(e); }},
             };
 
             // find type and deallocate
@@ -239,7 +243,8 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Gametype_Gate,
         rf::EventType::When_Picked_Up,
         rf::EventType::Set_Entity_Flag,
-        rf::EventType::Light_State
+        rf::EventType::Light_State,
+        rf::EventType::World_HUD_Sprite
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
@@ -593,6 +598,21 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
                 event->target = static_cast<rf::AFHealTargetOption>(params.int2);
                 event->apply_to_armor = params.bool1;
                 event->super = params.bool2;
+            }
+            return event;
+        }
+    },
+    // World_HUD_Sprite
+    {
+        rf::EventType::World_HUD_Sprite, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::World_HUD_Sprite));
+            auto* event = dynamic_cast<rf::EventWorldHUDSprite*>(base_event);
+            if (event) {
+                event->enabled = params.bool1;
+                event->render_mode = static_cast<WorldHUDRenderMode>(params.int1);
+                event->scale = params.float1;
+                event->sprite_filename = params.str1;
+                event->sprite_filename_blue = params.str2;
             }
             return event;
         }

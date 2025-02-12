@@ -1,5 +1,11 @@
+#include <xlog/xlog.h>
+#include <patch_common/FunHook.h>
+#include <patch_common/MemUtils.h>
+#include <algorithm>
+#include <unordered_set>
 #include "hud_internal.h"
 #include "hud_world.h"
+#include "../object/event_alpine.h"
 #include "../multi/server.h"
 #include "../rf/hud.h"
 #include "../rf/player/player.h"
@@ -13,13 +19,10 @@
 #include "../rf/gr/gr_font.h"
 #include "../rf/localize.h"
 #include "../os/console.h"
-#include <patch_common/FunHook.h>
-#include <patch_common/MemUtils.h>
-#include <algorithm>
-#include <xlog/xlog.h>
 
 WorldHUDAssets g_world_hud_assets;
 bool draw_mp_spawn_world_hud = false;
+std::unordered_set<rf::EventWorldHUDSprite*> world_hud_sprite_events;
 
 void load_world_hud_assets() {
     g_world_hud_assets.flag_red_d = rf::bm::load("af_wh_ctf_red_d.tga", -1, true);
@@ -169,12 +172,46 @@ void build_mp_respawn_icons() {
     }
 }
 
+void build_world_hud_sprite_icons() {
+    bool team = rf::local_player->team;
+
+    for (auto& event : world_hud_sprite_events) {
+        if (event->enabled) {
+            if (team && event->sprite_filename_blue_int.has_value()) {
+                do_render_world_hud_sprite(event->pos, event->scale, event->sprite_filename_blue_int.value_or(-1),
+                    event->render_mode, false, false, true);
+            }
+            else if (event->sprite_filename_int.has_value()) {
+                do_render_world_hud_sprite(event->pos, event->scale, event->sprite_filename_int.value_or(-1),
+                    event->render_mode, false, false, true);
+            }
+        }
+    }
+}
+
 void hud_world_do_frame() {
     if (g_game_config.world_hud_ctf && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
     }
     if (g_pre_match_active || (draw_mp_spawn_world_hud && (!rf::is_multi || rf::is_server))) {
         build_mp_respawn_icons();
+    }
+    if (!world_hud_sprite_events.empty()) {
+        build_world_hud_sprite_icons();
+    }
+}
+
+void populate_world_hud_sprite_events()
+{
+    world_hud_sprite_events.clear();
+
+    std::vector<rf::Event*> events = rf::find_all_events_by_type(rf::EventType::World_HUD_Sprite);
+
+    for (rf::Event* event : events) {
+        if (auto* hud_sprite_event = dynamic_cast<rf::EventWorldHUDSprite*>(event)) {
+            world_hud_sprite_events.insert(hud_sprite_event);
+            hud_sprite_event->build_sprite_ints();
+        }
     }
 }
 

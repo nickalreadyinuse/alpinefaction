@@ -8,6 +8,7 @@
 #include <functional>
 #include <algorithm>
 #include <common/utils/list-utils.h>
+#include "../hud/hud_world.h"
 #include "../rf/event.h"
 #include "../rf/object.h"
 #include "../rf/level.h"
@@ -1988,6 +1989,42 @@ namespace rf
                     light->on = false;
                 }
             }
+        }
+    };
+
+    // id 135
+    struct EventWorldHUDSprite : Event
+    {
+        bool enabled = false;
+        WorldHUDRenderMode render_mode = WorldHUDRenderMode::no_overdraw;
+        float scale = 0.0f;
+        std::string sprite_filename = "";
+        std::string sprite_filename_blue = "";
+
+        std::optional<int> sprite_filename_int;
+        std::optional<int> sprite_filename_blue_int;
+
+        // optimization to avoid running bm_load every frame
+        // build_sprite_ints is run once during level_init_post and every time the event is turned on
+        void build_sprite_ints() {
+            if (!sprite_filename.empty()) {
+                sprite_filename_int = rf::bm::load(sprite_filename.c_str(), -1, true);
+            }
+
+            if (!sprite_filename_blue.empty()) {
+                sprite_filename_blue_int = rf::bm::load(sprite_filename_blue.c_str(), -1, true);
+            }
+        }
+
+        void turn_on() override
+        {
+            build_sprite_ints();
+            enabled = true;
+        }
+
+        void turn_off() override
+        {
+            enabled = false;
         }
     };
 

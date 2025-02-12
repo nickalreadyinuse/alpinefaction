@@ -1,5 +1,11 @@
 #pragma once
 
+// Forward declarations
+namespace rf
+{
+    struct Vector3;
+}
+
 struct WorldHUDAssets
 {
     int flag_red_d;
@@ -32,5 +38,6 @@ enum class WorldHUDRenderMode : int
 
 void hud_world_do_frame();
 void load_world_hud_assets();
+void populate_world_hud_sprite_events();
 void do_render_world_hud_sprite(rf::Vector3 pos, float base_scale, int bitmap_handle, WorldHUDRenderMode render_mode,
                                 bool stay_inside_fog, bool distance_scaling, bool only_draw_during_gameplay);

@@ -34,7 +34,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 36; // must be 1 higher than actual count
+constexpr int new_event_count = 37; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -75,6 +75,7 @@ const char* additional_event_names[new_event_count] = {
     "AF_Heal",
     "Anchor_Marker_Orient",
     "Light_State",
+    "World_HUD_Sprite",
     "_dummy"
 };
 
@@ -550,6 +551,25 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         },
         {
             {FIELD_INT2, true}
+        }
+    }},
+    {AlpineDedEventID::World_HUD_Sprite, {
+        {FIELD_BOOL1, FIELD_INT1, FIELD_FLOAT1, FIELD_STR1, FIELD_STR2},
+        {
+            {FIELD_BOOL1, "Start enabled (bool1):"},
+            {FIELD_INT1, "Render mode (int1):"},
+            {FIELD_FLOAT1, "Render scale (float1):"},
+            {FIELD_STR1, "Sprite filename (str1):"},
+            {FIELD_STR2, "Sprite filename blue (str2):"}
+        },
+        {
+            {FIELD_INT1,
+            {"No Overdraw",
+            "No Overdraw (Glow)",
+            "Overdraw"}}
+        },
+        {
+            {FIELD_INT1, true}
         }
     }},
 };

@@ -50,6 +50,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Support TC mods with new settings file approach - `alpine_settings_MODNAME.ini`
 - Prevent MP character from being permanently changed after spawning in a server with `$Force Player Character` configured
 - Make multiplayer games started via `levelm` console command or editor `Play (multi)` button 60 minutes long
+- Add `World_HUD_Sprite` event
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
