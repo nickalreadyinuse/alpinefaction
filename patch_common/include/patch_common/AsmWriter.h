@@ -250,6 +250,36 @@ public:
         return *this;
     }
 
+    AsmWriter& shl(const AsmReg16& reg, uint8_t shift_count)
+    {
+        assert(shift_count > 0 && shift_count <= 31 && "Shift count must be between 1 and 31.");
+        write<u8>(operand_size_override_prefix); // 16-bit operand size prefix
+        write<u8>(0xC1);                         // Opcode for `shl r16, imm8`
+        write<u8>(0xE0 | reg.reg_num);           // modR/M byte: `E0 | reg` for shift left
+        write<u8>(shift_count);                  // Shift count
+        return *this;
+    }
+
+    AsmWriter& shr(const AsmReg16& reg, uint8_t shift_count)
+    {
+        assert(shift_count > 0 && shift_count <= 31 && "Shift count must be between 1 and 31.");
+        write<u8>(operand_size_override_prefix); // 16-bit operand size prefix
+        write<u8>(0xC1);                         // Opcode for `shr r16, imm8`
+        write<u8>(0xE8 | reg.reg_num);           // modR/M byte: `E8 | reg` for shift right
+        write<u8>(shift_count);                  // Shift count
+        return *this;
+    }
+
+    AsmWriter& shr(const AsmReg32& reg, uint8_t shift_count)
+    {
+        assert(shift_count > 0 && shift_count <= 31 && "Shift count must be between 1 and 31.");
+        write<u8>(0xC1);               // Opcode for `shr r32, imm8`
+        write<u8>(0xE8 | reg.reg_num); // modR/M byte: `E8 | reg` for shift right
+        write<u8>(shift_count);        // Shift count
+        return *this;
+    }
+
+
     AsmWriter& pop(const AsmReg32& reg)
     {
         write<u8>(0x58 | reg.reg_num); // Opcode
