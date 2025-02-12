@@ -510,7 +510,7 @@ void start_level_in_multi(std::string filename) {
         rf::set_in_mp_flag();
         rf::multi_start(0,0);
 
-        *reinterpret_cast<float*>(0x0064EC4C) = 600.0f;                             // time limit
+        *reinterpret_cast<float*>(0x0064EC4C) = 3600.0f;                            // time limit
         *reinterpret_cast<int*>(0x0064EC50) = 30;                                   // kill limit
         *reinterpret_cast<int*>(0x0064EC58) = 5;                                    // cap limit
         *reinterpret_cast<int*>(0x0064EC54) = 64;                                   // geo limit
