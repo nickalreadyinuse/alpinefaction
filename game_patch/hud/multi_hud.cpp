@@ -25,124 +25,207 @@ static bool g_draw_vote_notification = false;
 static std::string g_active_vote_type = "";
 static bool g_draw_ready_notification = false;
 bool g_pre_match_active = false;
+
+// Radio messages
+static const ChatMenuList radio_messages_menu{
+    .display_string = "RADIO MESSAGES",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {true, ChatMenuListName::General, ChatMenuListType::Basic, "General"},
+        {true, ChatMenuListName::Flag, ChatMenuListType::CTF, "Flag"},
+        {true, ChatMenuListName::AttackDefend, ChatMenuListType::TeamMode, "Attack/Defend"},
+        {true, ChatMenuListName::Enemy, ChatMenuListType::TeamMode, "Enemy"},
+        {true, ChatMenuListName::Timing, ChatMenuListType::TeamMode, "Timing"},
+        {true, ChatMenuListName::Powerup, ChatMenuListType::TeamMode, "Powerup"},
+        {true, ChatMenuListName::Map, ChatMenuListType::Map, "Map"}
+    }
+};
+
+// General
+static const ChatMenuList general_menu{
+    .display_string = "GENERAL",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {true, ChatMenuListName::Express, ChatMenuListType::Basic, "Express (Public)"},
+        {true, ChatMenuListName::Compliment, ChatMenuListType::TeamMode, "Compliment"},
+        {true, ChatMenuListName::Respond, ChatMenuListType::TeamMode, "Respond"}
+    }
+};
+
+// Express (public)
+static const ChatMenuList express_menu{
+    .display_string = "EXPRESS (Public)",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Hello", "Hello"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye", "Goodbye"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Oops...", "Oops..."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Shazbot!", "Shazbot!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Quiet!", "Quiet!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Modder", "Modder"}
+    }
+};
+
+// Compliment
+static const ChatMenuList compliment_menu{
+    .display_string = "COMPLIMENT",
+    .type = ChatMenuListType::TeamMode,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Good job!", "Good job!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Well played!", "Well played!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Nice frag!", "Nice frag!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "You're on fire!", "You're on fire!"}
+    }
+};
+
+// Respond
+static const ChatMenuList respond_menu{
+    .display_string = "RESPOND",
+    .type = ChatMenuListType::TeamMode,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Yes", "Yes"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "No", "No"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "I don't know", "I don't know"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Thanks", "Thanks"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Any time", "Any time"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Got it", "Got it"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Sorry", "Sorry"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Wait", "Wait"}
+    }
+};
+
+// Attack/defend
+static const ChatMenuList attack_defend_menu{
+    .display_string = "ATTACK/DEFEND",
+    .type = ChatMenuListType::TeamMode,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Attack coming high", "Attack incoming from high"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Attack coming mid", "Attack incoming from mid"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Attack coming low", "Attack incoming from low"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Defend!", "Defend!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Cover me!", "Cover me!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Wait for my signal", "Wait for my signal"}
+    }
+};
+
+// Enemy menu
+static const ChatMenuList enemy_menu{
+    .display_string = "ENEMY",
+    .type = ChatMenuListType::TeamMode,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Enemy going high", "Enemy is going high"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Enemy going mid", "Enemy is going mid"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Enemy going low", "Enemy is going low"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Enemy down", "Enemy is down"}
+    }
+};
+
+// Timing menu
+static const ChatMenuList timing_menu{
+    .display_string = "TIMING",
+    .type = ChatMenuListType::TeamMode,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Damage Amp soon", "Damage Amp is respawning soon"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Fusion soon", "Fusion is respawning soon"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Super Armor soon", "Super Armor is respawning soon"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Super Health soon", "Super Health is respawning soon"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Invuln soon", "Invulnerability is respawning soon"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode, "Rail soon", "Rail Driver is respawning soon"}
+    }
+};
+
+// Powerup menu
+static const ChatMenuList powerup_menu{
+    .display_string = "POWERUP",
+    .type = ChatMenuListType::TeamMode,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode,"Damage Amp up!", "Damage Amp is up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode,"Fusion up!", "Fusion is up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode,"Super Armor up!", "Super Armor is up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode,"Super Health up!", "Super Health is up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode,"Invuln up!", "Invulnerability is up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::TeamMode,"Rail up!", "Rail Driver is up!"}
+    }
+};
+
+// Flag
+static const ChatMenuList ctf_menu{
+    .display_string = "FLAG",
+    .type = ChatMenuListType::CTF,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Where enemy flag?", "Where's the enemy flag?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Where our flag?", "Where's our flag?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Take this flag", "Take the flag from me"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Give me the flag", "Give me the flag"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "I'll get the flag", "I'm retrieving the flag"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Retrieve our flag", "Retrieve our flag!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Our flag is secure", "Our flag is secure"}
+    }
+};
+
+// Taunt
+static const ChatMenuList taunt_menu{
+    .display_string = "TAUNTS",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Rest in pieces!", "Rest in pieces!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Nice target!", "You make a nice target!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Squeegee time!", "Squeegee time!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Nice catch!", "Nice catch!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye Mr. Gibs!", "Goodbye Mr. Gibs!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Me red, you dead!", "Me red, you dead!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Jigsaw puzzle!", "Look! A jigsaw puzzle!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Damn, I'm good.", "Damn, I'm good."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sucks to be you!", "Sucks to be you!"}
+    }
+};
+
+// Command
+static const ChatMenuList command_menu{
+    .display_string = "COMMANDS",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Vote next map", "/vote next"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Vote previous map", "/vote previous"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Vote restart map", "/vote restart"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Vote extend round", "/vote extend"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Print my stats", "/stats"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Which map is next?", "/nextmap"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Who isn't ready?", "/whosready"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Print match info", "/matchinfo"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Print server info", "/info"}
+    }
+};
+
+// Level (blank, built during level post init if applicable)
+static ChatMenuList level_menu;
+
 static ChatMenuType g_chat_menu_active = ChatMenuType::None;
-static ChatMenuLevel g_chat_menu_level = ChatMenuLevel::Base;
-ChatMenuMessages g_chat_menu_ctf_messages;
-ChatMenuMessages g_chat_menu_tdm_messages;
-ChatMenuMessages g_chat_menu_defense_messages;
-ChatMenuMessages g_chat_menu_offense_messages;
-ChatMenuMessages g_chat_menu_timing_messages;
-ChatMenuMessages g_chat_menu_powerup_messages;
+static const ChatMenuList* g_active_menu = &radio_messages_menu;
+static const ChatMenuList* g_previous_menu = nullptr;
+static bool g_level_chat_menu_present = false;
 rf::TimestampRealtime g_chat_menu_timer;
-
-const ChatMenuMessages chat_menu_ctf_message_defaults{
-    .key1_msg = "Enemy is going HIGH",
-    .key2_msg = "Enemy is going MID",
-    .key3_msg = "Enemy is going LOW",
-    .key4_msg = "Ready to attack the base",
-    .key5_msg = "Our base is lost",
-    .key6_msg = "Our base is safe",
-    .key7_msg = "",
-    .key8_msg = "",
-    .key9_msg = ""
-};
-
-const ChatMenuMessages chat_menu_tdm_message_defaults{
-    .key1_msg = "Enemy is going HIGH",
-    .key2_msg = "Enemy is going MID",
-    .key3_msg = "Enemy is going LOW",
-    .key4_msg = "",
-    .key5_msg = "",
-    .key6_msg = "",
-    .key7_msg = "",
-    .key8_msg = "",
-    .key9_msg = ""
-};
-
-const ChatMenuMessages chat_menu_defense_message_defaults{
-    .key1_msg = "Enemy incoming HIGH",
-    .key2_msg = "Enemy incoming MID",
-    .key3_msg = "Enemy incoming LOW",
-    .key4_msg = "",
-    .key5_msg = "",
-    .key6_msg = "",
-    .key7_msg = "",
-    .key8_msg = "",
-    .key9_msg = ""
-};
-
-const ChatMenuMessages chat_menu_offense_message_defaults{
-    .key1_msg = "Attacking HIGH",
-    .key2_msg = "Attacking MID",
-    .key3_msg = "Attacking LOW",
-    .key4_msg = "",
-    .key5_msg = "",
-    .key6_msg = "",
-    .key7_msg = "",
-    .key8_msg = "",
-    .key9_msg = ""
-};
-
-const ChatMenuMessages chat_menu_timing_message_defaults{
-    .key1_msg = "Damage Amp respawning soon!",
-    .key2_msg = "Fusion is respawning soon!",
-    .key3_msg = "Super Armor is respawning soon!",
-    .key4_msg = "Super Health is respawning soon!",
-    .key5_msg = "Invulnerability is respawning soon!",
-    .key6_msg = "Rail is respawning soon!",
-    .key7_msg = "",
-    .key8_msg = "",
-    .key9_msg = ""
-};
-
-const ChatMenuMessages chat_menu_powerup_message_defaults{
-    .key1_msg = "Damage Amp is up!",
-    .key2_msg = "Fusion is up!",
-    .key3_msg = "Super Armor is up!",
-    .key4_msg = "Super Health is up!",
-    .key5_msg = "Invulnerability is up!",
-    .key6_msg = "Rail is up!",
-    .key7_msg = "",
-    .key8_msg = "",
-    .key9_msg = ""
-};
-
-ChatMenuMessages g_chat_menu_taunt_messages;
-ChatMenuMessages g_chat_menu_command_messages;
 rf::TimestampRealtime g_taunt_timer;
 
-const ChatMenuMessages chat_menu_taunt_message_defaults{
-    .key1_msg = "Rest in pieces!",
-    .key2_msg = "You make a nice target!",
-    .key3_msg = "Squeegee time!",
-    .key4_msg = "Nice catch!",
-    .key5_msg = "Goodbye Mr. Gibs!",
-    .key6_msg = "Me red, you dead!",
-    .key7_msg = "Look! A jigsaw puzzle!",
-    .key8_msg = "Damn, I'm good.",
-    .key9_msg = "Sucks to be you!"
-};
+bool is_element_valid(const ChatMenuElement& element) {
+    if (element.type == ChatMenuListType::Basic) {
+        return true;
+    }
+    if (element.type == ChatMenuListType::CTF && rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
+        return true;
+    }
+    if (element.type == ChatMenuListType::TeamMode && rf::multi_get_game_type() != rf::NG_TYPE_DM) {
+        return true;
+    }
+    if (element.type == ChatMenuListType::Map && g_level_chat_menu_present && !element.display_string.empty()) {
+        return true;
+    }
+    return false;
+}
 
-const ChatMenuMessages chat_menu_command_message_defaults{
-    .key1_msg = "/vote next",
-    .key2_msg = "/vote previous",
-    .key3_msg = "/vote restart",
-    .key4_msg = "/vote extend",
-    .key5_msg = "/stats",
-    .key6_msg = "/nextmap",
-    .key7_msg = "/whosready",
-    .key8_msg = "/matchinfo",
-    .key9_msg = "/info",
-    .short_key1_msg = "Vote next map",
-    .short_key2_msg = "Vote previous map",
-    .short_key3_msg = "Vote restart map",
-    .short_key4_msg = "Vote extend round",
-    .short_key5_msg = "Print my stats",
-    .short_key6_msg = "Which map is next?",
-    .short_key7_msg = "Who isn't ready?",
-    .short_key8_msg = "Print match info",
-    .short_key9_msg = "Print server info"
-};
+bool get_chat_menu_is_active() {
+    return g_chat_menu_active != ChatMenuType::None;
+}
 
 namespace rf
 {
@@ -389,238 +472,88 @@ CodeInjection hud_render_patch_alpine {
 };
 
 void build_chat_menu_comms_messages() {
-    // CTF gametype messages
-    static const std::array<std::pair<AlpineLevelInfoID, std::string ChatMenuMessages::*>, 9> ctf_keys = {{
-        {AlpineLevelInfoID::ChatCTF1, &ChatMenuMessages::key1_msg},
-        {AlpineLevelInfoID::ChatCTF2, &ChatMenuMessages::key2_msg},
-        {AlpineLevelInfoID::ChatCTF3, &ChatMenuMessages::key3_msg},
-        {AlpineLevelInfoID::ChatCTF4, &ChatMenuMessages::key4_msg},
-        {AlpineLevelInfoID::ChatCTF5, &ChatMenuMessages::key5_msg},
-        {AlpineLevelInfoID::ChatCTF6, &ChatMenuMessages::key6_msg},
-        {AlpineLevelInfoID::ChatCTF7, &ChatMenuMessages::key7_msg},
-        {AlpineLevelInfoID::ChatCTF8, &ChatMenuMessages::key8_msg},
-        {AlpineLevelInfoID::ChatCTF9, &ChatMenuMessages::key9_msg}
-    }};
-
-    static const std::array<std::string ChatMenuMessages::*, 9> ctf_short_keys = {{
-        &ChatMenuMessages::short_key1_msg, &ChatMenuMessages::short_key2_msg, &ChatMenuMessages::short_key3_msg,
-        &ChatMenuMessages::short_key4_msg, &ChatMenuMessages::short_key5_msg, &ChatMenuMessages::short_key6_msg,
-        &ChatMenuMessages::short_key7_msg, &ChatMenuMessages::short_key8_msg, &ChatMenuMessages::short_key9_msg
-    }};
-
-    for (size_t i = 0; i < ctf_keys.size(); ++i) {
-        g_chat_menu_ctf_messages.*ctf_keys[i].second =
-            g_alpine_level_info_config.is_option_loaded(rf::level.filename, ctf_keys[i].first)
-            ? get_level_info_value<std::string>(rf::level.filename, ctf_keys[i].first)
-            : chat_menu_ctf_message_defaults.*ctf_keys[i].second;
-
-        // Copy short messages from defaults (if they exist)
-        g_chat_menu_ctf_messages.*ctf_short_keys[i] = chat_menu_ctf_message_defaults.*ctf_short_keys[i];
-    }
-
-    // TeamDM gametype messages
-    static const std::array<std::pair<AlpineLevelInfoID, std::string ChatMenuMessages::*>, 9> teamdm_keys = {{
-        {AlpineLevelInfoID::ChatTeamDM1, &ChatMenuMessages::key1_msg},
-        {AlpineLevelInfoID::ChatTeamDM2, &ChatMenuMessages::key2_msg},
-        {AlpineLevelInfoID::ChatTeamDM3, &ChatMenuMessages::key3_msg},
-        {AlpineLevelInfoID::ChatTeamDM4, &ChatMenuMessages::key4_msg},
-        {AlpineLevelInfoID::ChatTeamDM5, &ChatMenuMessages::key5_msg},
-        {AlpineLevelInfoID::ChatTeamDM6, &ChatMenuMessages::key6_msg},
-        {AlpineLevelInfoID::ChatTeamDM7, &ChatMenuMessages::key7_msg},
-        {AlpineLevelInfoID::ChatTeamDM8, &ChatMenuMessages::key8_msg},
-        {AlpineLevelInfoID::ChatTeamDM9, &ChatMenuMessages::key9_msg}
-    }};
-
-    static const std::array<std::string ChatMenuMessages::*, 9> tdm_short_keys = {{
-        &ChatMenuMessages::short_key1_msg, &ChatMenuMessages::short_key2_msg, &ChatMenuMessages::short_key3_msg,
-        &ChatMenuMessages::short_key4_msg, &ChatMenuMessages::short_key5_msg, &ChatMenuMessages::short_key6_msg,
-        &ChatMenuMessages::short_key7_msg, &ChatMenuMessages::short_key8_msg, &ChatMenuMessages::short_key9_msg
-    }};
-
-    for (size_t i = 0; i < teamdm_keys.size(); ++i) {
-        g_chat_menu_tdm_messages.*teamdm_keys[i].second =
-            g_alpine_level_info_config.is_option_loaded(rf::level.filename, teamdm_keys[i].first)
-            ? get_level_info_value<std::string>(rf::level.filename, teamdm_keys[i].first)
-            : chat_menu_tdm_message_defaults.*teamdm_keys[i].second;
-
-        // Copy short messages from defaults (if they exist)
-        g_chat_menu_tdm_messages.*tdm_short_keys[i] = chat_menu_tdm_message_defaults.*tdm_short_keys[i];
-    }
-}
-
-void build_chat_menu_clientside_messages() {
-    // List of message types and their defaults
-    struct MessageType {
-        ChatMenuMessages& messages;
-        const ChatMenuMessages& defaults;
+    level_menu = ChatMenuList{
+        .display_string = "MAP MESSAGES",
+        .type = ChatMenuListType::Map,
+        .elements = {}
     };
 
-    std::array<MessageType, 5> message_types = {{
-        {g_chat_menu_defense_messages, chat_menu_defense_message_defaults},
-        {g_chat_menu_offense_messages, chat_menu_offense_message_defaults},
-        {g_chat_menu_timing_messages, chat_menu_timing_message_defaults},
-        {g_chat_menu_powerup_messages, chat_menu_powerup_message_defaults},
-        {g_chat_menu_taunt_messages, chat_menu_taunt_message_defaults}
+    static const std::array<AlpineLevelInfoID, 9> map_keys = {{
+        AlpineLevelInfoID::ChatMap1,
+        AlpineLevelInfoID::ChatMap2,
+        AlpineLevelInfoID::ChatMap3,
+        AlpineLevelInfoID::ChatMap4,
+        AlpineLevelInfoID::ChatMap5,
+        AlpineLevelInfoID::ChatMap6,
+        AlpineLevelInfoID::ChatMap7,
+        AlpineLevelInfoID::ChatMap8,
+        AlpineLevelInfoID::ChatMap9
     }};
 
-    // Loop through each message type
-    for (auto& [messages, defaults] : message_types) {
-        static const std::array<std::string ChatMenuMessages::*, 9> keys = {{
-            &ChatMenuMessages::key1_msg, &ChatMenuMessages::key2_msg, &ChatMenuMessages::key3_msg,
-            &ChatMenuMessages::key4_msg, &ChatMenuMessages::key5_msg, &ChatMenuMessages::key6_msg,
-            &ChatMenuMessages::key7_msg, &ChatMenuMessages::key8_msg, &ChatMenuMessages::key9_msg
-        }};
+    bool has_valid_entries = false;
 
-        static const std::array<std::string ChatMenuMessages::*, 9> short_keys = {{
-            &ChatMenuMessages::short_key1_msg, &ChatMenuMessages::short_key2_msg, &ChatMenuMessages::short_key3_msg,
-            &ChatMenuMessages::short_key4_msg, &ChatMenuMessages::short_key5_msg, &ChatMenuMessages::short_key6_msg,
-            &ChatMenuMessages::short_key7_msg, &ChatMenuMessages::short_key8_msg, &ChatMenuMessages::short_key9_msg
-        }};
-
-        for (size_t i = 0; i < keys.size(); ++i) {
-            messages.*keys[i] = defaults.*keys[i];
-            messages.*short_keys[i] = defaults.*short_keys[i]; // Load short messages
-        }
-    }
-
-    // Chat commands
-    static const std::array<std::pair<AlpineOptionID, std::string ChatMenuMessages::*>, 9> command_keys = {{
-        {AlpineOptionID::ChatCommand1, &ChatMenuMessages::key1_msg},
-        {AlpineOptionID::ChatCommand2, &ChatMenuMessages::key2_msg},
-        {AlpineOptionID::ChatCommand3, &ChatMenuMessages::key3_msg},
-        {AlpineOptionID::ChatCommand4, &ChatMenuMessages::key4_msg},
-        {AlpineOptionID::ChatCommand5, &ChatMenuMessages::key5_msg},
-        {AlpineOptionID::ChatCommand6, &ChatMenuMessages::key6_msg},
-        {AlpineOptionID::ChatCommand7, &ChatMenuMessages::key7_msg},
-        {AlpineOptionID::ChatCommand8, &ChatMenuMessages::key8_msg},
-        {AlpineOptionID::ChatCommand9, &ChatMenuMessages::key9_msg}
-    }};
-
-    static const std::array<std::string ChatMenuMessages::*, 9> command_short_keys = {{
-        &ChatMenuMessages::short_key1_msg, &ChatMenuMessages::short_key2_msg, &ChatMenuMessages::short_key3_msg,
-        &ChatMenuMessages::short_key4_msg, &ChatMenuMessages::short_key5_msg, &ChatMenuMessages::short_key6_msg,
-        &ChatMenuMessages::short_key7_msg, &ChatMenuMessages::short_key8_msg, &ChatMenuMessages::short_key9_msg
-    }};
-
-    for (size_t i = 0; i < command_keys.size(); ++i) {
-        const auto& [id, key_ptr] = command_keys[i];
-
-        g_chat_menu_command_messages.*key_ptr =
-            g_alpine_options_config.is_option_loaded(id)
-            ? get_option_value<std::string>(id)
-            : chat_menu_command_message_defaults.*key_ptr;
-
-        // Copy short messages from defaults (if they exist)
-        g_chat_menu_command_messages.*command_short_keys[i] = chat_menu_command_message_defaults.*command_short_keys[i];
-    }
-}
-
-void draw_chat_menu_text(int x, int y)
-{
-    // Determine the menu title and relevant message source
-    std::string main_string;
-    const ChatMenuMessages* message_source = nullptr;
-
-    if (g_chat_menu_active == ChatMenuType::Comms) {
-        if (g_chat_menu_level == ChatMenuLevel::Base) {
-            // Base menu with sub-options
-            main_string = "TEAM COMMUNICATION\n\n";
-            main_string += (rf::multi_get_game_type() == rf::NG_TYPE_TEAMDM) ? "1: TEAM DEATHMATCH\n" : "1: CAPTURE THE FLAG\n";
-            main_string += "2: DEFENSE\n";
-            main_string += "3: OFFENSE\n";
-            main_string += "4: TIMING\n";
-            main_string += "5: POWERUPS\n";
+    for (const auto& id : map_keys) {
+        if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, id)) {
+            std::string msg = get_level_info_value<std::string>(rf::level.filename, id);
+            level_menu.elements.push_back(
+                {false, ChatMenuListName::Null, ChatMenuListType::Map, msg, msg}
+            );
+            has_valid_entries = true;
         }
         else {
-            // Submenu handling
-            switch (g_chat_menu_level) {
-                case ChatMenuLevel::Gametype:
-                    main_string = (rf::multi_get_game_type() == rf::NG_TYPE_TEAMDM) ? "TEAM DEATHMATCH\n\n" : "CAPTURE THE FLAG\n\n";
-                    message_source = (rf::multi_get_game_type() == rf::NG_TYPE_TEAMDM) ? &g_chat_menu_tdm_messages : &g_chat_menu_ctf_messages;
-                    break;
-                case ChatMenuLevel::Defense:
-                    main_string = "DEFENSE\n\n";
-                    message_source = &g_chat_menu_defense_messages;
-                    break;
-                case ChatMenuLevel::Offense:
-                    main_string = "OFFENSE\n\n";
-                    message_source = &g_chat_menu_offense_messages;
-                    break;
-                case ChatMenuLevel::Timing:
-                    main_string = "TIMING\n\n";
-                    message_source = &g_chat_menu_timing_messages;
-                    break;
-                case ChatMenuLevel::Powerup:
-                    main_string = "POWERUP\n\n";
-                    message_source = &g_chat_menu_powerup_messages;
-                    break;
-                default:
-                    xlog::warn("Invalid Comms sub-menu level: {}", static_cast<int>(g_chat_menu_level));
-                    return;
-            }
+            // Insert a blank placeholder if not found
+            level_menu.elements.push_back({false, ChatMenuListName::Null, ChatMenuListType::Map, "", ""});
         }
+    }
+
+    g_level_chat_menu_present = has_valid_entries;
+}
+
+void draw_chat_menu_text(int x, int y) {
+    if (!g_active_menu) {
+        return;
+    }
+
+    std::ostringstream main_string;
+    // Get the menu name
+    std::string menu_name = g_active_menu->display_string;
+
+    main_string << menu_name << "\n\n";
+
+    int display_index = 1; // Number to display
+    constexpr size_t max_length = 19; // Max allowed characters before truncation
+
+    for (const auto& element : g_active_menu->elements) {
+        // If the element is not valid for this game mode, skip it completely (no blank slot)
+        if (!is_element_valid(element)) {
+            main_string << "\n";
+            ++display_index; // Skip this number
+            continue;
+        }
+
+        // Otherwise, display the menu item, truncating if too long
+        std::string display_name = element.display_string.empty() ? element.long_string : element.display_string;
+        if (display_name.length() > max_length) {
+            display_name = display_name.substr(0, max_length) + "...";
+        }
+        main_string << display_index << ": " << display_name << "\n";
+
+        ++display_index;
+    }
+
+    // Add back or exit option
+    if (g_previous_menu) {
+        main_string << "\n0: BACK\n";
     }
     else {
-        // Taunts or Commands (flat menu)
-        switch (g_chat_menu_active) {
-            case ChatMenuType::Taunts:
-                main_string = "TAUNTS\n\n";
-                message_source = &g_chat_menu_taunt_messages;
-                break;
-            case ChatMenuType::Commands:
-                main_string = "COMMANDS\n\n";
-                message_source = &g_chat_menu_command_messages;
-                break;
-            default:
-                xlog::warn("Invalid chat menu state: {}", static_cast<int>(g_chat_menu_active));
-                return;
-        }
+        main_string << "\n0: EXIT\n";
     }
 
-    // Add messages if applicable
-    if (message_source) {
-        const auto& messages = *message_source;
-        std::vector<std::pair<std::string_view, std::string_view>> message_list = {
-            {messages.key1_msg, messages.short_key1_msg},
-            {messages.key2_msg, messages.short_key2_msg},
-            {messages.key3_msg, messages.short_key3_msg},
-            {messages.key4_msg, messages.short_key4_msg},
-            {messages.key5_msg, messages.short_key5_msg},
-            {messages.key6_msg, messages.short_key6_msg},
-            {messages.key7_msg, messages.short_key7_msg},
-            {messages.key8_msg, messages.short_key8_msg},
-            {messages.key9_msg, messages.short_key9_msg}
-        };
-
-        std::ostringstream main_string_stream;
-        int line_number = 1;
-        constexpr size_t max_length = 18; // Truncate long messages
-
-        for (const auto& [long_msg, short_msg] : message_list) {
-            if (!long_msg.empty()) {
-                std::string display_msg = (!short_msg.empty()) ? std::string(short_msg) : std::string(long_msg);
-                if (display_msg.length() > max_length) {
-                    display_msg = display_msg.substr(0, max_length) + "...";
-                }
-
-                main_string_stream << line_number << ": " << display_msg << '\n';
-                ++line_number;
-            } else {
-                main_string_stream << '\n';
-            }
-        }
-        main_string += main_string_stream.str();
-    }
-
-    main_string += "\n0: EXIT\n";
-
-    //xlog::warn("Final menu string:\n{}", main_string);
-
-    // Draw the menu
+    // Draw text
     int str_x = x + 4;
     int str_y = y + 4;
     rf::gr::set_color(255, 255, 180, 0xCC);
-    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, str_x, str_y, main_string.c_str(), 1);
+    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, str_x, str_y, main_string.str().c_str(), 1);
 }
 
 void hud_render_draw_chat_menu() {
@@ -638,144 +571,137 @@ void hud_render_draw_chat_menu() {
 
 void set_chat_menu_state(ChatMenuType state) {
     g_chat_menu_active = state;
-    g_chat_menu_level = ChatMenuLevel::Base;
 
     if (g_chat_menu_active == ChatMenuType::None) {
         g_chat_menu_timer.invalidate();
+        g_active_menu = nullptr;
+        g_previous_menu = nullptr;
     }
 }
 
-void toggle_chat_menu(ChatMenuType state) {
-    if (g_chat_menu_active == state) {
-        set_chat_menu_state(ChatMenuType::None);
-    }
-    else {
-        if (state == ChatMenuType::Comms && rf::multi_get_game_type() == rf::NG_TYPE_DM) {
-            set_chat_menu_state(ChatMenuType::None); // no team comms menu in DM
+void chat_menu_go_back()
+{
+    if (g_previous_menu) {
+        g_active_menu = g_previous_menu;
+
+        // special handling for third depth level to avoid having to store a stack of previous menus
+        // if expanded in the future to have more third depth levels, this will need to be handled differently
+        if (g_active_menu == &general_menu) {
+            g_previous_menu = &radio_messages_menu;
         }
         else {
-            g_chat_menu_timer.set(5000); // 5 seconds timeout
-            set_chat_menu_state(state);
+            g_previous_menu = nullptr;
         }
+    }
+    else {
+        set_chat_menu_state(ChatMenuType::None);
     }
 }
 
-bool get_chat_menu_is_active() {
-    return g_chat_menu_active != ChatMenuType::None;
-}
+void toggle_chat_menu(ChatMenuType type) {
+    if (g_chat_menu_active == type) {
+        set_chat_menu_state(ChatMenuType::None);
+    } else {
+        g_chat_menu_active = type;
+        g_chat_menu_timer.set(5000); // 5 sec timeout
+        g_previous_menu = nullptr;
 
-int get_chat_menu_level() {
-    return static_cast<int>(g_chat_menu_level);
+        // Determine the new active menu
+        switch (type) {
+            case ChatMenuType::Comms:
+                g_active_menu = (rf::multi_get_game_type() == rf::NG_TYPE_DM) ? &express_menu : &radio_messages_menu;
+                break;
+            case ChatMenuType::Taunts:
+                g_active_menu = &taunt_menu;
+                break;
+            case ChatMenuType::Commands:
+                g_active_menu = &command_menu;
+                break;
+            default:
+                set_chat_menu_state(ChatMenuType::None);
+                break;
+        }
+    }
 }
 
 // call only when chat menu is active // disappearing base menu on 0 idk
 void chat_menu_action_handler(rf::Key key) {
-    g_chat_menu_timer.set(5000); // 5 seconds timeout
+    g_chat_menu_timer.set(5000); // Menu timeout (5 sec)
 
-    if (g_chat_menu_active == ChatMenuType::Comms) {
-        // Handle Comms menu navigation
-        if (g_chat_menu_level == ChatMenuLevel::Base) {
-            static const std::unordered_map<rf::Key, ChatMenuLevel> levelMapping = {
-                {rf::KEY_1, ChatMenuLevel::Gametype},
-                {rf::KEY_2, ChatMenuLevel::Defense},
-                {rf::KEY_3, ChatMenuLevel::Offense},
-                {rf::KEY_4, ChatMenuLevel::Timing},
-                {rf::KEY_5, ChatMenuLevel::Powerup}
-            };
+    // Handle "Go Back" when pressing 0
+    if (key == rf::KEY_0) {
+        chat_menu_go_back();
+        return;
+    }
 
-            if (auto it = levelMapping.find(key); it != levelMapping.end()) {
-                g_chat_menu_level = it->second;
-            }
-            return;
+    int index = static_cast<int>(key) - static_cast<int>(rf::KEY_1);
+    if (!g_active_menu || index < 0 || index >= g_active_menu->elements.size()) {
+        return;
+    }
+
+    const ChatMenuElement& selected_element = g_active_menu->elements[index];
+
+    if (!is_element_valid(selected_element)) {
+        return; // Don't process elements that don't match the game mode
+    }
+
+    if (selected_element.is_menu) {
+        // Store the current menu in history for backtracking
+        g_previous_menu = g_active_menu;
+        
+        // Switch to the new menu
+        switch (selected_element.menu) {
+            case ChatMenuListName::General: g_active_menu = &general_menu; break;
+            case ChatMenuListName::Express: g_active_menu = &express_menu; break;
+            case ChatMenuListName::Compliment: g_active_menu = &compliment_menu; break;
+            case ChatMenuListName::Respond: g_active_menu = &respond_menu; break;
+            case ChatMenuListName::AttackDefend: g_active_menu = &attack_defend_menu; break;
+            case ChatMenuListName::Enemy: g_active_menu = &enemy_menu; break;
+            case ChatMenuListName::Timing: g_active_menu = &timing_menu; break;
+            case ChatMenuListName::Powerup: g_active_menu = &powerup_menu; break;
+            case ChatMenuListName::Flag: g_active_menu = &ctf_menu; break;
+            case ChatMenuListName::Map: g_active_menu = &level_menu; break;
+            default: break;
         }
-    }
-
-    // Determine which message set to use
-    const ChatMenuMessages* menu_messages = nullptr;
-    volatile bool use_team_chat = false;
-
-    if (g_chat_menu_active == ChatMenuType::Comms) {
-        switch (g_chat_menu_level) {
-            case ChatMenuLevel::Gametype:
-            menu_messages =
-                (rf::multi_get_game_type() == rf::NG_TYPE_TEAMDM) ? &g_chat_menu_tdm_messages : &g_chat_menu_ctf_messages;
-                break;
-            case ChatMenuLevel::Defense:
-                menu_messages = &g_chat_menu_defense_messages;
-                break;
-            case ChatMenuLevel::Offense:
-                menu_messages = &g_chat_menu_offense_messages;
-                break;
-            case ChatMenuLevel::Timing:
-                menu_messages = &g_chat_menu_timing_messages;
-                break;
-            case ChatMenuLevel::Powerup:
-                menu_messages = &g_chat_menu_powerup_messages;
-                break;
-            default:
-                return;
-        }
-        use_team_chat = true;
-    }
-    else if (g_chat_menu_active == ChatMenuType::Taunts) {
-        menu_messages = &g_chat_menu_taunt_messages;
-        use_team_chat = false;
-    }
-    else if (g_chat_menu_active == ChatMenuType::Commands) {
-        menu_messages = &g_chat_menu_command_messages;
-        use_team_chat = false;
-    }
-
-    if (menu_messages) {
-        static const std::unordered_map<rf::Key, std::string ChatMenuMessages::*> key_map = {
-            {rf::KEY_1, &ChatMenuMessages::key1_msg},
-            {rf::KEY_2, &ChatMenuMessages::key2_msg},
-            {rf::KEY_3, &ChatMenuMessages::key3_msg},
-            {rf::KEY_4, &ChatMenuMessages::key4_msg},
-            {rf::KEY_5, &ChatMenuMessages::key5_msg},
-            {rf::KEY_6, &ChatMenuMessages::key6_msg},
-            {rf::KEY_7, &ChatMenuMessages::key7_msg},
-            {rf::KEY_8, &ChatMenuMessages::key8_msg},
-            {rf::KEY_9, &ChatMenuMessages::key9_msg}
-        };
-
-        if (auto it = key_map.find(key); it != key_map.end()) {
-            if (g_chat_menu_active == ChatMenuType::Taunts) {
-                if (!g_taunt_timer.valid() || g_taunt_timer.elapsed()) {
-                    g_taunt_timer.set(10000); // 10 seconds between taunts
-                    const std::string& msg = "\xA8[Taunt] " + menu_messages->*it->second;
-                    if (!msg.empty()) {
-                        rf::multi_chat_say(msg.c_str(), use_team_chat);
-                    }
-                }
-                else {
-                    rf::String msg{"You must wait a little while between taunts"};
-                    rf::String prefix;
-                    rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
-                }
-            }
-            else if (g_chat_menu_active == ChatMenuType::Commands) {
-                const std::string& msg = menu_messages->*it->second;
+    } else {
+        // Determine chat behavior based on menu type
+        if (g_chat_menu_active == ChatMenuType::Taunts) {
+            // Taunts use a separate cooldown
+            if (!g_taunt_timer.valid() || g_taunt_timer.elapsed()) {
+                g_taunt_timer.set(10000); // 10-second cooldown for taunts
+                const std::string msg = "\xA8[Taunt] " + selected_element.long_string;
                 if (!msg.empty()) {
-                    send_chat_line_packet(msg.c_str(), nullptr);
-                    //rf::multi_chat_say(msg.c_str(), use_team_chat);
-                }
-            }
-            else {
-                const std::string& msg = menu_messages->*it->second;
-                if (!msg.empty()) {
-                    rf::multi_chat_say(msg.c_str(), use_team_chat);
+                    rf::multi_chat_say(msg.c_str(), false);
                     rf::snd_play(4, 0, 0.0f, 1.0f);
                 }
+            } else {
+                // Show cooldown message
+                rf::String msg{"You must wait a little while between taunts"};
+                rf::String prefix;
+                rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
             }
-            
+        } 
+        else if (g_chat_menu_active == ChatMenuType::Commands) {
+            // Commands do not play a chat sound or display for user
+            const std::string msg = selected_element.long_string;
+            if (!msg.empty()) {
+                send_chat_line_packet(msg.c_str(), nullptr);
+            }
+        } 
+        else {
+            // Default chat behavior
+            bool use_team_chat = (g_active_menu->type != ChatMenuListType::Basic);
+            const std::string msg = "\xA8 " + selected_element.long_string;
+            if (!msg.empty()) {
+                rf::multi_chat_say(msg.c_str(), use_team_chat);
+                rf::snd_play(4, 0, 0.0f, 1.0f);
+            }
         }
+
+        // Close menu after sending message
+        toggle_chat_menu(ChatMenuType::None);
     }
-
-    // close window after doing
-    toggle_chat_menu(ChatMenuType::None);
 }
-
 
 void multi_hud_apply_patches()
 {

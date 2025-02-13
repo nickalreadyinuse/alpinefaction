@@ -216,7 +216,7 @@ CodeInjection control_config_init_patch{
         alpine_control_config_add_item(
             ccp, "(AF) Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
         alpine_control_config_add_item( // V
-            ccp, "(AF) Team communication menu", 0, 0x2F, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
+            ccp, "(AF) Radio message menu", 0, 0x2F, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
         alpine_control_config_add_item(
             ccp, "(AF) Taunt menu", 0, 0x30, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU);
         alpine_control_config_add_item(
@@ -348,14 +348,9 @@ CodeInjection controls_process_chat_menu_patch{
 
         // only consume numline keys if a chat menu is active + chat box and console are hidden
         if (get_chat_menu_is_active() && !rf::console::console_is_visible() && !rf::multi_chat_is_say_visible()) {
-            if (rf::key_get_and_reset_down_counter(rf::KEY_0) > 0) {
-                toggle_chat_menu(ChatMenuType::None);
-            }
-            else {
-                for (int key = rf::KEY_1; key <= rf::KEY_9; ++key) {
-                    if (rf::key_get_and_reset_down_counter(static_cast<rf::Key>(key)) > 0) {
-                        chat_menu_action_handler(static_cast<rf::Key>(key));
-                    }
+            for (int key = rf::KEY_1; key <= rf::KEY_0; ++key) {
+                if (rf::key_get_and_reset_down_counter(static_cast<rf::Key>(key)) > 0) {
+                    chat_menu_action_handler(static_cast<rf::Key>(key));
                 }
             }
         }

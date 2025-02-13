@@ -42,9 +42,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `dbg_worldhudmpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
 - Add compatibility table (lightmap clamp floor) for `dm-SpecialForces.rfl`
 - Add framework for chat menus
-- Add action binds for `Team communication menu`, `Taunt menu`, and `Command menu`
-- Add support for `$Chat Menu CTF 1` and `$Chat Menu TeamDM 1` (1 - 9) to `MAPNAME_info.tbl` (overrides defaults on that map)
-- Add support for `$Chat Menu Command 1` (1 - 9) to `af_client.tbl` (overrides defaults)
+- Add action binds for `Radio message menu`, `Taunt menu`, and `Command menu`
+- Add support for `$Chat Menu 1` (1 - 9) to `MAPNAME_info.tbl` (populates map chat menu on that map)
 - Implement settings saving/loading using readable `alpine_settings.ini` and remove reliance on legacy encoded file `players.cfg`
 - Import settings from `players.cfg` on launch if `alpine_settings.ini` is not found
 - Support TC mods with new settings file approach - `alpine_settings_MODNAME.ini`

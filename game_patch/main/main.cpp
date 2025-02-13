@@ -79,7 +79,6 @@ CodeInjection after_full_game_init_hook{
         multi_after_full_game_init();
         debug_init();
         load_world_hud_assets();
-        build_chat_menu_clientside_messages();
 
         xlog::info("Game fully initialized");
         xlog::LoggerConfig::get().flush_appenders();

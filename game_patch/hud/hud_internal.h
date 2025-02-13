@@ -9,45 +9,48 @@ namespace rf
     struct HudPoint;
 }
 
-enum class ChatMenuLevel : int
+enum class ChatMenuListName : int
 {
-    Base,
-    Gametype,
-    Defense,
-    Offense,
+    Null,
+    Commands,
+    Taunts,
+    Radio,
+    General,
+    Express,
+    Compliment,
+    Respond,
+    AttackDefend,
+    Enemy,
     Timing,
-    Powerup
+    Powerup,
+    Flag,
+    Map
 };
 
-struct ChatMenuMessageInfo
+enum class ChatMenuListType : int
 {
-    std::unordered_map<rf::Key, std::string> messages;
-    bool use_team_chat;
+    Basic,
+    Map,
+    TeamMode,
+    CTF
 };
 
-struct ChatMenuMessages
+struct ChatMenuElement
 {
-    // messages to send
-    std::string key1_msg = "";
-    std::string key2_msg = "";
-    std::string key3_msg = "";
-    std::string key4_msg = "";
-    std::string key5_msg = "";
-    std::string key6_msg = "";
-    std::string key7_msg = "";
-    std::string key8_msg = "";
-    std::string key9_msg = "";
+    bool is_menu = false;
+    ChatMenuListName menu = ChatMenuListName::Null;
+    ChatMenuListType type = ChatMenuListType::Basic;
+    std::string display_string = "";
+    std::string long_string = "";
+    int snd_handle = -1;
+    bool is_taunt = false;
+};
 
-    // if specified, use for HUD display
-    std::string short_key1_msg = "";
-    std::string short_key2_msg = "";
-    std::string short_key3_msg = "";
-    std::string short_key4_msg = "";
-    std::string short_key5_msg = "";
-    std::string short_key6_msg = "";
-    std::string short_key7_msg = "";
-    std::string short_key8_msg = "";
-    std::string short_key9_msg = "";
+struct ChatMenuList
+{
+    std::string display_string = "";
+    ChatMenuListType type = ChatMenuListType::Basic;
+    std::vector<ChatMenuElement> elements;
 };
 
 extern bool g_pre_match_active;
