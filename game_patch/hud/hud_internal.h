@@ -42,8 +42,6 @@ struct ChatMenuElement
     ChatMenuListType type = ChatMenuListType::Basic;
     std::string display_string = "";
     std::string long_string = "";
-    int snd_handle = -1;
-    bool is_taunt = false;
 };
 
 struct ChatMenuList
