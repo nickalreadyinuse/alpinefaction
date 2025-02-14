@@ -543,6 +543,11 @@ ConsoleCommand2 levelm_cmd{
     "levelm <filename>",
 };
 
+DcCommandAlias mapm_cmd{
+    "mapm",
+    levelm_cmd,
+};
+
 ConsoleCommand2 connected_clients_cmd{
     "sv_connectedclients",
     []() {
@@ -643,6 +648,7 @@ void multi_do_patch()
     levelm_cmd.register_cmd();
     connected_clients_cmd.register_cmd();
     mapver_cmd.register_cmd();
+    mapm_cmd.register_cmd();
 }
 
 void multi_after_full_game_init()

@@ -161,7 +161,8 @@ void console_auto_complete_command(int offset)
     }
 
     if (next_offset != -1) {
-        if (!stricmp(cmd_name.c_str(), "level") || !stricmp(cmd_name.c_str(), "map") || !stricmp(cmd_name.c_str(), "levelm"))
+        if (!stricmp(cmd_name.c_str(), "level") || !stricmp(cmd_name.c_str(), "map") ||
+            !stricmp(cmd_name.c_str(), "levelm") || !stricmp(cmd_name.c_str(), "mapm"))
             console_auto_complete_level(next_offset);
         else if (!stricmp(cmd_name.c_str(), "kick") || !stricmp(cmd_name.c_str(), "ban"))
             console_auto_complete_player(next_offset);
