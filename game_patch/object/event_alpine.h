@@ -1758,7 +1758,6 @@ namespace rf
                         if (host_vehicle) {
                             teleported_entity = host_vehicle;
                         }
-                        
                     }
                 }
 
@@ -1774,6 +1773,9 @@ namespace rf
                 // Teleport player position
                 teleported_entity->p_data.next_pos = this->pos;
                 teleported_entity->move(&this->pos);
+                if (teleported_entity->obj_interp) {
+                    teleported_entity->obj_interp->Clear();
+                }
 
                 // Rotate velocity on exit
                 if (reset_velocity) {

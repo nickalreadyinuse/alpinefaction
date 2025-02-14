@@ -757,15 +757,31 @@ rf::Vector3 transform_vector(const rf::Matrix3& mat, const rf::Vector3& vec)
     };
 }
 
+rf::Matrix3 matrix_transpose(const rf::Matrix3& mat)
+{
+    return {
+        { mat.rvec.x, mat.uvec.x, mat.fvec.x },
+        { mat.rvec.y, mat.uvec.y, mat.fvec.y },
+        { mat.rvec.z, mat.uvec.z, mat.fvec.z }
+    };
+}
+
+rf::Matrix3 multiply_matrices(const rf::Matrix3& a, const rf::Matrix3& b)
+{
+    return {
+        transform_vector(a, b.rvec),
+        transform_vector(a, b.uvec),
+        transform_vector(a, b.fvec)
+    };
+}
+
 rf::Vector3 rotate_velocity(const rf::Vector3& old_velocity, const rf::Matrix3& old_orient, const rf::Matrix3& new_orient)
 {
-    // Convert velocity to world space
-    rf::Vector3 world_velocity = transform_vector(old_orient, old_velocity);
+    // Compute the relative rotation matrix
+    rf::Matrix3 relative_rotation = multiply_matrices(new_orient, matrix_transpose(old_orient));
 
-    // Convert world velocity to new local space
-    rf::Vector3 new_velocity = transform_vector(new_orient, world_velocity);
-
-    return new_velocity;
+    // Apply the relative rotation to the velocity
+    return transform_vector(relative_rotation, old_velocity);
 }
 
 void apply_alpine_events()

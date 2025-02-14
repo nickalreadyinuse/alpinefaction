@@ -14,6 +14,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix match ready up prompt not being properly reset for players who leave the server during pre-match
 - Fix incorrect information in "You are no longer ready" message
 - Fix players leaving server during pre-match not always being removed from list of ready players
+- Fix players picking up items and activating triggers while teleporting
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
