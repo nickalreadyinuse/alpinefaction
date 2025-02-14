@@ -2449,7 +2449,7 @@ void server_on_limbo_state_enter()
         if (g_additional_server_config.stats_message_enabled) {
             send_private_message_with_stats(&player);
         }
-        if (upcoming_rfl_version > pdata.max_rfl_version) {
+        if (&player != rf::local_player && upcoming_rfl_version > pdata.max_rfl_version) {
             notify_for_upcoming_level_version_incompatible(&player);
         }
     }
