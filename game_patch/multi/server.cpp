@@ -337,6 +337,8 @@ void parse_alpine_locking(rf::Parser& parser) {
         g_additional_server_config.clients_require_alpine = parser.parse_bool();
         rf::console::print("Clients Require Alpine Faction: {}", g_additional_server_config.clients_require_alpine ? "true" : "false");
 
+        parse_boolean_option(parser, "+Require Official Build:", g_additional_server_config.alpine_require_release_build, "+Require Official Build");
+        parse_boolean_option(parser, "+Enforce Server Version Minimum:", g_additional_server_config.alpine_server_version_enforce_min, "+Enforce Server Version Minimum");
         parse_boolean_option(parser, "+Reject Legacy Clients:", g_additional_server_config.reject_non_alpine_clients, "+Reject Legacy Clients");
         parse_boolean_option(parser, "+No Player Collide:", g_additional_server_config.no_player_collide, "+No Player Collide");
         parse_vote_config("+Match Mode", g_additional_server_config.vote_match, parser);
@@ -1585,9 +1587,22 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (g_additional_server_config.force_player_character) {
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }
-        if (g_additional_server_config.clients_require_alpine && !get_player_additional_data(player).is_alpine) {
-            send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
-            return;
+        if (g_additional_server_config.clients_require_alpine) {
+            if (!get_player_additional_data(player).is_alpine) {
+                send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
+                return;
+            }
+            else if (g_additional_server_config.alpine_require_release_build &&
+                get_player_additional_data(player).alpine_version_type != VERSION_TYPE_RELEASE) {
+                send_chat_line_packet("\xA6 This server requires you to use an official build of Alpine Faction. Download the latest official build at alpinefaction.com", player);
+                return;
+            }
+            else if (g_additional_server_config.alpine_server_version_enforce_min &&
+                     (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR ||
+                      get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
+                send_chat_line_packet("\xA6 This server requires you to use a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
+                return;
+            }
         }
         if (!check_player_ac_status(player)) {
             return;

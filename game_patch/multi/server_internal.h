@@ -190,6 +190,8 @@ struct ServerAdditionalConfig
     bool kill_reward_armor_super = false;
     bool clients_require_alpine = false;
     bool reject_non_alpine_clients = false;
+    bool alpine_server_version_enforce_min = false;
+    bool alpine_require_release_build = false;
     bool only_welcome_alpine = false;
     bool advertise_alpine = false;
     InactivityConfig inactivity;

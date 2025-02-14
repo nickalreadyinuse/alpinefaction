@@ -57,6 +57,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `sv_connectedclients` command to help servers understand which clients can load which maps
 - Add notification to players when the server is about to switch to a map with a version they can't load
 - Add `mapm` command as an alias for `levelm`
+- Add `+Require Official Build` and `+Enforce Server Version Minimum` settings to `$Clients Require Alpine Faction`
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
