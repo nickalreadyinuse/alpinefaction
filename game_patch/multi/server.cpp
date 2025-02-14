@@ -6,6 +6,7 @@
 #include <common/config/BuildConfig.h>
 #include <common/version/version.h>
 #include <common/rfproto.h>
+#include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
 #include <algorithm>
 #include <limits>
@@ -22,7 +23,7 @@
 #include "../os/console.h"
 #include "../misc/player.h"
 #include "../main/main.h"
-#include <common/utils/list-utils.h>
+#include "../rf/file/file.h"
 #include "../rf/math/vector.h"
 #include "../rf/math/matrix.h"
 #include "../rf/player/player.h"
@@ -546,6 +547,57 @@ CodeInjection dedicated_server_load_post_map_patch{
     },
 };
 
+int get_level_file_version(const std::string& file_name)
+{
+    auto level_file = std::make_unique<rf::File>();
+
+    if (level_file->open(file_name.c_str(), rf::File::mode_read) != 0) {
+        xlog::debug("Could not open {}", file_name);
+        return -1; // error
+    }
+
+    // Seek directly to offset 4
+    if (level_file->seek(4, rf::File::seek_set) != 0) {
+        xlog::debug("Failed to seek in {}", file_name);
+        level_file->close();
+        return -1;
+    }
+
+    uint32_t version = level_file->read<uint32_t>(0, 0);
+
+    level_file->close();
+    return static_cast<int>(version);
+}
+
+void print_all_player_info() {
+    if (!(rf::is_dedicated_server || rf::is_server)) {
+        rf::console::print("This command can only be run on a server!");
+        return;
+    }
+
+    if (!rf::player_list) {
+        rf::console::print("No players are currently connected!");
+        return;
+    }
+
+    auto player_list = SinglyLinkedList{rf::player_list};
+
+    rf::console::print("Connected players:");    
+
+    for (auto& player : player_list) {
+        auto& pdata = get_player_additional_data(&player);
+        std::string client_info;
+        if (pdata.is_alpine) {
+            client_info = std::format("Alpine Faction {}.{}-{}", pdata.alpine_version_major, pdata.alpine_version_minor,
+                pdata.alpine_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
+        }
+        else {
+            client_info = std::format("Non-Alpine Client");
+        }
+        rf::console::print("{}: {} | Max RFL version {}", player.name, client_info, pdata.max_rfl_version);
+    }
+}
+
 std::pair<std::string_view, std::string_view> strip_by_space(std::string_view str)
 {
     auto space_pos = str.find(' ');
@@ -558,7 +610,9 @@ std::pair<std::string_view, std::string_view> strip_by_space(std::string_view st
 void handle_next_map_command(rf::Player* player)
 {
     int next_idx = (rf::netgame.current_level_index + 1) % rf::netgame.levels.size();
-    auto msg = std::format("Next level: {}", rf::netgame.levels[next_idx]);
+    rf::String next_level_filename = rf::netgame.levels[next_idx];
+    int version = get_level_file_version(next_level_filename);
+    auto msg = std::format("Next level: {} (version {})", next_level_filename, version);
     send_chat_line_packet(msg.c_str(), player);
 }
 
@@ -733,6 +787,17 @@ static void send_private_message_with_stats(rf::Player* player)
         accuracy, stats->num_shots_hit, stats->num_shots_fired,
         stats->damage_given, stats->damage_received);
     send_chat_line_packet(str.c_str(), player);
+}
+
+static void notify_for_upcoming_level_version_incompatible(rf::Player* player)
+{
+    auto client_msg = std::format(
+        "\xA6 Your client is not able to load the upcoming level. To continue playing, upgrade to the latest version of Alpine Faction. Learn more at alpinefaction.com");
+    send_chat_line_packet(client_msg.c_str(), player);
+
+    auto server_msg = std::format("{} cannot load the upcoming level. The maximum RFL version they are able to load is {}.",
+                    player->name, get_player_additional_data(player).max_rfl_version);    
+    rf::console::printf(server_msg.c_str());
 }
 
 void shuffle_level_array()
@@ -1645,9 +1710,17 @@ void server_reliable_socket_ready(rf::Player* player)
     }
 
     // advertise AF to non-alpine clients if configured
-    if (g_additional_server_config.advertise_alpine && !get_player_additional_data(player).is_alpine) {
-        auto msg = std::format("\xA6 Have you heard of Alpine Faction? It's a new patch with lots of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
-        send_chat_line_packet(msg.c_str(), player);
+    if (g_additional_server_config.advertise_alpine) {
+        if (!get_player_additional_data(player).is_alpine) {
+            auto msg = std::format(
+                "\xA6 Have you heard of Alpine Faction? It's a new patch with lots of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
+            send_chat_line_packet(msg.c_str(), player);
+        }
+        else if (VERSION_TYPE == VERSION_TYPE_RELEASE &&
+            (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR || get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
+            auto msg = std::format("\xA6 A new version of Alpine Faction is available! Learn more at alpinefaction.com");
+            send_chat_line_packet(msg.c_str(), player);
+        }
     }
 }
 
@@ -2365,14 +2438,19 @@ void server_on_limbo_state_enter()
     g_prev_level = rf::level.filename.c_str();
     server_vote_on_limbo_state_enter();
 
-    // Clear save data for all players
     auto player_list = SinglyLinkedList{rf::player_list};
+    int upcoming_rfl_version = get_level_file_version(rf::level_filename_to_load);
+
+    // Clear save data for all players
     for (auto& player : player_list) {
         auto& pdata = get_player_additional_data(&player);
         pdata.saves.clear();
         pdata.last_teleport_timestamp.invalidate();
         if (g_additional_server_config.stats_message_enabled) {
             send_private_message_with_stats(&player);
+        }
+        if (upcoming_rfl_version > pdata.max_rfl_version) {
+            notify_for_upcoming_level_version_incompatible(&player);
         }
     }
 }

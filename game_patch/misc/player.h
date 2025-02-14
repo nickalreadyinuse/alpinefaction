@@ -35,6 +35,10 @@ struct PlayerAdditionalData
     int last_activity_ms = 0;
     rf::TimestampRealtime idle_check_timestamp;
     rf::TimestampRealtime idle_kick_timestamp;
+    uint8_t alpine_version_major = 0;
+    uint8_t alpine_version_minor = 0;
+    uint8_t alpine_version_type = 0;
+    uint32_t max_rfl_version = 200;
 };
 
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer);

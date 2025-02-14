@@ -104,6 +104,8 @@ const std::optional<DashFactionServerInfo>& get_df_server_info();
 void multi_level_download_do_frame();
 void multi_level_download_abort();
 void multi_ban_apply_patch();
+int get_level_file_version(const std::string& file_name);
+void print_all_player_info();
 void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
 void start_level_in_multi(std::string filename);
 std::optional<std::string> multi_ban_unban_last();

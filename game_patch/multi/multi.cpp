@@ -4,6 +4,7 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
+#include <common/version/version.h>
 #include "multi.h"
 #include "endgame_votes.h"
 #include "multi_private.h"
@@ -542,6 +543,56 @@ ConsoleCommand2 levelm_cmd{
     "levelm <filename>",
 };
 
+ConsoleCommand2 connected_clients_cmd{
+    "sv_connectedclients",
+    []() {
+        print_all_player_info();
+    },
+    "Shows client and maximum RFL version information for connected players",
+};
+
+ConsoleCommand2 mapver_cmd{
+    "dbg_mapver",
+    [](std::string filename) {
+        // Append .rfl if missing
+        if (filename.find(".rfl") == std::string::npos) {
+            filename += ".rfl";
+        }
+
+        int map_ver = get_level_file_version(filename);
+        if (map_ver == -1) {
+            rf::console::print("Level {} not found.", filename);
+        }
+        else {
+            std::string version_text;
+
+            if (map_ver == 175) {
+                version_text = "Official - PS2 retail";
+            }
+            else if (map_ver == 180) {
+                version_text = "Official - PC retail";
+            }
+            else if (map_ver == 200) {
+                version_text = "Community - RF/PF/DF";
+            }
+            else if (map_ver > 0 && map_ver < 200) {
+                version_text = "Official - Internal";
+            }
+            else if (map_ver >= 300) {
+                version_text = "Community - Alpine";
+            }
+            else {
+                version_text = "Unsupported";
+            }
+
+            rf::console::print("RFL version for level {} is {} ({}). You can {}load this map.", filename,
+                               map_ver, version_text, map_ver > MAXIMUM_RFL_VERSION ? " NOT" : "");
+        }
+    },
+    "Check the version of a specific level file",
+    "dbg_mapver <filename>",
+};
+
 void multi_do_patch()
 {
     
@@ -590,6 +641,8 @@ void multi_do_patch()
 
     // console commands
     levelm_cmd.register_cmd();
+    connected_clients_cmd.register_cmd();
+    mapver_cmd.register_cmd();
 }
 
 void multi_after_full_game_init()

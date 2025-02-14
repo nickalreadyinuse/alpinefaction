@@ -810,6 +810,9 @@ struct AlpineFactionJoinReqPacketExt
     uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
     uint8_t version_major = VERSION_MAJOR;
     uint8_t version_minor = VERSION_MINOR;
+    uint8_t version_patch = VERSION_PATCH;
+    uint8_t version_type = VERSION_TYPE;
+    uint32_t max_rfl_version = MAXIMUM_RFL_VERSION;
 
     enum class Flags : uint32_t {
         none                = 0,
@@ -913,6 +916,8 @@ CodeInjection process_join_accept_injection{
     },
 };
 
+AlpineFactionJoinReqPacketExt g_joining_player_info;
+
 FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     0x0047AC60,
     [](int pPacket, rf::NetAddr* addr) {        
@@ -922,10 +927,32 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
             rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
             if (alpine_player){
                 get_player_additional_data(alpine_player).is_alpine = true;
-                //xlog::warn("{} is an Alpine client!, {}", alpine_player->name, get_player_additional_data(alpine_player).is_alpine);
+                get_player_additional_data(alpine_player).alpine_version_major = g_joining_player_info.version_major;
+                get_player_additional_data(alpine_player).alpine_version_minor = g_joining_player_info.version_minor;
+
+                // Alpine 1.0.0 doesn't provide ver_type or max_rfl_ver
+                if (g_joining_player_info.version_minor < 1) {
+                    get_player_additional_data(alpine_player).alpine_version_type = VERSION_TYPE_RELEASE; 
+                    get_player_additional_data(alpine_player).max_rfl_version = 300; // Alpine 1.0.0 clients
+                }
+                else {
+                    get_player_additional_data(alpine_player).alpine_version_type = g_joining_player_info.version_type;
+                    get_player_additional_data(alpine_player).max_rfl_version = g_joining_player_info.max_rfl_version;
+                }
+                
+                auto player_data = get_player_additional_data(alpine_player);
             }
+            g_joining_player_info = {};
             g_joining_player_is_alpine = false;
         }
+
+        /* rf::Player* player = rf::multi_find_player_by_addr(*addr);
+        xlog::warn("{} is {}an Alpine client! Running Alpine {}.{}-{} with max rfl version {}",
+                   player->name, get_player_additional_data(player).is_alpine ? "" : "NOT ",
+                   get_player_additional_data(player).alpine_version_major,
+                   get_player_additional_data(player).alpine_version_minor,
+                   get_player_additional_data(player).alpine_version_type,
+                   get_player_additional_data(player).max_rfl_version);*/
     },
 };
 
@@ -937,6 +964,7 @@ CodeInjection process_join_req_injection{
 
         // matched an alpine client
         if (extended_data->af_signature == ALPINE_FACTION_SIGNATURE) {
+            g_joining_player_info = *extended_data;
             g_joining_player_is_alpine = true;
         }
     },

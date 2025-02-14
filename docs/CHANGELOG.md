@@ -50,6 +50,10 @@ Version 1.1.0 (Tamarack): Not yet released
 - Prevent MP character from being permanently changed after spawning in a server with `$Force Player Character` configured
 - Make multiplayer games started via `levelm` console command or editor `Play (multi)` button 60 minutes long
 - Add `World_HUD_Sprite` event
+- Add notification to old Alpine clients when `$Advertise Alpine Faction` is on to advise them of the update
+- Add `dbg_mapver` command to check RFL versions
+- Add `sv_connectedclients` command to help servers understand which clients can load which maps
+- Add notification to players when the server is about to switch to a map with a version they can't load
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
