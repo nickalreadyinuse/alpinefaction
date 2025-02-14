@@ -23,6 +23,7 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/ShortTypes.h>
 #include "multi.h"
+#include "alpine_packets.h"
 #include "server.h"
 #include "server_internal.h"
 #include "../main/main.h"
@@ -188,6 +189,7 @@ enum packet_type : uint8_t {
     sound                  = 0x34,
     team_score             = 0x35,
     glass_kill             = 0x36,
+    af_teleport_player     = 0x50,
 };
 
 // client -> server
@@ -259,6 +261,7 @@ std::array g_client_side_packet_whitelist{
     sound,
     team_score,
     glass_kill,
+    af_teleport_player,
 };
 // clang-format on
 
@@ -1304,6 +1307,7 @@ static void process_custom_packet([[maybe_unused]] void* data, [[maybe_unused]] 
                                   [[maybe_unused]] const rf::NetAddr& addr, [[maybe_unused]] rf::Player* player)
 {
     pf_process_packet(data, len, addr, player);
+    af_process_packet(data, len, addr, player);
 }
 
 CodeInjection multi_io_process_packets_injection{
