@@ -120,6 +120,8 @@ set(SRCS
     debug/debug_internal.h
     debug/profiler.cpp
     debug/unresponsive.cpp
+    multi/alpine_packets.cpp
+    multi/alpine_packets.h
     multi/multi.h
     multi/multi.cpp
     multi/kill.cpp
