@@ -15,6 +15,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix incorrect information in "You are no longer ready" message
 - Fix players leaving server during pre-match not always being removed from list of ready players
 - Fix players picking up items and activating triggers while teleporting
+- Fix listen server launching whenever menu opens if game was launched with `-levelm` command line
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)

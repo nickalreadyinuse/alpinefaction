@@ -194,7 +194,8 @@ FunHook<void(int, int)> rf_init_state_hook{
                 multi_join_game(addr, password);
             }
             else if (g_levelm_filename.has_value()) {
-                start_level_in_multi(g_levelm_filename.value_or(""));
+                start_level_in_multi(g_levelm_filename.value());
+                g_levelm_filename.reset();
             }
         }
     },
