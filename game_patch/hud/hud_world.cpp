@@ -23,6 +23,7 @@
 WorldHUDAssets g_world_hud_assets;
 bool draw_mp_spawn_world_hud = false;
 std::unordered_set<rf::EventWorldHUDSprite*> world_hud_sprite_events;
+std::vector<EphemeralWorldHUDSprite> ephemeral_world_hud_sprites;
 
 void load_world_hud_assets() {
     g_world_hud_assets.flag_red_d = rf::bm::load("af_wh_ctf_red_d.tga", -1, true);
@@ -189,6 +190,24 @@ void build_world_hud_sprite_icons() {
     }
 }
 
+void build_ephemeral_world_hud_sprite_icons() {
+    std::erase_if(ephemeral_world_hud_sprites, [](const EphemeralWorldHUDSprite& es) {
+        return !es.timestamp.valid() || es.timestamp.elapsed();
+    });
+
+    for (const auto& es : ephemeral_world_hud_sprites) {
+        do_render_world_hud_sprite(es.pos, 1.0f, es.bitmap, es.render_mode, true, true, true);
+
+        // determine label width
+        int text_width = 0, text_height = 0;
+        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), 1);
+        int half_text_width = text_width / 2;
+
+        auto text_pos = es.pos;
+        rf::gr::gr_render_string_3d_pos(&text_pos, es.label.c_str(), -half_text_width, -25);
+    }
+}
+
 void hud_world_do_frame() {
     if (g_game_config.world_hud_ctf && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
@@ -198,6 +217,9 @@ void hud_world_do_frame() {
     }
     if (!world_hud_sprite_events.empty()) {
         build_world_hud_sprite_icons();
+    }
+    if (!ephemeral_world_hud_sprites.empty()) {
+        build_ephemeral_world_hud_sprite_icons();
     }
 }
 
@@ -213,6 +235,23 @@ void populate_world_hud_sprite_events()
             hud_sprite_event->build_sprite_ints();
         }
     }
+}
+
+void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name)
+{
+    // Remove any existing entry from the same player name
+    std::erase_if(ephemeral_world_hud_sprites,
+        [&](const EphemeralWorldHUDSprite& es) { return es.label == player_name; });
+
+    auto bitmap = rf::bm::load("scope_ret_1.tga", -1, true);
+
+    EphemeralWorldHUDSprite es;
+    es.bitmap = bitmap;
+    es.pos = pos;
+    es.label = player_name;
+    es.timestamp.set(4000);
+
+    ephemeral_world_hud_sprites.push_back(es);
 }
 
 ConsoleCommand2 worldhudctf_cmd{

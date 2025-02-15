@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../hud/hud.h"
+#include "../misc/player.h"
 #include "../multi/multi.h"
 #include "../multi/endgame_votes.h"
 #include "../rf/input.h"
@@ -221,6 +222,8 @@ CodeInjection control_config_init_patch{
             ccp, "(AF) Taunt menu", 0, 0x30, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU);
         alpine_control_config_add_item(
             ccp, "(AF) Command menu", 0, 0x31, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU);
+        alpine_control_config_add_item(
+            ccp, "(AF) Ping location", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
     },
 };
 
@@ -249,6 +252,10 @@ CodeInjection player_execute_action_patch{
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG) &&
                 rf::is_multi && !rf::is_server) {
                 send_chat_line_packet("/dropflag", nullptr);
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION)) {
+                ping_looked_at_location();
             }
         }
     },
@@ -335,7 +342,7 @@ CodeInjection controls_process_patch{
 
         // C++ doesn't have a way to dynamically get the last enum index, so just update this when adding new controls
         if (index >= starting_alpine_control_index &&
-            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU)) {
+            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION)) {
             //xlog::warn("passing control {}", index);
             regs.eip = 0x00430E24;
         }

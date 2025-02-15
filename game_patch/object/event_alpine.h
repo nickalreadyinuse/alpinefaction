@@ -8,7 +8,6 @@
 #include <functional>
 #include <algorithm>
 #include <common/utils/list-utils.h>
-#include "../multi/alpine_packets.h"
 #include "../hud/hud_world.h"
 #include "../rf/event.h"
 #include "../rf/object.h"

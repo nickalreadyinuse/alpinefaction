@@ -1,10 +1,7 @@
 #pragma once
 
-// Forward declarations
-namespace rf
-{
-    struct Vector3;
-}
+#include "../rf/os/timestamp.h"
+#include "../rf/math/vector.h"
 
 struct WorldHUDAssets
 {
@@ -36,8 +33,18 @@ enum class WorldHUDRenderMode : int
     overdraw
 };
 
+struct EphemeralWorldHUDSprite
+{
+    int bitmap = -1;
+    rf::Vector3 pos;
+    std::string label = "";
+    WorldHUDRenderMode render_mode = WorldHUDRenderMode::overdraw;
+    rf::Timestamp timestamp;
+};
+
 void hud_world_do_frame();
 void load_world_hud_assets();
 void populate_world_hud_sprite_events();
+void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name);
 void do_render_world_hud_sprite(rf::Vector3 pos, float base_scale, int bitmap_handle, WorldHUDRenderMode render_mode,
                                 bool stay_inside_fog, bool distance_scaling, bool only_draw_during_gameplay);

@@ -9,6 +9,7 @@
 #include "../rf/level.h"
 #include "../rf/hud.h"
 #include "../rf/input.h"
+#include "../rf/collide.h"
 #include "../rf/gr/gr_light.h"
 #include "../rf/os/os.h"
 #include "../rf/os/frametime.h"
@@ -18,6 +19,8 @@
 #include "../multi/multi.h"
 #include "../multi/server_internal.h"
 #include "../hud/multi_spectate.h"
+#include "../multi/alpine_packets.h"
+#include "../hud/hud_world.h"
 #include <common/utils/list-utils.h>
 #include <common/config/GameConfig.h>
 #include <patch_common/FunHook.h>
@@ -303,6 +306,41 @@ ConsoleCommand2 damage_screen_flash_cmd{
     },
     "Toggle damage screen flash effect",
 };
+
+rf::Vector3 get_player_look_at_point(rf::Player* player)
+{
+    if (!player || !player->cam) {
+        return rf::Vector3{0, 0, 0}; // Fallback if player or camera is null
+    }
+
+    // Get camera position and orientation (world-space)
+    rf::Vector3 p0 = rf::camera_get_pos(player->cam);
+    rf::Matrix3 orient = rf::camera_get_orient(player->cam);
+
+    // Define ray endpoint
+    rf::Vector3 p1 = p0 + orient.fvec * 10000.0f; // Large range for infinite look-at
+
+    // Perform raycast
+    rf::LevelCollisionOut col_info;
+    col_info.face = nullptr;
+    col_info.obj_handle = -1;
+    rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
+    bool hit = rf::collide_linesegment_level_for_multi(p0, p1, entity, nullptr, &col_info, 0.1f, true, 1.0f);
+
+    if (hit) {
+        return col_info.hit_point; // Return exact hit position
+    }
+
+    return p1; // If no hit, return faraway point
+}
+
+void ping_looked_at_location() {
+    auto point = get_player_look_at_point(rf::local_player);
+    xlog::warn("point looked at is {},{},{}", point.x, point.y, point.z);
+
+    af_send_ping_location_req_packet(&point);
+    add_location_ping_world_hud_sprite(point, rf::local_player->name);
+}
 
 ConsoleCommand2 death_bars_cmd{
     "mp_deathbars",

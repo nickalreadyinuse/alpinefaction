@@ -45,3 +45,4 @@ void find_player(const StringMatcher& query, std::function<void(rf::Player*)> co
 void reset_player_additional_data(const rf::Player* player);
 PlayerAdditionalData& get_player_additional_data(rf::Player* player);
 void update_player_flashlight();
+void ping_looked_at_location();

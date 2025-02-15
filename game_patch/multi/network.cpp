@@ -189,7 +189,8 @@ enum packet_type : uint8_t {
     sound                  = 0x34,
     team_score             = 0x35,
     glass_kill             = 0x36,
-    af_teleport_player     = 0x50,
+    af_ping_location_req   = 0x50,
+    af_ping_location       = 0x51,
 };
 
 // client -> server
@@ -214,6 +215,7 @@ std::array g_server_side_packet_whitelist{
     fall_damage,
     rcon_request,
     rcon,
+    af_ping_location_req,
 };
 
 // server -> client
@@ -261,7 +263,7 @@ std::array g_client_side_packet_whitelist{
     sound,
     team_score,
     glass_kill,
-    af_teleport_player,
+    af_ping_location,
 };
 // clang-format on
 

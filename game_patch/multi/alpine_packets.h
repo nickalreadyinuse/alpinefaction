@@ -18,23 +18,30 @@ struct Entity;
 
 enum class af_packet_type : uint8_t
 {
-    teleport_player = 0x50,
+    af_ping_location_req = 0x50,
+    af_ping_location = 0x51,
 };
 
-// turns out this isn't needed
-struct af_teleport_player_packet
+struct af_ping_location_req_packet
+{
+    RF_GamePacketHeader header;
+    struct RF_Vector pos;
+};
+
+struct af_ping_location_packet
 {
     RF_GamePacketHeader header;
     uint8_t player_id;
     struct RF_Vector pos;
-    struct RF_Matrix orient;
 };
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
 void af_send_packet(rf::Player* player, const void* data, int len, bool is_reliable);
 
-void af_send_teleport_packet(rf::Entity* entity, rf::Vector3* pos, rf::Matrix3* orient, rf::Player* player);
-void af_send_teleport_packet_to_all(rf::Entity* entity, rf::Vector3* pos, rf::Matrix3* orient);
-static void af_process_teleport_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_ping_location_req_packet(rf::Vector3* pos);
+static void af_process_ping_location_req_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_ping_location_packet_to_team(rf::Vector3* pos, uint8_t player_id, rf::ubyte team);
+static void af_process_ping_location_packet(const void* data, size_t len, const rf::NetAddr& addr);
+
 
 #pragma pack(pop)
