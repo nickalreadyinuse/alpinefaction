@@ -172,6 +172,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "MSAA", msaa);
     result &= visitor(dash_faction_key, "Light Color Range", clamp_mode);
     result &= visitor(dash_faction_key, "FPS Counter", fps_counter);
+    result &= visitor(dash_faction_key, "Ping Counter", ping_display);
     result &= visitor(dash_faction_key, "Max FPS", max_fps);
     result &= visitor(dash_faction_key, "Server Max FPS", server_max_fps);
     result &= visitor(dash_faction_key, "High Scanner Resolution", high_scanner_res);

@@ -58,6 +58,22 @@ static void frametime_render_fps_counter()
         int font_id = hud_get_default_font();
         rf::gr::string(x, y, text.c_str(), font_id);
     }
+
+    if (g_game_config.ping_display && !rf::hud_disabled && rf::is_multi && !rf::is_server) {
+        auto text = std::format("Ping: {}", rf::local_player->net_data->ping);
+        rf::gr::set_color(0, 255, 0, 255);
+        int x = rf::gr::screen_width() - (g_game_config.big_hud ? 165 : 90);
+        int y = g_game_config.big_hud ? 35 : 25;
+        if (rf::gameseq_in_gameplay()) {
+            y = g_game_config.big_hud ? 135 : 75;
+            if (hud_weapons_is_double_ammo()) {
+                y += g_game_config.big_hud ? 105 : 55;
+            }
+        }
+
+        int font_id = hud_get_default_font();
+        rf::gr::string(x, y, text.c_str(), font_id);
+    }
 }
 
 void frametime_render_ui()
@@ -74,7 +90,18 @@ ConsoleCommand2 fps_counter_cmd{
         rf::console::print("FPS counter display is {}", g_game_config.fps_counter ? "enabled" : "disabled");
     },
     "Toggle FPS counter",
-    "fps_counter",
+    "cl_showfps",
+};
+
+ConsoleCommand2 ping_display_cmd{
+    "cl_showping",
+    []() {
+        g_game_config.ping_display = !g_game_config.ping_display;
+        g_game_config.save();
+        rf::console::print("Ping counter display is {}", g_game_config.ping_display ? "enabled" : "disabled");
+    },
+    "Toggle ping counter",
+    "cl_showping",
 };
 
 CallHook<void(int)> frametime_calculate_sleep_hook{

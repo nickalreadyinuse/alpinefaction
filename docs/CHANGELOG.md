@@ -58,6 +58,10 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add notification to players when the server is about to switch to a map with a version they can't load
 - Add `mapm` command as an alias for `levelm`
 - Add `+Require Official Build` and `+Enforce Server Version Minimum` settings to `$Clients Require Alpine Faction`
+- Add framework for custom packets
+- Add location pinging for multiplayer team modes with new action bind
+- Add `+Location Pinging` setting to `$Clients Require Alpine Faction`
+- Add `cl_showping` command to display current ping when connected to a server
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025

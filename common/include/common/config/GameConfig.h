@@ -104,6 +104,7 @@ struct GameConfig
 
     // Interface
     CfgVar<bool> fps_counter = true;
+    CfgVar<bool> ping_display = true;
     CfgVar<bool> big_hud = false;
     CfgVar<float> reticle_scale = 1.0f;
     CfgVar<int> language = -1;
