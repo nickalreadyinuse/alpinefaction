@@ -341,6 +341,7 @@ void parse_alpine_locking(rf::Parser& parser) {
         parse_boolean_option(parser, "+Enforce Server Version Minimum:", g_additional_server_config.alpine_server_version_enforce_min, "+Enforce Server Version Minimum");
         parse_boolean_option(parser, "+Reject Legacy Clients:", g_additional_server_config.reject_non_alpine_clients, "+Reject Legacy Clients");
         parse_boolean_option(parser, "+No Player Collide:", g_additional_server_config.no_player_collide, "+No Player Collide");
+        parse_boolean_option(parser, "+Location Pinging:", g_additional_server_config.location_pinging, "+Location Pinging");
         parse_vote_config("+Match Mode", g_additional_server_config.vote_match, parser);
     }
 }
@@ -2493,6 +2494,11 @@ bool server_allow_disable_screenshake()
 bool server_no_player_collide()
 {
     return g_additional_server_config.no_player_collide;
+}
+
+bool server_location_pinging()
+{
+    return g_additional_server_config.clients_require_alpine && g_additional_server_config.location_pinging;
 }
 
 bool server_allow_disable_muzzle_flash()

@@ -335,11 +335,16 @@ rf::Vector3 get_player_look_at_point(rf::Player* player)
 }
 
 void ping_looked_at_location() {
-    auto point = get_player_look_at_point(rf::local_player);
-    xlog::warn("point looked at is {},{},{}", point.x, point.y, point.z);
+    if (!rf::is_multi ||
+        !get_df_server_info().has_value() ||
+        !get_df_server_info()->location_pinging ||
+        rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_DM) {
+        return;
+    }
 
-    af_send_ping_location_req_packet(&point);
-    add_location_ping_world_hud_sprite(point, rf::local_player->name);
+    auto point = get_player_look_at_point(rf::local_player);
+    af_send_ping_location_req_packet(&point); // send to the server to replicate to other cleints
+    add_location_ping_world_hud_sprite(point, rf::local_player->name); // render locally
 }
 
 ConsoleCommand2 death_bars_cmd{

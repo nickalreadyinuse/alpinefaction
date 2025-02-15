@@ -166,6 +166,7 @@ struct ServerAdditionalConfig
     bool saving_enabled = false;
     bool flag_dropping = true;
     bool no_player_collide = false;
+    bool location_pinging = true;
     bool upnp_enabled = false;
     std::optional<int> force_player_character;
     std::optional<float> max_fov;

@@ -74,6 +74,11 @@ static void af_process_ping_location_req_packet(const void* data, size_t len, co
         return;
     }
 
+    // ignore ping_location_req packets if location pinging is configured off
+    if (!get_df_server_info().has_value() || !get_df_server_info()->location_pinging) {
+        return;
+    }
+
     af_ping_location_req_packet ping_location_req_packet{};
     ping_location_req_packet.header.type = static_cast<uint8_t>(af_packet_type::af_ping_location_req);
     ping_location_req_packet.header.size = sizeof(ping_location_req_packet) - sizeof(ping_location_req_packet.header);

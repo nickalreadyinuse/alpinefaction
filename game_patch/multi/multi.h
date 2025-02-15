@@ -93,6 +93,7 @@ struct DashFactionServerInfo
     std::optional<int> semi_auto_cooldown;
     bool unlimited_fps = false;
     bool gaussian_spread = false;
+    bool location_pinging = false;
 };
 
 void multi_level_download_update();
