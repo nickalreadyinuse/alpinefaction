@@ -335,10 +335,21 @@ rf::Vector3 get_player_look_at_point(rf::Player* player)
 }
 
 void ping_looked_at_location() {
-    if (!rf::is_multi ||
-        !get_df_server_info().has_value() ||
-        !get_df_server_info()->location_pinging ||
-        rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_DM) {
+    if (!rf::is_multi) {
+        return;
+    }
+
+    if (!get_df_server_info().has_value() || !get_df_server_info()->location_pinging) {
+        rf::String msg{"This server does not allow you to ping locations"};
+        rf::String prefix;
+        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        return;
+    }
+
+    if (rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_DM) {
+        rf::String msg{"Location pinging is not available in deathmatch"};
+        rf::String prefix;
+        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
         return;
     }
 
