@@ -325,7 +325,7 @@ rf::Vector3 get_player_look_at_point(rf::Player* player)
     col_info.face = nullptr;
     col_info.obj_handle = -1;
     rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-    bool hit = rf::collide_linesegment_level_for_multi(p0, p1, entity, nullptr, &col_info, 0.1f, true, 1.0f);
+    bool hit = rf::collide_linesegment_level_for_multi(p0, p1, entity, nullptr, &col_info, 0.1f, false, 1.0f);
 
     if (hit) {
         return col_info.hit_point; // Return exact hit position
