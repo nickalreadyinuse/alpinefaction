@@ -9,11 +9,11 @@
 // Forward declarations
 namespace rf
 {
-struct Object;
-struct Player;
-struct Vector3;
-struct Matrix3;
-struct Entity;
+    struct Object;
+    struct Player;
+    struct Vector3;
+    struct Matrix3;
+    struct Entity;
 }
 
 enum class af_packet_type : uint8_t
@@ -25,14 +25,14 @@ enum class af_packet_type : uint8_t
 struct af_ping_location_req_packet
 {
     RF_GamePacketHeader header;
-    struct RF_Vector pos;
+    RF_Vector pos;
 };
 
 struct af_ping_location_packet
 {
     RF_GamePacketHeader header;
     uint8_t player_id;
-    struct RF_Vector pos;
+    RF_Vector pos;
 };
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);

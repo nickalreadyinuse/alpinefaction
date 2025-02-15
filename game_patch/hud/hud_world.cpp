@@ -1,6 +1,7 @@
 #include <xlog/xlog.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/MemUtils.h>
+#include <patch_common/AsmWriter.h>
 #include <algorithm>
 #include <unordered_set>
 #include "hud_internal.h"
@@ -190,6 +191,27 @@ void build_world_hud_sprite_icons() {
     }
 }
 
+void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, int offset_x, int offset_y)
+{
+    rf::gr::Vertex dest;
+
+    // Transform the position to screen space
+    if (!rf::gr::rotate_vertex(&dest, pos))
+    {
+        rf::gr::project_vertex(&dest);
+
+        // Check if projection was successful
+        if (dest.flags & 1)
+        {
+            int screen_x = static_cast<int>(dest.sx) + offset_x;
+            int screen_y = static_cast<int>(dest.sy) + offset_y;
+            rf::gr::set_color(255, 255, 255, 223);
+            auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::bitmap_3d_mode;
+            rf::gr::string(screen_x, screen_y, text.c_str(), -1, render_mode);
+        }
+    }
+}
+
 void build_ephemeral_world_hud_sprite_icons() {
     std::erase_if(ephemeral_world_hud_sprites, [](const EphemeralWorldHUDSprite& es) {
         return !es.timestamp.valid() || es.timestamp.elapsed();
@@ -204,7 +226,7 @@ void build_ephemeral_world_hud_sprite_icons() {
         int half_text_width = text_width / 2;
 
         auto text_pos = es.pos;
-        rf::gr::gr_render_string_3d_pos(&text_pos, es.label.c_str(), -half_text_width, -25);
+        render_string_3d_pos_new(text_pos, es.label.c_str(), -half_text_width, -25);
     }
 }
 
@@ -243,7 +265,7 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
     std::erase_if(ephemeral_world_hud_sprites,
         [&](const EphemeralWorldHUDSprite& es) { return es.label == player_name; });
 
-    auto bitmap = rf::bm::load("scope_ret_1.tga", -1, true);
+    auto bitmap = rf::bm::load("af_wh_ping1.tga", -1, true);
 
     EphemeralWorldHUDSprite es;
     es.bitmap = bitmap;

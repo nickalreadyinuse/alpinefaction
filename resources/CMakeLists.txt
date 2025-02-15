@@ -51,6 +51,7 @@ add_packfile(alpinefaction.vpp
     images/af_wh_ctf_blue_s.tga
     images/af_wh_ctf_red_s.tga
     images/af_wh_mp_spawn.tga
+    images/af_wh_ping1.tga
     images/DF_green.tga
     images/DF_red.tga
     images/scope_zoom_corner256_red.tga
