@@ -29,7 +29,6 @@ WizardStyle=modern
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "resetplayerscfg"; Description: "Back up and reset players.cfg (necessary to use new action binds)"; GroupDescription: "Other options:"
 Name: "replacerflauncher"; Description: "Replace Red Faction launcher with the Alpine Faction launcher (required for Steam support)"; GroupDescription: "Other options:"
 Name: "rflassoc"; Description: "Associate the .rfl file extension with the Alpine Faction level editor"; GroupDescription: "Other options:"
 Name: "redvisualstyles"; Description: "Enable Windows visual styles for the level editor (experimental)"; GroupDescription: "Other options:"; Flags: unchecked
@@ -397,26 +396,6 @@ begin
     end;
 end;
 
-procedure ResetPlayersCfgFile();
-var
-    PlayersCfgPath: String;
-begin
-    PlayersCfgPath := GetGameDir('players.cfg');
-    if FileExists(PlayersCfgPath) then
-    begin
-        Log('Found players.cfg at: ' + PlayersCfgPath);
-        if RenameFile(PlayersCfgPath, PlayersCfgPath + '_bak') then
-            Log('Successfully backed up players.cfg to players.cfg_bak.')
-        else
-            Log('Failed to back up players.cfg because backup file players.cfg_bak already exists.')
-            //MsgBox('Failed to back up players.cfg because backup file players.cfg_bak already exists. You will need to manually delete or rename the file.', mbError, MB_OK);
-    end
-    else
-    begin
-        Log('No players.cfg found at: ' + PlayersCfgPath);
-    end;
-end;
-
 // Check functions
 
 function PatchGameTaskCheck(): Boolean;
@@ -464,8 +443,6 @@ begin
             ApplyPatches;
         end;
         ReplaceRedFactionLauncher;
-        if WizardIsTaskSelected('resetplayerscfg') then
-            ResetPlayersCfgFile;
     end;
 end;
 
