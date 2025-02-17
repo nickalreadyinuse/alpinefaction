@@ -30,7 +30,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `cl_worldhudctf` command for toggling world HUD icons for CTF flags
 - Add support for loading packfiles from `user_maps\projects` (intended for WIP projects)
 - Make `Ready for match` action bind toggle ready status
-- Deprecated `/unready` chat command
+- Deprecate `/unready` chat command
 - Allow .bik video files to be loaded from `client_mods`
 - Add handling for `Active Distance` setting in Particle Emitter properties (level designers can use to optimize performance)
 - Add new gaussian bullet spread method (bell-curve distribution weighted to center of reticle)
@@ -64,6 +64,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `cl_showping` command to display current ping when connected to a server
 - Add achievements framework
 - Make cutscene skip prompt text more clear
+- Deprecate `(AF)` prefix on Alpine-specific action names
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025

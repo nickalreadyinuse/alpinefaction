@@ -5,6 +5,7 @@
 #include <xlog/xlog.h>
 #include "../hud/hud.h"
 #include "../misc/player.h"
+#include "../misc/achievements.h"
 #include "../multi/multi.h"
 #include "../multi/endgame_votes.h"
 #include "../rf/input.h"
@@ -203,27 +204,27 @@ CodeInjection control_config_init_patch{
         }        
 
         alpine_control_config_add_item( // F
-            ccp, "(AF) Toggle headlamp", 0, 0x21, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT);
+            ccp, "Toggle headlamp", 0, 0x21, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT);
         alpine_control_config_add_item( // K
-            ccp, "(AF) Skip cutscene", 0, 0x25, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
+            ccp, "Skip cutscene", 0, 0x25, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
         alpine_control_config_add_item(
-            ccp, "(AF) Respawn", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
+            ccp, "Respawn", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
         alpine_control_config_add_item( // F1
-            ccp, "(AF) Vote yes", 0, 0x3B, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
+            ccp, "Vote yes", 0, 0x3B, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
         alpine_control_config_add_item( // F2
-            ccp, "(AF) Vote no", 0, 0x3C, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
+            ccp, "Vote no", 0, 0x3C, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
         alpine_control_config_add_item( // F3
-            ccp, "(AF) Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
+            ccp, "Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
         alpine_control_config_add_item(
-            ccp, "(AF) Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
+            ccp, "Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
         alpine_control_config_add_item( // V
-            ccp, "(AF) Radio message menu", 0, 0x2F, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
+            ccp, "Radio message menu", 0, 0x2F, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
         alpine_control_config_add_item(
-            ccp, "(AF) Taunt menu", 0, 0x30, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU);
+            ccp, "Taunt menu", 0, 0x30, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU);
         alpine_control_config_add_item(
-            ccp, "(AF) Command menu", 0, 0x31, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU);
+            ccp, "Command menu", 0, 0x31, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU);
         alpine_control_config_add_item(
-            ccp, "(AF) Ping location", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
+            ccp, "Ping location", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
     },
 };
 
@@ -242,6 +243,7 @@ CodeInjection player_execute_action_patch{
                 (rf::entity_headlamp_is_on(rf::local_player_entity))
                     ? rf::entity_headlamp_turn_off(rf::local_player_entity)
                     : rf::entity_headlamp_turn_on(rf::local_player_entity);
+                grant_achievement_sp(23);
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL) &&
