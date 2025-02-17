@@ -38,43 +38,43 @@ void AchievementManager::initialize()
     }
 
     std::vector<Achievement> predefined_achievements = {
-        {0, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // game start
-        {1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // secret fusion
-        {2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // training start
-        {3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // training finish
-        {4, "_EasyFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // campaign finish
-        {5, "_MediumFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // campaign finish
-        {6, "_HardFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // campaign finish
-        {7, "_ImpossibleFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // campaign finish
-        {8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // kill a fish in l1s1
-        {9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // hear eos message NOT DONE
-        {10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {13, "Exfiltration", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {15, "_MeetCapek", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {16, "_CapekLikesToTalk", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {17, "_KillSnake", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {19, "_ComputersSpace", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {20, "_DestroySpace", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {21, "_Escape", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {22, "_KillMasako", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {23, "_FFLink", "APC_Cocpit_P13.tga", AchievementCategory::general},
-        {24, "_UnderSub", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // release hidden sub in undersea base
-        {25, "_KillDrone", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign},
-        {26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // kill capek with flamethrower
-        {27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::general}, // drop corpse
-        {28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::general}, // heal from media
-        {29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::general}, // dupe c4
-        {30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::general}, // view from security camera
-        {31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::general}, // enter aesir
-        {32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::general}, // enter sub
-        {33, "_EnterAPC", "APC_Cocpit_P13.tga", AchievementCategory::general}, // enter apc
-        {34, "_EnterJeep", "APC_Cocpit_P13.tga", AchievementCategory::general}, // enter jeep
-        {35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::general}, // enter driller
-        {36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}, // enter secret sub after geothermal
+        {0, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},               // game start
+        {1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},      // secret fusion
+        {2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},          // training start
+        {3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},             // training finish
+        {4, "_EasyFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},              // campaign finish
+        {5, "_MediumFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},            // campaign finish
+        {6, "_HardFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},              // campaign finish
+        {7, "_ImpossibleFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},        // campaign finish
+        {8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},             // kill a fish in l1s1
+        {9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                     // hear eos message
+        {10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},               // locked in train in miner reg
+        {11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},  // if only you'd been faster
+        {12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                  // get to ventilation
+        {13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                   // destroy geothermal
+        {14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},               // kill trash bot
+        {15, "_MeetCapek", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                 // first capek cutscene
+        {16, "_CapekLikesToTalk", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},       // get to last capek voice line
+        {17, "_KillSnake", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},              // kill big snake
+        {18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                   // get to space station
+        {19, "_ComputersSpace", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},         // destroy 8 computers in space station
+        {20, "_DestroySpace", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},              // escape space station
+        {21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},       // escape merc prison
+        {22, "_KillMasako", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                // kill masako
+        {23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},               // use flashlight
+        {24, "_UnderSub", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                  // release hidden sub in undersea base
+        {25, "_KillDrone", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                 // kill drone just before big elevator
+        {26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},              // kill capek with flamethrower
+        {27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                       // drop corpse
+        {28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                // heal from media
+        {29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                 // dupe c4
+        {30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                      // view from security camera
+        {31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                  // enter aesir
+        {32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                     // enter sub
+        {33, "_EnterAPC", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                         // enter apc
+        {34, "_EnterJeep", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                        // enter jeep
+        {35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                  // enter driller
+        {36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},                // enter secret sub after geothermal
         //{, "", "", AchievementCategory::base_campaign},
     };
 
@@ -163,7 +163,7 @@ void AchievementManager::sync_with_ff()
         std::string response;
 
         try {
-            HttpSession session("Alpine Faction v1.0.0 Achievement Sync");
+            HttpSession session("Alpine Faction v1.1.0 Achievement Sync");
             HttpRequest request(url, "GET", session);
             request.send();
 
@@ -203,7 +203,7 @@ void AchievementManager::send_update_to_ff()
         std::string response;
 
         try {
-            HttpSession session("Alpine Faction v1.0.0 Achievement Push");
+            HttpSession session("Alpine Faction v1.1.0 Achievement Push");
             HttpRequest request(url, "POST", session);
             request.set_content_type("application/x-www-form-urlencoded");
 
@@ -291,27 +291,25 @@ void AchievementManager::grant_achievement(int uid)
 void AchievementManager::show_notification(Achievement& achievement)
 {
     achievement.notified = true;
-    xlog::warn("Achievement Notified: {}", achievement.name);
+    xlog::warn("Achievement notified: {}", achievement.name);
 
     // clear previous info before repopulating
     clear_achievement_notification();
 
+    // drawn in draw_achievement_box
     achievement_box_icon = rf::bm::load(achievement.icon.c_str(), -1, true);
     achievement_box_name = achievement.name;
     achievement_box_timestamp.set(10000); // 10 seconds
     achievement_box_visible = true;
 }
 
-void grant_achievement(int achievement_uid)
+// forcefully grant achievement
+void grant_achievement(int uid)
 {
-    // scope key
-    // 0 = any time
-    // 1 = sp (gameplay) only
-    // 2 = mp (gameplay) only
-    // 3 = only when not in gameplay
-    // 4 = only when tc mod loaded
-    xlog::warn("attempting to give achievement {}", achievement_uid);
-    AchievementManager::get_instance().grant_achievement(achievement_uid);
+    if (achievement_system_initialized) {
+        //xlog::warn("attempting to give achievement {}", uid);
+        AchievementManager::get_instance().grant_achievement(uid);
+    }    
 }
 
 void initialize_achievement_manager() {
@@ -421,7 +419,7 @@ bool is_achievement_system_initialized() {
 }
 
 void grant_achievement_sp(int uid) {
-    if (achievement_system_initialized && !rf::is_multi) {
+    if (!rf::is_multi) {
         grant_achievement(uid);
     }
 }
@@ -473,6 +471,27 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
+            case 3350: {
+                if (string_equals_ignore_case(rfl_filename, "l4s4.rfl")) {
+                    grant_achievement(12); // exit ventilation
+                }
+                break;
+            }
+
+            case 4502: {
+                if (string_equals_ignore_case(rfl_filename, "l5s2.rfl")) {
+                    grant_achievement(13); // destroy geothermal
+                }
+                break;
+            }
+
+            case 8571: {
+                if (string_equals_ignore_case(rfl_filename, "l19s1.rfl")) {
+                    grant_achievement(21); // merc prison
+                }
+                break;
+            }
+
             default:
                 break;
         }
@@ -518,13 +537,26 @@ void achievement_check_event(rf::Event* event) {
                     !rf::mod_param.found()) {
                     grant_achievement(26); // kill capek with flamethrower
                 }
-                xlog::warn("yep");
                 break;
             }
 
             case 7005: {
                 if (string_equals_ignore_case(rfl_filename, "l10s4.rfl")) {
                     grant_achievement(16); // end of capek message series
+                }
+                break;
+            }
+
+            case 9449: {
+                if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
+                    grant_achievement(9); // first eos message
+                }
+                break;
+            }
+
+            case 10367: {
+                if (string_equals_ignore_case(rfl_filename, "l8s4.rfl")) {
+                    grant_achievement(15); // meet capek
                 }
                 break;
             }
@@ -673,6 +705,43 @@ CodeInjection player_handle_use_vehicle_achievement_patch{
     },
 };
 
+// after delay duration, only on events that forward messages
+CodeInjection event_activate_links_achievement_patch{
+    0x004B8B0A,
+    [](auto& regs) {
+        rf::Event* event = regs.ecx;
+
+        if (!event) {
+            return;
+        }
+
+        int event_uid = event->uid;
+        rf::String rfl_filename = rf::level.filename;
+
+        // single player
+        if (!rf::is_multi) {
+            switch (event_uid) {
+                case 8711: {
+                    if (string_equals_ignore_case(rfl_filename, "l3s2.rfl")) {
+                        grant_achievement(10); // train in miner registration
+                    }
+                    break;
+                }
+
+                case 2014: {
+                    if (string_equals_ignore_case(rfl_filename, "l3s3.rfl")) {
+                        grant_achievement(11); // shuttle blow up (maybe below slow isn't such a bad thing)
+                    }
+                    break;
+                }
+
+                default:
+                    break;
+            }
+        }
+    },
+};
+
 ConsoleCommand2 debug_achievement_cmd{
     "dbg_achievement",
     [](int uid) {
@@ -739,7 +808,7 @@ ConsoleCommand2 debug_reset_achievements_cmd{
             achievement.notified = false;
         }
 
-        rf::console::print("All achievement notifications have been reset.");
+        rf::console::print("Achievement notifications have been reset.");
     },
     "Reset achievement notifications",
     "dbg_resetachievements"
@@ -753,6 +822,7 @@ void achievements_apply_patch()
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
     player_handle_use_vehicle_achievement_patch.install();
+    event_activate_links_achievement_patch.install();
 
     // Console commands
     debug_achievement_cmd.register_cmd();

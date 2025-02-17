@@ -15,9 +15,10 @@ enum class AchievementCategory : int
 {
     general,
     statistics,
+    singleplayer,
     multiplayer,
-    base_campaign,
-    modding
+    base_campaign_story,
+    base_campaign_optional,
 };
 
 struct Achievement
@@ -82,7 +83,8 @@ private:
 
 bool is_achievement_system_initialized();
 
-void grant_achievement(int achievement_uid);
+void grant_achievement(int uid);
+void grant_achievement_sp(int uid);
 void achievement_check_trigger(rf::Trigger* trigger);
 void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);
