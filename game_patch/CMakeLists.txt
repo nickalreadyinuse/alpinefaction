@@ -161,6 +161,8 @@ set(SRCS
     object/monitor.cpp
     object/particle.cpp
     object/obj_light.cpp
+    misc/achievements.h
+    misc/achievements.cpp
     misc/character.cpp
     misc/high_fps.cpp
     misc/high_fps.h

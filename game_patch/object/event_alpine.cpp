@@ -9,6 +9,7 @@
 #include "event_alpine.h"
 #include "../hud/hud_world.h"
 #include "../misc/misc.h"
+#include "../misc/achievements.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
 #include "../rf/entity.h"
@@ -688,9 +689,13 @@ CodeInjection level_read_events_patch2 {
 CodeInjection event_activate_route_node{
     0x004B8B97,
     [](auto& regs) {
-        if (af_rfl_version(rf::level.version)) {
-            rf::Event* event = regs.esi;
+        rf::Event* event = regs.esi;
 
+        if (is_achievement_system_initialized()) {
+            achievement_check_event(event);
+        }
+
+        if (af_rfl_version(rf::level.version)) {
             // verify it's a Route_Node
             if (event->event_type == rf::event_type_to_int(rf::EventType::Route_Node)) {
                 auto* delay_event = reinterpret_cast<rf::EventRouteNode*>(event);

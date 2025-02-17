@@ -1,6 +1,7 @@
 #include "console.h"
 #include "../main/main.h"
 #include "../misc/player.h"
+#include "../misc/misc.h"
 #include "../rf/player/player.h"
 #include "../rf/gameseq.h"
 #include "../rf/input.h"
@@ -247,4 +248,6 @@ void console_init()
 {
     console_commands_init();
     print_fflink_info();
+    initialize_achievement_manager();
+
 }

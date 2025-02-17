@@ -31,6 +31,7 @@
 #include "../rf/file/file.h"
 #include "../object/object.h"
 
+void achievements_apply_patch();
 void apply_main_menu_patches();
 void apply_save_restore_patches();
 void apply_sound_patches();
@@ -608,6 +609,7 @@ void misc_init()
     all_table_files_loaded_injection.install();
 
     // Apply patches from other files
+    achievements_apply_patch();
     alpine_settings_apply_patch();
     apply_main_menu_patches();
     apply_save_restore_patches();

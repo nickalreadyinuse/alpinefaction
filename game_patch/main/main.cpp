@@ -29,6 +29,7 @@
 #include "../multi/server.h"
 #include "../multi/server_internal.h"
 #include "../misc/misc.h"
+#include "../misc/achievements.h"
 #include "../misc/alpine_options.h"
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
@@ -142,6 +143,7 @@ CodeInjection after_frame_render_hook{
         if (!rf::is_dedicated_server) {
             // Draw on top (after scene)
             frametime_render_ui();
+            achievement_system_do_frame();
 #if !defined(NDEBUG) && defined(HAS_EXPERIMENTAL)
             experimental_render();
 #endif

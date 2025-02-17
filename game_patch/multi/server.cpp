@@ -23,6 +23,7 @@
 #include "../os/console.h"
 #include "../misc/player.h"
 #include "../main/main.h"
+#include "../misc/achievements.h"
 #include "../rf/file/file.h"
 #include "../rf/math/vector.h"
 #include "../rf/math/matrix.h"
@@ -1037,6 +1038,16 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             if (g_additional_server_config.hit_sounds.enabled) {
                 send_hit_sound_packet(killer_player);
             }
+        }
+
+        
+        if (is_achievement_system_initialized() &&
+            !rf::is_multi &&
+            damaged_ep->life <= 0.0f &&
+            killer_player &&
+            killer_player == rf::local_player
+            ) {
+            achievement_player_killed_entity(damaged_ep, real_damage, damage_type);
         }
 
         return real_damage;

@@ -18,6 +18,7 @@
 #include "../rf/gameseq.h"
 #include "../misc/alpine_options.h"
 #include "../misc/misc.h"
+#include "../misc/achievements.h"
 #include "event_alpine.h"
 #include "object.h"
 #include "object_private.h"
@@ -330,6 +331,9 @@ FunHook<void(rf::Entity*)> entity_on_dead_hook{
     0x00418F80,
     [](rf::Entity* ep) {
         //xlog::warn("killing entity UID {}, name {}", ep->uid, ep->name);
+        if (is_achievement_system_initialized()) {
+            achievement_check_entity_death(ep);
+        }
 
         if (!rf::is_multi) {
             rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, ep->handle, -1, true);
