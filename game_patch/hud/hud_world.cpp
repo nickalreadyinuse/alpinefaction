@@ -133,7 +133,7 @@ void build_ctf_flag_icons()
 
         auto render_mode = g_game_config.world_hud_overdraw ? WorldHUDRenderMode::overdraw : WorldHUDRenderMode::no_overdraw;
 
-        do_render_world_hud_sprite(vec, 1.0, bitmap_handle, render_mode, true, true, true);
+        do_render_world_hud_sprite(vec, 0.6f, bitmap_handle, render_mode, true, true, true);
     };
 
     // render flag sprites
