@@ -136,14 +136,17 @@ void HttpRequest::send(std::string_view body)
             THROW_WIN32_ERROR();
     }
     else {
-        if (!HttpSendRequestA(m_req, nullptr, 0, const_cast<char*>(body.data()), body.size()))
+        // Ensure the content length is set properly
+        add_header("Content-Length", std::to_string(body.size()));
+
+        if (!HttpSendRequestA(m_req, nullptr, 0, const_cast<char*>(body.data()), static_cast<DWORD>(body.size()))) {
             THROW_WIN32_ERROR();
+        }
     }
 
     DWORD dw_size = sizeof(DWORD);
     DWORD status_code;
-    if (!HttpQueryInfoA(m_req, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &status_code, &dw_size,
-                        nullptr)) {
+    if (!HttpQueryInfoA(m_req, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, &status_code, &dw_size, nullptr)) {
         THROW_WIN32_ERROR();
     }
 

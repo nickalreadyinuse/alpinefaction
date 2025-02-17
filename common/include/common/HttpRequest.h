@@ -71,6 +71,7 @@ private:
     InternetHandle m_conn;
     InternetHandle m_req;
     bool m_in_body = false;
+    std::string m_body;
 
 public:
     HttpRequest(std::string_view url, const char* method, HttpSession& session);
@@ -80,6 +81,11 @@ public:
     void set_content_type(std::string_view content_type)
     {
         add_header("Content-Type", content_type);
+    }
+
+    void set_body(std::string body)
+    {
+        m_body = std::move(body);
     }
 
     void begin_body(size_t total_body_size = 0);
