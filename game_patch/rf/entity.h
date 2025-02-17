@@ -414,6 +414,7 @@ namespace rf
     static auto& entity_in_vehicle = addr_as_ref<bool(Entity *ep)>(0x004290D0);
     static auto& entity_is_jeep_driver = addr_as_ref<bool(Entity *ep)>(0x0042AC80);
     static auto& entity_is_jeep_gunner = addr_as_ref<bool(Entity *ep)>(0x0042ACD0);
+    static auto& entity_is_local_player = addr_as_ref<bool(Entity* ep)>(0x0042A8E0);
     static auto& entity_is_driller = addr_as_ref<bool(Entity *ep)>(0x0042D780);
     static auto& entity_is_sub = addr_as_ref<bool(Entity *ep)>(0x0040A270);
     static auto& entity_is_jeep = addr_as_ref<bool(Entity *ep)>(0x0040A2F0);
