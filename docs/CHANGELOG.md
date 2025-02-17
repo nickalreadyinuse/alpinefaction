@@ -63,6 +63,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `+Location Pinging` setting to `$Clients Require Alpine Faction`
 - Add `cl_showping` command to display current ping when connected to a server
 - Add achievements framework
+- Make cutscene skip prompt text more clear
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
