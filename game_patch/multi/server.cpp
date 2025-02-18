@@ -193,13 +193,12 @@ void parse_gungame(rf::Parser& parser)
     }
 }
 
-void parse_hitsounds(rf::Parser& parser) {
-    if (parser.parse_optional("$Hitsounds:")) {
-        g_additional_server_config.hit_sounds.enabled = parser.parse_bool();
-        rf::console::print("Hitsounds Enabled: {}", g_additional_server_config.hit_sounds.enabled ? "true" : "false");
+void parse_damage_notifications(rf::Parser& parser) {
+    if (parser.parse_optional("$Damage Notifications:")) {
+        g_additional_server_config.damage_notifications.enabled = parser.parse_bool();
+        rf::console::print("Damage Notifications Enabled: {}", g_additional_server_config.damage_notifications.enabled ? "true" : "false");
 
-        parse_uint_option(parser, "+Sound ID:", g_additional_server_config.hit_sounds.sound_id, "+Sound ID");
-        parse_uint_option(parser, "+Rate Limit:", g_additional_server_config.hit_sounds.rate_limit, "+Rate Limit");
+        parse_boolean_option(parser, "+Legacy Client Compatibility:", g_additional_server_config.damage_notifications.support_legacy_clients, "+Legacy Client Compatibility");
     }
 }
 
@@ -400,7 +399,7 @@ void load_additional_server_config(rf::Parser& parser) {
     parse_spawn_protection(parser);
     parse_respawn_logic(parser);
     parse_gungame(parser);
-    parse_hitsounds(parser);
+    parse_damage_notifications(parser);
     parse_critical_hits(parser);
     parse_overtime(parser);
     parse_weapon_stay_exemptions(parser);
@@ -955,8 +954,7 @@ void send_sound_packet(rf::Player* target, int& last_sent_time, int rate_limit, 
 void send_hit_sound_packet(rf::Player* target)
 {
     auto& pdata = get_player_additional_data(target);
-    send_sound_packet(target, pdata.last_hitsound_sent_ms, g_additional_server_config.hit_sounds.rate_limit,
-                      g_additional_server_config.hit_sounds.sound_id);
+    send_sound_packet(target, pdata.last_hitsound_sent_ms, 10, 29); // fallback for legacy clients
 }
 
 void send_critical_hit_packet(rf::Player* target)
@@ -1036,17 +1034,16 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             auto* damaged_player_stats = static_cast<PlayerStatsNew*>(damaged_player->stats);
             damaged_player_stats->add_damage_received(real_damage);
 
-            if (g_additional_server_config.hit_sounds.enabled && damaged_player && killer_player) {
+            if (g_additional_server_config.damage_notifications.enabled && damaged_player && killer_player) {
 
-                // use new packet for clients that can process af_damage_notify packet (Alpine 1.1+)
+                // use new af_damage_notify packet for clients that can process it (Alpine 1.1+)
                 if (is_player_minimum_af_client_version(killer_player, 1, 1)) {
                     af_send_damage_notify_packet(
                         damaged_player->net_data->player_id,
-                        g_additional_server_config.hit_sounds.sound_id,
                         real_damage,
                         killer_player);
                 }
-                else {
+                else if (g_additional_server_config.damage_notifications.support_legacy_clients) {
                     send_hit_sound_packet(killer_player); // fallback for old clients
                 }
             }
@@ -2583,9 +2580,9 @@ bool server_enforces_no_player_collide()
     return g_additional_server_config.no_player_collide;
 }
 
-bool server_has_hitsounds()
+bool server_has_damage_notifications()
 {
-    return g_additional_server_config.hit_sounds.enabled;
+    return g_additional_server_config.damage_notifications.enabled;
 }
 
 const AFGameInfoFlags& server_get_game_info_flags()
@@ -2603,5 +2600,5 @@ void initialize_game_info_server_flags()
     g_game_info_server_flags.match_mode = server_is_match_mode_enabled();
     g_game_info_server_flags.saving_enabled = server_is_saving_enabled();
     g_game_info_server_flags.gaussian_spread = server_gaussian_spread();
-    g_game_info_server_flags.hitsounds = server_has_hitsounds();
+    g_game_info_server_flags.damage_notifications = server_has_damage_notifications();
 }

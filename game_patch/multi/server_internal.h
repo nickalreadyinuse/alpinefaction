@@ -27,7 +27,7 @@ struct AFGameInfoFlags
     bool match_mode             = false;
     bool saving_enabled         = false;
     bool gaussian_spread        = false;
-    bool hitsounds              = false;
+    bool damage_notifications   = false;
 
     uint32_t game_info_flags_to_uint32() const
     {
@@ -39,7 +39,7 @@ struct AFGameInfoFlags
                (static_cast<uint32_t>(match_mode)               << 5) |
                (static_cast<uint32_t>(saving_enabled)           << 6) |
                (static_cast<uint32_t>(gaussian_spread)          << 7) |
-               (static_cast<uint32_t>(hitsounds)                << 8);
+               (static_cast<uint32_t>(damage_notifications)     << 8);
     }
 };
 
@@ -80,11 +80,10 @@ struct BagmanConfig
     float bag_return_time = 25000.0f;
 };
 
-struct HitSoundsConfig
+struct DamageNotificationConfig
 {
     bool enabled = true;
-    int sound_id = 29;
-    int rate_limit = 10;
+    bool support_legacy_clients = true;
 };
 
 struct CriticalHitsConfig
@@ -145,7 +144,6 @@ struct ServerAdditionalConfig
     VoteConfig vote_match;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
-    //int spawn_protection_duration_ms = 1500;
     int desired_player_count = 32;
     float spawn_life = -1.0f;
     bool use_sp_damage_calculation = false;
@@ -153,7 +151,7 @@ struct ServerAdditionalConfig
     int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
     BagmanConfig bagman;
-    HitSoundsConfig hit_sounds;
+    DamageNotificationConfig damage_notifications;
     CriticalHitsConfig critical_hits;
     WeaponStayExemptionConfig weapon_stay_exemptions;
     OvertimeConfig overtime;
