@@ -44,6 +44,10 @@ add_packfile(alpinefaction.vpp
     tables/CTF_EuropaOneOutpost_info.tbl
     tables/dm-SpecialForces_info.tbl
 
+    sounds/af_achievement1.wav
+    sounds/af_pinglocation1.wav
+    sounds/af_hitsound1.wav
+
     images/af_wh_ctf_blue_a.tga
     images/af_wh_ctf_red_a.tga
     images/af_wh_ctf_blue_d.tga

@@ -32,6 +32,7 @@ nick:
 natalie <webmistress@natalie.ee>:
 * Technical assistance and extensive advice
 * FactionFiles API work to support integration with AF features
+* Hit sound
 * Code contributions
 
 HeyItsDuke:
@@ -57,6 +58,26 @@ The entire Red Faction community:
   which helped this project in more ways than I could possibly put into words.
 * Your continued support and enthusiasm for the game and my efforts with this
   project. Alpine Faction is for each and every one of us, I hope you enjoy!
+
+---------------------------------
+Asset Attribution
+---------------------------------
+
+Attribution and license (if available) is included below for all third party
+assets added to the Alpine Faction project after the fork from Dash Faction.
+
+HeyItsDuke:
+* reticle_rocketlock_1.tga
+
+natalie <webmistress@natalie.ee>:
+* af_hitsound1.wav
+
+Indian_gamer2005:
+* af_achievement1.wav (CC0: https://freesound.org/s/548434/)
+
+Rob_Marion:
+* af_pinglocation1.wav (CC0: https://freesound.org/s/542015/)
+
 
 ###############################################################################
 ## Dash Faction
