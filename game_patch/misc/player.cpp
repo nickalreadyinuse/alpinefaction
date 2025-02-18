@@ -595,4 +595,5 @@ void player_do_patch()
     swap_assault_rifle_controls_cmd.register_cmd();
     swap_grenade_controls_cmd.register_cmd();
     play_join_beep_cmd.register_cmd();
+    localhitsound_cmd.register_cmd();
 }
