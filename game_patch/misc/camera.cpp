@@ -1,5 +1,6 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/FunHook.h>
+#include <patch_common/CallHook.h>
 #include "../main/main.h"
 #include "../rf/multi.h"
 #include "../os/console.h"
@@ -27,9 +28,9 @@ FunHook<void(rf::Camera*)> camera_update_shake_hook{
     },
 };
 
-// called whenever screenshake is used, weapons, explosions, fall damage, events, etc.
-FunHook<void(rf::Camera*, float, float)> camera_shake_hook{
-    0x0040E0B0,
+// camera shake for FP weapons
+CallHook<void(rf::Camera*, float, float)> camera_shake_hook{
+    0x00426C79,
     [](rf::Camera* cp, float amplitude, float time_seconds) {
 
         if (g_game_config.try_disable_screenshake && !server_side_restrict_disable_ss) {

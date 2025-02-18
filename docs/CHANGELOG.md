@@ -65,6 +65,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add achievements framework
 - Make cutscene skip prompt text more clear
 - Deprecate `(AF)` prefix on Alpine-specific action names
+- Change behaviour of `cl_screenshake` to only disable screenshake from weapon fire
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025
