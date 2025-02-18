@@ -44,7 +44,8 @@ struct PlayerAdditionalData
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer);
 void reset_player_additional_data(const rf::Player* player);
 PlayerAdditionalData& get_player_additional_data(rf::Player* player);
-void play_local_hit_sound(uint16_t sound_id);
+void play_local_hit_sound();
+void handle_chat_message_sound(std::string message);
 bool is_player_minimum_af_client_version(rf::Player* player, int version_major, int version_minor);
 void update_player_flashlight();
 void ping_looked_at_location();

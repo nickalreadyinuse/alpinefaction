@@ -5,6 +5,7 @@
 #include <patch_common/ShortTypes.h>
 #include <patch_common/StaticBufferResizePatch.h>
 #include <algorithm>
+#include "sound.h"
 #include "../rf/sound/sound.h"
 #include "../rf/sound/sound_ds.h"
 #include "../rf/entity.h"
@@ -13,6 +14,7 @@
 #include "../os/console.h"
 
 static int g_cutscene_bg_sound_sig = -1;
+static int g_custom_sound_entry_start = -1;
 #ifdef DEBUG
 int g_sound_test = 0;
 #endif
@@ -440,6 +442,212 @@ FunHook<int(const char*, float, float, float)> snd_get_handle_hook{
     },
 };
 
+int get_custom_sound_id(int custom_id) {
+    return g_custom_sound_entry_start + custom_id;
+}
+
+void gamesound_parse_custom_sounds() 
+{
+    // Record first custom sound ID
+    // Note this does NOT work on servers because servers don't load sounds
+    // When server sends packets with sound IDs, it must send custom IDs and client uses get_custom_sound_id
+    g_custom_sound_entry_start = rf::g_num_sounds;  
+
+    std::vector<CustomSoundEntry> custom_sounds = {
+        {"af_achievement1.wav", 10.0f, 1.0f, 1.0f},     // 0
+        {"af_pinglocation1.wav", 10.0f, 1.0f, 1.0f},    // 1
+        {"af_hitsound1.wav", 10.0f, 1.0f, 1.0f},        // 2
+        // pending availability of radio message recordings
+        /*
+        {"L19S1_MIN_07.wav", 10.0f, 1.0f, 1.0f},        // 6
+        {"MP_TAUNT_16.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_17.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_18.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_19.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_20.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_21.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_22.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_23.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_24.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_25.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_26.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_27.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_28.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_29.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_30.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_31.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_32.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_33.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_34.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_35.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_36.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_37.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_38.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_39.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_40.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_41.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_42.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_43.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_44.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_45.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_46.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_47.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_48.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_49.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_50.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_51.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_52.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_53.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_54.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_55.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_56.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_57.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_58.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_59.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_60.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_61.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_62.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_63.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_64.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_65.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_66.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_67.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_68.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_69.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_70.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_71.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_72.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_73.wav", 10.0f, 1.0f, 1.0f},
+        {"MP_TAUNT_74.wav", 10.0f, 1.0f, 1.0f},*/
+    };
+
+    for (const auto& sound : custom_sounds) 
+    {
+        int sound_id = rf::snd_get_handle(sound.filename, sound.min_range, sound.base_volume, sound.rolloff);
+        if (sound_id >= 0) {
+            xlog::warn("Added custom sound {} at ID {}", sound.filename, sound_id);
+        } else {
+            xlog::error("Failed to add custom sound: {} - custom sounds will NOT work as expected", sound.filename);
+        }
+    }
+
+    xlog::warn("Custom sounds added, starting at ID {}", g_custom_sound_entry_start);
+}
+
+CodeInjection gamesound_parse_sounds_table_patch{
+    0x004347BC,
+    []() {
+        gamesound_parse_custom_sounds();
+    },
+};
+
+void play_chat_sound(std::string& chat_message, bool is_taunt)
+{
+    // Remove the prefix from chat_message before comparing
+    constexpr std::string_view normal_prefix = "\xA8 ";
+    constexpr std::string_view taunt_prefix = "\xA8[Taunt] ";
+
+    if (chat_message.starts_with(normal_prefix)) {
+        chat_message.erase(0, normal_prefix.size());
+    }
+    else if (chat_message.starts_with(taunt_prefix)) {
+        chat_message.erase(0, taunt_prefix.size());
+    }
+    else {
+        xlog::warn("Unrecognized radio message {}", chat_message);
+        return;
+    }
+
+    // Mapping of chat messages to custom sound IDs
+    static const std::unordered_map<std::string, int> sound_map =
+    {
+        // Express
+        {"Hello", 3},
+        {"Goodbye", 4},
+        {"Oops...", 5},
+        {"RED FACTION!", 6},
+        {"Quiet!", 7},
+        {"Modder", 8},
+
+        // Compliment
+        {"Good job!", 9},
+        {"Well played!", 10},
+        {"Nice frag!", 11},
+        {"You're on fire!", 12},
+
+        // Respond
+        {"Yes", 13},
+        {"No", 14},
+        {"I don't know", 15},
+        {"Thanks", 16},
+        {"Any time", 17},
+        {"Got it", 18},
+        {"Sorry", 19},
+        {"Wait", 20},
+
+        // Attack/Defend
+        {"Attack incoming from high", 21},
+        {"Attack incoming from mid", 22},
+        {"Attack incoming from low", 23},
+        {"Defend!", 24},
+        {"Cover me!", 25},
+        {"Wait for my signal", 26},
+
+        // Enemy
+        {"Enemy is going high", 27},
+        {"Enemy is going mid", 28},
+        {"Enemy is going low", 29},
+        {"Enemy is down", 30},
+
+        // Timing
+        {"Damage Amp is respawning soon", 31},
+        {"Fusion is respawning soon", 32},
+        {"Super Armor is respawning soon", 33},
+        {"Super Health is respawning soon", 34},
+        {"Invulnerability is respawning soon", 35},
+        {"Rail Driver is respawning soon", 36},
+
+        // Powerup
+        {"Damage Amp is up!", 37},
+        {"Fusion is up!", 38},
+        {"Super Armor is up!", 39},
+        {"Super Health is up!", 40},
+        {"Invulnerability is up!", 41},
+        {"Rail Driver is up!", 42},
+
+        // Flag
+        {"Where's the enemy flag?", 43},
+        {"Where's our flag?", 44},
+        {"Take the flag from me", 45},
+        {"Give me the flag", 46},
+        {"I'm retrieving the flag", 47},
+        {"Retrieve our flag!", 48},
+        {"Our flag is secure", 49},
+
+        // Taunts
+        {"Rest in pieces!", 50},
+        {"You make a nice target!", 51},
+        {"Squeegee time!", 52},
+        {"Nice catch!", 53},
+        {"Goodbye Mr. Gibs!", 54},
+        {"Me red, you dead!", 55},
+        {"Look! A jigsaw puzzle!", 56},
+        {"Damn, I'm good.", 57},
+        {"Sucks to be you!", 58}
+    };
+
+    // Lookup the sound ID and play it
+    auto it = sound_map.find(chat_message);
+    if (it != sound_map.end()) {
+        int sound_id = it->second;
+        play_local_sound_2d(get_custom_sound_id(sound_id), 2, 1.0f);
+        xlog::warn("Playing custom sound {} for radio message {}", sound_id, chat_message);
+    }
+    else {
+        xlog::warn("Unrecognized radio message {}", chat_message);
+    }
+}
+
 void snd_ds_apply_patch();
 
 void apply_sound_patches()
@@ -496,6 +704,9 @@ void apply_sound_patches()
 
     // Do not update sounds array in dedicated server mode
     snd_get_handle_hook.install();
+
+    // Add custom sounds to sounds array
+    gamesound_parse_sounds_table_patch.install();
 }
 
 void register_sound_commands()

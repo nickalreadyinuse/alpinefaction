@@ -16,6 +16,7 @@
 #include "../os/console.h"
 #include "../main/main.h"
 #include "../misc/alpine_options.h"
+#include "../sound/sound.h"
 #include "../multi/multi.h"
 #include "../multi/server_internal.h"
 #include "../hud/multi_spectate.h"
@@ -316,16 +317,29 @@ ConsoleCommand2 damage_screen_flash_cmd{
     "Toggle damage screen flash effect",
 };
 
-void play_local_sound_2d(uint16_t sound_id, float volume) {
-    rf::snd_play(sound_id, 0, 0.0f, volume);
+void handle_chat_message_sound(std::string message) {
+    if (string_starts_with_ignore_case(message, "\xA8[Taunt] ")) {
+        play_chat_sound(message, true);
+    }
+    else if (string_starts_with_ignore_case(message, "\xA8 ")) {
+        play_chat_sound(message, false);
+    }
 }
 
-void play_local_hit_sound(uint16_t sound_id) {
+void play_local_sound_3d(uint16_t sound_id, rf::Vector3 pos, int group, float volume) {
+    rf::snd_play_3d(sound_id, pos, volume, rf::Vector3{}, group);
+}
+
+void play_local_sound_2d(uint16_t sound_id, int group, float volume) {
+    rf::snd_play(sound_id, group, 0.0f, volume);
+}
+
+void play_local_hit_sound() {
     if (!g_game_config.play_hit_sounds) {
         return; // turned off
     }
 
-    play_local_sound_2d(sound_id, 1.0f);
+    play_local_sound_2d(get_custom_sound_id(2), 0, 1.0f);
 }
 
 ConsoleCommand2 localhitsound_cmd{

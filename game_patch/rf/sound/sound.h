@@ -85,6 +85,7 @@ namespace rf
     static auto& sound_listener_pos = addr_as_ref<Vector3>(0x01754160);
     static auto& sound_listener_rvec = addr_as_ref<Vector3>(0x01753C28);
     static auto& snd_music_sig = addr_as_ref<int>(0x017543D0);
+    static auto& g_num_sounds = addr_as_ref<int>(0x01CFC5CC);
 
     static auto snd_get_group_volume = addr_as_ref<float(int group)>(0x00454A20);
     static auto snd_set_group_volume = addr_as_ref<void(int group, float volume)>(0x00505840);
@@ -102,6 +103,7 @@ namespace rf
     static auto snd_calculate_2d_from_3d_info = addr_as_ref<void(int handle, const Vector3& pos, float* pan, float* volume, float vol_multiplier)>(0x00505740);
     static auto snd_update_sounds = addr_as_ref<void(const Vector3& camera_pos, const Vector3& camera_vel, const Matrix3& camera_orient)>(0x00505EC0);
     static auto snd_music_play = addr_as_ref<int(char* filename, float volume)>(0x00505C90);
+    static auto snd_get_handle = addr_as_ref<int(const char* filename, float min_range, float base_volume, float rolloff)>(0x005054B0);
 
     static auto snd_pc_play = addr_as_ref<int(int handle, float vol_scale, float pan, float unused, bool is_final_volume)>(0x005439D0);
     static auto snd_pc_play_looping = addr_as_ref<int(int handle, float volume, float pan, float unused, bool skip_volume_scalling)>(0x00543A80);
