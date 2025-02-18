@@ -191,6 +191,7 @@ enum packet_type : uint8_t {
     glass_kill             = 0x36,
     af_ping_location_req   = 0x50,
     af_ping_location       = 0x51,
+    af_damage_notify       = 0x52,
 };
 
 // client -> server
@@ -264,6 +265,7 @@ std::array g_client_side_packet_whitelist{
     team_score,
     glass_kill,
     af_ping_location,
+    af_damage_notify,
 };
 // clang-format on
 

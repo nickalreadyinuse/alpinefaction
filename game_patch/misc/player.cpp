@@ -50,6 +50,15 @@ PlayerAdditionalData& get_player_additional_data(rf::Player* player)
     return g_player_additional_data_map[player];
 }
 
+// used for compatibility checks
+bool is_player_minimum_af_client_version(rf::Player* player, int version_major, int version_minor) {
+    auto& player_info = g_player_additional_data_map[player];
+
+    return player_info.is_alpine &&
+        player_info.alpine_version_major >= version_major &&
+        player_info.alpine_version_minor >= version_minor;
+}
+
 FunHook<rf::Player*(bool)> player_create_hook{
     0x004A3310,
     [](bool is_local) {

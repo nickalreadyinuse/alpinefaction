@@ -25,6 +25,7 @@ WorldHUDAssets g_world_hud_assets;
 bool draw_mp_spawn_world_hud = false;
 std::unordered_set<rf::EventWorldHUDSprite*> world_hud_sprite_events;
 std::vector<EphemeralWorldHUDSprite> ephemeral_world_hud_sprites;
+std::vector<EphemeralWorldHUDString> ephemeral_world_hud_strings;
 
 void load_world_hud_assets() {
     g_world_hud_assets.flag_red_d = rf::bm::load("af_wh_ctf_red_d.tga", -1, true);
@@ -191,7 +192,8 @@ void build_world_hud_sprite_icons() {
     }
 }
 
-void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, int offset_x, int offset_y)
+void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, int offset_x, int offset_y,
+    rf::ubyte r, rf::ubyte g, rf::ubyte b, rf::ubyte a)
 {
     rf::gr::Vertex dest;
 
@@ -205,9 +207,9 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
         {
             int screen_x = static_cast<int>(dest.sx) + offset_x;
             int screen_y = static_cast<int>(dest.sy) + offset_y;
-            rf::gr::set_color(255, 255, 255, 223);
             auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::bitmap_3d_mode;
-            rf::gr::string(screen_x, screen_y, text.c_str(), -1, render_mode);
+            rf::gr::set_color(r, g, b, 212);
+            rf::gr::string(screen_x, screen_y, text.c_str(), 0, render_mode);
         }
     }
 }
@@ -218,15 +220,59 @@ void build_ephemeral_world_hud_sprite_icons() {
     });
 
     for (const auto& es : ephemeral_world_hud_sprites) {
-        do_render_world_hud_sprite(es.pos, 1.0f, es.bitmap, es.render_mode, true, true, true);
+        if (es.bitmap != -1) {
+            do_render_world_hud_sprite(es.pos, 1.0f, es.bitmap, es.render_mode, true, true, true);
+        }
+
+        // determine label width
+        int text_width = 0, text_height = 0;
+        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), 0);
+        int half_text_width = text_width / 2;
+
+        auto text_pos = es.pos;
+        render_string_3d_pos_new(text_pos, es.label.c_str(), -half_text_width, -25,
+            255, 255, 255, 223);
+    }
+}
+
+void build_ephemeral_world_hud_strings() {
+    std::erase_if(ephemeral_world_hud_strings, [](const EphemeralWorldHUDString& es) {
+        return !es.timestamp.valid() || es.timestamp.elapsed();
+    });
+
+    for (const auto& es : ephemeral_world_hud_strings) {
+        int label_y_offset = 0;
+        rf::Vector3 string_pos = es.pos;
+        string_pos.y += 0.85f;
+        int alpha = 223; // starting alpha value
+
+        if (es.float_away) {
+            // Calculate the progress of the fade effect
+            float progress = es.duration > 0
+                ? static_cast<float>(es.timestamp.time_until()) / static_cast<float>(es.duration)
+                : 0.0f;
+            progress = std::clamp(progress, 0.0f, 1.0f); // confirm within bounds
+            string_pos.y += (1.0f - progress) * 3.0f;
+
+            // Apply wind effect
+            float elapsed_time = static_cast<float>(es.duration) * (1.0f - progress);
+            float wind_amplitude = 0.15f;
+            float wind_frequency_x = 12.0f;
+            float wind_frequency_z = 9.0f;
+
+            string_pos.x += wind_amplitude * std::sin((elapsed_time * 0.002f) + es.wind_phase_offset);
+            string_pos.z += wind_amplitude * std::cos((elapsed_time * 0.002f) + es.wind_phase_offset * 0.8f);
+
+            alpha = static_cast<int>(223 * (progress));
+        }
 
         // determine label width
         int text_width = 0, text_height = 0;
         rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), 1);
         int half_text_width = text_width / 2;
 
-        auto text_pos = es.pos;
-        render_string_3d_pos_new(text_pos, es.label.c_str(), -half_text_width, -25);
+        render_string_3d_pos_new(string_pos, es.label.c_str(), -half_text_width, -25,
+            255, 255, 255, static_cast<rf::ubyte>(alpha));
     }
 }
 
@@ -242,6 +288,9 @@ void hud_world_do_frame() {
     }
     if (!ephemeral_world_hud_sprites.empty()) {
         build_ephemeral_world_hud_sprite_icons();
+    }
+    if (!ephemeral_world_hud_strings.empty()) {
+        build_ephemeral_world_hud_strings();
     }
 }
 
@@ -274,6 +323,21 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
     es.timestamp.set(4000);
 
     ephemeral_world_hud_sprites.push_back(es);
+}
+
+void add_damage_notify_world_hud_string(rf::Vector3 pos, uint16_t damage)
+{
+    std::uniform_real_distribution<float> wind_offset_dist(0.0f, 3.14f * 2);
+
+    EphemeralWorldHUDString es;
+    es.pos = pos;
+    es.label = std::to_string(damage);
+    es.duration = 1000;
+    es.timestamp.set(es.duration);
+    es.float_away = true;
+    es.wind_phase_offset = wind_offset_dist(g_rng);
+
+    ephemeral_world_hud_strings.push_back(es);
 }
 
 ConsoleCommand2 worldhudctf_cmd{

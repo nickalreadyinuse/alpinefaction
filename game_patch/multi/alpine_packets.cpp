@@ -42,6 +42,9 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         case af_packet_type::af_ping_location:
             af_process_ping_location_packet(data, len, addr);
             break;
+        case af_packet_type::af_damage_notify:
+            af_process_damage_notify_packet(data, len, addr);
+            break;
         default:
             return false; // ignore if unrecognized
     }
@@ -156,4 +159,51 @@ static void af_process_ping_location_packet(const void* data, size_t len, const 
     };
 
     add_location_ping_world_hud_sprite(pos, player->name);
+}
+
+void af_send_damage_notify_packet(uint8_t player_id, uint16_t sound_id, float damage, rf::Player* player)
+{
+    // Send: server -> client
+    assert(rf::is_server);
+
+    std::byte packet_buf[rf::max_packet_size];
+    af_damage_notify_packet damage_notify_packet{};
+    damage_notify_packet.header.type = static_cast<uint8_t>(af_packet_type::af_damage_notify);
+    damage_notify_packet.header.size = sizeof(damage_notify_packet) - sizeof(damage_notify_packet.header);
+    damage_notify_packet.player_id = player_id;
+    damage_notify_packet.sound_id = sound_id;
+
+    int rounded_damage = std::round(damage);
+    damage_notify_packet.damage = static_cast<uint16_t>(std::max(1, rounded_damage)); // round damage with min 1
+
+    std::memcpy(packet_buf, &damage_notify_packet, sizeof(damage_notify_packet));
+    af_send_packet(player, packet_buf, sizeof(damage_notify_packet), false);
+}
+
+static void af_process_damage_notify_packet(const void* data, size_t len, const rf::NetAddr& addr)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server) {
+        return;
+    }
+
+    af_damage_notify_packet damage_notify_packet{};
+    if (len < sizeof(damage_notify_packet)) {
+        return;
+    }
+
+    std::memcpy(&damage_notify_packet, data, sizeof(damage_notify_packet));
+
+    rf::Player* player = rf::multi_find_player_by_id(damage_notify_packet.player_id);
+    if (!player) {
+        return;
+    }
+
+    rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
+    if (!entity) {
+        return;
+    }
+
+    add_damage_notify_world_hud_string(entity->pos, damage_notify_packet.damage);
+    rf::snd_play(damage_notify_packet.sound_id, 0, 0.0f, 1.0f);
 }

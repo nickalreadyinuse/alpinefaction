@@ -19,6 +19,7 @@
 #include <winsock2.h>
 #include "server.h"
 #include "server_internal.h"
+#include "alpine_packets.h"
 #include "multi.h"
 #include "../os/console.h"
 #include "../misc/player.h"
@@ -1035,11 +1036,21 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             auto* damaged_player_stats = static_cast<PlayerStatsNew*>(damaged_player->stats);
             damaged_player_stats->add_damage_received(real_damage);
 
-            if (g_additional_server_config.hit_sounds.enabled) {
-                send_hit_sound_packet(killer_player);
+            if (g_additional_server_config.hit_sounds.enabled && damaged_player && killer_player) {
+
+                // use new packet for clients that can process af_damage_notify packet (Alpine 1.1+)
+                if (is_player_minimum_af_client_version(killer_player, 1, 1)) {
+                    af_send_damage_notify_packet(
+                        damaged_player->net_data->player_id,
+                        g_additional_server_config.hit_sounds.sound_id,
+                        real_damage,
+                        killer_player);
+                }
+                else {
+                    send_hit_sound_packet(killer_player); // fallback for old clients
+                }
             }
         }
-
         
         if (is_achievement_system_initialized() &&
             !rf::is_multi &&
