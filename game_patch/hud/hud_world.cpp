@@ -8,6 +8,7 @@
 #include "hud_world.h"
 #include "../object/event_alpine.h"
 #include "../multi/server.h"
+#include "../sound/sound.h"
 #include "../rf/hud.h"
 #include "../rf/player/player.h"
 #include "../rf/player/camera.h"
@@ -324,6 +325,8 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
     es.pos = pos;
     es.label = player_name;
     es.timestamp.set(4000);
+
+    play_local_sound_3d(get_custom_sound_id(1), pos, 0, 1.0f);
 
     ephemeral_world_hud_sprites.push_back(es);
 }
