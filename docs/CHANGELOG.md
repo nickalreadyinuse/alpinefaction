@@ -70,7 +70,15 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `cl_worldhudbigtext` command to control the size of location ping and damage indicator text
 - Add `cl_hitsounds` command to toggle local playing of Alpine Faction hit sounds
 - Add `cl_worldhudhitnumbers` command to toggle drawing of Alpine Faction hit number indicators
+- Deprecate legacy hitsounds method in favour of new damage notification method using new packet
+- Add compatibility for legacy clients (send normal sound packet for hitsounds)
+- Add `$Damage Notifications` dedicated server config option and `+Legacy Client Compatibility` setting
+- Deprecate `$Hitsounds` dedicated server config option
+- Add custom sounds framework
+- Add custom sounds for location ping and achievement unlock
 
+[@natarii](https://github.com/natarii)
+- Add new damage notification hit sound file
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
