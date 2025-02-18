@@ -13,6 +13,7 @@
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../os/console.h"
+#include "../sound/sound.h"
 #include "achievements.h"
 #include "misc.h"
 
@@ -41,11 +42,11 @@ void AchievementManager::initialize()
         {0, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},               // game start
         {1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},      // secret fusion
         {2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},          // training start
-        {3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},             // training finish
-        {4, "_EasyFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},              // campaign finish
-        {5, "_MediumFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},            // campaign finish
-        {6, "_HardFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},              // campaign finish
-        {7, "_ImpossibleFinish", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},        // campaign finish
+        {3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},             // training finish NOT DONE
+        {4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},                // campaign finish NOT DONE
+        {5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},         // campaign finish NOT DONE
+        {6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},           // campaign finish NOT DONE
+        {7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},         // campaign finish NOT DONE
         {8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},             // kill a fish in l1s1
         {9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                     // hear eos message
         {10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},               // locked in train in miner reg
@@ -53,17 +54,17 @@ void AchievementManager::initialize()
         {12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                  // get to ventilation
         {13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                   // destroy geothermal
         {14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},               // kill trash bot
-        {15, "_MeetCapek", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                 // first capek cutscene
-        {16, "_CapekLikesToTalk", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},       // get to last capek voice line
-        {17, "_KillSnake", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},              // kill big snake
+        {15, "Mad Martian Meetup", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},         // first capek cutscene
+        {16, "It Suddenly Worked", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},      // get to last capek voice line
+        {17, "Who's Cleaning This Up?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}, // kill big snake
         {18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                   // get to space station
-        {19, "_ComputersSpace", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},         // destroy 8 computers in space station
-        {20, "_DestroySpace", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},              // escape space station
+        {19, "Try a Reboot", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},            // destroy 8 computers in space station
+        {20, "...Oops", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                    // escape space station
         {21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},       // escape merc prison
-        {22, "_KillMasako", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                // kill masako
+        {22, "Parental Visit Denied", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},      // kill masako
         {23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},               // use flashlight
-        {24, "_UnderSub", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                  // release hidden sub in undersea base
-        {25, "_KillDrone", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                 // kill drone just before big elevator
+        {24, "Submerged Secret", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},           // release hidden sub in undersea base
+        {25, "The Dangers of Recycling", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},   // kill drone just before big elevator
         {26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},              // kill capek with flamethrower
         {27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                       // drop corpse
         {28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                // heal from media
@@ -71,10 +72,15 @@ void AchievementManager::initialize()
         {30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                      // view from security camera
         {31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                  // enter aesir
         {32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                     // enter sub
-        {33, "_EnterAPC", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                         // enter apc
-        {34, "_EnterJeep", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                        // enter jeep
+        {33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                     // enter apc
+        {34, "We don't need roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},               // enter jeep
         {35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                  // enter driller
         {36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},                // enter secret sub after geothermal
+        {37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},  // jump in l6s3 fountain
+        {38, "Hendrix Saves the Day", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},   // have Hendrix have to hack something
+        {39, "GeoMod Limitation", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},       // submarine crane button
+        {40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},// submerge jeep in water
+        {41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},        // destroy pump stations geothermal
         //{, "", "", AchievementCategory::base_campaign},
     };
 
@@ -301,6 +307,7 @@ void AchievementManager::show_notification(Achievement& achievement)
     achievement_box_name = achievement.name;
     achievement_box_timestamp.set(10000); // 10 seconds
     achievement_box_visible = true;
+    play_local_sound_2d(get_custom_sound_id(0), 0, 1.0f);
 }
 
 // forcefully grant achievement
@@ -325,7 +332,7 @@ void draw_achievement_box_content(int x, int y) {
         rf::gr::bitmap(achievement_box_icon, x + 4, y + 4);
     }
 
-    int str_x = x + 268;
+    int str_x = x + 278;
     int str_y = y + 8;
 
     rf::gr::set_color(255, 255, 255, 0xCC);
@@ -336,7 +343,7 @@ void draw_achievement_box_content(int x, int y) {
 }
 
 void draw_achievement_box() {
-    int w = 460;
+    int w = 480;
     int h = 72;
     int x = rf::gr::screen_width() - w - 4;
 
@@ -454,7 +461,7 @@ void achievement_check_trigger(rf::Trigger* trigger) {
 
             case 7661: {
                 if (string_equals_ignore_case(rfl_filename, "train02.rfl")) {
-                    grant_achievement(2); // finish training
+                    grant_achievement(3); // finish training
                 }
                 break;
             }
@@ -490,6 +497,20 @@ void achievement_check_trigger(rf::Trigger* trigger) {
             case 8571: {
                 if (string_equals_ignore_case(rfl_filename, "l19s1.rfl")) {
                     grant_achievement(21); // merc prison
+                }
+                break;
+            }
+
+            case 7095: {
+                if (string_equals_ignore_case(rfl_filename, "l6s3.rfl")) {
+                    grant_achievement(37); // l6s3 fountain
+                }
+                break;
+            }
+
+            case 4029: {
+                if (string_equals_ignore_case(rfl_filename, "l5s3.rfl")) {
+                    grant_achievement(39); // crane button
                 }
                 break;
             }
@@ -559,6 +580,13 @@ void achievement_check_event(rf::Event* event) {
             case 10367: {
                 if (string_equals_ignore_case(rfl_filename, "l8s4.rfl")) {
                     grant_achievement(15); // meet capek
+                }
+                break;
+            }
+
+            case 4407: {
+                if (string_equals_ignore_case(rfl_filename, "l5s2.rfl")) {
+                    grant_achievement(41); // when pump stations dead geothermal
                 }
                 break;
             }
@@ -707,6 +735,20 @@ CodeInjection player_handle_use_vehicle_achievement_patch{
     },
 };
 
+// vehicle player is piloting enters water
+CodeInjection entity_update_water_status_achievement_patch{
+    0x004291B4,
+    [](auto& regs) {
+        rf::Entity* vehicle = regs.esi;
+        if (vehicle) {
+            xlog::warn("vehicle {} ({}) uid {}", vehicle->name, vehicle->info->name, vehicle->uid);
+            if (vehicle->info->name == "Jeep01") {
+                grant_achievement_sp(40); // submerge jeep in water
+            }
+        }
+    },
+};
+
 // after delay duration, only on events that forward messages
 CodeInjection event_activate_links_achievement_patch{
     0x004B8B0A,
@@ -733,6 +775,13 @@ CodeInjection event_activate_links_achievement_patch{
                 case 2014: {
                     if (string_equals_ignore_case(rfl_filename, "l3s3.rfl")) {
                         grant_achievement(11); // shuttle blow up (maybe below slow isn't such a bad thing)
+                    }
+                    break;
+                }
+
+                case 9458: {
+                    if (string_equals_ignore_case(rfl_filename, "l4s1a.rfl")) {
+                        grant_achievement(38); // abandoned mines door
                     }
                     break;
                 }
@@ -824,6 +873,7 @@ void achievements_apply_patch()
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
     player_handle_use_vehicle_achievement_patch.install();
+    entity_update_water_status_achievement_patch.install();
     event_activate_links_achievement_patch.install();
 
     // Console commands
