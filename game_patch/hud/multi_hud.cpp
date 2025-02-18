@@ -13,9 +13,11 @@
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/os/frametime.h"
+#include "../misc/player.h"
 #include "../main/main.h"
 #include "../graphics/gr.h"
 #include "../misc/alpine_options.h"
+#include "../sound/sound.h"
 #include "hud_internal.h"
 #include "hud.h"
 
@@ -60,7 +62,7 @@ static const ChatMenuList express_menu{
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Hello", "Hello"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye", "Goodbye"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Oops...", "Oops..."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Shazbot!", "Shazbot!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "RED FACTION!", "RED FACTION!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Quiet!", "Quiet!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Modder", "Modder"}
     }
@@ -703,6 +705,16 @@ void chat_menu_action_handler(rf::Key key) {
     }
 }
 
+FunHook<void(rf::Player*, const char*, int)> chat_add_msg_hook{
+    0x00443FB0,
+    [](rf::Player* player, const char* message, int message_type) {
+
+        handle_chat_message_sound(message);
+
+        chat_add_msg_hook.call_target(player, message, message_type);
+    },
+};
+
 void multi_hud_apply_patches()
 {
     hud_render_patch_alpine.install();
@@ -710,6 +722,9 @@ void multi_hud_apply_patches()
     hud_render_power_ups_gr_bitmap_hook.install();
     render_level_info_hook.install();
     multi_hud_init_hook.install();
+
+    // Play radio message and taunt sounds
+    chat_add_msg_hook.install();
 
     // Change position of Time Left text
     write_mem<i8>(0x0047715F + 2, 21);

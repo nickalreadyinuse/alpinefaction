@@ -43,6 +43,7 @@
 #include "../object/object.h"
 #include "../os/console.h"
 #include "../purefaction/pf.h"
+#include "../sound/sound.h"
 
 // NET_IFINDEX_UNSPECIFIED is not defined in MinGW headers
 #ifndef NET_IFINDEX_UNSPECIFIED
@@ -434,6 +435,9 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             if (string_starts_with_ignore_case(msg, "\xA6 Vote passed: The match has been canceled")) {
                 set_local_pre_match_active(false);
             }
+
+            // play radio messages and taunts
+            handle_chat_message_sound(msg);
         }        
         process_chat_line_packet_hook.call_target(data, addr);
     },
