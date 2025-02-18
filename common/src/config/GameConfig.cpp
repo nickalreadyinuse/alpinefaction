@@ -222,6 +222,9 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Use Gaussian Bullet Spread", gaussian_spread);
     result &= visitor(dash_faction_key, "World HUD CTF", world_hud_ctf);
     result &= visitor(dash_faction_key, "World HUD Overdraw", world_hud_overdraw);
+    result &= visitor(dash_faction_key, "World HUD Big Text", world_hud_big_text);
+    result &= visitor(dash_faction_key, "World HUD Damage Numbers", world_hud_damage_numbers);
+    result &= visitor(dash_faction_key, "Play Hit Sounds", play_hit_sounds);
 
     return result;
 }

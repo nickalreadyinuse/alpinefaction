@@ -193,7 +193,7 @@ void build_world_hud_sprite_icons() {
 }
 
 void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, int offset_x, int offset_y,
-    rf::ubyte r, rf::ubyte g, rf::ubyte b, rf::ubyte a)
+    int font, rf::ubyte r, rf::ubyte g, rf::ubyte b, rf::ubyte a)
 {
     rf::gr::Vertex dest;
 
@@ -209,7 +209,7 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
             int screen_y = static_cast<int>(dest.sy) + offset_y;
             auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::bitmap_3d_mode;
             rf::gr::set_color(r, g, b, 212);
-            rf::gr::string(screen_x, screen_y, text.c_str(), 0, render_mode);
+            rf::gr::string(screen_x, screen_y, text.c_str(), font, render_mode);
         }
     }
 }
@@ -220,18 +220,20 @@ void build_ephemeral_world_hud_sprite_icons() {
     });
 
     for (const auto& es : ephemeral_world_hud_sprites) {
+        int font = !g_game_config.world_hud_big_text;
+
         if (es.bitmap != -1) {
             do_render_world_hud_sprite(es.pos, 1.0f, es.bitmap, es.render_mode, true, true, true);
         }
 
         // determine label width
         int text_width = 0, text_height = 0;
-        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), 0);
+        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), font);
         int half_text_width = text_width / 2;
 
         auto text_pos = es.pos;
         render_string_3d_pos_new(text_pos, es.label.c_str(), -half_text_width, -25,
-            255, 255, 255, 223);
+            font, 255, 255, 255, 223);
     }
 }
 
@@ -242,6 +244,7 @@ void build_ephemeral_world_hud_strings() {
 
     for (const auto& es : ephemeral_world_hud_strings) {
         int label_y_offset = 0;
+        int font = !g_game_config.world_hud_big_text;
         rf::Vector3 string_pos = es.pos;
         string_pos.y += 0.85f;
         int alpha = 223; // starting alpha value
@@ -268,11 +271,11 @@ void build_ephemeral_world_hud_strings() {
 
         // determine label width
         int text_width = 0, text_height = 0;
-        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), 1);
+        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), font);
         int half_text_width = text_width / 2;
 
         render_string_3d_pos_new(string_pos, es.label.c_str(), -half_text_width, -25,
-            255, 255, 255, static_cast<rf::ubyte>(alpha));
+            font, 255, 255, 255, static_cast<rf::ubyte>(alpha));
     }
 }
 
@@ -327,6 +330,10 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
 
 void add_damage_notify_world_hud_string(rf::Vector3 pos, uint16_t damage)
 {
+    if (!g_game_config.world_hud_damage_numbers) {
+        return; // turned off
+    }
+
     std::uniform_real_distribution<float> wind_offset_dist(0.0f, 3.14f * 2);
 
     EphemeralWorldHUDString es;
@@ -362,6 +369,28 @@ ConsoleCommand2 worldhudoverdraw_cmd{
     "cl_worldhudoverdraw",
 };
 
+ConsoleCommand2 worldhudbigtext_cmd{
+    "cl_worldhudbigtext",
+    []() {
+        g_game_config.world_hud_big_text = !g_game_config.world_hud_big_text;
+        g_game_config.save();
+        rf::console::print("World HUD big text is {}", g_game_config.world_hud_big_text ? "enabled" : "disabled");
+    },
+    "Toggle whether world HUD text labels use big or standard text",
+    "cl_worldhudbigtext",
+};
+
+ConsoleCommand2 worldhuddamagenumbers_cmd{
+    "cl_worldhudhitnumbers",
+    []() {
+        g_game_config.world_hud_damage_numbers = !g_game_config.world_hud_damage_numbers;
+        g_game_config.save();
+        rf::console::print("World HUD damage indicator numbers are {}", g_game_config.world_hud_damage_numbers ? "enabled" : "disabled");
+    },
+    "Toggle whether to display numeric damage indicators when you hit players in multiplayer (if enabled by an Alpine Faction server)",
+    "cl_worldhudhitnumbers",
+};
+
 ConsoleCommand2 worldhudmpspawns_cmd{
     "dbg_worldhudmpspawns",
     []() {
@@ -382,5 +411,7 @@ void hud_world_apply_patch()
     // register commands
     worldhudctf_cmd.register_cmd();
     worldhudoverdraw_cmd.register_cmd();
+    worldhudbigtext_cmd.register_cmd();
+    worldhuddamagenumbers_cmd.register_cmd();
     worldhudmpspawns_cmd.register_cmd();
 }

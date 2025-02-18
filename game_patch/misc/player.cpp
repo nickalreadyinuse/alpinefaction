@@ -316,6 +316,29 @@ ConsoleCommand2 damage_screen_flash_cmd{
     "Toggle damage screen flash effect",
 };
 
+void play_local_sound_2d(uint16_t sound_id, float volume) {
+    rf::snd_play(sound_id, 0, 0.0f, volume);
+}
+
+void play_local_hit_sound(uint16_t sound_id) {
+    if (!g_game_config.play_hit_sounds) {
+        return; // turned off
+    }
+
+    play_local_sound_2d(sound_id, 1.0f);
+}
+
+ConsoleCommand2 localhitsound_cmd{
+    "cl_hitsounds",
+    []() {
+        g_game_config.play_hit_sounds = !g_game_config.play_hit_sounds;
+        g_game_config.save();
+        rf::console::print("Playing of hit sounds is {}", g_game_config.play_hit_sounds ? "enabled" : "disabled");
+    },
+    "Toggle whether to play a sound when you hit players in multiplayer (if enabled by an Alpine Faction server)",
+    "cl_hitsounds",
+};
+
 rf::Vector3 get_player_look_at_point(rf::Player* player)
 {
     if (!player || !player->cam) {

@@ -66,7 +66,10 @@ Version 1.1.0 (Tamarack): Not yet released
 - Make cutscene skip prompt text more clear
 - Deprecate `(AF)` prefix on Alpine-specific action names
 - Change behaviour of `cl_screenshake` to only disable screenshake from weapon fire
-- Add damage number indicators
+- Add hit indicator numbers
+- Add `cl_worldhudbigtext` command to control the size of location ping and damage indicator text
+- Add `cl_hitsounds` command to toggle local playing of Alpine Faction hit sounds
+- Add `cl_worldhudhitnumbers` command to toggle drawing of Alpine Faction hit number indicators
 
 
 Version 1.0.0 (Maple): Released Jan-25-2025

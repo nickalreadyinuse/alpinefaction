@@ -205,5 +205,5 @@ static void af_process_damage_notify_packet(const void* data, size_t len, const 
     }
 
     add_damage_notify_world_hud_string(entity->pos, damage_notify_packet.damage);
-    rf::snd_play(damage_notify_packet.sound_id, 0, 0.0f, 1.0f);
+    play_local_hit_sound(damage_notify_packet.sound_id);
 }
