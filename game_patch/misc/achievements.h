@@ -36,17 +36,19 @@ struct Achievement
 struct LoggedPlayerKill
 {
     int uid = -1;
-    std::string rfl_filename = "";
     std::string script_name = "";
     std::string class_name = "";
     int damage_type = -1;
     int likely_weapon = -1;
+    std::string rfl_filename = "";
     std::string tc_mod = "";
 };
 
 struct AchievementStateInfo
 {
     bool began_campaign_at_start = false;
+    bool difficulty_unchanged_throughout_campaign = false;
+
 };
 
 class AchievementManager
