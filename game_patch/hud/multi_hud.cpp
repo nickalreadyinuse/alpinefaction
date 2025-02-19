@@ -159,8 +159,8 @@ static const ChatMenuList ctf_menu{
         {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Where our flag?", "Where's our flag?"},
         {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Take this flag", "Take the flag from me"},
         {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Give me the flag", "Give me the flag"},
-        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "I'll get the flag", "I'm retrieving the flag"},
-        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Retrieve our flag", "Retrieve our flag!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "I'll get the flag", "I'll get the flag"},
+        {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Get our flag!", "Get our flag!"},
         {false, ChatMenuListName::Null, ChatMenuListType::CTF, "Our flag is secure", "Our flag is secure"}
     }
 };
