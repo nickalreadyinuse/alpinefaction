@@ -78,6 +78,9 @@ Indian_gamer2005:
 Rob_Marion:
 * af_pinglocation1.wav (CC0: https://freesound.org/s/542015/)
 
+soneproject:
+* af_killsound1.wav (CC-BY 3.0: https://freesound.org/s/346425/)
+
 
 ###############################################################################
 ## Dash Faction

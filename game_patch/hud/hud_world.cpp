@@ -208,8 +208,8 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
         {
             int screen_x = static_cast<int>(dest.sx) + offset_x;
             int screen_y = static_cast<int>(dest.sy) + offset_y;
-            auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::bitmap_3d_mode;
-            rf::gr::set_color(r, g, b, 212);
+            auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::text_3d_mode;
+            rf::gr::set_color(r, g, b, a);
             rf::gr::string(screen_x, screen_y, text.c_str(), font, render_mode);
         }
     }
@@ -248,7 +248,6 @@ void build_ephemeral_world_hud_strings() {
         int font = !g_game_config.world_hud_big_text;
         rf::Vector3 string_pos = es.pos;
         string_pos.y += 0.85f;
-        int alpha = 223; // starting alpha value
 
         if (es.float_away) {
             // Calculate the progress of the fade effect
@@ -266,17 +265,17 @@ void build_ephemeral_world_hud_strings() {
 
             string_pos.x += wind_amplitude * std::sin((elapsed_time * 0.002f) + es.wind_phase_offset);
             string_pos.z += wind_amplitude * std::cos((elapsed_time * 0.002f) + es.wind_phase_offset * 0.8f);
-
-            alpha = static_cast<int>(223 * (progress));
         }
+
+        std::string label = std::to_string(es.damage);
 
         // determine label width
         int text_width = 0, text_height = 0;
-        rf::gr::gr_get_string_size(&text_width, &text_height, es.label.c_str(), es.label.size(), font);
+        rf::gr::gr_get_string_size(&text_width, &text_height, label.c_str(), label.size(), font);
         int half_text_width = text_width / 2;
 
-        render_string_3d_pos_new(string_pos, es.label.c_str(), -half_text_width, -25,
-            font, 255, 255, 255, static_cast<rf::ubyte>(alpha));
+        render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, -25,
+            font, 255, 255, 255, 223);
     }
 }
 
@@ -331,7 +330,7 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
     ephemeral_world_hud_sprites.push_back(es);
 }
 
-void add_damage_notify_world_hud_string(rf::Vector3 pos, uint16_t damage)
+void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_id, uint16_t damage, bool died)
 {
     if (!g_game_config.world_hud_damage_numbers) {
         return; // turned off
@@ -339,9 +338,21 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint16_t damage)
 
     std::uniform_real_distribution<float> wind_offset_dist(0.0f, 3.14f * 2);
 
+    // Search for an existing entry with the same player_id
+    auto it = std::find_if(
+        ephemeral_world_hud_strings.begin(), ephemeral_world_hud_strings.end(),
+        [damaged_player_id](const EphemeralWorldHUDString& es) { return es.player_id == damaged_player_id; });
+
+    if (it != ephemeral_world_hud_strings.end()) {
+        // If found, sum the damage values and remove the old entry
+        damage += it->damage;
+        ephemeral_world_hud_strings.erase(it);
+    }
+
     EphemeralWorldHUDString es;
     es.pos = pos;
-    es.label = std::to_string(damage);
+    es.player_id = damaged_player_id;
+    es.damage = damage;
     es.duration = 1000;
     es.timestamp.set(es.duration);
     es.float_away = true;

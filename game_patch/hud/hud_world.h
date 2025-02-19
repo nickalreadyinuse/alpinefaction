@@ -48,7 +48,8 @@ struct EphemeralWorldHUDSprite
 struct EphemeralWorldHUDString
 {
     rf::Vector3 pos;
-    std::string label = "";
+    uint8_t player_id;
+    uint16_t damage;
     WorldHUDRenderMode render_mode = WorldHUDRenderMode::overdraw;
     rf::Timestamp timestamp;
     int duration = 10000;
@@ -60,6 +61,6 @@ void hud_world_do_frame();
 void load_world_hud_assets();
 void populate_world_hud_sprite_events();
 void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name);
-void add_damage_notify_world_hud_string(rf::Vector3 pos, uint16_t damage);
+void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_id, uint16_t damage, bool died);
 void do_render_world_hud_sprite(rf::Vector3 pos, float base_scale, int bitmap_handle, WorldHUDRenderMode render_mode,
                                 bool stay_inside_fog, bool distance_scaling, bool only_draw_during_gameplay);

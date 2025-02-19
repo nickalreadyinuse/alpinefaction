@@ -47,6 +47,7 @@ add_packfile(alpinefaction.vpp
     sounds/af_achievement1.wav
     sounds/af_pinglocation1.wav
     sounds/af_hitsound1.wav
+    sounds/af_killsound1.wav
 
     images/af_wh_ctf_blue_a.tga
     images/af_wh_ctf_red_a.tga

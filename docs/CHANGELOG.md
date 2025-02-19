@@ -76,6 +76,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Deprecate `$Hitsounds` dedicated server config option
 - Add custom sounds framework
 - Add custom sounds for location ping and achievement unlock
+- Add kill sounds
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

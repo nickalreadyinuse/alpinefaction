@@ -334,12 +334,12 @@ void play_local_sound_2d(uint16_t sound_id, int group, float volume) {
     rf::snd_play(sound_id, group, 0.0f, volume);
 }
 
-void play_local_hit_sound() {
+void play_local_hit_sound(bool died) {
     if (!g_game_config.play_hit_sounds) {
         return; // turned off
     }
 
-    play_local_sound_2d(get_custom_sound_id(2), 0, 1.0f);
+    play_local_sound_2d(get_custom_sound_id(died ? 3 : 2), 0, 1.0f);
 }
 
 ConsoleCommand2 localhitsound_cmd{

@@ -161,7 +161,7 @@ static void af_process_ping_location_packet(const void* data, size_t len, const 
     add_location_ping_world_hud_sprite(pos, player->name);
 }
 
-void af_send_damage_notify_packet(uint8_t player_id, float damage, rf::Player* player)
+void af_send_damage_notify_packet(uint8_t player_id, float damage, bool died, rf::Player* player)
 {
     // Send: server -> client
     assert(rf::is_server);
@@ -170,6 +170,7 @@ void af_send_damage_notify_packet(uint8_t player_id, float damage, rf::Player* p
     af_damage_notify_packet damage_notify_packet{};
     damage_notify_packet.header.type = static_cast<uint8_t>(af_packet_type::af_damage_notify);
     damage_notify_packet.header.size = sizeof(damage_notify_packet) - sizeof(damage_notify_packet.header);
+    damage_notify_packet.died = died;
     damage_notify_packet.player_id = player_id;
 
     int rounded_damage = std::round(damage);
@@ -203,6 +204,6 @@ static void af_process_damage_notify_packet(const void* data, size_t len, const 
         return;
     }
 
-    add_damage_notify_world_hud_string(entity->pos, damage_notify_packet.damage);
-    play_local_hit_sound();
+    add_damage_notify_world_hud_string(entity->pos, damage_notify_packet.player_id, damage_notify_packet.damage, damage_notify_packet.died);
+    play_local_hit_sound(damage_notify_packet.died);
 }

@@ -1041,6 +1041,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                     af_send_damage_notify_packet(
                         damaged_player->net_data->player_id,
                         real_damage,
+                        damaged_ep->life <= 0.0f,
                         killer_player);
                 }
                 else if (g_additional_server_config.damage_notifications.support_legacy_clients) {

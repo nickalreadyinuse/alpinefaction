@@ -457,9 +457,10 @@ void gamesound_parse_custom_sounds()
         {"af_achievement1.wav", 10.0f, 1.0f, 1.0f},     // 0
         {"af_pinglocation1.wav", 10.0f, 1.0f, 1.0f},    // 1
         {"af_hitsound1.wav", 10.0f, 1.0f, 1.0f},        // 2
+        {"af_killsound1.wav", 10.0f, 1.0f, 1.0f},       // 3
         // pending availability of radio message recordings
         /*
-        {"L19S1_MIN_07.wav", 10.0f, 1.0f, 1.0f},        // 6
+        {"L19S1_MIN_07.wav", 10.0f, 1.0f, 1.0f},        // 7
         {"MP_TAUNT_16.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_17.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_18.wav", 10.0f, 1.0f, 1.0f},
@@ -562,78 +563,78 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
     static const std::unordered_map<std::string, int> sound_map =
     {
         // Express
-        {"Hello", 3},
-        {"Goodbye", 4},
-        {"Oops...", 5},
-        {"RED FACTION!", 6},
-        {"Quiet!", 7},
-        {"Modder", 8},
+        {"Hello", 4},
+        {"Goodbye", 5},
+        {"Oops...", 6},
+        {"RED FACTION!", 7},
+        {"Quiet!", 8},
+        {"Modder", 9},
 
         // Compliment
-        {"Good job!", 9},
-        {"Well played!", 10},
-        {"Nice frag!", 11},
-        {"You're on fire!", 12},
+        {"Good job!", 10},
+        {"Well played!", 11},
+        {"Nice frag!", 12},
+        {"You're on fire!", 13},
 
         // Respond
-        {"Yes", 13},
-        {"No", 14},
-        {"I don't know", 15},
-        {"Thanks", 16},
-        {"Any time", 17},
-        {"Got it", 18},
-        {"Sorry", 19},
-        {"Wait", 20},
+        {"Yes", 14},
+        {"No", 15},
+        {"I don't know", 16},
+        {"Thanks", 17},
+        {"Any time", 18},
+        {"Got it", 19},
+        {"Sorry", 20},
+        {"Wait", 21},
 
         // Attack/Defend
-        {"Attack incoming from high", 21},
-        {"Attack incoming from mid", 22},
-        {"Attack incoming from low", 23},
-        {"Defend!", 24},
-        {"Cover me!", 25},
-        {"Wait for my signal", 26},
+        {"Attack incoming from high", 22},
+        {"Attack incoming from mid", 23},
+        {"Attack incoming from low", 24},
+        {"Defend!", 25},
+        {"Cover me!", 26},
+        {"Wait for my signal", 27},
 
         // Enemy
-        {"Enemy is going high", 27},
-        {"Enemy is going mid", 28},
-        {"Enemy is going low", 29},
-        {"Enemy is down", 30},
+        {"Enemy is going high", 28},
+        {"Enemy is going mid", 29},
+        {"Enemy is going low", 30},
+        {"Enemy is down", 31},
 
         // Timing
-        {"Damage Amp is respawning soon", 31},
-        {"Fusion is respawning soon", 32},
-        {"Super Armor is respawning soon", 33},
-        {"Super Health is respawning soon", 34},
-        {"Invulnerability is respawning soon", 35},
-        {"Rail Driver is respawning soon", 36},
+        {"Damage Amp is respawning soon", 32},
+        {"Fusion is respawning soon", 33},
+        {"Super Armor is respawning soon", 34},
+        {"Super Health is respawning soon", 35},
+        {"Invulnerability is respawning soon", 36},
+        {"Rail Driver is respawning soon", 37},
 
         // Powerup
-        {"Damage Amp is up!", 37},
-        {"Fusion is up!", 38},
-        {"Super Armor is up!", 39},
-        {"Super Health is up!", 40},
-        {"Invulnerability is up!", 41},
-        {"Rail Driver is up!", 42},
+        {"Damage Amp is up!", 38},
+        {"Fusion is up!", 39},
+        {"Super Armor is up!", 40},
+        {"Super Health is up!", 41},
+        {"Invulnerability is up!", 42},
+        {"Rail Driver is up!", 43},
 
         // Flag
-        {"Where's the enemy flag?", 43},
-        {"Where's our flag?", 44},
-        {"Take the flag from me", 45},
-        {"Give me the flag", 46},
-        {"I'm retrieving the flag", 47},
-        {"Retrieve our flag!", 48},
-        {"Our flag is secure", 49},
+        {"Where's the enemy flag?", 44},
+        {"Where's our flag?", 45},
+        {"Take the flag from me", 46},
+        {"Give me the flag", 47},
+        {"I'm retrieving the flag", 48},
+        {"Retrieve our flag!", 49},
+        {"Our flag is secure", 50},
 
         // Taunts
-        {"Rest in pieces!", 50},
-        {"You make a nice target!", 51},
-        {"Squeegee time!", 52},
-        {"Nice catch!", 53},
-        {"Goodbye Mr. Gibs!", 54},
-        {"Me red, you dead!", 55},
-        {"Look! A jigsaw puzzle!", 56},
-        {"Damn, I'm good.", 57},
-        {"Sucks to be you!", 58}
+        {"Rest in pieces!", 51},
+        {"You make a nice target!", 52},
+        {"Squeegee time!", 53},
+        {"Nice catch!", 54},
+        {"Goodbye Mr. Gibs!", 55},
+        {"Me red, you dead!", 56},
+        {"Look! A jigsaw puzzle!", 57},
+        {"Damn, I'm good.", 58},
+        {"Sucks to be you!", 59}
     };
 
     // Lookup the sound ID and play it
