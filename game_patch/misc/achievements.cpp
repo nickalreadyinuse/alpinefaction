@@ -38,53 +38,53 @@ void AchievementManager::initialize()
         return;
     }
 
-    std::vector<Achievement> predefined_achievements = {
-        {1, 1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {2, 2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {3, 3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {4, 4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {5, 5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {9, 9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {11, 11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {12, 12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {13, 13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {14, 14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {15, 15, "Mad Martian Meetup", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {16, 16, "It Suddenly Worked", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {17, 17, "Who's Cleaning This Up?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {18, 18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {19, 19, "Try a Reboot", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {20, 20, "...Oops", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {21, 21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {22, 22, "Parental Visit Denied", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {23, 23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {24, 24, "Submerged Secret", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {25, 25, "The Dangers of Recycling", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {26, 26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
-        {27, 27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {28, 28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {29, 29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {30, 30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {31, 31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {32, 32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {33, 33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {34, 34, "We don't need roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {35, 35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
-        {36, 36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {37, 37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {38, 38, "Hendrix Saves the Day", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {39, 39, "GeoMod Limitation", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {40, 40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {41, 41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
-        {42, 42, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+    std::vector<std::pair<AchievementName, Achievement>> predefined_achievements = {
+        {AchievementName::SecretFusion, {1, 1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::StartTraining, {2, 2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::FinishTraining, {3, 3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::FinishCampaignEasy, {4, 4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
+        {AchievementName::FinishCampaignMedium, {5, 5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
+        {AchievementName::FinishCampaignHard, {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
+        {AchievementName::FinishCampaignImp, {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
+        {AchievementName::KillFish, {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::HearEos, {9, 9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::LockedInTram, {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::MissShuttle, {11, 11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::Ventilation, {12, 12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::DestroyGeothermal, {13, 13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::DestroyTrashBot, {14, 14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::MeetCapek, {15, 15, "Mad Martian Meetup", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::CapekVoiceEnd, {16, 16, "It Suddenly Worked", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::KillSnake, {17, 17, "Who's Cleaning This Up?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::GoSpaceStation, {18, 18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::ComputersSpaceStation, {19, 19, "Try a Reboot", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::DestroySpaceStation, {20, 20, "...Oops", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::MercJail, {21, 21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::KillMasako, {22, 22, "Parental Visit Denied", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::UseFlashlight, {23, 23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::UnderwaterSub, {24, 24, "Submerged Secret", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::KillDrone, {25, 25, "The Dangers of Recycling", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::KillCapekFlamethrower, {26, 26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::DropCorpse, {27, 27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::UseMedic, {28, 28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::DupeC4, {29, 29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::ViewMonitor, {30, 30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::EnterAesir, {31, 31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::EnterSub, {32, 32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::EnterAPC, {33, 33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::EnterJeep, {34, 34, "We don't need roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::EnterDriller, {35, 35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::SecretSub, {36, 36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::AdminFountain, {37, 37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::HendrixHackDoor, {38, 38, "Hendrix Saves the Day", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::SubCraneButton, {39, 39, "GeoMod Limitation", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::JeepWater, {40, 40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::DestroyPumpStations, {41, 41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::StartCampaign, {42, 42, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
     };
 
-    for (const auto& achievement : predefined_achievements) {
-        achievements[achievement.facet_uid] = achievement;
+    for (const auto& [achievement_name, achievement] : predefined_achievements) {
+        achievements[achievement_name] = achievement;
         xlog::warn("added achievement {} with facet_uid {}", achievement.name, achievement.facet_uid);
     }
 
@@ -92,6 +92,25 @@ void AchievementManager::initialize()
     achievement_async_ff_timer.set(achievement_async_ff_interval);
     sync_with_ff();
 }
+
+const Achievement* AchievementManager::get_achievement(AchievementName achievement_name)
+{
+    auto it = achievements.find(achievement_name);
+    if (it != achievements.end()) {
+        return &it->second; // Return a pointer to the Achievement struct
+    }
+    return nullptr; // Return nullptr if not found
+}
+
+AchievementName AchievementManager::find_achievement_by_facet_uid(int facet_uid) {
+    for (const auto& [name, achievement] : achievements) {
+        if (achievement.facet_uid == facet_uid) {
+            return name;
+        }
+    }
+    throw std::runtime_error("No achievement found with facet_uid: " + std::to_string(facet_uid));
+}
+
 
 void AchievementManager::process_ff_response(const std::string& response, int expected_key, bool is_initial_sync)
 {
@@ -119,21 +138,26 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
         auto& achievements = manager.get_achievements_mutable();
 
         while (std::getline(response_stream, uid_str, ',')) {
-            int unlocked_uid = std::stoi(uid_str);
+            int unlocked_facet_uid = std::stoi(uid_str);
 
-            auto it = achievements.find(unlocked_uid);
-            if (it != achievements.end() && !it->second.unlocked) {
-                it->second.unlocked = true;
-                xlog::warn("Achievement {} unlocked via FF.", it->second.name);
+            try {
+                AchievementName achievement_name = manager.find_achievement_by_facet_uid(unlocked_facet_uid);
+                auto it = achievements.find(achievement_name);
 
-                // don't notify on achievements we got in previous playthroughs
-                if (is_initial_sync) {
-                    it->second.notified = true;
+                if (it != achievements.end() && !it->second.unlocked) {
+                    it->second.unlocked = true;
+                    xlog::warn("Achievement {} unlocked via FF.", it->second.name);
+
+                    if (is_initial_sync) {
+                        it->second.notified = true;
+                    }
+                    else if (!it->second.notified && it->second.type == AchievementType::ff_authoritative) {
+                        manager.show_notification(it->second);
+                    }
                 }
-                // notify on any ff_authoritative achievements FF just told us we unlocked
-                else if (!it->second.notified && it->second.type == AchievementType::ff_authoritative) {
-                    manager.show_notification(it->second);
-                }
+            }
+            catch (const std::exception& e) {
+                xlog::warn("Failed to find achievement for facet_uid {}: {}", unlocked_facet_uid, e.what());
             }
         }
 
@@ -242,7 +266,7 @@ void AchievementManager::add_key_to_ff_update_map()
     bool first = true;
 
     // Build the new update string from accumulated `pending_count` values
-    for (auto& [facet_uid, achievement] : achievements) {
+    for (auto& [achievement_name, achievement] : achievements) {
         if (achievement.pending_count > 0) {
             if (!first) {
                 oss << ",";
@@ -269,11 +293,9 @@ void AchievementManager::add_key_to_ff_update_map()
     }
 }
 
-// unlock basic achievements
-void AchievementManager::grant_achievement(int uid)
+void AchievementManager::grant_achievement(AchievementName achievement)
 {
-    auto it = achievements.find(uid);
-
+    auto it = achievements.find(achievement);
     if (it == achievements.end()) {
         return; // Achievement doesn't exist
     }
@@ -282,12 +304,12 @@ void AchievementManager::grant_achievement(int uid)
         return; // ff_authoritative achievements must be unlocked based on response from ff
     }
 
-    // if we haven't been notified, do that    
-    if (!it->second.notified && it->second.type == AchievementType::basic) {
-        show_notification(it->second);  
+    // If we haven't been notified, do that
+    if (!it->second.notified) {
+        show_notification(it->second);
     }
-      
-    // if we haven't unlocked this on ff yet, tick counter up by 1
+
+    // If we haven't unlocked this on FF yet, increment the pending count
     if (!it->second.unlocked) {
         it->second.pending_count += 1;
     }
@@ -310,12 +332,16 @@ void AchievementManager::show_notification(Achievement& achievement)
 }
 
 // forcefully grant achievement
-void grant_achievement(int uid)
-{
+void grant_achievement(AchievementName achievement) {
     if (achievement_system_initialized) {
-        //xlog::warn("attempting to give achievement {}", uid);
-        AchievementManager::get_instance().grant_achievement(uid);
+        AchievementManager::get_instance().grant_achievement(achievement);
     }    
+}
+
+void grant_achievement_sp(AchievementName achievement) {
+    if (!rf::is_multi) {
+        grant_achievement(achievement);
+    }
 }
 
 void initialize_achievement_manager() {
@@ -426,12 +452,6 @@ bool is_achievement_system_initialized() {
     return achievement_system_initialized;
 }
 
-void grant_achievement_sp(int uid) {
-    if (!rf::is_multi) {
-        grant_achievement(uid);
-    }
-}
-
 // handler for achivements awarded by specific trigger activation
 void achievement_check_trigger(rf::Trigger* trigger) {
     if (!trigger) {
@@ -446,70 +466,70 @@ void achievement_check_trigger(rf::Trigger* trigger) {
         switch (trigger_uid) {
             case 6736: {
                 if (string_equals_ignore_case(rfl_filename, "l9s3.rfl")) {
-                    grant_achievement(1); // secret fusion
+                    grant_achievement(AchievementName::SecretFusion); // secret fusion
                 }
                 break;
             }
 
             case 8656: {
                 if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
-                    grant_achievement(42); // game start
+                    grant_achievement(AchievementName::StartCampaign); // game start
                 }
                 break;
             }
 
             case 7661: {
                 if (string_equals_ignore_case(rfl_filename, "train02.rfl")) {
-                    grant_achievement(3); // finish training
+                    grant_achievement(AchievementName::FinishTraining); // finish training
                 }
                 break;
             }
 
             case 7961: {
                 if (string_equals_ignore_case(rfl_filename, "train01.rfl")) {
-                    grant_achievement(2); // start training
+                    grant_achievement(AchievementName::StartTraining); // start training
                 }
                 break;
             }
 
             case 4234: {
                 if (string_equals_ignore_case(rfl_filename, "l10s3.rfl")) {
-                    grant_achievement(24); // drop sub in underwater base
+                    grant_achievement(AchievementName::UnderwaterSub); // drop sub in underwater base
                 }
                 break;
             }
 
             case 3350: {
                 if (string_equals_ignore_case(rfl_filename, "l4s4.rfl")) {
-                    grant_achievement(12); // exit ventilation
+                    grant_achievement(AchievementName::Ventilation); // exit ventilation
                 }
                 break;
             }
 
             case 4502: {
                 if (string_equals_ignore_case(rfl_filename, "l5s2.rfl")) {
-                    grant_achievement(13); // destroy geothermal
+                    grant_achievement(AchievementName::DestroyGeothermal); // destroy geothermal
                 }
                 break;
             }
 
             case 8571: {
                 if (string_equals_ignore_case(rfl_filename, "l19s1.rfl")) {
-                    grant_achievement(21); // merc prison
+                    grant_achievement(AchievementName::MercJail); // merc prison
                 }
                 break;
             }
 
             case 7095: {
                 if (string_equals_ignore_case(rfl_filename, "l6s3.rfl")) {
-                    grant_achievement(37); // l6s3 fountain
+                    grant_achievement(AchievementName::AdminFountain); // l6s3 fountain
                 }
                 break;
             }
 
             case 4029: {
                 if (string_equals_ignore_case(rfl_filename, "l5s3.rfl")) {
-                    grant_achievement(39); // crane button
+                    grant_achievement(AchievementName::SubCraneButton); // crane button
                 }
                 break;
             }
@@ -534,21 +554,21 @@ void achievement_check_event(rf::Event* event) {
         switch (event_uid) {
             case 20787: {
                 if (string_equals_ignore_case(rfl_filename, "l17s2.rfl")) {
-                    grant_achievement(19); // computers in space station
+                    grant_achievement(AchievementName::ComputersSpaceStation); // computers in space station
                 }
                 break;
             }
 
             case 9613: {
                 if (string_equals_ignore_case(rfl_filename, "l15s4.rfl")) {
-                    grant_achievement(18); // stowaway on shuttle
+                    grant_achievement(AchievementName::GoSpaceStation); // stowaway on shuttle
                 }
                 break;
             }
 
             case 18248: {
                 if (string_equals_ignore_case(rfl_filename, "l17s4.rfl")) {
-                    grant_achievement(20); // destroy space station
+                    grant_achievement(AchievementName::DestroySpaceStation); // destroy space station
                 }
                 break;
             }
@@ -557,35 +577,35 @@ void achievement_check_event(rf::Event* event) {
                 if (string_equals_ignore_case(rfl_filename, "l11s3.rfl") &&
                     rf::local_player_entity->ai.current_primary_weapon == 12 && // flamethrower
                     !rf::mod_param.found()) {
-                    grant_achievement(26); // kill capek with flamethrower
+                    grant_achievement(AchievementName::KillCapekFlamethrower); // kill capek with flamethrower
                 }
                 break;
             }
 
             case 7005: {
                 if (string_equals_ignore_case(rfl_filename, "l10s4.rfl")) {
-                    grant_achievement(16); // end of capek message series
+                    grant_achievement(AchievementName::CapekVoiceEnd); // end of capek message series
                 }
                 break;
             }
 
             case 9449: {
                 if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
-                    grant_achievement(9); // first eos message
+                    grant_achievement(AchievementName::HearEos); // first eos message
                 }
                 break;
             }
 
             case 10367: {
                 if (string_equals_ignore_case(rfl_filename, "l8s4.rfl")) {
-                    grant_achievement(15); // meet capek
+                    grant_achievement(AchievementName::MeetCapek); // meet capek
                 }
                 break;
             }
 
             case 4407: {
                 if (string_equals_ignore_case(rfl_filename, "l5s2.rfl")) {
-                    grant_achievement(41); // when pump stations dead geothermal
+                    grant_achievement(AchievementName::DestroyPumpStations); // when pump stations dead geothermal
                 }
                 break;
             }
@@ -613,7 +633,7 @@ void achievement_check_entity_death(rf::Entity* entity) {
 
         // special handling since this entity is created by code and has no reliable UID
         if (entity_script_name == "masako_endgame") {
-            grant_achievement(22); // kill masako
+            grant_achievement(AchievementName::KillMasako); // kill masako
             return;
         }
     
@@ -623,28 +643,28 @@ void achievement_check_entity_death(rf::Entity* entity) {
             case 7338:
             case 9142: {
                 if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
-                    grant_achievement(8); // kill a fish
+                    grant_achievement(AchievementName::KillFish); // kill a fish
                 }
                 break;
             }
 
             case 7007: {
                 if (string_equals_ignore_case(rfl_filename, "l10s4.rfl")) {
-                    grant_achievement(17); // kill big snake
+                    grant_achievement(AchievementName::KillSnake); // kill big snake
                 }
                 break;
             }
 
             case 10696: {
                 if (string_equals_ignore_case(rfl_filename, "l7s4.rfl")) {
-                    grant_achievement(14); // kill trash bot
+                    grant_achievement(AchievementName::DestroyTrashBot); // kill trash bot
                 }
                 break;
             }
 
             case 844: {
                 if (string_equals_ignore_case(rfl_filename, "l3s4.rfl")) {
-                    grant_achievement(25); // kill drone
+                    grant_achievement(AchievementName::KillDrone); // kill drone
                 }
                 break;
             }
@@ -680,28 +700,28 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
 CodeInjection ai_drop_corpse_achievement_patch{
     0x00409ADB,
     []() {
-        grant_achievement_sp(27); // drop a corpse
+        grant_achievement_sp(AchievementName::DropCorpse); // drop a corpse
     },
 };
 
 CodeInjection ai_medic_activate_achievement_patch{
     0x0040A73C,
     []() {
-        grant_achievement_sp(28); // get healed by a medic
+        grant_achievement_sp(AchievementName::UseMedic); // get healed by a medic
     },
 };
 
 CodeInjection player_handle_use_keypress_remote_charge_achievement_patch{
     0x004A18EA,
     []() {
-        grant_achievement_sp(29); // pick up a remote charge
+        grant_achievement_sp(AchievementName::DupeC4); // pick up a remote charge
     },
 };
 
 CodeInjection player_attach_to_security_camera_achievement_patch{
     0x004A1950,
     []() {
-        grant_achievement_sp(30); // security monitor
+        grant_achievement_sp(AchievementName::ViewMonitor); // security monitor
     },
 };
 
@@ -712,23 +732,23 @@ CodeInjection player_handle_use_vehicle_achievement_patch{
         if (entity) {
             //xlog::warn("entered vehicle {} ({}) uid {}", entity->name, entity->info->name, entity->uid);
             if (entity->info->name == "Fighter01") {
-                grant_achievement_sp(31); // enter an aesir
+                grant_achievement_sp(AchievementName::EnterAesir); // enter an aesir
             }
             else if (entity->info->name == "sub") {
-                grant_achievement_sp(32); // enter a sub
+                grant_achievement_sp(AchievementName::EnterSub); // enter a sub
 
                 if (entity->uid == 8163 && string_equals_ignore_case(rf::level.filename, "l5s3.rfl")) {
-                    grant_achievement_sp(36); // hidden sub after geothermal
+                    grant_achievement_sp(AchievementName::SecretSub); // hidden sub after geothermal
                 }
             }
             else if (entity->info->name == "APC") {
-                grant_achievement_sp(33); // enter an APC
+                grant_achievement_sp(AchievementName::EnterAPC); // enter an APC
             }
             else if (entity->info->name == "Jeep01") {
-                grant_achievement_sp(34); // enter a jeep
+                grant_achievement_sp(AchievementName::EnterJeep); // enter a jeep
             }
             else if (entity->info->name == "Driller01") {
-                grant_achievement_sp(35); // enter a driller
+                grant_achievement_sp(AchievementName::EnterDriller); // enter a driller
             }
         }
     },
@@ -742,7 +762,7 @@ CodeInjection entity_update_water_status_achievement_patch{
         if (vehicle) {
             xlog::warn("vehicle {} ({}) uid {}", vehicle->name, vehicle->info->name, vehicle->uid);
             if (vehicle->info->name == "Jeep01") {
-                grant_achievement_sp(40); // submerge jeep in water
+                grant_achievement_sp(AchievementName::JeepWater); // submerge jeep in water
             }
         }
     },
@@ -766,21 +786,21 @@ CodeInjection event_activate_links_achievement_patch{
             switch (event_uid) {
                 case 8711: {
                     if (string_equals_ignore_case(rfl_filename, "l3s2.rfl")) {
-                        grant_achievement(10); // train in miner registration
+                        grant_achievement(AchievementName::LockedInTram); // train in miner registration
                     }
                     break;
                 }
 
                 case 2014: {
                     if (string_equals_ignore_case(rfl_filename, "l3s3.rfl")) {
-                        grant_achievement(11); // shuttle blow up (maybe below slow isn't such a bad thing)
+                        grant_achievement(AchievementName::MissShuttle); // shuttle blow up (maybe below slow isn't such a bad thing)
                     }
                     break;
                 }
 
                 case 9458: {
                     if (string_equals_ignore_case(rfl_filename, "l4s1a.rfl")) {
-                        grant_achievement(38); // abandoned mines door
+                        grant_achievement(AchievementName::HendrixHackDoor); // abandoned mines door
                     }
                     break;
                 }
@@ -794,54 +814,60 @@ CodeInjection event_activate_links_achievement_patch{
 
 ConsoleCommand2 debug_achievement_cmd{
     "dbg_achievement",
-    [](int uid) {
+    [](int facet_uid) {
         if (!achievement_system_initialized) {
             rf::console::print("The achievement system isn't initialized!");
             return;
         }
 
-        rf::console::print("Checking for an achievement with UID {}...", uid);
+        rf::console::print("Checking for an achievement with Facet UID {}...", facet_uid);
 
         if (!synced_with_ff) {
             xlog::warn("Achievements are not synced with FactionFiles!");
         }
-        
-        // Look up the achievement
-        auto& manager = AchievementManager::get_instance();
-        const auto& achievements = manager.get_achievements();
 
-        auto it = achievements.find(uid);
-        if (it == achievements.end()) {
-            rf::console::print("Achievement UID {} not found!", uid);
-            return;
+        try {
+            auto& manager = AchievementManager::get_instance();
+            AchievementName achievement_name = manager.find_achievement_by_facet_uid(facet_uid);
+            const auto& achievements = manager.get_achievements();
+
+            auto it = achievements.find(achievement_name);
+            if (it == achievements.end()) {
+                rf::console::print("Achievement Facet UID {} not found!", facet_uid);
+                return;
+            }
+
+            const Achievement& achievement = it->second;
+
+            std::string msg = std::format(
+                "Achievement Facet UID {} found!\n"
+                "Name: {}\n"
+                "Unlocked? {}\n"
+                "Notified? {}\n"
+                "Type: {}\n"
+                "Category: {}\n"
+                "Pending Count: {}\n"
+                "Icon: {}\n",
+                achievement.facet_uid,
+                achievement.name,
+                achievement.unlocked ? "Yes" : "No",
+                achievement.notified ? "Yes" : "No",
+                static_cast<int>(achievement.type),
+                static_cast<int>(achievement.category),
+                achievement.pending_count,
+                achievement.icon
+            );
+
+            rf::console::printf(msg.c_str());
         }
-
-        const Achievement& achievement = it->second;
-
-        std::string msg = std::format(
-            "Achievement UID {} found!\n"
-            "Name: {}\n"
-            "Unlocked? {}\n"
-            "Notified? {}\n"
-            "Type: {}\n"
-            "Category: {}\n"
-            "Pending Count: {}\n"
-            "Icon: {}\n",
-            achievement.facet_uid,
-            achievement.name,
-            achievement.unlocked ? "Yes" : "No",
-            achievement.notified ? "Yes" : "No",
-            static_cast<int>(achievement.type),
-            static_cast<int>(achievement.category),
-            achievement.pending_count,
-            achievement.icon
-        );
-
-        rf::console::printf(msg.c_str());
+        catch (const std::exception& e) {
+            xlog::warn("Error in dbg_achievement: {}", e.what());
+        }
     },
-    "Look up information for an achievement by UID",
-    "dbg_achievement <uid>",
+    "Look up information for an achievement by Facet UID",
+    "dbg_achievement <facet_uid>",
 };
+
 
 ConsoleCommand2 debug_reset_achievements_cmd{
     "dbg_resetachievements",
@@ -854,7 +880,7 @@ ConsoleCommand2 debug_reset_achievements_cmd{
         auto& manager = AchievementManager::get_instance();
         auto& achievements = manager.get_achievements_mutable();
 
-        for (auto& [uid, achievement] : achievements) {
+        for (auto& [name, achievement] : achievements) {
             achievement.notified = false;
         }
 

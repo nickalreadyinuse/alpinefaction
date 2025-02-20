@@ -5,6 +5,52 @@
 #include "../rf/trigger.h"
 #include "../rf/event.h"
 
+enum class AchievementName : int
+{
+    SecretFusion,
+    StartTraining,
+    FinishTraining,
+    FinishCampaignEasy,
+    FinishCampaignMedium,
+    FinishCampaignHard,
+    FinishCampaignImp,
+    KillFish,
+    HearEos,
+    LockedInTram,
+    MissShuttle,
+    Ventilation,
+    DestroyGeothermal,
+    DestroyTrashBot,
+    MeetCapek,
+    CapekVoiceEnd,
+    KillSnake,
+    GoSpaceStation,
+    ComputersSpaceStation,
+    DestroySpaceStation,
+    MercJail,
+    KillMasako,
+    UseFlashlight,
+    UnderwaterSub,
+    KillDrone,
+    KillCapekFlamethrower,
+    DropCorpse,
+    UseMedic,
+    DupeC4,
+    ViewMonitor,
+    EnterAesir,
+    EnterSub,
+    EnterAPC,
+    EnterJeep,
+    EnterDriller,
+    SecretSub,
+    AdminFountain,
+    HendrixHackDoor,
+    SubCraneButton,
+    JeepWater,
+    DestroyPumpStations,
+    StartCampaign
+};
+
 enum class AchievementType : int
 {
     basic,
@@ -62,32 +108,33 @@ public:
     }
 
     void initialize();
-    void grant_achievement(int uid);
+    void grant_achievement(AchievementName achievement);
     bool is_unlocked(int uid) const;
     void send_update_to_ff();
     void sync_with_ff();
     void add_key_to_ff_update_map();
+    AchievementName find_achievement_by_facet_uid(int facet_uid);
 
-    const std::unordered_map<int, Achievement>& get_achievements() const {
-        return achievements;
+    const std::unordered_map<AchievementName, Achievement>& get_achievements() const {
+    return achievements;
     }
 
-    std::unordered_map<int, Achievement>& get_achievements_mutable() {
+    std::unordered_map<AchievementName, Achievement>& get_achievements_mutable() {
         return achievements;
     }
-
 
 private:
-    std::unordered_map<int, Achievement> achievements;
+    std::unordered_map<AchievementName, Achievement> achievements;
 
     void process_ff_response(const std::string& response, int expected_key, bool is_initial_sync);
     void show_notification(Achievement& achievement);
+    const Achievement* get_achievement(AchievementName achievement_name);
 };
 
 bool is_achievement_system_initialized();
 
-void grant_achievement(int uid);
-void grant_achievement_sp(int uid);
+void grant_achievement(AchievementName achievement);
+void grant_achievement_sp(AchievementName achievement);
 void achievement_check_trigger(rf::Trigger* trigger);
 void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);

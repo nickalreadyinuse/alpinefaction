@@ -243,7 +243,7 @@ CodeInjection player_execute_action_patch{
                 (rf::entity_headlamp_is_on(rf::local_player_entity))
                     ? rf::entity_headlamp_turn_off(rf::local_player_entity)
                     : rf::entity_headlamp_turn_on(rf::local_player_entity);
-                grant_achievement_sp(23);
+                grant_achievement_sp(AchievementName::UseFlashlight);
             }
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL) &&
