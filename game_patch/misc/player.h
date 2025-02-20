@@ -47,5 +47,6 @@ PlayerAdditionalData& get_player_additional_data(rf::Player* player);
 void play_local_hit_sound(bool died);
 void handle_chat_message_sound(std::string message);
 bool is_player_minimum_af_client_version(rf::Player* player, int version_major, int version_minor);
+bool is_server_minimum_af_version(int version_major, int version_minor);
 void update_player_flashlight();
 void ping_looked_at_location();

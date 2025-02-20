@@ -13,6 +13,7 @@
 #include "../rf/hud.h"
 #include "../rf/player/camera.h"
 #include "../main/main.h"
+#include "../misc/player.h"
 #include <common/config/BuildConfig.h>
 #include <xlog/xlog.h>
 #include <patch_common/CallHook.h>
@@ -239,6 +240,31 @@ FunHook<void(rf::Player*)> render_reticle_hook{
     },
 };
 
+FunHook<void(rf::Player*)> hud_weapons_render_hook{
+    0x0043B020,
+    [](rf::Player* player) {
+        if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO)
+            return;
+        // only show ammo counters in AF 1.1+ servers because ammo is not synced in legacy servers
+        if (g_spectate_mode_enabled && is_server_minimum_af_version(1, 1))
+            hud_weapons_render_hook.call_target(g_spectate_mode_target);
+        else
+            hud_weapons_render_hook.call_target(player);
+    },
+};
+
+FunHook<void(rf::Player*)> hud_status_render_spectate_hook{
+    0x00439D80,
+    [](rf::Player* player) {
+        if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO)
+            return;
+        if (g_spectate_mode_enabled)
+            hud_status_render_spectate_hook.call_target(g_spectate_mode_target);
+        else
+            hud_status_render_spectate_hook.call_target(player);
+    },
+};
+
 ConsoleCommand2 spectate_cmd{
     "spectate",
     [](std::optional<std::string> player_name) {
@@ -349,12 +375,12 @@ CallHook<float(rf::Player*)> gameplay_render_frame_player_fpgun_get_zoom_hook{
 void multi_spectate_appy_patch()
 {
     render_reticle_hook.install();
+    hud_weapons_render_hook.install();
+    hud_status_render_spectate_hook.install();
 
     spectate_cmd.register_cmd();
     spectate_mode_minimal_ui_cmd.register_cmd();
     spectate_mode_follow_killer_cmd.register_cmd();
-
-    // Note: HUD rendering doesn't make sense because life and armor isn't synced
 
 #if SPECTATE_MODE_SHOW_WEAPON
 

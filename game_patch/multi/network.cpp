@@ -272,7 +272,7 @@ std::array g_client_side_packet_whitelist{
 };
 // clang-format on
 
-std::optional<DashFactionServerInfo> g_df_server_info;
+std::optional<AlpineFactionServerInfo> g_df_server_info;
 
 CodeInjection process_game_packet_whitelist_filter{
     0x0047918D,
@@ -691,7 +691,6 @@ CallHook<int(void*, int, int, rf::NetAddr&, int)> net_get_tracker_hook{
     },
 };
 
-constexpr uint32_t DASH_FACTION_SIGNATURE = 0xDA58FAC7;
 constexpr uint32_t ALPINE_FACTION_SIGNATURE = 0x4E4C5246;
 
 // Appended to game_info packets
@@ -903,10 +902,10 @@ CodeInjection process_join_accept_injection{
             reinterpret_cast<std::byte*>(&ext_data));
         xlog::debug("Checking for join_accept AF extension: {:08X}", ext_data.af_signature);
         if (ext_data.af_signature == ALPINE_FACTION_SIGNATURE) {
-            DashFactionServerInfo server_info;
+            AlpineFactionServerInfo server_info;
             server_info.version_major = ext_data.version_major;
             server_info.version_minor = ext_data.version_minor;
-            xlog::debug("Got DF server info: {} {} {}", ext_data.version_major, ext_data.version_minor,
+            xlog::debug("Got AF server info: {} {} {}", ext_data.version_major, ext_data.version_minor,
                 static_cast<int>(ext_data.flags));
             server_info.saving_enabled = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::saving_enabled);
             server_info.allow_fb_mesh = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_fb_mesh);
@@ -1193,7 +1192,7 @@ FunHook<void()> multi_stop_hook{
     },
 };
 
-const std::optional<DashFactionServerInfo>& get_df_server_info()
+const std::optional<AlpineFactionServerInfo>& get_df_server_info()
 {
     return g_df_server_info;
 }
@@ -1388,6 +1387,7 @@ CodeInjection send_players_obj_update_packets_injection{
 
 void network_init()
 {
+    // Support af_obj_update packet
     send_players_obj_update_packets_injection.install();
 
     // Improve simultaneous ping

@@ -60,6 +60,16 @@ bool is_player_minimum_af_client_version(rf::Player* player, int version_major, 
         player_info.alpine_version_minor >= version_minor;
 }
 
+bool is_server_minimum_af_version(int version_major, int version_minor) {
+    auto& server_info = get_df_server_info();
+
+    if (!server_info.has_value()) {
+        return false;
+    }
+
+    return server_info->version_major >= version_major && server_info->version_minor >= version_minor;
+}
+
 FunHook<rf::Player*(bool)> player_create_hook{
     0x004A3310,
     [](bool is_local) {
@@ -342,6 +352,17 @@ void play_local_hit_sound(bool died) {
     play_local_sound_2d(get_custom_sound_id(died ? 3 : 2), 0, 1.0f);
 }
 
+ConsoleCommand2 tauntsound_cmd{
+    "mp_taunts",
+    []() {
+        g_game_config.play_taunt_sounds = !g_game_config.play_taunt_sounds;
+        g_game_config.save();
+        rf::console::print("Voice lines for multiplayer taunts are {}", g_game_config.play_taunt_sounds ? "enabled" : "disabled");
+    },
+    "Toggle whether to play voice lines for taunts used by players in multiplayer",
+    "mp_taunts",
+};
+
 ConsoleCommand2 localhitsound_cmd{
     "cl_hitsounds",
     []() {
@@ -610,4 +631,5 @@ void player_do_patch()
     swap_grenade_controls_cmd.register_cmd();
     play_join_beep_cmd.register_cmd();
     localhitsound_cmd.register_cmd();
+    tauntsound_cmd.register_cmd();
 }
