@@ -1036,7 +1036,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
 
             if (g_additional_server_config.damage_notifications.enabled && damaged_player && killer_player) {
 
-                // use new af_damage_notify packet for clients that can process it (Alpine 1.1+)
+                // use new packet for clients that can process it (Alpine 1.1+)
                 if (is_player_minimum_af_client_version(killer_player, 1, 1)) {
                     af_send_damage_notify_packet(
                         damaged_player->net_data->player_id,

@@ -16,6 +16,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix players leaving server during pre-match not always being removed from list of ready players
 - Fix players picking up items and activating triggers while teleporting
 - Fix listen server launching whenever menu opens if game was launched with `-levelm` command line
+- Fix clients not knowing correct ammo counts for other clients
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -77,6 +78,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add custom sounds framework
 - Add custom sounds for location ping and achievement unlock
 - Add kill sounds
+- Add health, armour, and ammo display to first person spectate
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

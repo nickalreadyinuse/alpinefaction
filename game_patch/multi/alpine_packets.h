@@ -18,9 +18,10 @@ namespace rf
 
 enum class af_packet_type : uint8_t
 {
-    af_ping_location_req = 0x50,
-    af_ping_location = 0x51,
-    af_damage_notify = 0x52,
+    af_ping_location_req = 0x50,        // Alpine 1.1
+    af_ping_location = 0x51,            // Alpine 1.1
+    af_damage_notify = 0x52,            // Alpine 1.1
+    af_obj_update = 0x53,               // Alpine 1.1
 };
 
 struct af_ping_location_req_packet
@@ -44,6 +45,21 @@ struct af_damage_notify_packet
     bool died;
 };
 
+struct af_obj_update // members of af_obj_update_packet
+{
+    uint32_t obj_handle;
+    uint8_t current_primary_weapon;
+    uint8_t ammo_type;
+    uint16_t clip_ammo;
+    uint16_t reserve_ammo;
+};
+
+struct af_obj_update_packet
+{
+    RF_GamePacketHeader header;
+    af_obj_update objects[];
+};
+
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
 void af_send_packet(rf::Player* player, const void* data, int len, bool is_reliable);
 
@@ -53,5 +69,7 @@ void af_send_ping_location_packet_to_team(rf::Vector3* pos, uint8_t player_id, r
 static void af_process_ping_location_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_damage_notify_packet(uint8_t player_id, float damage, bool died, rf::Player* player);
 static void af_process_damage_notify_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_obj_update_packet(rf::Player* player);
+static void af_process_obj_update_packet(const void* data, size_t len, const rf::NetAddr& addr);
 
 #pragma pack(pop)

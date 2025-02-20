@@ -6,6 +6,8 @@
 #include <common/rfproto.h>
 #include <xlog/xlog.h>
 #include "../rf/multi.h"
+#include "../rf/player/player.h"
+#include "../rf/weapon.h"
 #include "multi.h"
 #include "../hud/hud_world.h"
 #include "alpine_packets.h"
@@ -44,6 +46,9 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
             break;
         case af_packet_type::af_damage_notify:
             af_process_damage_notify_packet(data, len, addr);
+            break;
+        case af_packet_type::af_obj_update:
+            af_process_obj_update_packet(data, len, addr);
             break;
         default:
             return false; // ignore if unrecognized
@@ -206,4 +211,138 @@ static void af_process_damage_notify_packet(const void* data, size_t len, const 
 
     add_damage_notify_world_hud_string(entity->pos, damage_notify_packet.player_id, damage_notify_packet.damage, damage_notify_packet.died);
     play_local_hit_sound(damage_notify_packet.died);
+}
+
+void af_send_obj_update_packet(rf::Player* player)
+{
+    // Send: server -> client
+    assert(rf::is_server);
+
+    std::vector<af_obj_update> obj_updates;
+    auto player_list = SinglyLinkedList{rf::player_list};
+
+    for (auto& other_player : player_list) {
+        if (&other_player == player) {
+            continue; // only provide updates on other players
+        }
+
+        rf::Entity* entity = rf::entity_from_handle(other_player.entity_handle);
+        if (!entity) {
+            continue; // player invalid or not spawned
+        }
+
+        af_obj_update obj_update{};
+        obj_update.obj_handle = entity->handle;
+        obj_update.current_primary_weapon = static_cast<uint8_t>(entity->ai.current_primary_weapon);
+
+        int ammo_type = rf::weapon_types[entity->ai.current_primary_weapon].ammo_type;
+        obj_update.ammo_type = static_cast<uint8_t>(ammo_type);
+
+        obj_update.clip_ammo = static_cast<uint16_t>(entity->ai.clip_ammo[entity->ai.current_primary_weapon]);
+        obj_update.reserve_ammo = static_cast<uint16_t>(entity->ai.ammo[ammo_type]);
+
+        /*xlog::warn("Adding player {}, weap {}, ammo {}, clip {}, reserve {}", 
+                   entity->name, obj_update.current_primary_weapon, obj_update.ammo_type, 
+                   obj_update.clip_ammo, obj_update.reserve_ammo);*/
+
+        obj_updates.push_back(obj_update);
+    }
+
+    if (obj_updates.empty()) {
+        return;  // No updates to send
+    }
+
+    // Calculate packet size
+    size_t object_data_size = obj_updates.size() * sizeof(af_obj_update);
+    size_t total_packet_size = sizeof(RF_GamePacketHeader) + object_data_size;
+
+    if (total_packet_size > rf::max_packet_size) {
+        return; // packet too large (should never happen)
+    }
+
+    // Allocate memory dynamically for the packet
+    auto packet_buf = std::make_unique<std::byte[]>(total_packet_size);
+
+    // Fill packet header
+    RF_GamePacketHeader header{};
+    header.type = static_cast<uint8_t>(af_packet_type::af_obj_update);
+    header.size = static_cast<uint16_t>(object_data_size);
+
+    // Copy data to packet buffer
+    std::memcpy(packet_buf.get(), &header, sizeof(header));
+    std::memcpy(packet_buf.get() + sizeof(header), obj_updates.data(), object_data_size);
+
+    // Send the packet
+    af_send_packet(player, packet_buf.get(), total_packet_size, false);
+}
+
+static void af_process_obj_update_packet(const void* data, size_t len, const rf::NetAddr& addr)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server) {
+        return;
+    }
+
+    if (len < sizeof(RF_GamePacketHeader)) {
+        xlog::warn("Received malformed object update packet (too small)");
+        return;
+    }
+
+    // Read the packet header
+    RF_GamePacketHeader header;
+    std::memcpy(&header, data, sizeof(header));
+
+    // Calculate the expected object data size
+    size_t object_data_size = header.size;
+    if (len != sizeof(RF_GamePacketHeader) + object_data_size) {
+        xlog::warn("Object update packet has unexpected size! Expected {}, got {}", 
+                   sizeof(RF_GamePacketHeader) + object_data_size, len);
+        return;
+    }
+
+    // Calculate number of objects being updated
+    size_t num_objects = object_data_size / sizeof(af_obj_update);
+    if (num_objects == 0) {
+        return; // Nothing to process
+    }
+
+    // Copy object updates to a vector to avoid misaligned access
+    std::vector<af_obj_update> obj_updates(num_objects);
+    std::memcpy(obj_updates.data(), 
+                static_cast<const std::byte*>(data) + sizeof(RF_GamePacketHeader), 
+                object_data_size);
+
+    // Process each object update safely
+    for (const auto& obj_update : obj_updates) {
+        // Validate the remote object
+        rf::Object* remote_object = rf::obj_from_remote_handle(obj_update.obj_handle);
+        if (!remote_object) {
+            xlog::warn("Received obj update for invalid remote handle: {:x}", obj_update.obj_handle);
+            continue;
+        }
+
+        rf::Entity* entity = rf::entity_from_handle(remote_object->handle);
+        if (!entity) {
+            xlog::warn("Received obj update for invalid entity handle: {:x}", obj_update.obj_handle);
+            continue;
+        }
+
+        // Do not update the local player (shouldn't even be in the packet, but just to make sure
+        if (entity == rf::local_player_entity) {
+            continue;
+        }
+
+        // Only update ammo if the player's weapon matches the packet
+        if (entity->ai.current_primary_weapon == obj_update.current_primary_weapon) {
+            entity->ai.clip_ammo[obj_update.current_primary_weapon] = obj_update.clip_ammo;
+            entity->ai.ammo[obj_update.ammo_type] = obj_update.reserve_ammo;
+
+            /* xlog::warn("Updated player {}, weapon {}, ammo type {}, clip {}, reserve {}", 
+                        entity->name, obj_update.current_primary_weapon, obj_update.ammo_type, 
+                        obj_update.clip_ammo, obj_update.reserve_ammo);*/
+        } else {
+            xlog::warn("Did not update player {} because packet weapon {}, their weapon {}", 
+                       entity->name, obj_update.current_primary_weapon, entity->ai.current_primary_weapon);
+        }
+    }
 }

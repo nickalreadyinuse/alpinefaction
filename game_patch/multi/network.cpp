@@ -193,6 +193,7 @@ enum packet_type : uint8_t {
     af_ping_location_req   = 0x50,
     af_ping_location       = 0x51,
     af_damage_notify       = 0x52,
+    af_obj_update          = 0x53
 };
 
 // client -> server
@@ -267,6 +268,7 @@ std::array g_client_side_packet_whitelist{
     glass_kill,
     af_ping_location,
     af_damage_notify,
+    af_obj_update,
 };
 // clang-format on
 
@@ -1371,8 +1373,23 @@ CallHook<int()> game_info_num_players_hook{
     },
 };
 
+// add af_obj_update packet, send at the same time as normal obj_update packet
+// note this is after the check for entity flag 1 (dying) and obj flag 2 (pending delete)
+CodeInjection send_players_obj_update_packets_injection{
+    0x0047E710,
+    [](auto& regs) {
+        rf::Player* player = regs.esi;
+        // use new packet for clients that can process it (Alpine 1.1+)
+        if (player && is_player_minimum_af_client_version(player, 1, 1)) {
+            af_send_obj_update_packet(player);
+        }
+    },
+};
+
 void network_init()
 {
+    send_players_obj_update_packets_injection.install();
+
     // Improve simultaneous ping
     rf::simultaneous_ping = 32;
 
