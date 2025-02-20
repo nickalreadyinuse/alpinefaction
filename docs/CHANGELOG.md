@@ -79,6 +79,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add custom sounds for location ping and achievement unlock
 - Add kill sounds
 - Add health, armour, and ammo display to first person spectate
+- Support built-in RF taunts in Alpine Faction taunt menu (always included in game files but unused)
+- Add `mp_taunts` command to disable audio taunts
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
