@@ -24,7 +24,15 @@ enum class ChatMenuListName : int
     Timing,
     Powerup,
     Flag,
-    Map
+    Map,
+    Commander1,
+    Commander2,
+    Guard1,
+    Guard2,
+    EnviroGuard1,
+    EnviroGuard2,
+    RiotGuard1,
+    RiotGuard2
 };
 
 enum class ChatMenuListType : int

@@ -165,20 +165,142 @@ static const ChatMenuList ctf_menu{
     }
 };
 
-// Taunt
+// Taunt menu
 static const ChatMenuList taunt_menu{
     .display_string = "TAUNTS",
     .type = ChatMenuListType::Basic,
     .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Rest in pieces!", "Rest in pieces!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Nice target!", "You make a nice target!"},
+        {true, ChatMenuListName::Commander1, ChatMenuListType::Basic, "Commander 1"},
+        {true, ChatMenuListName::Commander2, ChatMenuListType::Basic, "Commander 2"},
+        {true, ChatMenuListName::Guard1, ChatMenuListType::Basic, "Guard 1"},
+        {true, ChatMenuListName::Guard2, ChatMenuListType::Basic, "Guard 2"},
+        {true, ChatMenuListName::EnviroGuard1, ChatMenuListType::Basic, "Enviro Guard 1"},
+        {true, ChatMenuListName::EnviroGuard2, ChatMenuListType::Basic, "Enviro Guard 2"},
+        {true, ChatMenuListName::RiotGuard1, ChatMenuListType::Basic, "Riot Guard 1"},
+        {true, ChatMenuListName::RiotGuard2, ChatMenuListType::Basic, "Riot Guard 2"}
+    }
+};
+
+// Commander 1
+static const ChatMenuList commander1_menu{
+    .display_string = "COMMANDER 1",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Commence beatdown!", "Commence beatdown!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Rest in pieces.", "Rest in pieces."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Hey, is this your head?", "Hey, is this your head?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You make a nice target.", "You make a nice target."},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Squeegee time!", "Squeegee time!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Nice catch!", "Nice catch!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye Mr. Gibs!", "Goodbye Mr. Gibs!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye Mr. Gibs!", "Goodbye Mr. Gibs!"}
+    }
+};
+
+// Commander 2
+static const ChatMenuList commander2_menu{
+    .display_string = "COMMANDER 2",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Got death smarts.", "Got death smarts."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Just a flesh wound.", "Just a flesh wound."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Ka-ching!", "Ka-ching!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Frag-o-licious!", "Frag-o-licious!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Me red, you dead!", "Me red, you dead!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Jigsaw puzzle!", "Look! A jigsaw puzzle!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Damn, I'm good.", "Damn, I'm good."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sucks to be you!", "Sucks to be you!"}
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Look, a jigsaw puzzle!", "Look, a jigsaw puzzle!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Damn, I'm good.", "Damn, I'm good."}
+    }
+};
+
+// Guard 1
+static const ChatMenuList guard1_menu{
+    .display_string = "GUARD 1",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Here's Johnny!", "Here's Johnny!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Lay down, play dead!", "Lay down, play dead!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sucks to be you!", "Sucks to be you!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You are so dead.", "You are so dead."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Woohoo!", "Woohoo!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Target practice!", "Target practice!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Get a load of this!", "Get a load of this!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Chump!", "Chump!"}
+    }
+};
+
+// Guard 2
+static const ChatMenuList guard2_menu{
+    .display_string = "GUARD 2",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Feeble!", "Feeble!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sit down!", "Sit down!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Owned!", "Owned!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Have a seat, son!", "Have a seat, son!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Fresh meat!", "Fresh meat!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Boom!", "Boom!"}
+    }
+};
+
+// Enviro Guard 1
+static const ChatMenuList enviro_guard1_menu{
+    .display_string = "ENVIRO GUARD 1",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Messy.", "Messy."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Blams!", "Blams!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Splat!", "Splat!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Crunch time!", "Crunch time!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Eat it!", "Eat it!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Annihilation!", "Annihilation!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Banned.", "Banned."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Catch!", "Catch!"}
+    }
+};
+
+// Enviro Guard 2
+static const ChatMenuList enviro_guard2_menu{
+    .display_string = "ENVIRO GUARD 2",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You lack discipline!", "You lack discipline!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Lamer!", "Lamer!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Llama!", "Llama!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Order up!", "Order up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Your move, creep!", "Your move, creep!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "What's your name, scumbag?!", "What's your name, scumbag?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Arr matey!", "Arr matey!"}
+    }
+};
+
+// Riot Guard 1
+static const ChatMenuList riot_guard1_menu{
+    .display_string = "RIOT GUARD 1",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "I make this look good.", "I make this look good."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Take off, hoser!", "Take off, hoser!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Get on the bus!", "Get on the bus!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "What's up, fool?!", "What's up, fool?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Want some more?!", "Want some more?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Give it up!", "Give it up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Oh, I still love you!", "Oh, I still love you!"}
+    }
+};
+
+// Riot Guard 2
+static const ChatMenuList riot_guard2_menu{
+    .display_string = "RIOT GUARD 2",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Geeze, what smells?", "Geeze, what smells?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aww, does it hurt?", "Aww, does it hurt?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Bring it!", "Bring it!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Any time, anywhere!", "Any time, anywhere!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Pathetic!", "Pathetic!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sweet!", "Sweet!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Tool!", "Tool!"}
     }
 };
 
@@ -651,8 +773,9 @@ void chat_menu_action_handler(rf::Key key) {
         // Store the current menu in history for backtracking
         g_previous_menu = g_active_menu;
         
-        // Switch to the new menu
+        // Submenu transitions
         switch (selected_element.menu) {
+            // Radio messages menu
             case ChatMenuListName::General: g_active_menu = &general_menu; break;
             case ChatMenuListName::Express: g_active_menu = &express_menu; break;
             case ChatMenuListName::Compliment: g_active_menu = &compliment_menu; break;
@@ -663,26 +786,32 @@ void chat_menu_action_handler(rf::Key key) {
             case ChatMenuListName::Powerup: g_active_menu = &powerup_menu; break;
             case ChatMenuListName::Flag: g_active_menu = &ctf_menu; break;
             case ChatMenuListName::Map: g_active_menu = &level_menu; break;
+
+            // Taunt menu
+            case ChatMenuListName::Commander1: g_active_menu = &commander1_menu; break;
+            case ChatMenuListName::Commander2: g_active_menu = &commander2_menu; break;
+            case ChatMenuListName::Guard1: g_active_menu = &guard1_menu; break;
+            case ChatMenuListName::Guard2: g_active_menu = &guard2_menu; break;
+            case ChatMenuListName::EnviroGuard1: g_active_menu = &enviro_guard1_menu; break;
+            case ChatMenuListName::EnviroGuard2: g_active_menu = &enviro_guard2_menu; break;
+            case ChatMenuListName::RiotGuard1: g_active_menu = &riot_guard1_menu; break;
+            case ChatMenuListName::RiotGuard2: g_active_menu = &riot_guard2_menu; break;
+
             default: break;
         }
     } else {
         // Determine chat behavior based on menu type
         if (g_chat_menu_active == ChatMenuType::Taunts) {
-            // Taunts use a separate cooldown
             if (!g_taunt_timer.valid() || g_taunt_timer.elapsed()) {
-                g_taunt_timer.set(10000); // 10-second cooldown for taunts
+                g_taunt_timer.set(10000); // 10 second cooldown
                 const std::string msg = "\xA8[Taunt] " + selected_element.long_string;
-                if (!msg.empty()) {
-                    rf::multi_chat_say(msg.c_str(), false);
-                    rf::snd_play(4, 0, 0.0f, 1.0f);
-                }
+                rf::multi_chat_say(("\xA8[Taunt] " + selected_element.long_string).c_str(), false);
+                rf::snd_play(4, 0, 0.0f, 1.0f);
             } else {
-                // Show cooldown message
                 rf::String msg{"You must wait a little while between taunts"};
-                rf::String prefix;
-                rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+                rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
             }
-        } 
+        }
         else if (g_chat_menu_active == ChatMenuType::Commands) {
             // Commands do not play a chat sound or display for user
             const std::string msg = selected_element.long_string;

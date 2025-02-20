@@ -225,6 +225,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "World HUD Big Text", world_hud_big_text);
     result &= visitor(dash_faction_key, "World HUD Damage Numbers", world_hud_damage_numbers);
     result &= visitor(dash_faction_key, "Play Hit Sounds", play_hit_sounds);
+    result &= visitor(dash_faction_key, "Play Taunt Sounds", play_taunt_sounds);
 
     return result;
 }

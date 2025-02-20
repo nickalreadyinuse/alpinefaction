@@ -15,6 +15,7 @@
 
 static int g_cutscene_bg_sound_sig = -1;
 static int g_custom_sound_entry_start = -1;
+static int g_taunt_sound_start = -1;
 #ifdef DEBUG
 int g_sound_test = 0;
 #endif
@@ -446,12 +447,17 @@ int get_custom_sound_id(int custom_id) {
     return g_custom_sound_entry_start + custom_id;
 }
 
+int get_custom_chat_message_sound_id(int custom_id, bool is_taunt)
+{
+    return is_taunt ? g_taunt_sound_start + custom_id : g_custom_sound_entry_start + custom_id;
+}
+
 void gamesound_parse_custom_sounds() 
 {
     // Record first custom sound ID
     // Note this does NOT work on servers because servers don't load sounds
     // When server sends packets with sound IDs, it must send custom IDs and client uses get_custom_sound_id
-    g_custom_sound_entry_start = rf::g_num_sounds;  
+    g_custom_sound_entry_start = rf::g_num_sounds;
 
     std::vector<CustomSoundEntry> custom_sounds = {
         {"af_achievement1.wav", 10.0f, 1.0f, 1.0f},     // 0
@@ -459,8 +465,8 @@ void gamesound_parse_custom_sounds()
         {"af_hitsound1.wav", 10.0f, 1.0f, 1.0f},        // 2
         {"af_killsound1.wav", 10.0f, 1.0f, 1.0f},       // 3
         // pending availability of radio message recordings
-        /*
-        {"L19S1_MIN_07.wav", 10.0f, 1.0f, 1.0f},        // 7
+        
+        {"L19S1_MIN_07.wav", 10.0f, 1.0f, 1.0f},        // put this one after the built-in radio messages, in case its missing
         {"MP_TAUNT_16.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_17.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_18.wav", 10.0f, 1.0f, 1.0f},
@@ -519,20 +525,22 @@ void gamesound_parse_custom_sounds()
         {"MP_TAUNT_71.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_72.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_73.wav", 10.0f, 1.0f, 1.0f},
-        {"MP_TAUNT_74.wav", 10.0f, 1.0f, 1.0f},*/
+        {"MP_TAUNT_74.wav", 10.0f, 1.0f, 1.0f},
     };
 
     for (const auto& sound : custom_sounds) 
     {
         int sound_id = rf::snd_get_handle(sound.filename, sound.min_range, sound.base_volume, sound.rolloff);
         if (sound_id >= 0) {
-            xlog::warn("Added custom sound {} at ID {}", sound.filename, sound_id);
+            //xlog::warn("Added custom sound {} at ID {}", sound.filename, sound_id);
         } else {
-            xlog::error("Failed to add custom sound: {} - custom sounds will NOT work as expected", sound.filename);
+            xlog::error("Failed to index sound file: {}", sound.filename);
         }
     }
 
-    xlog::warn("Custom sounds added, starting at ID {}", g_custom_sound_entry_start);
+    g_taunt_sound_start = rf::snd_pc_find_by_name("MP_TAUNT_16.wav");
+
+    //xlog::warn("Custom sounds added, starting at ID {}. Taunts start at ID {}", g_custom_sound_entry_start, g_taunt_sound_start);
 }
 
 CodeInjection gamesound_parse_sounds_table_patch{
@@ -544,6 +552,10 @@ CodeInjection gamesound_parse_sounds_table_patch{
 
 void play_chat_sound(std::string& chat_message, bool is_taunt)
 {
+    if (is_taunt && !g_game_config.play_taunt_sounds) {
+        return; // taunts are turned off
+    }
+
     // Remove the prefix from chat_message before comparing
     constexpr std::string_view normal_prefix = "\xA8 ";
     constexpr std::string_view taunt_prefix = "\xA8[Taunt] ";
@@ -555,11 +567,11 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
         chat_message.erase(0, taunt_prefix.size());
     }
     else {
-        xlog::warn("Unrecognized radio message {}", chat_message);
+        //xlog::warn("Unrecognized radio message {}", chat_message);
         return;
     }
 
-    // Mapping of chat messages to custom sound IDs
+    // Mapping of chat messages to custom sound IDs - strings must match exactly
     static const std::unordered_map<std::string, int> sound_map =
     {
         // Express
@@ -625,27 +637,89 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
         {"Retrieve our flag!", 49},
         {"Our flag is secure", 50},
 
-        // Taunts
-        {"Rest in pieces!", 51},
-        {"You make a nice target!", 52},
-        {"Squeegee time!", 53},
-        {"Nice catch!", 54},
-        {"Goodbye Mr. Gibs!", 55},
-        {"Me red, you dead!", 56},
-        {"Look! A jigsaw puzzle!", 57},
-        {"Damn, I'm good.", 58},
-        {"Sucks to be you!", 59}
+        // Start taunts
+        // Commander 1
+        {"Commence beatdown!", 0},
+        {"Rest in pieces.", 1},
+        {"Hey, is this your head?", 2},
+        {"Aw yeah!", 3},
+        {"You make a nice target.", 4},
+        {"Squeegee time!", 5},
+        {"Nice catch!", 6},
+        {"Goodbye Mr. Gibs!", 7},
+
+        // Commander 2
+        {"Got death smarts.", 8},
+        {"Just a flesh wound.", 9},
+        {"Ka-ching!", 10},
+        {"Frag-o-licious!", 11},
+        {"Me red, you dead!", 12},
+        {"Look, a jigsaw puzzle!", 13},
+        {"Damn, I'm good.", 14},
+
+        // Guard 1
+        {"Here's Johnny!", 15},
+        {"Lay down, play dead!", 16},
+        {"Sucks to be you!", 17},
+        {"You are so dead.", 18},
+        {"Woohoo!", 19},
+        {"Target practice!", 20},
+        {"Get a load of this!", 21},
+        {"Chump!", 22},
+
+        // Guard 2
+        {"Feeble!", 23},
+        {"Sit down!", 24},
+        {"Owned!", 25},
+        {"Have a seat, son!", 26},
+        {"Fresh meat!", 27},
+        {"Aw yeah!", 28},
+        {"Boom!", 29},
+
+        // Enviro Guard 1
+        {"Messy.", 30},
+        {"Blams!", 31},
+        {"Splat!", 32},
+        {"Crunch time!", 33},
+        {"Eat it!", 34},
+        {"Annihilation!", 35},
+        {"Banned.", 36},
+        {"Catch!", 37},
+
+        // Enviro Guard 2
+        {"You lack discipline!", 38},
+        {"Lamer!", 39},
+        {"Llama!", 40},
+        {"Order up!", 41},
+        {"Your move, creep!", 42},
+        {"What's your name, scumbag?!", 43},
+        {"Arr matey!", 44},
+
+        // Riot Guard 1
+        {"I make this look good.", 45},
+        {"Take off, hoser!", 46},
+        {"Get on the bus!", 47},
+        {"What's up, fool?!", 48},
+        {"Want some more?!", 49},
+        {"Give it up!", 50},
+        {"Oh, I still love you!", 51},
+
+        // Riot Guard 2
+        {"Geeze, what smells?", 52},
+        {"Aww, does it hurt?", 53},
+        {"Bring it!", 54},
+        {"Any time, anywhere!", 55},
+        {"Pathetic!", 56},
+        {"Sweet!", 57},
+        {"Tool!", 58}
     };
 
     // Lookup the sound ID and play it
     auto it = sound_map.find(chat_message);
     if (it != sound_map.end()) {
         int sound_id = it->second;
-        play_local_sound_2d(get_custom_sound_id(sound_id), 2, 1.0f);
-        xlog::warn("Playing custom sound {} for radio message {}", sound_id, chat_message);
-    }
-    else {
-        xlog::warn("Unrecognized radio message {}", chat_message);
+        play_local_sound_2d(get_custom_chat_message_sound_id(sound_id, is_taunt), 2, 1.0f);
+        //xlog::warn("Playing custom sound {} for radio message {}", sound_id, chat_message);
     }
 }
 
