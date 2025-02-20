@@ -228,6 +228,7 @@ void multi_spectate_on_destroy_player(rf::Player* player)
     }
 }
 
+// draw reticle
 FunHook<void(rf::Player*)> render_reticle_hook{
     0x0043A2C0,
     [](rf::Player* player) {
@@ -240,25 +241,27 @@ FunHook<void(rf::Player*)> render_reticle_hook{
     },
 };
 
+// draw ammo
 FunHook<void(rf::Player*)> hud_weapons_render_hook{
     0x0043B020,
     [](rf::Player* player) {
         if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO)
             return;
         // only show ammo counters in AF 1.1+ servers because ammo is not synced in legacy servers
-        if (g_spectate_mode_enabled && is_server_minimum_af_version(1, 1))
+        if (g_spectate_mode_enabled && is_server_minimum_af_version(1, 1) && !rf::player_is_dead(g_spectate_mode_target))
             hud_weapons_render_hook.call_target(g_spectate_mode_target);
         else
             hud_weapons_render_hook.call_target(player);
     },
 };
 
+// draw health/armour
 FunHook<void(rf::Player*)> hud_status_render_spectate_hook{
     0x00439D80,
     [](rf::Player* player) {
         if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO)
             return;
-        if (g_spectate_mode_enabled)
+        if (g_spectate_mode_enabled && !rf::player_is_dead(g_spectate_mode_target) && !rf::player_is_dying(g_spectate_mode_target))
             hud_status_render_spectate_hook.call_target(g_spectate_mode_target);
         else
             hud_status_render_spectate_hook.call_target(player);
