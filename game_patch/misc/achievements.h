@@ -23,7 +23,8 @@ enum class AchievementCategory : int
 
 struct Achievement
 {
-    int uid = -1;
+    int facet_uid = -1;
+    int root_uid = -1;
     std::string name = "";
     std::string icon = ""; // af_achico_000.tga
     AchievementCategory category = AchievementCategory::general;

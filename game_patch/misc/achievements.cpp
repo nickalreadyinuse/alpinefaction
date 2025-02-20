@@ -39,54 +39,53 @@ void AchievementManager::initialize()
     }
 
     std::vector<Achievement> predefined_achievements = {
-        {0, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},               // game start
-        {1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},      // secret fusion
-        {2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},          // training start
-        {3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},             // training finish NOT DONE
-        {4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},                // campaign finish NOT DONE
-        {5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},         // campaign finish NOT DONE
-        {6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},           // campaign finish NOT DONE
-        {7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},         // campaign finish NOT DONE
-        {8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},             // kill a fish in l1s1
-        {9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                     // hear eos message
-        {10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},               // locked in train in miner reg
-        {11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},  // if only you'd been faster
-        {12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                  // get to ventilation
-        {13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                   // destroy geothermal
-        {14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},               // kill trash bot
-        {15, "Mad Martian Meetup", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},         // first capek cutscene
-        {16, "It Suddenly Worked", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},      // get to last capek voice line
-        {17, "Who's Cleaning This Up?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}, // kill big snake
-        {18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                   // get to space station
-        {19, "Try a Reboot", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},            // destroy 8 computers in space station
-        {20, "...Oops", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},                    // escape space station
-        {21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},       // escape merc prison
-        {22, "Parental Visit Denied", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},      // kill masako
-        {23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},               // use flashlight
-        {24, "Submerged Secret", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},           // release hidden sub in undersea base
-        {25, "The Dangers of Recycling", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},   // kill drone just before big elevator
-        {26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},              // kill capek with flamethrower
-        {27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                       // drop corpse
-        {28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                // heal from media
-        {29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                 // dupe c4
-        {30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                      // view from security camera
-        {31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                  // enter aesir
-        {32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                     // enter sub
-        {33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                     // enter apc
-        {34, "We don't need roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},               // enter jeep
-        {35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},                  // enter driller
-        {36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},                // enter secret sub after geothermal
-        {37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},  // jump in l6s3 fountain
-        {38, "Hendrix Saves the Day", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},   // have Hendrix have to hack something
-        {39, "GeoMod Limitation", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},       // submarine crane button
-        {40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},// submerge jeep in water
-        {41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},        // destroy pump stations geothermal
-        //{, "", "", AchievementCategory::base_campaign},
+        {1, 1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {2, 2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {3, 3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {4, 4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {5, 5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {9, 9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {11, 11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {12, 12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {13, 13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {14, 14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {15, 15, "Mad Martian Meetup", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {16, 16, "It Suddenly Worked", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {17, 17, "Who's Cleaning This Up?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {18, 18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {19, 19, "Try a Reboot", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {20, 20, "...Oops", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {21, 21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {22, 22, "Parental Visit Denied", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {23, 23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {24, 24, "Submerged Secret", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {25, 25, "The Dangers of Recycling", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {26, 26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
+        {27, 27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {28, 28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {29, 29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {30, 30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {31, 31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {32, 32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {33, 33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {34, 34, "We don't need roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {35, 35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer},
+        {36, 36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {37, 37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {38, 38, "Hendrix Saves the Day", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {39, 39, "GeoMod Limitation", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {40, 40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {41, 41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional},
+        {42, 42, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story},
     };
 
     for (const auto& achievement : predefined_achievements) {
-        achievements[achievement.uid] = achievement;
-        xlog::warn("added achievement {} with uid {}", achievement.name, achievement.uid);
+        achievements[achievement.facet_uid] = achievement;
+        xlog::warn("added achievement {} with facet_uid {}", achievement.name, achievement.facet_uid);
     }
 
     achievement_system_initialized = true;
@@ -243,12 +242,12 @@ void AchievementManager::add_key_to_ff_update_map()
     bool first = true;
 
     // Build the new update string from accumulated `pending_count` values
-    for (auto& [uid, achievement] : achievements) {
+    for (auto& [facet_uid, achievement] : achievements) {
         if (achievement.pending_count > 0) {
             if (!first) {
                 oss << ",";
             }
-            oss << uid << "=" << achievement.pending_count;
+            oss << achievement.root_uid << "=" << achievement.pending_count;
             first = false;
             achievement.pending_count = 0; // Reset after adding to string
         }
@@ -454,7 +453,7 @@ void achievement_check_trigger(rf::Trigger* trigger) {
 
             case 8656: {
                 if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
-                    grant_achievement(0); // game start
+                    grant_achievement(42); // game start
                 }
                 break;
             }
@@ -828,7 +827,7 @@ ConsoleCommand2 debug_achievement_cmd{
             "Category: {}\n"
             "Pending Count: {}\n"
             "Icon: {}\n",
-            achievement.uid,
+            achievement.facet_uid,
             achievement.name,
             achievement.unlocked ? "Yes" : "No",
             achievement.notified ? "Yes" : "No",
