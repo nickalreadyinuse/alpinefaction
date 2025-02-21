@@ -50,23 +50,26 @@ enum class AchievementName : int
     DestroyPumpStations,
     StartCampaign,
     FastBomb,
-    FarKill
+    FarKill,
+    CoffeeMakers,
+    SeparateGeometry,
+    GibEnemy
 };
 
 enum class AchievementType : int
 {
-    basic,
-    ff_authoritative
+    basic,                  // activates on client immediately, should only be used for binary achievements
+    ff_authoritative        // activates based on FF response, should be used for achievements with counters
 };
 
 enum class AchievementCategory : int
 {
-    general,
-    statistics,
-    singleplayer,
-    multiplayer,
-    base_campaign_story,
-    base_campaign_optional,
+    general,                // non-gameplay events
+    statistics,             // derived from kill stats from FF
+    singleplayer,           // singleplayer mode, not necessarily base campaign
+    multiplayer,            // multiplayer mode
+    base_campaign,          // base campaign
+    kava,                   // kava mod
 };
 
 struct Achievement
@@ -110,7 +113,7 @@ public:
     }
 
     void initialize();
-    void grant_achievement(AchievementName achievement);
+    void grant_achievement(AchievementName achievement, int count);
     bool is_unlocked(int uid) const;
     void send_update_to_ff();
     void sync_with_ff();
@@ -135,8 +138,8 @@ private:
 
 bool is_achievement_system_initialized();
 
-void grant_achievement(AchievementName achievement);
-void grant_achievement_sp(AchievementName achievement);
+void grant_achievement(AchievementName achievement, int count = 1);
+void grant_achievement_sp(AchievementName achievement, int count = 1);
 void achievement_check_trigger(rf::Trigger* trigger);
 void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);

@@ -3,6 +3,7 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../misc/achievements.h"
 #include "../os/console.h"
 #include "../rf/entity.h"
 #include "../rf/event.h"
@@ -283,6 +284,8 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             "meatchunk3.v3m",
             "meatchunk4.v3m",
             "meatchunk5.v3m"};
+
+        grant_achievement_sp(AchievementName::GibEnemy);
 
         for (int i = 0; i < gib_count; ++i) {
             rf::DebrisCreateStruct debris_info;
