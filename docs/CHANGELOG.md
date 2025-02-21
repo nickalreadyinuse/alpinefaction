@@ -81,6 +81,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add health, armour, and ammo display to first person spectate
 - Support built-in RF taunts in Alpine Faction taunt menu (always included in game files but unused)
 - Add `mp_taunts` command to disable audio taunts
+- Default gore level to 2 unless otherwise set in `alpine_settings.ini`
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

@@ -140,6 +140,10 @@ bool alpine_player_settings_load(rf::Player* player)
         rf::game_set_gore_level(std::stoi(settings["GoreLevel"]));
         processed_keys.insert("GoreLevel");
     }
+    else {
+        rf::game_set_gore_level(2); // if gore level not in ini file, default to 2
+    }
+
     if (settings.count("DifficultyLevel")) {
         rf::game_set_skill_level(static_cast<rf::GameDifficultyLevel>(std::stoi(settings["DifficultyLevel"])));
         processed_keys.insert("DifficultyLevel");
@@ -416,6 +420,8 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
         if (!alpine_player_settings_load(player)) {
             xlog::warn("Alpine Faction settings file not found. Attempting to import legacy RF settings file.");
             player_settings_load_hook.call_target(player); // load players.cfg
+
+            rf::game_set_gore_level(2); // default gore level to 2 if alpine_settings.ini isn't loaded
 
             // Display restart popup due to players.cfg import
             // players.cfg from legacy client version will import fine on first load, apart from Alpine controls
