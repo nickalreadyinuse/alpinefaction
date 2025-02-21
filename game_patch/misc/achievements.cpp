@@ -42,10 +42,10 @@ void AchievementManager::initialize()
         {AchievementName::SecretFusion, {1, 1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
         {AchievementName::StartTraining, {2, 2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
         {AchievementName::FinishTraining, {3, 3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
-        {AchievementName::FinishCampaignEasy, {4, 4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
-        {AchievementName::FinishCampaignMedium, {5, 5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
-        {AchievementName::FinishCampaignHard, {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
-        {AchievementName::FinishCampaignImp, {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}}, // not done
+        {AchievementName::FinishCampaignEasy, {4, 4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::FinishCampaignMedium, {5, 5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::FinishCampaignHard, {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::FinishCampaignImp, {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
         {AchievementName::KillFish, {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
         {AchievementName::HearEos, {9, 9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
         {AchievementName::LockedInTram, {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
@@ -81,6 +81,8 @@ void AchievementManager::initialize()
         {AchievementName::JeepWater, {40, 40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
         {AchievementName::DestroyPumpStations, {41, 41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
         {AchievementName::StartCampaign, {42, 42, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_story}},
+        {AchievementName::FastBomb, {43, 43, "Red Wire Redemption", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign_optional}},
+        {AchievementName::FarKill, {44, 44, "Martian Marksman", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -689,12 +691,20 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
     rf::String entity_class_name = entity->info->name;
     rf::String rfl_filename = rf::level.filename;
     int weapon = rf::local_player_entity->ai.current_primary_weapon;
+    float distance = rf::local_player_entity->pos.distance_to(entity->pos);
+    bool gibbed = (entity->entity_flags & 0x80) != 0;
+
+    xlog::warn("player killed {} with weapon {}, damage {}, damage type {}, dist {}, gibbed? {}",
+            entity_script_name, weapon, lethal_damage, lethal_damage_type, distance, gibbed);
+
+    if (distance >= 100.0f) {
+        grant_achievement_sp(AchievementName::FarKill); // kill from 100m or more
+    }
 
     // weapon IDs could change in mods
     if (!rf::mod_param.found()) {
-        xlog::warn("player killed {} with weapon {}, damage {}, damage type {}", entity_script_name, weapon, lethal_damage, lethal_damage_type);
+        
     }
-
 }
 
 CodeInjection ai_drop_corpse_achievement_patch{
@@ -722,6 +732,36 @@ CodeInjection player_attach_to_security_camera_achievement_patch{
     0x004A1950,
     []() {
         grant_achievement_sp(AchievementName::ViewMonitor); // security monitor
+    },
+};
+
+CodeInjection bomb_defuse_achievement_patch{
+    0x0043BA23,
+    [](auto& regs) {
+        bool fast_bomb_achievement = false;
+
+        switch (rf::game_get_skill_level()) {
+            case rf::GameDifficultyLevel::DIFFICULTY_EASY:
+                grant_achievement_sp(AchievementName::FinishCampaignEasy); // finish campaign on easy
+                fast_bomb_achievement = rf::bomb_defuse_time_left >= 42.34f;
+                break;
+            case rf::GameDifficultyLevel::DIFFICULTY_MEDIUM:
+                grant_achievement_sp(AchievementName::FinishCampaignMedium); // finish campaign on medium
+                fast_bomb_achievement = rf::bomb_defuse_time_left >= 26.77f;
+                break;
+            case rf::GameDifficultyLevel::DIFFICULTY_HARD:
+                grant_achievement_sp(AchievementName::FinishCampaignHard); // finish campaign on hard
+                fast_bomb_achievement = rf::bomb_defuse_time_left >= 21.03f;
+                break;
+            case rf::GameDifficultyLevel::DIFFICULTY_IMPOSSIBLE:
+                grant_achievement_sp(AchievementName::FinishCampaignImp); // finish campaign on impossible
+                fast_bomb_achievement = rf::bomb_defuse_time_left >= 10.26f;
+                break;
+        }
+
+        if (fast_bomb_achievement) {
+            grant_achievement_sp(AchievementName::FastBomb); // defuse bomb within 20 seconds
+        }
     },
 };
 
@@ -897,6 +937,7 @@ void achievements_apply_patch()
     ai_medic_activate_achievement_patch.install();
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
+    bomb_defuse_achievement_patch.install();
     player_handle_use_vehicle_achievement_patch.install();
     entity_update_water_status_achievement_patch.install();
     event_activate_links_achievement_patch.install();

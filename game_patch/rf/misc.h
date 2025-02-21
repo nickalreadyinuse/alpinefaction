@@ -22,5 +22,6 @@ namespace rf
     static auto& gr_far_clip_dist = addr_as_ref<float>(0x01818B68);
     static auto& gr_setup_frustum = addr_as_ref<void()>(0x00517E70);
 
+    static auto& bomb_defuse_time_left = addr_as_ref<float>(0x006391B4);
 
 }

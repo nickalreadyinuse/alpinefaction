@@ -48,7 +48,9 @@ enum class AchievementName : int
     SubCraneButton,
     JeepWater,
     DestroyPumpStations,
-    StartCampaign
+    StartCampaign,
+    FastBomb,
+    FarKill
 };
 
 enum class AchievementType : int
