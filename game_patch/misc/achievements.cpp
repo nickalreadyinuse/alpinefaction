@@ -1,4 +1,5 @@
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <thread>
 #include <sstream>
@@ -28,7 +29,7 @@ rf::TimestampRealtime achievement_box_timestamp;
 rf::TimestampRealtime achievement_async_ff_timer;
 int achievement_async_ff_key;
 std::string achievement_async_ff_string;
-std::vector<LoggedPlayerKill> achievement_async_ff_pending_kills;
+std::unordered_set<int> already_logged_kill_uids;
 constexpr int achievement_async_ff_interval = 5000; // ms
 
 void AchievementManager::initialize()
@@ -87,6 +88,7 @@ void AchievementManager::initialize()
         {AchievementName::CoffeeMakers, {45, 45, "Brew Faction", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::SeparateGeometry, {46, 46, "Geological Warfare", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::GibEnemy, {47, 47, "Messy!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::RunOver, {47, 47, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -321,6 +323,25 @@ void AchievementManager::grant_achievement(AchievementName achievement, int coun
     }
 }
 
+void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filename, const std::string& tc_mod,
+                                  const std::string& script_name, const std::string& class_name,
+                                  int damage_type, int likely_weapon)
+{
+    LoggedKill new_kill;
+    new_kill.entity_uid = entity_uid;
+    new_kill.rfl_filename = rfl_filename;
+    new_kill.tc_mod = tc_mod;
+    new_kill.script_name = script_name;
+    new_kill.class_name = class_name;
+    new_kill.damage_type = damage_type;
+    new_kill.likely_weapon = likely_weapon;
+
+    logged_kills.push_back(new_kill);
+
+    xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, script={}, class={}, damage_type={}, likely_weapon={}",
+               entity_uid, rfl_filename, tc_mod, script_name, class_name, damage_type, likely_weapon);
+}
+
 void AchievementManager::show_notification(Achievement& achievement)
 {
     achievement.notified = true;
@@ -348,6 +369,28 @@ void grant_achievement_sp(AchievementName achievement, int count) {
     if (!rf::is_multi) {
         grant_achievement(achievement, count);
     }
+}
+
+void log_kill(int entity_uid, const std::string& script_name, const std::string& class_name, int damage_type, int likely_weapon) {
+    if (!achievement_system_initialized) {
+        return;
+    }
+
+    // Check if the entity UID is already logged
+    if (already_logged_kill_uids.contains(entity_uid)) {
+        return;
+    }
+
+    already_logged_kill_uids.insert(entity_uid);
+
+    AchievementManager::get_instance().log_kill(entity_uid, rf::level.filename,
+        rf::mod_param.get_arg(), script_name, class_name, damage_type, likely_weapon);
+}
+
+void clear_logged_kills()
+{
+    already_logged_kill_uids.clear();
+    xlog::warn("Cleared logged kill UIDs for new level.");
 }
 
 void initialize_achievement_manager() {
@@ -634,8 +677,9 @@ void achievement_check_entity_death(rf::Entity* entity) {
         rf::String entity_script_name = entity->name;
         rf::String entity_class_name = entity->info->name;
         rf::String rfl_filename = rf::level.filename;
+        bool killed_by_player = rf::local_player_entity ? entity->killer_handle == rf::local_player_entity->handle : false;
 
-        xlog::warn("entity died {}, {}, {}, {}", entity_uid, entity_script_name, entity_class_name, rfl_filename);
+        xlog::warn("entity died {}, {}, {}, {}, killer {}", entity_uid, entity_script_name, entity_class_name, rfl_filename, killed_by_player);
 
         // special handling since this entity is created by code and has no reliable UID
         if (entity_script_name == "masako_endgame") {
@@ -681,8 +725,22 @@ void achievement_check_entity_death(rf::Entity* entity) {
     }
 }
 
-void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type) {
+void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type, int killer_handle) {
     if (!entity) {
+        return;
+    }
+
+    rf::Entity* killer_entity = rf::entity_from_handle(killer_handle);
+
+    if (!killer_entity) {
+        return;
+    }
+
+    if (!rf::entity_is_local_player_or_player_attached(killer_entity)) {
+        return;
+    }
+
+    if (rf::entity_is_dying(entity)) {
         return;
     }
 
@@ -696,10 +754,9 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
     rf::String rfl_filename = rf::level.filename;
     int weapon = rf::local_player_entity->ai.current_primary_weapon;
     float distance = rf::local_player_entity->pos.distance_to(entity->pos);
-    bool gibbed = (entity->entity_flags & 0x80) != 0; // maybe not needed
 
-    xlog::warn("player killed {} with weapon {}, damage {}, damage type {}, dist {}, gibbed? {}",
-            entity_script_name, weapon, lethal_damage, lethal_damage_type, distance, gibbed);
+    xlog::warn("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
+            entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
 
     if (distance >= 100.0f) {
         grant_achievement_sp(AchievementName::FarKill); // kill from 100m or more
@@ -707,7 +764,7 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
 
     // weapon IDs could change in mods
     if (!rf::mod_param.found()) {
-        
+        // kill report goes here?
     }
 }
 
@@ -753,11 +810,33 @@ CodeInjection clutter_use_achievement_patch{
         rf::Clutter* clutter = regs.esi;
         if (clutter) {
             if (clutter->info->cls_name == "coffeemaker") {
-                grant_achievement_sp(AchievementName::CoffeeMakers);
+                grant_achievement_sp(AchievementName::CoffeeMakers); // 5 coffee makers
             }
-            xlog::warn("used clutter uid {}, script name {}, class name {}", clutter->uid, clutter->name, clutter->info->cls_name);
         }
-        //grant_achievement_sp(AchievementName::DropCorpse); // drop a corpse
+    },
+};
+
+CodeInjection entity_crush_entity_achievement_patch{
+    0x0041A07A,
+    [](auto& regs) {
+        rf::Entity* entity = regs.esi;
+        rf::Entity* hit_entity = regs.edi;
+        if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
+            //grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
+            log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
+        }
+    },
+};
+
+CodeInjection entity_crush_entity_achievement_patch2{
+    0x0041A0EF,
+    [](auto& regs) {
+        rf::Entity* entity = regs.esi;
+        rf::Entity* hit_entity = regs.edi;
+        if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
+            //grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
+            log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
+        }
     },
 };
 
@@ -965,6 +1044,8 @@ void achievements_apply_patch()
     player_attach_to_security_camera_achievement_patch.install();
     separated_solids_achievement_patch.install();
     clutter_use_achievement_patch.install();
+    entity_crush_entity_achievement_patch.install();
+    entity_crush_entity_achievement_patch2.install();
     bomb_defuse_achievement_patch.install();
     player_handle_use_vehicle_achievement_patch.install();
     entity_update_water_status_achievement_patch.install();

@@ -212,6 +212,10 @@ FunHook<void(bool)> level_init_post_hook{
                 start_pre_match();
             }
         }
+
+        if (!rf::is_multi) {
+            clear_logged_kills(); // used for achievement system
+        }
     },
 };
 

@@ -1052,11 +1052,9 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
         
         if (is_achievement_system_initialized() &&
             !rf::is_multi &&
-            damaged_ep->life <= 0.0f &&
-            killer_player &&
-            killer_player == rf::local_player
+            damaged_ep->life <= 0.0f
             ) {
-            achievement_player_killed_entity(damaged_ep, real_damage, damage_type);
+            achievement_player_killed_entity(damaged_ep, real_damage, damage_type, killer_handle);
         }
 
         return real_damage;

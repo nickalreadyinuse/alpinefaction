@@ -412,6 +412,8 @@ namespace rf
         const Matrix3& orient, int create_flags, int mp_character)>(0x00422360);
     static auto& entity_is_dying = addr_as_ref<bool(Entity *ep)>(0x00427020);
     static auto& entity_in_vehicle = addr_as_ref<bool(Entity *ep)>(0x004290D0);
+    static auto& entity_is_vehicle = addr_as_ref<bool(Entity* ep)>(0x00429990);
+    static auto& entity_is_local_player_or_player_attached = addr_as_ref<bool(Entity* ep)>(0x0042A910);
     static auto& entity_is_jeep_driver = addr_as_ref<bool(Entity *ep)>(0x0042AC80);
     static auto& entity_is_jeep_gunner = addr_as_ref<bool(Entity *ep)>(0x0042ACD0);
     static auto& entity_is_local_player = addr_as_ref<bool(Entity* ep)>(0x0042A8E0);
