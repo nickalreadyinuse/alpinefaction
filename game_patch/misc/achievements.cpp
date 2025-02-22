@@ -816,6 +816,7 @@ CodeInjection clutter_use_achievement_patch{
     },
 };
 
+// collision with entity with mass < 30
 CodeInjection entity_crush_entity_achievement_patch{
     0x0041A07A,
     [](auto& regs) {
@@ -828,6 +829,7 @@ CodeInjection entity_crush_entity_achievement_patch{
     },
 };
 
+// collision with high mass entity
 CodeInjection entity_crush_entity_achievement_patch2{
     0x0041A0EF,
     [](auto& regs) {
