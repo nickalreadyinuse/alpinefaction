@@ -115,6 +115,8 @@ struct GameConfig
     CfgVar<bool> world_hud_overdraw = true;
     CfgVar<bool> world_hud_big_text = false;
     CfgVar<bool> world_hud_damage_numbers = true;
+    CfgVar<bool> world_hud_spectate_player_labels = true;
+    CfgVar<bool> world_hud_team_player_labels = true;
     CfgVar<bool> play_hit_sounds = true;
     CfgVar<bool> play_taunt_sounds = true;
 

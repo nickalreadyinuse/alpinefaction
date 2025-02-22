@@ -26,9 +26,9 @@ Version 1.1.0 (Tamarack): Not yet released
 - Make endgame voting text prompt more appropriate
 - Make `vote rand` the same as `vote next` if `$Dynamic Rotation` is on (avoids repeats)
 - Add framework for world HUD sprite rendering
-- Add `cl_worldhudoverdraw` command for toggling objective world HUD sprites drawing through the world
+- Add `cl_wh_overdraw` command for toggling objective world HUD sprites drawing through the world
 - Add world HUD icons for CTF flags
-- Add `cl_worldhudctf` command for toggling world HUD icons for CTF flags
+- Add `cl_wh_ctf` command for toggling world HUD icons for CTF flags
 - Add support for loading packfiles from `user_maps\projects` (intended for WIP projects)
 - Make `Ready for match` action bind toggle ready status
 - Deprecate `/unready` chat command
@@ -42,7 +42,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Optimize spawn point selection methods and resolve niche logic issues
 - Add world HUD icons for multiplayer respawn points
 - Draw multiplayer respawn point world HUD icons in pre-match
-- Add `dbg_worldhudmpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
+- Add `dbg_wh_mpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
 - Add compatibility table (lightmap clamp floor) for `dm-SpecialForces.rfl`
 - Add framework for chat menus
 - Add action binds for `Radio message menu`, `Taunt menu`, and `Command menu`
@@ -68,9 +68,9 @@ Version 1.1.0 (Tamarack): Not yet released
 - Deprecate `(AF)` prefix on Alpine-specific action names
 - Change behaviour of `cl_screenshake` to only disable screenshake from weapon fire
 - Add hit indicator numbers
-- Add `cl_worldhudbigtext` command to control the size of location ping and damage indicator text
+- Add `cl_wh_bigtext` command to control the size of location ping and damage indicator text
 - Add `cl_hitsounds` command to toggle local playing of Alpine Faction hit sounds
-- Add `cl_worldhudhitnumbers` command to toggle drawing of Alpine Faction hit number indicators
+- Add `cl_wh_hitnumbers` command to toggle drawing of Alpine Faction hit number indicators
 - Deprecate legacy hitsounds method in favour of new damage notification method using new packet
 - Add compatibility for legacy clients (send normal sound packet for hitsounds)
 - Add `$Damage Notifications` dedicated server config option and `+Legacy Client Compatibility` setting
@@ -82,6 +82,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Support built-in RF taunts in Alpine Faction taunt menu (always included in game files but unused)
 - Add `mp_taunts` command to disable audio taunts
 - Default gore level to 2 unless otherwise set in `alpine_settings.ini`
+- Add `cl_wh_teamplayerlabels` command to toggle display of teammate player labels
+- Add `cl_wh_spectateplayerlabels` command to toggle display of player labels in spectate mode
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

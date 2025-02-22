@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include "hud_internal.h"
 #include "hud_world.h"
+#include "multi_spectate.h"
 #include "../object/event_alpine.h"
 #include "../multi/server.h"
 #include "../sound/sound.h"
@@ -215,6 +216,44 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
     }
 }
 
+void build_player_labels() {
+    bool is_spectating = multi_spectate_is_spectating();
+    bool show_all = is_spectating && g_game_config.world_hud_spectate_player_labels;
+    bool is_team_mode = rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM;
+    bool show_teammates = g_game_config.world_hud_team_player_labels && is_team_mode && !is_spectating;
+
+    int font = !g_game_config.world_hud_big_text;
+    auto player_list = SinglyLinkedList{rf::player_list};
+
+    for (auto& player : player_list) {
+        rf::Entity* player_entity = rf::entity_from_handle(player.entity_handle);
+
+        if (!player_entity) {
+            continue; // not spawned
+        }
+
+        if (player_entity == rf::local_player_entity) {
+            continue; // myself
+        }
+
+        // Determine if this player's label should be shown
+        if (!(show_all || (show_teammates && player.team == rf::local_player->team))) {
+            continue; // Don't show non-teammates if not spectating
+        }
+
+        rf::Vector3 string_pos = player_entity->pos;
+        string_pos.y += 0.85f;
+        std::string label = player.name;
+
+        // determine label width
+        int text_width = 0, text_height = 0;
+        rf::gr::gr_get_string_size(&text_width, &text_height, label.c_str(), label.size(), font);
+        int half_text_width = text_width / 2;
+
+        render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, -25, font, 200, 200, 200, 223);
+    }
+}
+
 void build_ephemeral_world_hud_sprite_icons() {
     std::erase_if(ephemeral_world_hud_sprites, [](const EphemeralWorldHUDSprite& es) {
         return !es.timestamp.valid() || es.timestamp.elapsed();
@@ -295,6 +334,12 @@ void hud_world_do_frame() {
     if (!ephemeral_world_hud_strings.empty()) {
         build_ephemeral_world_hud_strings();
     }
+    if (rf::is_multi &&
+    ((multi_spectate_is_spectating() && g_game_config.world_hud_spectate_player_labels) ||
+    (!multi_spectate_is_spectating() && g_game_config.world_hud_team_player_labels && rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM))) {
+    build_player_labels();
+}
+
 }
 
 void populate_world_hud_sprite_events()
@@ -362,51 +407,73 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_
 }
 
 ConsoleCommand2 worldhudctf_cmd{
-    "cl_worldhudctf",
+    "cl_wh_ctf",
     []() {
         g_game_config.world_hud_ctf = !g_game_config.world_hud_ctf;
         g_game_config.save();
         rf::console::print("CTF world HUD is {}", g_game_config.world_hud_ctf ? "enabled" : "disabled");
     },
     "Toggle drawing of world HUD indicators for CTF flags",
-    "cl_worldhudctf",
+    "cl_wh_ctf",
 };
 
 ConsoleCommand2 worldhudoverdraw_cmd{
-    "cl_worldhudoverdraw",
+    "cl_wh_objoverdraw",
     []() {
         g_game_config.world_hud_overdraw = !g_game_config.world_hud_overdraw;
         g_game_config.save();
         rf::console::print("World HUD overdraw is {}", g_game_config.world_hud_overdraw ? "enabled" : "disabled");
     },
     "Toggle whether world HUD indicators for objectives are drawn on top of everything else",
-    "cl_worldhudoverdraw",
+    "cl_wh_objoverdraw",
 };
 
 ConsoleCommand2 worldhudbigtext_cmd{
-    "cl_worldhudbigtext",
+    "cl_wh_bigtext",
     []() {
         g_game_config.world_hud_big_text = !g_game_config.world_hud_big_text;
         g_game_config.save();
         rf::console::print("World HUD big text is {}", g_game_config.world_hud_big_text ? "enabled" : "disabled");
     },
     "Toggle whether world HUD text labels use big or standard text",
-    "cl_worldhudbigtext",
+    "cl_wh_bigtext",
 };
 
 ConsoleCommand2 worldhuddamagenumbers_cmd{
-    "cl_worldhudhitnumbers",
+    "cl_wh_hitnumbers",
     []() {
         g_game_config.world_hud_damage_numbers = !g_game_config.world_hud_damage_numbers;
         g_game_config.save();
         rf::console::print("World HUD damage indicator numbers are {}", g_game_config.world_hud_damage_numbers ? "enabled" : "disabled");
     },
     "Toggle whether to display numeric damage indicators when you hit players in multiplayer (if enabled by an Alpine Faction server)",
-    "cl_worldhudhitnumbers",
+    "cl_wh_hitnumbers",
+};
+
+ConsoleCommand2 worldhudspectateplayerlabels_cmd{
+    "cl_wh_spectateplayerlabels",
+    []() {
+        g_game_config.world_hud_spectate_player_labels = !g_game_config.world_hud_spectate_player_labels;
+        g_game_config.save();
+        rf::console::print("World HUD spectate mode player labels are {}", g_game_config.world_hud_spectate_player_labels ? "enabled" : "disabled");
+    },
+    "Toggle whether to display player name labels in spectate mode",
+    "cl_wh_spectateplayerlabels",
+};
+
+ConsoleCommand2 worldhudteamplayerlabels_cmd{
+    "cl_wh_teamplayerlabels",
+    []() {
+        g_game_config.world_hud_team_player_labels = !g_game_config.world_hud_team_player_labels;
+        g_game_config.save();
+        rf::console::print("World HUD team player labels are {}", g_game_config.world_hud_team_player_labels ? "enabled" : "disabled");
+    },
+    "Toggle whether to display player name labels for your teammates",
+    "cl_wh_teamplayerlabels",
 };
 
 ConsoleCommand2 worldhudmpspawns_cmd{
-    "dbg_worldhudmpspawns",
+    "dbg_wh_mpspawns",
     []() {
         draw_mp_spawn_world_hud = !draw_mp_spawn_world_hud;
 
@@ -417,7 +484,7 @@ ConsoleCommand2 worldhudmpspawns_cmd{
         }
     },
     "Toggle whether world HUD indicators for multiplayer respawn points are drawn",
-    "dbg_worldhudmpspawns",
+    "dbg_wh_mpspawns",
 };
 
 void hud_world_apply_patch()
@@ -427,5 +494,7 @@ void hud_world_apply_patch()
     worldhudoverdraw_cmd.register_cmd();
     worldhudbigtext_cmd.register_cmd();
     worldhuddamagenumbers_cmd.register_cmd();
+    worldhudspectateplayerlabels_cmd.register_cmd();
+    worldhudteamplayerlabels_cmd.register_cmd();
     worldhudmpspawns_cmd.register_cmd();
 }
