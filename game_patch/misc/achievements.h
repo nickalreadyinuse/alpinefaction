@@ -54,7 +54,12 @@ enum class AchievementName : int
     CoffeeMakers,
     SeparateGeometry,
     GibEnemy,
-    RunOver
+    RunOver,
+    SaveBarracksMiner,
+    SaveMinesMiner,
+    MedLabStealth,
+    AdminStealth,
+    AdminMinerBerserk
 };
 
 enum class AchievementType : int
@@ -99,9 +104,7 @@ struct LoggedKill
 
 struct AchievementStateInfo
 {
-    bool began_campaign_at_start = false;
-    bool difficulty_unchanged_throughout_campaign = false;
-
+    bool unsure_what_for = false;
 };
 
 class AchievementManager

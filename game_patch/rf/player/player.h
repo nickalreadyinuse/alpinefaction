@@ -182,6 +182,8 @@ namespace rf
     static auto& local_player = addr_as_ref<Player*>(0x007C75D4);
 
     static auto& player_from_entity_handle = addr_as_ref<Player*(int entity_handle)>(0x004A3740);
+    static auto& player_is_undercover = addr_as_ref<bool()>(0x004B0580);
+    static auto& player_undercover_alarm_is_on = addr_as_ref<bool()>(0x004B05F0);
     static auto& player_is_dead = addr_as_ref<bool(Player *player)>(0x004A4920);
     static auto& player_is_dying = addr_as_ref<bool(Player *player)>(0x004A4940);
     static auto& player_add_score = addr_as_ref<void(Player *player, int delta)>(0x004A7460);

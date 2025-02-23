@@ -9,6 +9,7 @@
 #include "../rf/os/console.h"
 #include "../rf/trigger.h"
 #include "../rf/clutter.h"
+#include "../rf/gameseq.h"
 #include "../rf/entity.h"
 #include "../rf/level.h"
 #include "../rf/event.h"
@@ -49,7 +50,7 @@ void AchievementManager::initialize()
         {AchievementName::FinishCampaignHard, {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FinishCampaignImp, {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::KillFish, {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::HearEos, {9, 9, "Welcome", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::HearEos, {9, 9, "Our time has come!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::LockedInTram, {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::MissShuttle, {11, 11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::Ventilation, {12, 12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
@@ -86,9 +87,14 @@ void AchievementManager::initialize()
         {AchievementName::FastBomb, {43, 43, "Red Wire Redemption", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FarKill, {44, 44, "Martian Marksman", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::CoffeeMakers, {45, 45, "Brew Faction", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::SeparateGeometry, {46, 46, "Geological Warfare", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::GibEnemy, {47, 47, "Messy!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::RunOver, {47, 47, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::SeparateGeometry, {46, 46, "Geological Warfare", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::GibEnemy, {47, 47, "Messy!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::RunOver, {48, 48, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::SaveBarracksMiner, {49, 49, "Prison Break", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::SaveMinesMiner, {50, 50, "Who put that there?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::MedLabStealth, {51, 51, "Trust me, I'm a doctor.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::AdminStealth, {52, 52, "Boardroom Bounty", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::AdminMinerBerserk, {53, 53, "Here, hold this.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -583,6 +589,13 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
+            case 5658: {
+                if (string_equals_ignore_case(rfl_filename, "l2s2a.rfl")) {
+                    grant_achievement(AchievementName::SaveBarracksMiner); // barracks miner prison
+                }
+                break;
+            }
+
             default:
                 break;
         }
@@ -638,7 +651,7 @@ void achievement_check_event(rf::Event* event) {
                 break;
             }
 
-            case 9449: {
+            case 9499: {
                 if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
                     grant_achievement(AchievementName::HearEos); // first eos message
                 }
@@ -655,6 +668,20 @@ void achievement_check_event(rf::Event* event) {
             case 4407: {
                 if (string_equals_ignore_case(rfl_filename, "l5s2.rfl")) {
                     grant_achievement(AchievementName::DestroyPumpStations); // when pump stations dead geothermal
+                }
+                break;
+            }
+
+            case 9729: {
+                if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
+                    grant_achievement(AchievementName::SaveMinesMiner); // save mines miner
+                }
+                break;
+            }
+
+            case 9370: {
+                if (string_equals_ignore_case(rfl_filename, "l8s2.rfl")) {
+                    grant_achievement(AchievementName::MedLabStealth); // finished med labs doctor mission
                 }
                 break;
             }
@@ -800,6 +827,18 @@ CodeInjection separated_solids_achievement_patch{
     0x004666A0,
     []() {
         grant_achievement_sp(AchievementName::SeparateGeometry);
+    },
+};
+
+CodeInjection ai_go_berserk_achievement_patch{
+    0x00408269,
+    [](auto& regs) {
+        rf::AiInfo* aip = regs.esi;
+
+        if (aip) {
+            if (aip->ep->uid == 4707 && string_equals_ignore_case(rf::level.filename, "l5s4.rfl"))
+            grant_achievement_sp(AchievementName::AdminMinerBerserk); // c4 miner admin
+        }
     },
 };
 
@@ -952,6 +991,15 @@ CodeInjection event_activate_links_achievement_patch{
                     break;
                 }
 
+                case 6938: {
+                    if (string_equals_ignore_case(rfl_filename, "L6S3.rfl") &&
+                        rf::player_is_undercover() &&
+                        !rf::player_undercover_alarm_is_on()) {
+                        grant_achievement(AchievementName::AdminStealth); // admin stealth finish
+                    }
+                    break;
+                }
+
                 default:
                     break;
             }
@@ -1045,6 +1093,7 @@ void achievements_apply_patch()
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
     separated_solids_achievement_patch.install();
+    ai_go_berserk_achievement_patch.install();
     clutter_use_achievement_patch.install();
     entity_crush_entity_achievement_patch.install();
     entity_crush_entity_achievement_patch2.install();
