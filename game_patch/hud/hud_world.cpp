@@ -209,7 +209,8 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
         {
             int screen_x = static_cast<int>(dest.sx) + offset_x;
             int screen_y = static_cast<int>(dest.sy) + offset_y;
-            auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::text_3d_mode;
+            // text_3d_mode and text_2d_mode both have issues with fog
+            auto render_mode = rf::level.distance_fog_far_clip == 0.0f ? rf::gr::text_2d_mode : rf::gr::bitmap_3d_mode;
             rf::gr::set_color(r, g, b, a);
             rf::gr::string(screen_x, screen_y, text.c_str(), font, render_mode);
         }
@@ -451,14 +452,14 @@ ConsoleCommand2 worldhuddamagenumbers_cmd{
 };
 
 ConsoleCommand2 worldhudspectateplayerlabels_cmd{
-    "cl_wh_spectateplayerlabels",
+    "spectate_playerlabels",
     []() {
         g_game_config.world_hud_spectate_player_labels = !g_game_config.world_hud_spectate_player_labels;
         g_game_config.save();
         rf::console::print("World HUD spectate mode player labels are {}", g_game_config.world_hud_spectate_player_labels ? "enabled" : "disabled");
     },
     "Toggle whether to display player name labels in spectate mode",
-    "cl_wh_spectateplayerlabels",
+    "spectate_playerlabels",
 };
 
 ConsoleCommand2 worldhudteamplayerlabels_cmd{
