@@ -45,12 +45,12 @@ void AchievementManager::initialize()
         {AchievementName::SecretFusion, {1, 1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::StartTraining, {2, 2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FinishTraining, {3, 3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FinishCampaignEasy, {4, 4, "Too easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::FinishCampaignEasy, {4, 4, "Too Easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FinishCampaignMedium, {5, 5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FinishCampaignHard, {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FinishCampaignImp, {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::KillFish, {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillGuards, {9, 9, "Our time has come!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::KillGuards, {9, 9, "Target Practice", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::LockedInTram, {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::MissShuttle, {11, 11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::Ventilation, {12, 12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
@@ -75,7 +75,7 @@ void AchievementManager::initialize()
         {AchievementName::EnterAesir, {31, 31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::EnterSub, {32, 32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::EnterAPC, {33, 33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::EnterJeep, {34, 34, "We don't need roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::EnterJeep, {34, 34, "We Don't Need Roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::EnterDriller, {35, 35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::SecretSub, {36, 36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::AdminFountain, {37, 37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
@@ -89,7 +89,7 @@ void AchievementManager::initialize()
         {AchievementName::CoffeeMakers, {45, 45, "Brew Faction", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::SeparateGeometry, {46, 46, "Geological Warfare", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::GibEnemy, {47, 47, "Messy!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::RunOver, {48, 48, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::RunOver, {48, 48, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::SaveBarracksMiner, {49, 49, "Prison Break", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::SaveMinesMiner, {50, 50, "Who put that there?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::MedLabStealth, {51, 51, "Trust me, I'm a doctor.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
@@ -316,18 +316,37 @@ void AchievementManager::grant_achievement(AchievementName achievement, int coun
         return; // Achievement doesn't exist
     }
 
-    if (it->second.type == AchievementType::basic) {
-        // If we haven't been notified, do that
-        // ff_auth achievements notify based on response from FF
-        if (!it->second.notified) {
-            show_notification(it->second);
+    if (rf::mod_param.found()) {
+        auto mod_name = rf::mod_param.get_arg();
+
+        switch (it->second.category) {
+            case AchievementCategory::base_campaign:
+                // Only allow base campaign achievements if no mod is loaded
+                return;
+
+            case AchievementCategory::kava:
+                // Only allow Kava achievements if Kava mod is loaded
+                if (!string_equals_ignore_case(mod_name, "Kava")) {
+                    return;
+                }
+                break;
+
+            default:
+                break; // no restriction
         }
     }
 
-    // If we haven't unlocked this on FF yet, increment the pending count
+
+    // Show notification now for basic achievements, ff_auth achievements notify based on response from FF
+    if (it->second.type == AchievementType::basic && !it->second.notified) {
+        show_notification(it->second);
+    }
+
+    // Increment pending count if the achievement is not already unlocked from FF
     if (!it->second.unlocked) {
         it->second.pending_count += count;
-        xlog::warn("incrementing {} by {}. Pending count now {}", it->second.facet_uid, count, it->second.pending_count);
+        xlog::warn("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}",
+            it->second.name, it->second.root_uid, count, it->second.pending_count);
     }
 }
 
