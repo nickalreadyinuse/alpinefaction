@@ -97,7 +97,7 @@ If you have another official distribution, Alpine Faction will attempt to apply 
 
 If you are somehow using an unsupported game executable, the installer and launcher will prompt you to obtain the correct one when you try to launch the game.
 
-In order to fully support current features and enable future expansion, Alpine Faction uses its own unique file for storing player settings - `alpine_settings.ini`
+In order to fully support current features and enable future expansion, Alpine Faction uses its own unique file for storing player settings (`alpine_settings.ini`)
 
 When you first launch Alpine, if you have a legacy player settings file (`players.cfg`) from any other Red Faction client, Alpine Faction will import those settings for you automatically.
 
