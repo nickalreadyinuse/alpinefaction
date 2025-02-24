@@ -50,7 +50,7 @@ void AchievementManager::initialize()
         {AchievementName::FinishCampaignHard, {6, 6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FinishCampaignImp, {7, 7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::KillFish, {8, 8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::HearEos, {9, 9, "Our time has come!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::KillGuards, {9, 9, "Our time has come!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::LockedInTram, {10, 10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::MissShuttle, {11, 11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::Ventilation, {12, 12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
@@ -95,6 +95,8 @@ void AchievementManager::initialize()
         {AchievementName::MedLabStealth, {51, 51, "Trust me, I'm a doctor.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::AdminStealth, {52, 52, "Boardroom Bounty", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::AdminMinerBerserk, {53, 53, "Here, hold this.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::KillDavis, {54, 54, "While I'm here...", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::KillCivilians, {55, 55, "Undercover Undertaker", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -456,6 +458,28 @@ void draw_achievement_box() {
     draw_achievement_box_content(x, y);
 }
 
+bool are_any_objects_alive(std::initializer_list<int> uids) {
+    for (int uid : uids) {
+        rf::Object* obj = rf::obj_lookup_from_uid(uid);
+        if (obj) {
+            if (obj->type == rf::OT_ENTITY) {
+                auto entity = static_cast<rf::Entity*>(obj);
+                if (entity->life > 0) {
+                    xlog::warn("still alive: {}", obj->uid);
+                    return true;
+                }
+            }
+            else if (obj->type == rf::OT_CORPSE) {
+            }
+            else {
+                xlog::warn("still an object: {}", obj->uid);
+                return true;
+            }
+        }
+    }
+    return false; // All objects are dead
+}
+
 // called in main rf_do_frame
 // runs independent of gamestate
 void achievement_system_do_frame() {
@@ -651,13 +675,6 @@ void achievement_check_event(rf::Event* event) {
                 break;
             }
 
-            case 9499: {
-                if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
-                    grant_achievement(AchievementName::HearEos); // first eos message
-                }
-                break;
-            }
-
             case 10367: {
                 if (string_equals_ignore_case(rfl_filename, "l8s4.rfl")) {
                     grant_achievement(AchievementName::MeetCapek); // meet capek
@@ -709,22 +726,12 @@ void achievement_check_entity_death(rf::Entity* entity) {
         xlog::warn("entity died {}, {}, {}, {}, killer {}", entity_uid, entity_script_name, entity_class_name, rfl_filename, killed_by_player);
 
         // special handling since this entity is created by code and has no reliable UID
-        if (entity_script_name == "masako_endgame") {
+        if (string_equals_ignore_case(rfl_filename, "l20s2.rfl") && entity_script_name == "masako_endgame") {
             grant_achievement(AchievementName::KillMasako); // kill masako
             return;
         }
     
         switch (entity_uid) {
-            case 9146:
-            case 9147:
-            case 7338:
-            case 9142: {
-                if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
-                    grant_achievement(AchievementName::KillFish); // kill a fish
-                }
-                break;
-            }
-
             case 7007: {
                 if (string_equals_ignore_case(rfl_filename, "l10s4.rfl")) {
                     grant_achievement(AchievementName::KillSnake); // kill big snake
@@ -746,9 +753,81 @@ void achievement_check_entity_death(rf::Entity* entity) {
                 break;
             }
 
+            case 3828: {
+                if (string_equals_ignore_case(rfl_filename, "l6s3.rfl")) {
+                    grant_achievement(AchievementName::KillDavis); // kill davis
+                }
+                break;
+            }
+
             default:
                 break;
         }
+
+        if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
+            static const std::initializer_list<int> all_fish_uids = {9142, 9146, 9147, 9338};
+
+            if (!are_any_objects_alive(all_fish_uids)) {
+                grant_achievement(AchievementName::KillFish);
+            }
+        }
+
+        if (string_equals_ignore_case(rfl_filename, "l2s2a.rfl")) {
+            static const std::initializer_list<int> all_guard_uids = {
+                8384, 8385, 8393, 8386, 8394, 8395, 8377, 8378, 8327, 8326, 8388, 8382, 8383, 8390
+            };
+
+            if (!are_any_objects_alive(all_guard_uids)) {
+                grant_achievement(AchievementName::KillGuards);
+            }
+        }
+
+
+        if (string_equals_ignore_case(rfl_filename, "l6s1.rfl")) {
+            static const std::initializer_list<int> all_civilian_uids = {
+                4563, 4564, 4570, 4803, 4838, 5137, 5226, 4555, 4562, 4565, 4804, 4839, 4964, 5138, 5134, 4556
+            };
+
+            if (!are_any_objects_alive(all_civilian_uids) && rf::player_is_undercover() && !rf::player_undercover_alarm_is_on()) {
+                grant_achievement(AchievementName::KillCivilians);
+            }
+        }
+    }
+}
+
+// handler for achivements awarded by clutter dying
+void achievement_check_clutter_death(rf::Clutter* clutter) {
+    if (!clutter) {
+        return;
+    }
+
+    // single player
+    if (!rf::is_multi) {
+        int clutter_uid = clutter->uid;
+        rf::String entity_script_name = clutter->name;
+        rf::String entity_class_name = clutter->info->cls_name;
+        rf::String rfl_filename = rf::level.filename;
+
+        xlog::warn("clutter died {}, {}, {}, {}", clutter_uid, entity_script_name, entity_class_name, rfl_filename);
+
+        /* if (string_equals_ignore_case(rfl_filename, "l6s1.rfl")) {
+            switch (clutter_uid) {
+                case 4638:
+                case 4722:
+                case 4735:
+                case 4754:
+                case 4818:
+                case 4962:
+                case 4615: {
+                    if (!are_any_objects_alive({4638, 4722, 4735, 4754, 4818, 4962, 4615})) {
+                        grant_achievement(AchievementName::NoTime);
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }*/
     }
 }
 
@@ -861,10 +940,10 @@ CodeInjection entity_crush_entity_achievement_patch{
     [](auto& regs) {
         rf::Entity* entity = regs.esi;
         rf::Entity* hit_entity = regs.edi;
-        if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
-            //grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
-            log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
-        }
+        //if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
+            grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
+            //log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
+        //}
     },
 };
 
@@ -874,10 +953,10 @@ CodeInjection entity_crush_entity_achievement_patch2{
     [](auto& regs) {
         rf::Entity* entity = regs.esi;
         rf::Entity* hit_entity = regs.edi;
-        if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
-            //grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
-            log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
-        }
+        //if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
+            grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
+            //log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
+        //}
     },
 };
 

@@ -15,7 +15,6 @@ enum class AchievementName : int
     FinishCampaignHard,
     FinishCampaignImp,
     KillFish,
-    HearEos,
     LockedInTram,
     MissShuttle,
     Ventilation,
@@ -59,7 +58,10 @@ enum class AchievementName : int
     SaveMinesMiner,
     MedLabStealth,
     AdminStealth,
-    AdminMinerBerserk
+    AdminMinerBerserk,
+    KillDavis,
+    KillCivilians,
+    KillGuards
 };
 
 enum class AchievementType : int
@@ -152,6 +154,7 @@ void log_kill(int entity_uid, const std::string& script_name, const std::string&
 void achievement_check_trigger(rf::Trigger* trigger);
 void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);
+//void achievement_check_clutter_death(rf::Clutter* clutter);
 void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type, int killer_handle);
 
 void achievement_system_do_frame();
