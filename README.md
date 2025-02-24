@@ -6,20 +6,19 @@ Alpine Faction website: <a href="https://alpinefaction.com">alpinefaction.com</a
 
 About
 -----
-Alpine Faction is a patch/modification for the 2001 FPS game Red Faction. While Alpine Faction is not a source port, its goals and features are similar to what you might expect from one.
+Alpine Faction is a patch/modification for the 2001 FPS game Red Faction which resolves numerous bugs in the original game while also providing a plethora of new and improved features for singleplayer, multiplayer, and level/mod development. While Alpine Faction is not a source port, its goals and features are similar to what you might expect from one.
 
 Alpine Faction is a fork of and uses Rafalh's incredible <a href="https://github.com/rafalh/dashfaction">Dash Faction</a> project as its foundation.
 
 Alpine Faction project goals:
-* Fix bugs in the original game
-* Resolve security vulnerabilites
+* Fix bugs and security vulnerabilities in the original game
 * Improve compatibility with modern hardware and operating systems
-* Modernize the Red Faction experience by adding features expected in modern games
+* Modernize the Red Faction experience by adding features typically expected in modern games
 * Enhance engine performance and graphical quality
-* Restore cut functionality from the original game
+* Restore valuable functionality that was cut from the original game
 * Empower players with extensive control over their gameplay experience
 * Offer server operators enhanced flexibility to customize their servers as desired
-* Equip level and mod designers with a robust set of tools to create awesome stuff
+* Equip level and mod designers with a robust set of tools so they can create awesome stuff
 
 Alpine Faction requires:
 * Windows 7 or newer (or you can use Wine)
@@ -31,10 +30,13 @@ Key Features
 -----
 Most important:
 * Fixes for critical security vulnerabilities
-* Multiplayer level automatic downloader (using API at https://autodl.factionfiles.com)
+* Multiplayer level auto-downloader (using API at https://autodl.factionfiles.com)
 * Fix for infamous submarine explosion bug (and other FPS-related issues)
+* Checkpoint autosaves (at the start of each level)
+* Fully integrated in-game achievements system
+* Optional account linking with `FactionFiles.com` to support achievement tracking and in-game level rating
+* Access to `Install with Alpine Faction` on `FactionFiles.com` to streamline custom level and mod installation
 * Enemies explode into gibs when killed by explosives
-* Autosave at the start of every level
 * Player headlamp (flashlight)
 * Support for any resolution and aspect ratio
 * Fullscreen, windowed, borderless window modes
@@ -49,7 +51,11 @@ Multiplayer:
 * Increased (and configurable) tick rate
 * "GunGame" game mode
 * Competitive match framework including "ready up" system and overtime
-* Hitsounds
+* Improved gaussian distribution method for bullet spread
+* Damage feedback system including hit sounds, kill sounds, and visual damage number indicators
+* Radio messages and taunts
+* Visual indicators and nameplates in the world for objectives and teammates
+* Location pinging visible to teammates
 * Random critical hits (configurable)
 * Improved scoreboard
 * Voting system for kicking players and changing levels
@@ -67,7 +73,9 @@ Level/mod development:
 * Access for many hardcoded settings to be customized in mods
 * Support for custom HUDs and translation packs as clientside mods
 * Ability to use custom meshes in multiplayer
+* Teleporters that can be used safely without negative side effects
 * Enhanced trigger options for multiplayer
+* Fixed support for events in multiplayer (removed requirement to use hacky workarounds)
 * Full color range lightmaps (removed lightmap clamping)
 * DDS texture support
 * OGG audio support
@@ -88,6 +96,10 @@ If you have another official distribution, Alpine Faction will attempt to apply 
 * For digital distributions (Steam, GoG, etc.), the installer will patch your game executable as needed.
 
 If you are somehow using an unsupported game executable, the installer and launcher will prompt you to obtain the correct one when you try to launch the game.
+
+In order to fully support current features and enable future expansion, Alpine Faction uses its own unique file for storing player settings - `alpine_settings.ini`
+
+When you first launch Alpine, if you have a legacy player settings file (`players.cfg`) from any other Red Faction client, Alpine Faction will import those settings for you automatically.
 
 Usage
 -----
