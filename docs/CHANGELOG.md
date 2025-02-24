@@ -15,7 +15,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix incorrect information in "You are no longer ready" message
 - Fix players leaving server during pre-match not always being removed from list of ready players
 - Fix players picking up items and activating triggers while teleporting
-- Fix listen server launching whenever menu opens if game was launched with `-levelm` command line
+- Fix listen server launching whenever menu opens if game was launched with `-levelm` command line argument
 - Fix clients not knowing correct ammo counts for other clients
 
 ### New features and enhancements
@@ -84,6 +84,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Default gore level to 2 unless otherwise set in `alpine_settings.ini`
 - Add `cl_wh_teamplayerlabels` command to toggle display of teammate player labels
 - Add `spectate_playerlabels` command to toggle display of player labels in spectate mode
+- Add `-skiplegacywarning` command line argument to skip warning prompt when opening a legacy level file
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

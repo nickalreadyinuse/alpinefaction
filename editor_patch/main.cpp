@@ -39,6 +39,7 @@ constexpr size_t max_texture_name_len = 31;
 bool g_skip_wnd_set_text = false;
 
 static bool g_is_saving_af_version = true;
+static bool g_skip_legacy_level_warning = false;
 
 static const auto g_editor_app = reinterpret_cast<std::byte*>(0x006F9DA0);
 static auto& g_main_frame = addr_as_ref<std::byte*>(0x006F9E68);
@@ -589,8 +590,8 @@ CodeInjection LoadSaveLevel_patch2{
     0x0041CDAA, [](auto& regs) {
         int* version = regs.edi;
 
-        if (*version < 300) {
-            xlog::warn("patching");
+        if (*version < 300 && !g_skip_legacy_level_warning) {
+            xlog::warn("Displaying legacy level warning dialog");
             ShowLegacyLevelDialog(*version, MAXIMUM_RFL_VERSION);
         }
     }
@@ -603,10 +604,18 @@ CodeInjection disable_splash_screen_on_load_level {
         static auto& argc = addr_as_ref<int>(0x01DBF8E0);
         for (int i = 1; i < argc; ++i) {
             std::string_view arg = argv[i];
+
+            // skip legacy level warning dialog
+            if (arg == "-skiplegacywarning") {
+                g_skip_legacy_level_warning = true;
+            }
+
+            // skip past the splash screen if loading a level directly
+            // this fixes unintuitive behaviour when the splash screen and legacy level warning both show up at the same time
             if (arg == "-level") {
                 ++i;
                 if (i < argc) {
-                    regs.eip = 0x0048268E; // skip past the splash screen 
+                    regs.eip = 0x0048268E;
                 }
             }
         }
