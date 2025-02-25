@@ -61,7 +61,12 @@ enum class AchievementName : int
     AdminMinerBerserk,
     KillDavis,
     KillCivilians,
-    KillGuards
+    KillGuards,
+    FartherKill,
+    KavaSurface,
+    Kava00bSecret1,
+    Kava00bSecret2,
+    KavaAATurrets
 };
 
 enum class AchievementType : int

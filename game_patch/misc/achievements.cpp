@@ -97,6 +97,11 @@ void AchievementManager::initialize()
         {AchievementName::AdminMinerBerserk, {53, 53, "Here, hold this.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::KillDavis, {54, 54, "While I'm here...", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::KillCivilians, {55, 55, "Undercover Undertaker", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::FartherKill, {56, 56, "Martian Sharpshooter", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::KavaSurface, {57, 57, "Surface Tension", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
+        {AchievementName::Kava00bSecret1, {58, 58, "00b Secret 1", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
+        {AchievementName::Kava00bSecret2, {59, 59, "00b Secret 2", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
+        {AchievementName::KavaAATurrets, {60, 60, "Anti-Aircraft", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -562,6 +567,7 @@ void achievement_check_trigger(rf::Trigger* trigger) {
     // single player
     if (!rf::is_multi) {
         switch (trigger_uid) {
+            // base campaign
             case 6736: {
                 if (string_equals_ignore_case(rfl_filename, "l9s3.rfl")) {
                     grant_achievement(AchievementName::SecretFusion); // secret fusion
@@ -639,6 +645,28 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
+            // Kava
+            case 26156: {
+                if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+                    grant_achievement(AchievementName::KavaSurface);
+                }
+                break;
+            }
+
+            case 26161: {
+                if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+                    grant_achievement(AchievementName::Kava00bSecret1); // rover
+                }
+                break;
+            }
+
+            case 26365: {
+                if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+                    grant_achievement(AchievementName::Kava00bSecret2); // toolshed
+                }
+                break;
+            }
+
             default:
                 break;
         }
@@ -657,6 +685,7 @@ void achievement_check_event(rf::Event* event) {
     // single player
     if (!rf::is_multi) {
         switch (event_uid) {
+            // base campaign
             case 20787: {
                 if (string_equals_ignore_case(rfl_filename, "l17s2.rfl")) {
                     grant_achievement(AchievementName::ComputersSpaceStation); // computers in space station
@@ -751,6 +780,7 @@ void achievement_check_entity_death(rf::Entity* entity) {
         }
     
         switch (entity_uid) {
+            // base campaign
             case 7007: {
                 if (string_equals_ignore_case(rfl_filename, "l10s4.rfl")) {
                     grant_achievement(AchievementName::KillSnake); // kill big snake
@@ -783,6 +813,7 @@ void achievement_check_entity_death(rf::Entity* entity) {
                 break;
         }
 
+        // base campaign
         if (string_equals_ignore_case(rfl_filename, "l1s1.rfl")) {
             static const std::initializer_list<int> all_fish_uids = {9142, 9146, 9147, 9338};
 
@@ -811,6 +842,18 @@ void achievement_check_entity_death(rf::Entity* entity) {
                 grant_achievement(AchievementName::KillCivilians);
             }
         }
+
+        if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+            static const std::initializer_list<int> all_aa_turrets = {
+                21, 33469, 33481, 33493, 33505, 33517, 33529, 33541, 33553, 33565, 33577, 33589, 33601, 33613,
+                33625, 33637, 33649, 33661, 33673, 33685, 33697, 33709
+            };
+
+            if (!are_any_objects_alive(all_aa_turrets)) {
+                grant_achievement(AchievementName::KavaAATurrets);
+            }
+        }
+
     }
 }
 
@@ -885,6 +928,9 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
 
     if (distance >= 100.0f) {
         grant_achievement_sp(AchievementName::FarKill); // kill from 100m or more
+        if (distance >= 200.0f) {
+            grant_achievement_sp(AchievementName::FartherKill); // kill from 200m or more
+        }
     }
 
     // weapon IDs could change in mods
@@ -959,10 +1005,10 @@ CodeInjection entity_crush_entity_achievement_patch{
     [](auto& regs) {
         rf::Entity* entity = regs.esi;
         rf::Entity* hit_entity = regs.edi;
-        //if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
+        if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
             //log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
-        //}
+        }
     },
 };
 
@@ -972,10 +1018,10 @@ CodeInjection entity_crush_entity_achievement_patch2{
     [](auto& regs) {
         rf::Entity* entity = regs.esi;
         rf::Entity* hit_entity = regs.edi;
-        //if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
+        if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
             //log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
-        //}
+        }
     },
 };
 
