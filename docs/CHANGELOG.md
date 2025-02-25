@@ -86,6 +86,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `spectate_playerlabels` command to toggle display of player labels in spectate mode
 - Add `-skiplegacywarning` command line argument to skip warning prompt when opening a legacy level file
 - Add `$Rail Driver Scanner Color` to `af_client.tbl`
+- Add spectate mode options menu
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
