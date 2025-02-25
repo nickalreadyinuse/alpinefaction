@@ -58,6 +58,7 @@ enum class AlpineOptionID
     PlayerHeadlampIntensity,
     PlayerHeadlampRange,
     PlayerHeadlampRadius,
+    RailDriverScannerColor,
     _optioncount // dummy for total count
 };
 

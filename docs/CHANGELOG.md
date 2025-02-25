@@ -85,6 +85,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `cl_wh_teamplayerlabels` command to toggle display of teammate player labels
 - Add `spectate_playerlabels` command to toggle display of player labels in spectate mode
 - Add `-skiplegacywarning` command line argument to skip warning prompt when opening a legacy level file
+- Add `$Rail Driver Scanner Color` to `af_client.tbl`
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

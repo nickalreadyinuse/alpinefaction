@@ -173,7 +173,8 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Player Headlamp Color", {AlpineOptionID::PlayerHeadlampColor, "af_game.tbl", parse_color}},
     {"$Player Headlamp Intensity", {AlpineOptionID::PlayerHeadlampIntensity, "af_game.tbl", parse_float}},
     {"$Player Headlamp Range", {AlpineOptionID::PlayerHeadlampRange, "af_game.tbl", parse_float}},
-    {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}}
+    {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}},
+    {"$Rail Driver Scanner Color", {AlpineOptionID::RailDriverScannerColor, "af_client.tbl", parse_color}},
 };
 
 // ===== Parsers for Alpine level info =====
@@ -445,6 +446,14 @@ CallHook<void(int, int, int, int)> rail_gun_fire_flash_hook{
     }
 };
 
+CallHook<void(int, int, int, int)> rail_driver_scanner_color_hook{
+    0x004323AA, [](int red, int green, int blue, int alpha) {
+        auto rail_scope_color = get_option_value<uint32_t>(AlpineOptionID::RailDriverScannerColor);
+        std::tie(red, green, blue, alpha) = extract_color_components(rail_scope_color);
+        rail_driver_scanner_color_hook.call_target(red, green, blue, alpha);
+    }
+};
+
 // consolidated logic for handling geo mesh changes
 int handle_geomod_shape_create(const char* filename, const std::optional<std::string>& config_value,
                                CallHook<int(const char*)>& hook)
@@ -693,6 +702,10 @@ void apply_af_options_patches()
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::RailDriverFireFlashColor)) {
         rail_gun_fire_flash_hook.install();
+    }
+
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::RailDriverScannerColor)) {
+        rail_driver_scanner_color_hook.install();
     }
 
     // ===========================
