@@ -13,6 +13,7 @@
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/os/frametime.h"
+#include "../rf/os/console.h"
 #include "../misc/player.h"
 #include "../main/main.h"
 #include "../graphics/gr.h"
@@ -318,6 +319,18 @@ static const ChatMenuList command_menu{
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Who isn't ready?", "/whosready"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Print match info", "/matchinfo"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Print server info", "/info"}
+    }
+};
+
+// Spectate
+static const ChatMenuList spectate_menu{
+    .display_string = "SPECTATE MODE",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        //{false, ChatMenuListName::Null, ChatMenuListType::Basic, "Free camera", "spectate"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Follow killer", "spectate_followkiller"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Minimal UI", "spectate_minui"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Player labels", "spectate_playerlabels"},
     }
 };
 
@@ -741,6 +754,9 @@ void toggle_chat_menu(ChatMenuType type) {
             case ChatMenuType::Commands:
                 g_active_menu = &command_menu;
                 break;
+            case ChatMenuType::Spectate:
+                g_active_menu = &spectate_menu;
+                break;
             default:
                 set_chat_menu_state(ChatMenuType::None);
                 break;
@@ -817,6 +833,13 @@ void chat_menu_action_handler(rf::Key key) {
             const std::string msg = selected_element.long_string;
             if (!msg.empty()) {
                 send_chat_line_packet(msg.c_str(), nullptr);
+            }
+        }
+        else if (g_chat_menu_active == ChatMenuType::Spectate) {
+            // Spectate menu commands go directly to console
+            const std::string console_cmd = selected_element.long_string;
+            if (!console_cmd.empty()) {
+                rf::console::do_command(console_cmd.c_str());
             }
         } 
         else {

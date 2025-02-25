@@ -48,7 +48,8 @@ namespace rf
 		AF_ACTION_CHAT_MENU = 0x7,
         AF_ACTION_TAUNT_MENU = 0x8,
         AF_ACTION_COMMAND_MENU = 0x9,
-        AF_ACTION_PING_LOCATION = 0xA
+        AF_ACTION_PING_LOCATION = 0xA,
+        AF_ACTION_SPECTATE_MENU = 0xB
     };
 
     struct ControlConfigItem

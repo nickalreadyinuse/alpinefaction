@@ -3,6 +3,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
+#include "../hud/multi_spectate.h"
 #include "../hud/hud.h"
 #include "../misc/player.h"
 #include "../misc/achievements.h"
@@ -225,6 +226,8 @@ CodeInjection control_config_init_patch{
             ccp, "Command menu", 0, 0x31, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU);
         alpine_control_config_add_item(
             ccp, "Ping location", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
+        alpine_control_config_add_item(
+            ccp, "Spectate mode menu", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU);
     },
 };
 
@@ -332,6 +335,11 @@ CodeInjection player_execute_action_patch3{
                 rf::gameseq_get_state() == rf::GS_MULTI_LIMBO && !rf::is_server) {
                 multi_attempt_endgame_vote(false);
             }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU) &&
+                !rf::is_dedicated_server && multi_spectate_is_spectating()) {
+                toggle_chat_menu(ChatMenuType::Spectate);
+            }
         }
     },
 };
@@ -344,7 +352,7 @@ CodeInjection controls_process_patch{
 
         // C++ doesn't have a way to dynamically get the last enum index, so just update this when adding new controls
         if (index >= starting_alpine_control_index &&
-            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION)) {
+            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU)) {
             //xlog::warn("passing control {}", index);
             regs.eip = 0x00430E24;
         }

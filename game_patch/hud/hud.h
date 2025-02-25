@@ -7,7 +7,8 @@ enum class ChatMenuType : int
     None,
     Comms,
     Taunts,
-    Commands
+    Commands,
+    Spectate
 };
 
 void hud_apply_patches();
