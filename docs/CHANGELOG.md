@@ -87,6 +87,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `-skiplegacywarning` command line argument to skip warning prompt when opening a legacy level file
 - Add `$Rail Driver Scanner Color` to `af_client.tbl`
 - Add spectate mode options menu
+- Add `dbg_berserk` command for testing berserk entity state
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

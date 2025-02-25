@@ -237,6 +237,20 @@ ConsoleCommand2 version_cmd{
     "Display version info",
 };
 
+ConsoleCommand2 dbg_berserk_cmd{
+    "dbg_berserk",
+    []() {
+        if (!rf::is_multi) {
+            for (auto& entity : DoublyLinkedList{rf::entity_list}) {
+                if (&entity && &entity != rf::local_player_entity) {
+                    rf::ai_go_berserk(&entity.ai, 3600.0f, true);
+                }
+            }
+        }
+    },
+    "Make all entities go berserk",
+};
+
 ConsoleCommand2 server_password_cmd{
     "sv_pass",
     [](std::optional<std::string> new_password) {
@@ -519,6 +533,7 @@ void console_commands_init()
     level_info_ext_cmd.register_cmd();
     map_info_ext_cmd.register_cmd();
     version_cmd.register_cmd();
+    dbg_berserk_cmd.register_cmd();
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();
     verify_level_cmd_hook.install();
