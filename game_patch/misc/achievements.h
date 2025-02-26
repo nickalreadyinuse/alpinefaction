@@ -4,10 +4,11 @@
 #include <unordered_map>
 #include "../rf/trigger.h"
 #include "../rf/event.h"
+#include "../rf/clutter.h"
 
 enum class AchievementName : int
 {
-    SecretFusion,
+    SecretFusion = 1,
     StartTraining,
     FinishTraining,
     FinishCampaignEasy,
@@ -15,6 +16,7 @@ enum class AchievementName : int
     FinishCampaignHard,
     FinishCampaignImp,
     KillFish,
+    KillGuards,
     LockedInTram,
     MissShuttle,
     Ventilation,
@@ -60,13 +62,14 @@ enum class AchievementName : int
     AdminStealth,
     AdminMinerBerserk,
     KillDavis,
-    KillCivilians,
-    KillGuards,
+    KillCiviliansAdmin,
     FartherKill,
     KavaSurface,
     Kava00bSecret1,
     Kava00bSecret2,
-    KavaAATurrets
+    KavaAATurrets,
+    RunOverMore,
+    SecretStash
 };
 
 enum class AchievementType : int
@@ -87,7 +90,6 @@ enum class AchievementCategory : int
 
 struct Achievement
 {
-    int facet_uid = -1;
     int root_uid = -1;
     std::string name = "";
     std::string icon = ""; // af_achico_000.tga
@@ -100,11 +102,8 @@ struct Achievement
 
 struct LoggedKill
 {
-    int entity_uid = -1;
-    std::string rfl_filename = "";
-    std::string tc_mod = "";
-    std::string script_name = "";
-    std::string class_name = "";
+    int rfl_id = -1;
+    int class_name_id = -1;
     int damage_type = -1;
     int likely_weapon = -1;
 };
@@ -129,7 +128,6 @@ public:
     void send_update_to_ff();
     void sync_with_ff();
     void add_key_to_ff_update_map();
-    AchievementName find_achievement_by_facet_uid(int facet_uid);
 
     const std::unordered_map<AchievementName, Achievement>& get_achievements() const {
     return achievements;
@@ -159,7 +157,8 @@ void log_kill(int entity_uid, const std::string& script_name, const std::string&
 void achievement_check_trigger(rf::Trigger* trigger);
 void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);
-//void achievement_check_clutter_death(rf::Clutter* clutter);
+void achievement_check_clutter_death(rf::Clutter* clutter);
+void achievement_check_item_picked_up(rf::Item* item);
 void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type, int killer_handle);
 
 void achievement_system_do_frame();
