@@ -331,11 +331,11 @@ FunHook<void(rf::Entity*)> entity_on_dead_hook{
     0x00418F80,
     [](rf::Entity* ep) {
         //xlog::warn("killing entity UID {}, name {}", ep->uid, ep->name);
-        if (is_achievement_system_initialized()) {
-            achievement_check_entity_death(ep);
-        }
-
         if (!rf::is_multi) {
+            if (is_achievement_system_initialized()) {
+                achievement_check_entity_death(ep);
+            }
+
             rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, ep->handle, -1, true);
         }
 
@@ -353,7 +353,13 @@ CallHook<void(rf::Object*)> obj_flag_dead_clutter_hook{
     [](rf::Object* objp) {
         //xlog::warn("killing clutter UID {}, name {}", objp->uid, objp->name);
 
-        rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, objp->handle, -1, true);
+        rf::Clutter* cp = reinterpret_cast<rf::Clutter*>(objp);
+
+        if (!rf::is_multi && is_achievement_system_initialized() && cp) {
+            achievement_check_clutter_death(cp);
+        }
+
+        rf::activate_all_events_of_type(rf::EventType::AF_When_Dead, cp->handle, -1, true);
 
         obj_flag_dead_clutter_hook.call_target(objp);
     },
