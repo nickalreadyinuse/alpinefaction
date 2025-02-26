@@ -102,10 +102,12 @@ struct Achievement
 
 struct LoggedKill
 {
-    int rfl_id = -1;
-    int class_name_id = -1;
+    int entity_uid = -1; // not sent to ff, used to identify duplicates
+    std::string rfl_filename = "";
+    std::string tc_mod_name = "";
+    std::string entity_class_name = "";
     int damage_type = -1;
-    int likely_weapon = -1;
+    int likely_weapon_id = -1;
 };
 
 struct AchievementStateInfo
@@ -137,8 +139,13 @@ public:
         return achievements;
     }
 
+    std::vector<LoggedKill>& get_logged_kills_mutable() {
+        return logged_kills;
+    }
+
+
     void log_kill(int entity_uid, const std::string& rfl_filename, const std::string& tc_mod,
-        const std::string& script_name, const std::string& class_name, int damage_type, int likely_weapon);
+        const std::string& class_name, int damage_type, int likely_weapon);
 
 private:
     std::unordered_map<AchievementName, Achievement> achievements;
@@ -163,4 +170,3 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
 
 void achievement_system_do_frame();
 void clear_achievement_notification();
-void clear_logged_kills();

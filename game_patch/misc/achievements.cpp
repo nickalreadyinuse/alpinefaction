@@ -30,7 +30,6 @@ rf::TimestampRealtime achievement_box_timestamp;
 rf::TimestampRealtime achievement_async_ff_timer;
 int achievement_async_ff_key;
 std::string achievement_async_ff_string;
-std::unordered_set<int> already_logged_kill_uids;
 constexpr int achievement_async_ff_interval = 5000; // ms
 
 void AchievementManager::initialize()
@@ -128,7 +127,7 @@ const Achievement* AchievementManager::get_achievement(AchievementName achieveme
 void AchievementManager::process_ff_response(const std::string& response, int expected_key, bool is_initial_sync)
 {
     if (response.empty()) {
-        xlog::warn("No response from FF API. Will retry next time.");
+        xlog::warn("No response from FF API.");
         return;
     }
 
@@ -141,7 +140,12 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
 
         // If this is an update, validate the key
         if (!is_initial_sync && key_received != expected_key) {
-            xlog::warn("Response received but key mismatch. Will retry.");
+            xlog::warn("Response received but key mismatch, ignoring.");
+            return;
+        }
+
+        if (is_initial_sync && synced_with_ff) {
+            xlog::warn("Initial sync response received but already synced, ignoring.");
             return;
         }
 
@@ -180,7 +184,7 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
         }
     }
     catch (...) {
-        xlog::warn("Invalid response format from FF API: {}", response);
+        xlog::warn("Ignoring invalid response format from FF API: {}", response);
     }
 }
 
@@ -245,6 +249,7 @@ void AchievementManager::send_update_to_ff()
 
             std::string post_string =
                 "key=" + std::to_string(achievement_async_ff_key) + "," + achievement_async_ff_string;
+            xlog::warn("sending post string {}", post_string);
             request.send(post_string);
 
             char buffer[4096];
@@ -282,6 +287,30 @@ void AchievementManager::add_key_to_ff_update_map()
             first = false;
             achievement.pending_count = 0; // Reset after adding to string
         }
+    }
+
+    // Add logged kills to the update string
+    auto& logged_kills = get_logged_kills_mutable();
+    if (!logged_kills.empty()) {
+        if (!oss.str().empty()) {
+            oss << ","; // Add separator if achievements exist
+        }
+        oss << "kill=";
+
+        bool first_kill = true;
+        for (const auto& kill : logged_kills) {
+            if (!first_kill) {
+                oss << ","; // Separate each kill entry
+            }
+            oss << kill.rfl_filename << "/"
+                << kill.tc_mod_name << "/"
+                << kill.entity_class_name << "/"
+                << kill.damage_type << "/"
+                << kill.likely_weapon_id;
+            first_kill = false;
+        }
+
+        logged_kills.clear(); // Clear kills after adding to string
     }
 
     std::string update_string = oss.str();
@@ -341,24 +370,22 @@ void AchievementManager::grant_achievement(AchievementName achievement, int coun
     }
 }
 
-/* void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filename, const std::string& tc_mod,
-                                  const std::string& script_name, const std::string& class_name,
-                                  int damage_type, int likely_weapon)
+void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filename, const std::string& tc_mod,
+                                  const std::string& class_name, int damage_type, int likely_weapon)
 {
     LoggedKill new_kill;
     new_kill.entity_uid = entity_uid;
     new_kill.rfl_filename = rfl_filename;
-    new_kill.tc_mod = tc_mod;
-    new_kill.script_name = script_name;
-    new_kill.class_name = class_name;
+    new_kill.tc_mod_name = tc_mod;
+    new_kill.entity_class_name = class_name;
     new_kill.damage_type = damage_type;
-    new_kill.likely_weapon = likely_weapon;
+    new_kill.likely_weapon_id = likely_weapon;
 
     logged_kills.push_back(new_kill);
 
-    xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, script={}, class={}, damage_type={}, likely_weapon={}",
-               entity_uid, rfl_filename, tc_mod, script_name, class_name, damage_type, likely_weapon);
-}*/
+    xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}",
+               entity_uid, rfl_filename, tc_mod, class_name, damage_type, likely_weapon);
+}
 
 void AchievementManager::show_notification(Achievement& achievement)
 {
@@ -389,25 +416,26 @@ void grant_achievement_sp(AchievementName achievement, int count) {
     }
 }
 
-void log_kill(int entity_uid, const std::string& script_name, const std::string& class_name, int damage_type, int likely_weapon) {
+void log_kill(int entity_uid, const std::string& class_name, int damage_type, int likely_weapon) {
     if (!achievement_system_initialized) {
         return;
     }
 
-    // Check if the entity UID is already logged
-    if (already_logged_kill_uids.contains(entity_uid)) {
-        return;
+    // Check if the entity UID exists in logged_kills
+    auto& logged_kills = AchievementManager::get_instance().get_logged_kills_mutable();
+    auto it = std::find_if(logged_kills.begin(), logged_kills.end(),
+        [entity_uid](const LoggedKill& kill) { return kill.entity_uid == entity_uid; });
+
+    if (it != logged_kills.end()) {
+        return; // This entity kill is already logged
     }
 
-    already_logged_kill_uids.insert(entity_uid);
+    rf::String rfl_filename = rf::level.filename;
+    rf::String tc_mod_name = rf::mod_param.found() ? rf::mod_param.get_arg() : "";
 
-    //AchievementManager::get_instance().log_kill(entity_uid, rf::level.filename, rf::mod_param.get_arg(), script_name, class_name, damage_type, likely_weapon);
-}
-
-void clear_logged_kills()
-{
-    already_logged_kill_uids.clear();
-    xlog::warn("Cleared logged kill UIDs for new level.");
+    // Log the new kill
+    AchievementManager::get_instance().log_kill(entity_uid, rfl_filename,
+        tc_mod_name, class_name, damage_type, likely_weapon);
 }
 
 void initialize_achievement_manager() {
@@ -694,8 +722,7 @@ void achievement_check_event(rf::Event* event) {
 
             case 10626: {
                 if (string_equals_ignore_case(rfl_filename, "l11s3.rfl") &&
-                    rf::local_player_entity->ai.current_primary_weapon == 12 && // flamethrower
-                    !rf::mod_param.found()) {
+                    rf::local_player_entity->ai.current_primary_weapon == 12) { // flamethrower
                     grant_achievement(AchievementName::KillCapekFlamethrower); // kill capek with flamethrower
                 }
                 break;
@@ -930,8 +957,8 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
         return;
     }
 
-    // lethal_damage is unreliable for explosives because there are multiple damage instances sometimes
-    // does not handle fire deaths
+    // NOTE: explosives have multiple instances of lethal damage sometimes
+    // NOTE: does not handle fire or crushing deaths
 
     // is only called in single player
     int entity_uid = entity->uid;
@@ -951,10 +978,8 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
         }
     }
 
-    // weapon IDs could change in mods
-    if (!rf::mod_param.found()) {
-        // kill report goes here?
-    }
+    // log kills for statistics achievements
+    log_kill(entity_uid, entity_class_name, lethal_damage_type, weapon);
 }
 
 CodeInjection ai_drop_corpse_achievement_patch{
@@ -999,7 +1024,7 @@ CodeInjection ai_go_berserk_achievement_patch{
 
         if (aip) {
             if (aip->ep->uid == 4707 && string_equals_ignore_case(rf::level.filename, "l5s4.rfl"))
-            grant_achievement_sp(AchievementName::AdminMinerBerserk); // c4 miner admin
+            grant_achievement_sp(AchievementName::AdminMinerBerserk);
         }
     },
 };
@@ -1011,7 +1036,7 @@ CodeInjection clutter_use_achievement_patch{
         rf::Clutter* clutter = regs.esi;
         if (clutter) {
             if (clutter->info->cls_name == "coffeemaker") {
-                grant_achievement_sp(AchievementName::CoffeeMakers); // 5 coffee makers
+                grant_achievement_sp(AchievementName::CoffeeMakers);
             }
         }
     },
