@@ -424,6 +424,7 @@ namespace rf
     static auto& entity_is_carrying_corpse = addr_as_ref<bool(Entity *ep)>(0x00429D20);
     static auto& entity_fire_init_bones = addr_as_ref<bool(EntityFireInfo *efi, Object *objp)>(0x0042EB20);
     static auto& entity_is_swimming = addr_as_ref<bool(Entity* ep)>(0x0042A0A0);
+    static auto& entity_is_crouching = addr_as_ref<bool(Entity* ep)>(0x0040A130);
     static auto& entity_is_falling = addr_as_ref<bool(Entity* ep)>(0x0042A020);
     static auto& entity_make_freefall = addr_as_ref<void(Entity* ep)>(0x004281A0);
     static auto& entity_is_flying = addr_as_ref<bool(Entity* ep)>(0x0042A060);

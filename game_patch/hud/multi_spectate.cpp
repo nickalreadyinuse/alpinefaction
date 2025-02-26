@@ -1,6 +1,7 @@
 #include "multi_spectate.h"
 #include "hud.h"
 #include "multi_scoreboard.h"
+#include "../input/input.h"
 #include "../os/console.h"
 #include "../rf/entity.h"
 #include "../rf/level.h"
@@ -473,12 +474,17 @@ void multi_spectate_render()
         });
 
         int hints_y = scr_h - (g_game_config.big_hud ? 200 : 120);
-        int hints_left_x = g_game_config.big_hud ? 110 : 60;
-        int hints_right_x = g_game_config.big_hud ? 130 : 70;
-        const char* hints[][2] = {
-            {"Fire", "Next Player"},
-            {"Alt. Fire", "Previous Player"},
-            {"Jump", "Exit Spectate Mode"},
+        int hints_left_x = g_game_config.big_hud ? 120 : 70;
+        int hints_right_x = g_game_config.big_hud ? 140 : 80;
+        std::string next_player_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_PRIMARY_ATTACK);
+        std::string prev_player_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_SECONDARY_ATTACK);
+        std::string exit_spec_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_JUMP);
+        std::string spec_menu_text = get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU));
+        const char* hints[][3] = {
+            {next_player_text.c_str(), "Next Player"},
+            {prev_player_text.c_str(), "Previous Player"},
+            {spec_menu_text.c_str(), "Open Spectate Options Menu"},
+            {exit_spec_text.c_str(), "Exit Spectate Mode"},
         };
         for (auto& hint : hints) {
             rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xC0);
