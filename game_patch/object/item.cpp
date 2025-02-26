@@ -12,6 +12,7 @@
 #include "../rf/multi.h"
 #include "../rf/weapon.h"
 #include "../rf/player/player.h"
+#include "../misc/achievements.h"
 #include "../multi/server.h"
 
 int item_lookup_type(const char* name)
@@ -106,6 +107,31 @@ CodeInjection item_pickup_patch {
             rf::Entity* entity = regs.edi;
             if (item && entity && entity == rf::local_player_entity) {
                 //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
+                if (is_achievement_system_initialized()) {
+                    achievement_check_item_picked_up(item);
+                }
+
+                rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
+            }
+        }
+    }
+};
+
+CodeInjection item_pickup_patch2 {
+    0x004597D8, [](auto& regs) {
+
+        bool picked_up = regs.eax != -1;
+
+        if (picked_up && !rf::is_multi)
+        {
+            rf::Item* item = regs.esi;
+            rf::Entity* entity = regs.edi;
+            if (item && entity && entity == rf::local_player_entity) {
+                //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
+                if (is_achievement_system_initialized()) {
+                    achievement_check_item_picked_up(item);
+                }
+
                 rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
             }
         }
@@ -116,6 +142,7 @@ void item_do_patch()
 {
     // activate When_Picked_Up events
     item_pickup_patch.install();
+    item_pickup_patch2.install();
 
     // allow picking up powerups in SP // todo: restrict to Alpine levels
     AsmWriter(0x0045AAFD).jmp(0x0045AB11); // allow item_touch_multi_amp in SP
