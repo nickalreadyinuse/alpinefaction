@@ -209,7 +209,6 @@ target_include_directories(AlpineFaction PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor
     ${CMAKE_SOURCE_DIR}/vendor/zlib
     ${CMAKE_SOURCE_DIR}/vendor/zlib/contrib/minizip
-    ${CMAKE_SOURCE_DIR}/vendor/unrar
     ${CMAKE_SOURCE_DIR}/vendor/d3d8
     ${CMAKE_SOURCE_DIR}/vendor/xxhash
     ${CMAKE_SOURCE_DIR}/vendor/stb
@@ -233,7 +232,6 @@ target_link_libraries(AlpineFaction
     wininet
     version
     shlwapi
-    unrar
     unzip
     zlib
     PatchCommon

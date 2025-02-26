@@ -3,7 +3,6 @@
 #include <fstream>
 #include <format>
 #include <windows.h>
-#include <unrar/dll.hpp>
 #include <unzip.h>
 #include <xlog/xlog.h>
 #include <patch_common/CodeInjection.h>
@@ -105,61 +104,6 @@ static std::vector<std::string> unzip(const char* path, const char* output_dir,
     return extracted_files;
 }
 
-static std::vector<std::string> unrar(const char* path, const char* output_dir,
-    std::function<bool(const char*)> filename_filter)
-{
-    char cmt_buf[16384];
-
-    RAROpenArchiveDataEx open_archive_data{};
-    open_archive_data.ArcName = const_cast<char*>(path);
-    open_archive_data.CmtBuf = cmt_buf;
-    open_archive_data.CmtBufSize = sizeof(cmt_buf);
-    open_archive_data.OpenMode = RAR_OM_EXTRACT;
-    open_archive_data.Callback = nullptr;
-    HANDLE archive_handle = RAROpenArchiveEx(&open_archive_data);
-
-    if (!archive_handle || open_archive_data.OpenResult != 0) {
-        xlog::error("RAROpenArchiveEx failed - result {}, path {}", open_archive_data.OpenResult, path);
-        throw std::runtime_error{"cannot open rar file"};
-    }
-
-    std::vector<std::string> extracted_files;
-    struct RARHeaderData header_data{};
-    header_data.CmtBuf = nullptr;
-
-    while (true) {
-        int code = RARReadHeader(archive_handle, &header_data);
-        if (code == ERAR_END_ARCHIVE)
-            break;
-
-        if (code != 0) {
-            xlog::error("RARReadHeader failed - result {}, path {}", code, path);
-            break;
-        }
-
-        if (filename_filter(header_data.FileName)) {
-            xlog::trace("Unpacking {}", header_data.FileName);
-            code = RARProcessFile(archive_handle, RAR_EXTRACT, const_cast<char*>(output_dir), nullptr);
-            if (code == 0) {
-                extracted_files.emplace_back(header_data.FileName);
-            }
-        }
-        else {
-            xlog::trace("Skipping {}", header_data.FileName);
-            code = RARProcessFile(archive_handle, RAR_SKIP, nullptr, nullptr);
-        }
-
-        if (code != 0) {
-            xlog::error("RARProcessFile failed - result {}, path {}", code, path);
-            break;
-        }
-    }
-
-    RARCloseArchive(archive_handle);
-    xlog::debug("Unrared");
-    return extracted_files;
-}
-
 enum class LevelDownloadState
 {
     fetching_info,
@@ -217,16 +161,21 @@ std::vector<std::string> LevelDownloadWorker::extract_archive(const char* temp_f
 {
     auto output_dir = std::format("{}user_maps\\multi", rf::root_path);
     std::vector<std::string> packfiles;
+
     try {
         packfiles = unzip(temp_filename, output_dir.c_str(), is_vpp_filename);
     }
-    catch (const std::exception&) {
-        packfiles = unrar(temp_filename, output_dir.c_str(), is_vpp_filename);
+    catch (const std::exception& e) {
+        xlog::error("Failed to extract archive '{}': {}", temp_filename, e.what());
+    }
+    catch (...) {
+        xlog::error("Unknown error occurred while extracting archive '{}'", temp_filename);
     }
 
     if (packfiles.empty()) {
-        xlog::error("No packfiles has been found in downloaded archive");
+        xlog::error("No packfiles found in downloaded archive '{}'", temp_filename);
     }
+
     return packfiles;
 }
 
