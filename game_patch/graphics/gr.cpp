@@ -13,6 +13,7 @@
 #include "../os/console.h"
 #include "../main/main.h"
 #include "../multi/multi.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/gr/gr.h"
 #include "../rf/level.h"
 #include "../rf/geometry.h"
@@ -70,16 +71,16 @@ float gr_scale_fov_hor_plus(float horizontal_fov)
     h_fov_rad = 2.0f * std::atan(y);
     horizontal_fov = h_fov_rad / pi * 180.0f;
     // Clamp the value to avoid artifacts when the view is very stretched
-    horizontal_fov = std::min<float>(horizontal_fov, GameConfig::max_fov);
+    horizontal_fov = std::min<float>(horizontal_fov, g_alpine_game_config.max_fov);
     return horizontal_fov;
 }
 
 float gr_scale_world_fov(float horizontal_fov = 90.0f)
 {
-    if (g_game_config.horz_fov > 0.0f) {
+    if (g_alpine_game_config.horz_fov > 0.0f) {
         // Use user provided factor
         // Note: 90 is the default FOV for RF
-        horizontal_fov *= g_game_config.horz_fov / 90.0f;
+        horizontal_fov *= g_alpine_game_config.horz_fov / 90.0f;
     }
     else {
         horizontal_fov = gr_scale_fov_hor_plus(horizontal_fov);
@@ -116,13 +117,7 @@ ConsoleCommand2 fov_cmd{
     "r_fov",
     [](std::optional<float> fov_opt) {
         if (fov_opt) {
-            if (fov_opt.value() <= 0.0f) {
-                g_game_config.horz_fov = 0.0f;
-            }
-            else {
-                g_game_config.horz_fov = fov_opt.value();
-            }
-            g_game_config.save();
+            g_alpine_game_config.set_horz_fov(std::max(0.0f, fov_opt.value()));
         }
         rf::console::print("Horizontal FOV: {:.2f}", gr_scale_world_fov());
 

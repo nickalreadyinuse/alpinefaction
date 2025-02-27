@@ -91,6 +91,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `dbg_berserk` command for testing berserk entity state
 - Display control binds in spectate mode help test
 - Remove unrar library (no longer needed)
+- Move FOV setting from registry to `alpine_settings.ini`
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

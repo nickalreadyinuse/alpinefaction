@@ -26,11 +26,13 @@
 #include <unordered_set>
 #include <xlog/xlog.h>
 
-static bool g_loaded_alpine_settings_file = false;
+bool g_loaded_alpine_settings_file = false;
 static bool g_loaded_players_cfg_file = false;
 static bool g_restart_on_close = false;
 std::vector<std::string> orphaned_lines;
 int loaded_afs_version = -1;
+
+AlpineGameSettings g_alpine_game_config;
 
 void resolve_scan_code_conflicts(rf::ControlConfig& config)
 {
@@ -229,6 +231,10 @@ bool alpine_player_settings_load(rf::Player* player)
         player->settings.textures_resolution_level = std::stoi(settings["TextureDetailLevel"]);
         processed_keys.insert("TextureDetailLevel");
     }
+    if (settings.count("HorizontalFOV")) {
+        g_alpine_game_config.set_horz_fov(std::stof(settings["HorizontalFOV"]));
+        processed_keys.insert("HorizontalFOV");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -402,6 +408,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DetailLevel=" << player->settings.detail_level << "\n";
     file << "CharacterDetailLevel=" << player->settings.character_detail_level << "\n";
     file << "TextureDetailLevel=" << player->settings.textures_resolution_level << "\n";
+    file << "HorizontalFOV=" << g_alpine_game_config.horz_fov << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

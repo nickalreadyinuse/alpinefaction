@@ -73,9 +73,6 @@ struct GameConfig
     CfgVar<bool> try_disable_screenshake = false;
     CfgVar<bool> try_disable_muzzle_flash = false;
 
-    static constexpr float min_fov = 75.0f;
-    static constexpr float max_fov = 160.0f;
-    CfgVar<float> horz_fov{0.0f, [](float val) { return val == 0.0f ? 0.0f : std::clamp(val, min_fov, max_fov); }};
     CfgVar<float> fpgun_fov_scale{1.0f, [](auto val) { return std::clamp(val, 0.1f, 1.5f); }};
 
     // Audio
