@@ -13,6 +13,7 @@
 #include "../rf/entity.h"
 #include "../rf/level.h"
 #include "../rf/event.h"
+#include "../rf/weapon.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../os/console.h"
@@ -103,6 +104,7 @@ void AchievementManager::initialize()
         {AchievementName::Kava00bSecret2, {59, "Kava 00b Secret 2", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
         {AchievementName::KavaAATurrets, {60, "Anti-Aircraft", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
         {AchievementName::SecretStash, {61, "Secret Stash", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::DropAPCBridge, {62, "Bridge to Nowhere", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -295,14 +297,14 @@ void AchievementManager::add_key_to_ff_update_map()
         if (!oss.str().empty()) {
             oss << ","; // Add separator if achievements exist
         }
-        oss << "kill=";
 
         bool first_kill = true;
         for (const auto& kill : logged_kills) {
             if (!first_kill) {
                 oss << ","; // Separate each kill entry
             }
-            oss << kill.rfl_filename << "/"
+            oss << "kill="
+                << kill.rfl_filename << "/"
                 << kill.tc_mod_name << "/"
                 << kill.entity_class_name << "/"
                 << kill.damage_type << "/"
@@ -325,7 +327,7 @@ void AchievementManager::add_key_to_ff_update_map()
         send_update_to_ff(); // Send immediately
     }
     else {
-        xlog::warn("No new achievements pending for FF submission.");
+        //xlog::warn("No new achievements pending for FF submission.");
     }
 }
 
@@ -427,15 +429,27 @@ void log_kill(int entity_uid, const std::string& class_name, int damage_type, in
         [entity_uid](const LoggedKill& kill) { return kill.entity_uid == entity_uid; });
 
     if (it != logged_kills.end()) {
-        return; // This entity kill is already logged
+        return; // kill is already logged - workaround for explosive damage kills being logged twice
     }
 
-    rf::String rfl_filename = rf::level.filename;
-    rf::String tc_mod_name = rf::mod_param.found() ? rf::mod_param.get_arg() : "";
+    // inline helper to sanitize strings for later sending to FF
+    auto sanitize = [](std::string& str) {
+        str.erase(std::remove_if(str.begin(), str.end(), [](char c) { return c == ',' || c == '/'; }), str.end());
+    };
 
-    // Log the new kill
+    // make strings
+    std::string rfl_filename = rf::level.filename;
+    std::string tc_mod_name = rf::mod_param.found() ? rf::mod_param.get_arg() : "";
+    std::string entity_class_name = class_name;
+
+    // sanitize strings
+    sanitize(rfl_filename);    
+    sanitize(tc_mod_name);
+    sanitize(entity_class_name);
+
+    // log the kill
     AchievementManager::get_instance().log_kill(entity_uid, rfl_filename,
-        tc_mod_name, class_name, damage_type, likely_weapon);
+        tc_mod_name, entity_class_name, damage_type, likely_weapon);
 }
 
 void initialize_achievement_manager() {
@@ -541,13 +555,13 @@ void achievement_system_do_frame() {
         } 
         else {
             // Only proceed with updates if sync was successful
-            xlog::warn("Timer elapsed, trying to send an update to FF");
+            //xlog::warn("Timer elapsed, trying to send an update to FF");
 
             if (!achievement_async_ff_string.empty()) {
                 xlog::warn("Previous FF update [{}] still pending acknowledgement. Retrying.", achievement_async_ff_key);
                 AchievementManager::get_instance().send_update_to_ff();
             } else {
-                xlog::warn("No pending FF update, attempting to build a new one.");
+                //xlog::warn("No pending FF update, attempting to build a new one.");
                 AchievementManager::get_instance().add_key_to_ff_update_map();
             }
         }
@@ -654,6 +668,13 @@ void achievement_check_trigger(rf::Trigger* trigger) {
             case 5658: {
                 if (string_equals_ignore_case(rfl_filename, "l2s2a.rfl")) {
                     grant_achievement(AchievementName::SaveBarracksMiner); // barracks miner prison
+                }
+                break;
+            }
+
+            case 357: {
+                if (string_equals_ignore_case(rfl_filename, "l1s3.rfl")) {
+                    grant_achievement(AchievementName::DropAPCBridge);
                 }
                 break;
             }
@@ -964,9 +985,32 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
     int entity_uid = entity->uid;
     rf::String entity_script_name = entity->name;
     rf::String entity_class_name = entity->info->name;
-    rf::String rfl_filename = rf::level.filename;
-    int weapon = rf::local_player_entity->ai.current_primary_weapon;
-    float distance = rf::local_player_entity->pos.distance_to(entity->pos);
+    //rf::String rfl_filename = rf::level.filename;
+
+    // TODO: handle vehicle weapons
+
+    int weapon = -1;        // invalid or unknown weapon
+    float distance = 0.0f;  // fallback distance if player entity is invalid
+
+    if (rf::local_player_entity) {
+        if (lethal_damage_type == 4) {
+            if (rf::weapon_is_flamethrower(12)) {
+                weapon = 12; // fire damage can only be from flamethrower
+            }
+            else {
+                weapon = rf::local_player_entity->ai.current_primary_weapon; // use current weapon if weapon 12 isnt flamethrower
+            }
+        }
+        else if (lethal_damage_type != 9) {
+            // any damage type other than crush uses current weapon
+            weapon = rf::local_player_entity->ai.current_primary_weapon;
+        }
+
+        // calculate distance to killed entity
+        if (entity) {
+            distance = rf::local_player_entity->pos.distance_to(entity->pos);
+        }
+    }
 
     xlog::warn("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
             entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
@@ -1050,7 +1094,10 @@ CodeInjection entity_crush_entity_achievement_patch{
         rf::Entity* hit_entity = regs.edi;
         if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
-            //log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
+
+            if (is_achievement_system_initialized()) {
+                achievement_player_killed_entity(hit_entity, 1000000.0f, 9, entity->handle);
+            }
         }
     },
 };
@@ -1063,7 +1110,10 @@ CodeInjection entity_crush_entity_achievement_patch2{
         rf::Entity* hit_entity = regs.edi;
         if (hit_entity && entity && rf::entity_is_local_player_or_player_attached(entity)) {
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
-            //log_kill(hit_entity->uid, hit_entity->name, hit_entity->info->name, 9, -1);
+
+            if (is_achievement_system_initialized()) {
+                achievement_player_killed_entity(hit_entity, 1000000.0f, 9, entity->handle);
+            }
         }
     },
 };

@@ -69,7 +69,8 @@ enum class AchievementName : int
     Kava00bSecret2,
     KavaAATurrets,
     RunOverMore,
-    SecretStash
+    SecretStash,
+    DropAPCBridge,
 };
 
 enum class AchievementType : int
@@ -160,7 +161,7 @@ bool is_achievement_system_initialized();
 
 void grant_achievement(AchievementName achievement, int count = 1);
 void grant_achievement_sp(AchievementName achievement, int count = 1);
-void log_kill(int entity_uid, const std::string& script_name, const std::string& class_name, int damage_type, int likely_weapon);
+//void log_kill(int entity_uid, std::string& class_name, int damage_type, int likely_weapon);
 void achievement_check_trigger(rf::Trigger* trigger);
 void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);
