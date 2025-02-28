@@ -111,6 +111,13 @@ struct LoggedKill
     int likely_weapon_id = -1;
 };
 
+struct LoggedUse
+{
+    std::string rfl_filename = "";
+    std::string tc_mod_name = "";
+    int used_uid = -1;
+};
+
 struct AchievementStateInfo
 {
     bool unsure_what_for = false;
@@ -144,13 +151,19 @@ public:
         return logged_kills;
     }
 
+    std::vector<LoggedUse>& get_logged_uses_mutable() {
+        return logged_uses;
+    }
 
     void log_kill(int entity_uid, const std::string& rfl_filename, const std::string& tc_mod,
         const std::string& class_name, int damage_type, int likely_weapon);
 
+    void log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod);
+
 private:
     std::unordered_map<AchievementName, Achievement> achievements;
     std::vector<LoggedKill> logged_kills;
+    std::vector<LoggedUse> logged_uses;
 
     void process_ff_response(const std::string& response, int expected_key, bool is_initial_sync);
     void show_notification(Achievement& achievement);

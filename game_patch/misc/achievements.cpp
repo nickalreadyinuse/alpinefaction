@@ -70,7 +70,7 @@ void AchievementManager::initialize()
         {AchievementName::KillCapekFlamethrower, {26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::DropCorpse, {27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::UseMedic, {28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::DupeC4, {29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::DupeC4, {29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::ViewMonitor, {30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::EnterAesir, {31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::EnterSub, {32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
@@ -86,7 +86,7 @@ void AchievementManager::initialize()
         {AchievementName::StartCampaign, {42, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FastBomb, {43, "Red Wire Redemption", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::FarKill, {44, "Martian Marksman", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::CoffeeMakers, {45, "Brew Faction", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::CoffeeMakers, {45, "Brewed Awakening", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::SeparateGeometry, {46, "Geological Warfare", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::GibEnemy, {47, "Messy!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::RunOver, {48, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
@@ -295,7 +295,7 @@ void AchievementManager::add_key_to_ff_update_map()
     auto& logged_kills = get_logged_kills_mutable();
     if (!logged_kills.empty()) {
         if (!oss.str().empty()) {
-            oss << ","; // Add separator if achievements exist
+            oss << ","; // Add separator
         }
 
         bool first_kill = true;
@@ -313,6 +313,28 @@ void AchievementManager::add_key_to_ff_update_map()
         }
 
         logged_kills.clear(); // Clear kills after adding to string
+    }
+
+    // Add logged uses to the update string
+    auto& logged_uses = get_logged_uses_mutable();
+    if (!logged_uses.empty()) {
+        if (!oss.str().empty()) {
+            oss << ","; // Add separator
+        }
+
+        bool first_use = true;
+        for (const auto& use : logged_uses) {
+            if (!first_use) {
+                oss << ","; // Separate each use entry
+            }
+            oss << "use="
+                << use.rfl_filename << "/"
+                << use.tc_mod_name << "/"
+                << use.used_uid;
+            first_use = false;
+        }
+
+        logged_uses.clear(); // Clear uses after adding to string
     }
 
     std::string update_string = oss.str();
@@ -389,6 +411,18 @@ void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filenam
                entity_uid, rfl_filename, tc_mod, class_name, damage_type, likely_weapon);
 }
 
+void AchievementManager::log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod)
+{
+    LoggedUse new_use;
+    new_use.used_uid = used_uid;
+    new_use.rfl_filename = rfl_filename;
+    new_use.tc_mod_name = tc_mod;
+
+    logged_uses.push_back(new_use);
+
+    xlog::warn("Use logged: uid={}, map={}, mod={}", used_uid, rfl_filename, tc_mod);
+}
+
 void AchievementManager::show_notification(Achievement& achievement)
 {
     achievement.notified = true;
@@ -450,6 +484,37 @@ void log_kill(int entity_uid, const std::string& class_name, int damage_type, in
     // log the kill
     AchievementManager::get_instance().log_kill(entity_uid, rfl_filename,
         tc_mod_name, entity_class_name, damage_type, likely_weapon);
+}
+
+void log_use(int used_uid) {
+    if (!achievement_system_initialized) {
+        return;
+    }
+
+    // Check if the used UID exists in logged_uses
+    auto& logged_uses = AchievementManager::get_instance().get_logged_uses_mutable();
+    auto it = std::find_if(logged_uses.begin(), logged_uses.end(),
+        [used_uid](const LoggedUse& use) { return use.used_uid == used_uid; });
+
+    if (it != logged_uses.end()) {
+        return; // use is already logged, do not log again
+    }
+
+    // inline helper to sanitize strings for later sending to FF
+    auto sanitize = [](std::string& str) {
+        str.erase(std::remove_if(str.begin(), str.end(), [](char c) { return c == ',' || c == '/'; }), str.end());
+    };
+
+    // make strings
+    std::string rfl_filename = rf::level.filename;
+    std::string tc_mod_name = rf::mod_param.found() ? rf::mod_param.get_arg() : "";
+
+    // sanitize strings
+    sanitize(rfl_filename);    
+    sanitize(tc_mod_name);
+
+    // log the use
+    AchievementManager::get_instance().log_use(used_uid, rfl_filename, tc_mod_name);
 }
 
 void initialize_achievement_manager() {
@@ -959,6 +1024,24 @@ void achievement_check_item_picked_up(rf::Item* item) {
     }
 }
 
+bool entity_is_player_or_vehicle_or_turret(rf::Entity* ep) {
+    // Check if the entity is the local player
+    if (rf::entity_is_local_player(ep))
+        return true;
+
+    // Check if the entity is a vehicle
+    if (rf::entity_is_vehicle(ep) || rf::entity_is_turret(ep)) {
+        int first_leech = rf::entity_get_first_leech(ep);
+        if (first_leech >= 0) {
+            rf::Entity* entity = rf::entity_from_handle(first_leech);
+            if (entity && rf::entity_is_local_player(entity))
+                return true;
+        }
+    }
+
+    return false;
+}
+
 void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type, int killer_handle) {
     if (!entity) {
         return;
@@ -970,7 +1053,7 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
         return;
     }
 
-    if (!rf::entity_is_local_player_or_player_attached(killer_entity)) {
+    if (!entity_is_player_or_vehicle_or_turret(killer_entity)) {
         return;
     }
 
@@ -987,28 +1070,54 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
     rf::String entity_class_name = entity->info->name;
     //rf::String rfl_filename = rf::level.filename;
 
-    // TODO: handle vehicle weapons
-
     int weapon = -1;        // invalid or unknown weapon
     float distance = 0.0f;  // fallback distance if player entity is invalid
 
-    if (rf::local_player_entity) {
-        if (lethal_damage_type == 4) {
+    auto player_entity = rf::local_player_entity;
+
+    if (player_entity) { // turrets dont assign player as responsible
+        if (rf::entity_is_on_turret(player_entity)) {
+            weapon = 133; // Turret
+        }
+        else if (rf::entity_in_vehicle(player_entity)) {
+            auto vehicle = rf::entity_from_handle(player_entity->host_handle);
+
+            if (vehicle->info->name == "APC") {
+                weapon = 128; // APC
+            }
+            else if (vehicle->info->name == "Driller01") {
+                weapon = 129; // Driller
+            }
+            else if (vehicle->info->name == "Fighter01" || vehicle->info->name == "masako_fighter") {
+                weapon = 130; // Aesir
+            }
+            else if (vehicle->info->name == "Jeep01") {
+                weapon = 131; // Jeep
+            }
+            else if (vehicle->info->name == "sub") {
+                weapon = 132; // Submarine
+            }
+        }
+        else if (lethal_damage_type == 4) {
             if (rf::weapon_is_flamethrower(12)) {
                 weapon = 12; // fire damage can only be from flamethrower
             }
             else {
-                weapon = rf::local_player_entity->ai.current_primary_weapon; // use current weapon if weapon 12 isnt flamethrower
+                weapon = player_entity->ai.current_primary_weapon; // use current weapon if weapon 12 isnt flamethrower
             }
         }
         else if (lethal_damage_type != 9) {
             // any damage type other than crush uses current weapon
-            weapon = rf::local_player_entity->ai.current_primary_weapon;
+            weapon = player_entity->ai.current_primary_weapon;
+        }
+
+        if (weapon == 1) {
+            weapon = 0; // use remote charge ID instead of detonator
         }
 
         // calculate distance to killed entity
-        if (entity) {
-            distance = rf::local_player_entity->pos.distance_to(entity->pos);
+        if (player_entity) {
+            distance = player_entity->pos.distance_to(entity->pos);
         }
     }
 
@@ -1079,8 +1188,15 @@ CodeInjection clutter_use_achievement_patch{
     [](auto& regs) {
         rf::Clutter* clutter = regs.esi;
         if (clutter) {
-            if (clutter->info->cls_name == "coffeemaker") {
-                grant_achievement_sp(AchievementName::CoffeeMakers);
+            auto cls_name = clutter->info->cls_name;
+            if (cls_name == "coffeemaker" ||
+                cls_name == "Microwave" ||
+                cls_name == "Toilet" ||
+                cls_name == "Toilet2" ||
+                cls_name == "Urinal" ||
+                cls_name == "Urinal2") {
+                log_use(clutter->uid); // log the use
+                //grant_achievement_sp(AchievementName::CoffeeMakers);
             }
         }
     },
