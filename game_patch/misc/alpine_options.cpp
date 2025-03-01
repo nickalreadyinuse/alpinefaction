@@ -152,8 +152,6 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Disable Multiplayer Button", {AlpineOptionID::DisableMultiplayerButton, "af_ui.tbl", parse_bool}},
     {"$Disable Singleplayer Buttons", {AlpineOptionID::DisableSingleplayerButtons, "af_ui.tbl", parse_bool}},
     {"$Use Base Game Players Config", {AlpineOptionID::UseStockPlayersConfig, "af_game.tbl", parse_bool}},
-    {"$Ignore Swap Assault Rifle Controls", {AlpineOptionID::IgnoreSwapAssaultRifleControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
-    {"$Ignore Swap Grenade Controls", {AlpineOptionID::IgnoreSwapGrenadeControls, "af_game.tbl", parse_bool}}, // applied in player.cpp
     {"$Assault Rifle Ammo Counter Color", {AlpineOptionID::AssaultRifleAmmoColor, "af_client.tbl", parse_color}},
     {"$Precision Rifle Scope Color", {AlpineOptionID::PrecisionRifleScopeColor, "af_client.tbl", parse_color}},
     {"$Sniper Rifle Scope Color", {AlpineOptionID::SniperRifleScopeColor, "af_client.tbl", parse_color}},

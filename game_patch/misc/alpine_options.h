@@ -36,8 +36,6 @@ enum class AlpineOptionID
     DisableMultiplayerButton,
     DisableSingleplayerButtons,
     UseStockPlayersConfig,
-    IgnoreSwapAssaultRifleControls,
-    IgnoreSwapGrenadeControls,
     AssaultRifleAmmoColor,
     PrecisionRifleScopeColor,
     SniperRifleScopeColor,
