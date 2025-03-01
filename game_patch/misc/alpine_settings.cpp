@@ -247,6 +247,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_horz_fov(std::stof(settings["HorizontalFOV"]));
         processed_keys.insert("HorizontalFOV");
     }
+    if (settings.count("FPGunFOVScale")) {
+        g_alpine_game_config.set_fpgun_fov_scale(std::stof(settings["FPGunFOVScale"]));
+        processed_keys.insert("FPGunFOVScale");
+    }
     if (settings.count("BigHUD")) {
         g_alpine_game_config.big_hud = std::stoi(settings["BigHUD"]);
         set_big_hud(g_alpine_game_config.big_hud);
@@ -434,6 +438,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "CharacterDetailLevel=" << player->settings.character_detail_level << "\n";
     file << "TextureDetailLevel=" << player->settings.textures_resolution_level << "\n";
     file << "HorizontalFOV=" << g_alpine_game_config.horz_fov << "\n";
+    file << "FPGunFOVScale=" << g_alpine_game_config.fpgun_fov_scale << "\n";
     file << "BigHUD=" << g_alpine_game_config.big_hud << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);

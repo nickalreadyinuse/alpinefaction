@@ -20,6 +20,15 @@ struct AlpineGameSettings
         }
     }
 
+    // fpgun fov scale
+    static constexpr float min_fpgun_fov_scale = 0.1f;
+    static constexpr float max_fpgun_fov_scale = 1.5f;
+    float fpgun_fov_scale = 1.0f;
+    void set_fpgun_fov_scale(float scale)
+    {
+        fpgun_fov_scale = std::clamp(scale, min_fpgun_fov_scale, max_fpgun_fov_scale);
+    }
+
     bool swap_ar_controls = false;
     bool swap_gn_controls = false;
     bool swap_sg_controls = false;

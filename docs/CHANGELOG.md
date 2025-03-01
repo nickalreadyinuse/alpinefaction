@@ -92,9 +92,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `dbg_berserk` command for testing berserk entity state
 - Display control binds in spectate mode help test
 - Remove unrar library (no longer needed)
-- Move FOV setting from registry to `alpine_settings.ini`
 - Add `cl_swapsgcontrols` command to swap shotgun controls
-- Move Big HUD, Linear Pitch, and swap controls for AR, SG, GN to `alpine_settings.ini`
+- Move settings `alpine_settings.ini`: Big HUD, Linear Pitch, FPGun FOV Scale, swap controls for AR, SG, GN
 - Add `Alpine Faction` options panel to in-game options menu
 
 [@natarii](https://github.com/natarii)

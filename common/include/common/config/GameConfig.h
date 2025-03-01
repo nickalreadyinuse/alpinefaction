@@ -73,8 +73,6 @@ struct GameConfig
     CfgVar<bool> try_disable_screenshake = false;
     CfgVar<bool> try_disable_muzzle_flash = false;
 
-    CfgVar<float> fpgun_fov_scale{1.0f, [](auto val) { return std::clamp(val, 0.1f, 1.5f); }};
-
     // Audio
     CfgVar<float> level_sound_volume = 1.0f;
     CfgVar<bool> eax_sound = true;
