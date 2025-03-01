@@ -18,6 +18,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix listen server launching whenever menu opens if game was launched with `-levelm` command line argument
 - Fix clients not knowing correct ammo counts for other clients
 - Fix `When_Picked_Up` events not activating for some item classes
+- Fix bug where players would be disconnected from high framerate servers if they were standing in a solo trigger
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
