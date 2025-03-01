@@ -134,10 +134,6 @@ bool alpine_player_settings_load(rf::Player* player)
         player->name = player_name.c_str();
         processed_keys.insert("PlayerName");
     }
-    if (settings.count("MultiplayerCharacter")) {
-        player->settings.multi_character = std::stoi(settings["MultiplayerCharacter"]);
-        processed_keys.insert("MultiplayerCharacter");
-    }
     if (settings.count("GoreLevel")) {
         rf::game_set_gore_level(std::stoi(settings["GoreLevel"]));
         processed_keys.insert("GoreLevel");
@@ -267,6 +263,44 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("DisableTextures")) {
         g_alpine_game_config.try_disable_textures = std::stoi(settings["DisableTextures"]);
         processed_keys.insert("DisableTextures");
+    }
+
+    // Load multiplayer settings
+    if (settings.count("MultiplayerCharacter")) {
+        player->settings.multi_character = std::stoi(settings["MultiplayerCharacter"]);
+        processed_keys.insert("MultiplayerCharacter");
+    }
+    if (settings.count("WorldHUDObjIcons")) {
+        g_alpine_game_config.world_hud_ctf_icons = std::stoi(settings["WorldHUDObjIcons"]);
+        processed_keys.insert("WorldHUDObjIcons");
+    }
+    if (settings.count("WorldHUDOverdraw")) {
+        g_alpine_game_config.world_hud_overdraw = std::stoi(settings["WorldHUDOverdraw"]);
+        processed_keys.insert("WorldHUDOverdraw");
+    }
+    if (settings.count("WorldHUDBigText")) {
+        g_alpine_game_config.world_hud_big_text = std::stoi(settings["WorldHUDBigText"]);
+        processed_keys.insert("WorldHUDBigText");
+    }
+    if (settings.count("WorldHUDDamageNumbers")) {
+        g_alpine_game_config.world_hud_damage_numbers = std::stoi(settings["WorldHUDDamageNumbers"]);
+        processed_keys.insert("WorldHUDDamageNumbers");
+    }
+    if (settings.count("WorldHUDSpectateLabels")) {
+        g_alpine_game_config.world_hud_spectate_player_labels = std::stoi(settings["WorldHUDSpectateLabels"]);
+        processed_keys.insert("WorldHUDSpectateLabels");
+    }
+    if (settings.count("WorldHUDTeamLabels")) {
+        g_alpine_game_config.world_hud_team_player_labels = std::stoi(settings["WorldHUDTeamLabels"]);
+        processed_keys.insert("WorldHUDTeamLabels");
+    }
+    if (settings.count("PlayHitsounds")) {
+        g_alpine_game_config.play_hit_sounds = std::stoi(settings["PlayHitsounds"]);
+        processed_keys.insert("PlayHitsounds");
+    }
+    if (settings.count("PlayTaunts")) {
+        g_alpine_game_config.play_taunt_sounds = std::stoi(settings["PlayTaunts"]);
+        processed_keys.insert("PlayTaunts");
     }
 
     // Load input settings
@@ -429,7 +463,6 @@ void alpine_player_settings_save(rf::Player* player)
     // Player
     file << "\n[PlayerSettings]\n";
     file << "PlayerName=" << player->name << "\n";
-    file << "MultiplayerCharacter=" << player->settings.multi_character << "\n";
     file << "GoreLevel=" << rf::game_get_gore_level() << "\n";
     file << "DifficultyLevel=" << static_cast<int>(rf::game_get_skill_level()) << "\n";
     file << "ShowFPGun=" << player->settings.render_fpgun << "\n";
@@ -477,6 +510,18 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableWeaponShake=" << g_alpine_game_config.try_disable_weapon_shake << "\n";
     file << "FullbrightCharacters=" << g_alpine_game_config.try_fullbright_characters << "\n";
     file << "DisableTextures=" << g_alpine_game_config.try_disable_textures << "\n";
+
+    // Multiplayer
+    file << "\n[MultiplayerSettings]\n";
+    file << "MultiplayerCharacter=" << player->settings.multi_character << "\n";
+    file << "WorldHUDObjIcons=" << g_alpine_game_config.world_hud_ctf_icons << "\n";
+    file << "WorldHUDOverdraw=" << g_alpine_game_config.world_hud_overdraw << "\n";
+    file << "WorldHUDBigText=" << g_alpine_game_config.world_hud_big_text << "\n";
+    file << "WorldHUDDamageNumbers=" << g_alpine_game_config.world_hud_damage_numbers << "\n";
+    file << "WorldHUDSpectateLabels=" << g_alpine_game_config.world_hud_spectate_player_labels << "\n";
+    file << "WorldHUDTeamLabels=" << g_alpine_game_config.world_hud_team_player_labels << "\n";
+    file << "PlayHitsounds=" << g_alpine_game_config.play_hit_sounds << "\n";
+    file << "PlayTaunts=" << g_alpine_game_config.play_taunt_sounds << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

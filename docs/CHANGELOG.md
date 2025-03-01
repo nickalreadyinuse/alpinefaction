@@ -98,6 +98,8 @@ Version 1.1.0 (Tamarack): Not yet released
   - Big HUD, linear pitch, FPGun FOV scale, swap controls for AR, SG, GN
   - Weapon shake, fullbright characters, lightmaps only
   - Scanner sensitivity modifier, scope sensitivity modifier, static scope sensitivity
+  - World HUD objective icons, overdraw, big text, damage numbers, spectate labels, team labels
+  - Hit sounds and audio taunts
 - Add `Alpine Faction` options panel to in-game options menu with settings:
     - Big HUD, linear pitch, swap controls for AR, SG, GN
     - Weapon shake, fullbright characters, lightmaps only

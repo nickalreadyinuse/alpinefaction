@@ -342,7 +342,7 @@ void play_local_sound_2d(uint16_t sound_id, int group, float volume) {
 }
 
 void play_local_hit_sound(bool died) {
-    if (!g_game_config.play_hit_sounds) {
+    if (!g_alpine_game_config.play_hit_sounds) {
         return; // turned off
     }
 
@@ -352,9 +352,8 @@ void play_local_hit_sound(bool died) {
 ConsoleCommand2 tauntsound_cmd{
     "mp_taunts",
     []() {
-        g_game_config.play_taunt_sounds = !g_game_config.play_taunt_sounds;
-        g_game_config.save();
-        rf::console::print("Voice lines for multiplayer taunts are {}", g_game_config.play_taunt_sounds ? "enabled" : "disabled");
+        g_alpine_game_config.play_taunt_sounds = !g_alpine_game_config.play_taunt_sounds;
+        rf::console::print("Voice lines for multiplayer taunts are {}", g_alpine_game_config.play_taunt_sounds ? "enabled" : "disabled");
     },
     "Toggle whether to play voice lines for taunts used by players in multiplayer",
     "mp_taunts",
@@ -363,9 +362,8 @@ ConsoleCommand2 tauntsound_cmd{
 ConsoleCommand2 localhitsound_cmd{
     "cl_hitsounds",
     []() {
-        g_game_config.play_hit_sounds = !g_game_config.play_hit_sounds;
-        g_game_config.save();
-        rf::console::print("Playing of hit sounds is {}", g_game_config.play_hit_sounds ? "enabled" : "disabled");
+        g_alpine_game_config.play_hit_sounds = !g_alpine_game_config.play_hit_sounds;
+        rf::console::print("Playing of hit sounds is {}", g_alpine_game_config.play_hit_sounds ? "enabled" : "disabled");
     },
     "Toggle whether to play a sound when you hit players in multiplayer (if enabled by an Alpine Faction server)",
     "cl_hitsounds",

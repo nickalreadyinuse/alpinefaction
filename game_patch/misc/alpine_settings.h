@@ -47,13 +47,21 @@ struct AlpineGameSettings
     bool swap_ar_controls = false;
     bool swap_gn_controls = false;
     bool swap_sg_controls = false;
-    bool mouse_linear_pitch = false;
+    bool mouse_linear_pitch = true;
     bool big_hud = false;
     int skip_cutscene_bind_alias = -1;
     bool try_disable_weapon_shake = false;
     bool try_fullbright_characters = false;
     bool try_disable_textures = false;
     bool try_disable_muzzle_flash_lights = false;
+    bool world_hud_ctf_icons = true;
+    bool world_hud_overdraw = true;
+    bool world_hud_big_text = false;
+    bool world_hud_damage_numbers = true;
+    bool world_hud_spectate_player_labels = true;
+    bool world_hud_team_player_labels = true;
+    bool play_hit_sounds = true;
+    bool play_taunt_sounds = true;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

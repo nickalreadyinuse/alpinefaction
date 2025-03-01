@@ -10,6 +10,7 @@
 #include "../rf/sound/sound_ds.h"
 #include "../rf/entity.h"
 #include "../rf/os/frametime.h"
+#include "../misc/alpine_settings.h"
 #include "../main/main.h"
 #include "../os/console.h"
 
@@ -552,7 +553,7 @@ CodeInjection gamesound_parse_sounds_table_patch{
 
 void play_chat_sound(std::string& chat_message, bool is_taunt)
 {
-    if (is_taunt && !g_game_config.play_taunt_sounds) {
+    if (is_taunt && !g_alpine_game_config.play_taunt_sounds) {
         return; // taunts are turned off
     }
 

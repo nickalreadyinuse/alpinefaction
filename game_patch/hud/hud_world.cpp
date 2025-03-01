@@ -9,6 +9,7 @@
 #include "multi_spectate.h"
 #include "../object/event_alpine.h"
 #include "../multi/server.h"
+#include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
 #include "../rf/hud.h"
 #include "../rf/player/player.h"
@@ -134,7 +135,7 @@ void build_ctf_flag_icons()
             }
         }
 
-        auto render_mode = g_game_config.world_hud_overdraw ? WorldHUDRenderMode::overdraw : WorldHUDRenderMode::no_overdraw;
+        auto render_mode = g_alpine_game_config.world_hud_overdraw ? WorldHUDRenderMode::overdraw : WorldHUDRenderMode::no_overdraw;
 
         do_render_world_hud_sprite(vec, 0.6f, bitmap_handle, render_mode, true, true, true);
     };
@@ -219,11 +220,11 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
 
 void build_player_labels() {
     bool is_spectating = multi_spectate_is_spectating();
-    bool show_all = is_spectating && g_game_config.world_hud_spectate_player_labels;
+    bool show_all = is_spectating && g_alpine_game_config.world_hud_spectate_player_labels;
     bool is_team_mode = rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM;
-    bool show_teammates = g_game_config.world_hud_team_player_labels && is_team_mode && !is_spectating;
+    bool show_teammates = g_alpine_game_config.world_hud_team_player_labels && is_team_mode && !is_spectating;
 
-    int font = !g_game_config.world_hud_big_text;
+    int font = !g_alpine_game_config.world_hud_big_text;
     auto player_list = SinglyLinkedList{rf::player_list};
 
     for (auto& player : player_list) {
@@ -261,7 +262,7 @@ void build_ephemeral_world_hud_sprite_icons() {
     });
 
     for (const auto& es : ephemeral_world_hud_sprites) {
-        int font = !g_game_config.world_hud_big_text;
+        int font = !g_alpine_game_config.world_hud_big_text;
 
         if (es.bitmap != -1) {
             do_render_world_hud_sprite(es.pos, 1.0f, es.bitmap, es.render_mode, true, true, true);
@@ -285,7 +286,7 @@ void build_ephemeral_world_hud_strings() {
 
     for (const auto& es : ephemeral_world_hud_strings) {
         int label_y_offset = 0;
-        int font = !g_game_config.world_hud_big_text;
+        int font = !g_alpine_game_config.world_hud_big_text;
         rf::Vector3 string_pos = es.pos;
         string_pos.y += 0.85f;
 
@@ -320,7 +321,7 @@ void build_ephemeral_world_hud_strings() {
 }
 
 void hud_world_do_frame() {
-    if (g_game_config.world_hud_ctf && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
+    if (g_alpine_game_config.world_hud_ctf_icons && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
     }
     if (g_pre_match_active || (draw_mp_spawn_world_hud && (!rf::is_multi || rf::is_server))) {
@@ -336,8 +337,8 @@ void hud_world_do_frame() {
         build_ephemeral_world_hud_strings();
     }
     if (rf::is_multi &&
-    ((multi_spectate_is_spectating() && g_game_config.world_hud_spectate_player_labels) ||
-    (!multi_spectate_is_spectating() && g_game_config.world_hud_team_player_labels && rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM))) {
+    ((multi_spectate_is_spectating() && g_alpine_game_config.world_hud_spectate_player_labels) ||
+    (!multi_spectate_is_spectating() && g_alpine_game_config.world_hud_team_player_labels && rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM))) {
     build_player_labels();
 }
 
@@ -378,7 +379,7 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
 
 void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_id, uint16_t damage, bool died)
 {
-    if (!g_game_config.world_hud_damage_numbers) {
+    if (!g_alpine_game_config.world_hud_damage_numbers) {
         return; // turned off
     }
 
@@ -410,9 +411,8 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_
 ConsoleCommand2 worldhudctf_cmd{
     "cl_wh_ctf",
     []() {
-        g_game_config.world_hud_ctf = !g_game_config.world_hud_ctf;
-        g_game_config.save();
-        rf::console::print("CTF world HUD is {}", g_game_config.world_hud_ctf ? "enabled" : "disabled");
+        g_alpine_game_config.world_hud_ctf_icons = !g_alpine_game_config.world_hud_ctf_icons;
+        rf::console::print("CTF world HUD is {}", g_alpine_game_config.world_hud_ctf_icons ? "enabled" : "disabled");
     },
     "Toggle drawing of world HUD indicators for CTF flags",
     "cl_wh_ctf",
@@ -421,9 +421,8 @@ ConsoleCommand2 worldhudctf_cmd{
 ConsoleCommand2 worldhudoverdraw_cmd{
     "cl_wh_objoverdraw",
     []() {
-        g_game_config.world_hud_overdraw = !g_game_config.world_hud_overdraw;
-        g_game_config.save();
-        rf::console::print("World HUD overdraw is {}", g_game_config.world_hud_overdraw ? "enabled" : "disabled");
+        g_alpine_game_config.world_hud_overdraw = !g_alpine_game_config.world_hud_overdraw;
+        rf::console::print("World HUD overdraw is {}", g_alpine_game_config.world_hud_overdraw ? "enabled" : "disabled");
     },
     "Toggle whether world HUD indicators for objectives are drawn on top of everything else",
     "cl_wh_objoverdraw",
@@ -432,9 +431,8 @@ ConsoleCommand2 worldhudoverdraw_cmd{
 ConsoleCommand2 worldhudbigtext_cmd{
     "cl_wh_bigtext",
     []() {
-        g_game_config.world_hud_big_text = !g_game_config.world_hud_big_text;
-        g_game_config.save();
-        rf::console::print("World HUD big text is {}", g_game_config.world_hud_big_text ? "enabled" : "disabled");
+        g_alpine_game_config.world_hud_big_text = !g_alpine_game_config.world_hud_big_text;
+        rf::console::print("World HUD big text is {}", g_alpine_game_config.world_hud_big_text ? "enabled" : "disabled");
     },
     "Toggle whether world HUD text labels use big or standard text",
     "cl_wh_bigtext",
@@ -443,9 +441,8 @@ ConsoleCommand2 worldhudbigtext_cmd{
 ConsoleCommand2 worldhuddamagenumbers_cmd{
     "cl_wh_hitnumbers",
     []() {
-        g_game_config.world_hud_damage_numbers = !g_game_config.world_hud_damage_numbers;
-        g_game_config.save();
-        rf::console::print("World HUD damage indicator numbers are {}", g_game_config.world_hud_damage_numbers ? "enabled" : "disabled");
+        g_alpine_game_config.world_hud_damage_numbers = !g_alpine_game_config.world_hud_damage_numbers;
+        rf::console::print("World HUD damage indicator numbers are {}", g_alpine_game_config.world_hud_damage_numbers ? "enabled" : "disabled");
     },
     "Toggle whether to display numeric damage indicators when you hit players in multiplayer (if enabled by an Alpine Faction server)",
     "cl_wh_hitnumbers",
@@ -454,9 +451,8 @@ ConsoleCommand2 worldhuddamagenumbers_cmd{
 ConsoleCommand2 worldhudspectateplayerlabels_cmd{
     "spectate_playerlabels",
     []() {
-        g_game_config.world_hud_spectate_player_labels = !g_game_config.world_hud_spectate_player_labels;
-        g_game_config.save();
-        rf::console::print("World HUD spectate mode player labels are {}", g_game_config.world_hud_spectate_player_labels ? "enabled" : "disabled");
+        g_alpine_game_config.world_hud_spectate_player_labels = !g_alpine_game_config.world_hud_spectate_player_labels;
+        rf::console::print("World HUD spectate mode player labels are {}", g_alpine_game_config.world_hud_spectate_player_labels ? "enabled" : "disabled");
     },
     "Toggle whether to display player name labels in spectate mode",
     "spectate_playerlabels",
@@ -465,9 +461,8 @@ ConsoleCommand2 worldhudspectateplayerlabels_cmd{
 ConsoleCommand2 worldhudteamplayerlabels_cmd{
     "cl_wh_teamplayerlabels",
     []() {
-        g_game_config.world_hud_team_player_labels = !g_game_config.world_hud_team_player_labels;
-        g_game_config.save();
-        rf::console::print("World HUD team player labels are {}", g_game_config.world_hud_team_player_labels ? "enabled" : "disabled");
+        g_alpine_game_config.world_hud_team_player_labels = !g_alpine_game_config.world_hud_team_player_labels;
+        rf::console::print("World HUD team player labels are {}", g_alpine_game_config.world_hud_team_player_labels ? "enabled" : "disabled");
     },
     "Toggle whether to display player name labels for your teammates",
     "cl_wh_teamplayerlabels",

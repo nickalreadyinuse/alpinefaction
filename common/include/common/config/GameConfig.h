@@ -96,14 +96,6 @@ struct GameConfig
     CfgVar<bool> scoreboard_anim = false;
     CfgVar<bool> spectate_mode_minimal_ui = false;
     CfgVar<bool> af_branding = true;
-    CfgVar<bool> world_hud_ctf = false;
-    CfgVar<bool> world_hud_overdraw = true;
-    CfgVar<bool> world_hud_big_text = false;
-    CfgVar<bool> world_hud_damage_numbers = true;
-    CfgVar<bool> world_hud_spectate_player_labels = true;
-    CfgVar<bool> world_hud_team_player_labels = true;
-    CfgVar<bool> play_hit_sounds = true;
-    CfgVar<bool> play_taunt_sounds = true;
 
     // Misc
     CfgVar<bool> fast_start = true;
