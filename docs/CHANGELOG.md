@@ -93,11 +93,15 @@ Version 1.1.0 (Tamarack): Not yet released
 - Display control binds in spectate mode help test
 - Remove unrar library (no longer needed)
 - Add `cl_swapsgcontrols` command to swap shotgun controls
-- Move settings to `alpine_settings.ini`: Big HUD, linear pitch, FPGun FOV scale, swap controls for AR, SG, GN
-- Add `Alpine Faction` options panel to in-game options menu
+- Move settings to `alpine_settings.ini`:
+  - Big HUD, linear pitch, FPGun FOV scale, swap controls for AR, SG, GN
+  - Weapon shake, fullbright characters, lightmaps only
+  - Scanner sensitivity modifier, scope sensitivity modifier, static scope sensitivity
+- Add `Alpine Faction` options panel to in-game options menu with settings:
+    - Big HUD, linear pitch, swap controls for AR, SG, GN
+    - Weapon shake, fullbright characters, lightmaps only
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
-- Move settings to `alpine_settings.ini`: Weapon shake, fullbright characters, lightmaps only
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
