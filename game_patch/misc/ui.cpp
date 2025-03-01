@@ -30,6 +30,14 @@ static rf::ui::Checkbox ao_bighud_cbox;
 static rf::ui::Label ao_bighud_label;
 static rf::ui::Checkbox ao_linearpitch_cbox;
 static rf::ui::Label ao_linearpitch_label;
+static rf::ui::Checkbox ao_ctfwh_cbox;
+static rf::ui::Label ao_ctfwh_label;
+static rf::ui::Checkbox ao_damagenum_cbox;
+static rf::ui::Label ao_damagenum_label;
+static rf::ui::Checkbox ao_hitsounds_cbox;
+static rf::ui::Label ao_hitsounds_label;
+static rf::ui::Checkbox ao_taunts_cbox;
+static rf::ui::Label ao_taunts_label;
 
 static rf::ui::Checkbox ao_swapar_cbox;
 static rf::ui::Label ao_swapar_label;
@@ -386,6 +394,62 @@ void ao_linearpitch_cbox_on_click(int x, int y) {
     //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_linearpitch_cbox.checked);
 }
 
+void ao_ctfwh_cbox_on_click(int x, int y) {
+    g_alpine_game_config.world_hud_ctf_icons = !g_alpine_game_config.world_hud_ctf_icons;
+    ao_ctfwh_cbox.checked = g_alpine_game_config.world_hud_ctf_icons;
+
+    if (ao_ctfwh_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_ctfwh_cbox.checked);
+}
+
+void ao_damagenum_cbox_on_click(int x, int y) {
+    g_alpine_game_config.world_hud_damage_numbers = !g_alpine_game_config.world_hud_damage_numbers;
+    ao_damagenum_cbox.checked = g_alpine_game_config.world_hud_damage_numbers;
+
+    if (ao_damagenum_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_damagenum_cbox.checked);
+}
+
+void ao_hitsounds_cbox_on_click(int x, int y) {
+    g_alpine_game_config.play_hit_sounds = !g_alpine_game_config.play_hit_sounds;
+    ao_hitsounds_cbox.checked = g_alpine_game_config.play_hit_sounds;
+
+    if (ao_hitsounds_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_hitsounds_cbox.checked);
+}
+
+void ao_taunts_cbox_on_click(int x, int y) {
+    g_alpine_game_config.play_taunt_sounds = !g_alpine_game_config.play_taunt_sounds;
+    ao_taunts_cbox.checked = g_alpine_game_config.play_taunt_sounds;
+
+    if (ao_taunts_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_taunts_cbox.checked);
+}
+
 void ao_swapar_cbox_on_click(int x, int y) {
     g_alpine_game_config.swap_ar_controls = !g_alpine_game_config.swap_ar_controls;
     ao_swapar_cbox.checked = g_alpine_game_config.swap_ar_controls;
@@ -558,7 +622,14 @@ void alpine_options_panel_init() {
         &ao_bighud_cbox, &ao_bighud_label, ao_bighud_cbox_on_click, g_alpine_game_config.big_hud, 113, 18, "Big HUD");
     alpine_options_panel_checkbox_init(
         &ao_linearpitch_cbox, &ao_linearpitch_label, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 113, 43, "Linear pitch");
-
+    alpine_options_panel_checkbox_init(
+        &ao_ctfwh_cbox, &ao_ctfwh_label, ao_ctfwh_cbox_on_click, g_alpine_game_config.world_hud_ctf_icons, 113, 68, "CTF icons");
+    alpine_options_panel_checkbox_init(
+        &ao_damagenum_cbox, &ao_damagenum_label, ao_damagenum_cbox_on_click, g_alpine_game_config.world_hud_damage_numbers, 113, 93, "Hit numbers");
+    alpine_options_panel_checkbox_init(
+        &ao_hitsounds_cbox, &ao_hitsounds_label, ao_hitsounds_cbox_on_click, g_alpine_game_config.play_hit_sounds, 113, 118, "Hit sounds");
+    alpine_options_panel_checkbox_init(
+        &ao_taunts_cbox, &ao_taunts_label, ao_taunts_cbox_on_click, g_alpine_game_config.play_taunt_sounds, 113, 143, "Play taunts");
 
     alpine_options_panel_checkbox_init(
         &ao_swapar_cbox, &ao_swapar_label, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 280, 18, "Swap AR binds");

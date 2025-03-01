@@ -103,6 +103,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `Alpine Faction` options panel to in-game options menu with settings:
     - Big HUD, linear pitch, swap controls for AR, SG, GN
     - Weapon shake, fullbright characters, lightmaps only
+    - CTF icons, hit numbers, hit sounds, taunt sounds
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 
