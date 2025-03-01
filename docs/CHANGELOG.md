@@ -95,6 +95,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `cl_swapsgcontrols` command to swap shotgun controls
 - Move settings `alpine_settings.ini`: Big HUD, Linear Pitch, FPGun FOV Scale, swap controls for AR, SG, GN
 - Add `Alpine Faction` options panel to in-game options menu
+- Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

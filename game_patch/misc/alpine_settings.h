@@ -34,6 +34,7 @@ struct AlpineGameSettings
     bool swap_sg_controls = false;
     bool mouse_linear_pitch = false;
     bool big_hud = false;
+    int skip_cutscene_bind_alias = -1;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

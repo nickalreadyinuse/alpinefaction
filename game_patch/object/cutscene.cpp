@@ -14,6 +14,7 @@
 #include "../rf/os/frametime.h"
 #include "../rf/os/timer.h"
 #include "../main/main.h"
+#include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
 
 static constexpr rf::ControlConfigAction default_skip_cutscene_ctrl = rf::CC_ACTION_MP_STATS;
@@ -37,6 +38,11 @@ FunHook<void(bool)> cutscene_do_frame_hook{
         bool skip_cutscene = false;
         auto skip_cutscene_ctrl = get_af_control(rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
         rf::control_config_check_pressed(&rf::local_player->settings.controls, skip_cutscene_ctrl, &skip_cutscene);
+
+        if (!skip_cutscene && g_alpine_game_config.skip_cutscene_bind_alias >= 0) {
+            auto alt_skip_cutscene_ctrl = static_cast<rf::ControlConfigAction>(g_alpine_game_config.skip_cutscene_bind_alias);
+            rf::control_config_check_pressed(&rf::local_player->settings.controls, alt_skip_cutscene_ctrl, &skip_cutscene);
+        }
 
         if (!skip_cutscene) {
             cutscene_do_frame_hook.call_target(dlg_open);
