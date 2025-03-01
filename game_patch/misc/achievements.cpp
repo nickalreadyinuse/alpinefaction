@@ -105,6 +105,8 @@ void AchievementManager::initialize()
         {AchievementName::KavaAATurrets, {60, "Anti-Aircraft", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
         {AchievementName::SecretStash, {61, "Secret Stash", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::DropAPCBridge, {62, "Bridge to Nowhere", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::Toilets, {63, "Pipe Dreams", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::Microwaves, {64, "The Hot Take", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -1196,7 +1198,6 @@ CodeInjection clutter_use_achievement_patch{
                 cls_name == "Urinal" ||
                 cls_name == "Urinal2") {
                 log_use(clutter->uid); // log the use
-                //grant_achievement_sp(AchievementName::CoffeeMakers);
             }
         }
     },

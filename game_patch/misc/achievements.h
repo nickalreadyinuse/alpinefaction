@@ -71,6 +71,8 @@ enum class AchievementName : int
     RunOverMore,
     SecretStash,
     DropAPCBridge,
+    Toilets,
+    Microwaves,
 };
 
 enum class AchievementType : int
