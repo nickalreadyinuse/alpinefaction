@@ -256,6 +256,18 @@ bool alpine_player_settings_load(rf::Player* player)
         set_big_hud(g_alpine_game_config.big_hud);
         processed_keys.insert("BigHUD");
     }
+    if (settings.count("DisableWeaponShake")) {
+        g_alpine_game_config.try_disable_weapon_shake = std::stoi(settings["DisableWeaponShake"]);
+        processed_keys.insert("DisableWeaponShake");
+    }
+    if (settings.count("FullbrightCharacters")) {
+        g_alpine_game_config.try_fullbright_characters = std::stoi(settings["FullbrightCharacters"]);
+        processed_keys.insert("FullbrightCharacters");
+    }
+    if (settings.count("DisableTextures")) {
+        g_alpine_game_config.try_disable_textures = std::stoi(settings["DisableTextures"]);
+        processed_keys.insert("DisableTextures");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -445,6 +457,9 @@ void alpine_player_settings_save(rf::Player* player)
     file << "HorizontalFOV=" << g_alpine_game_config.horz_fov << "\n";
     file << "FPGunFOVScale=" << g_alpine_game_config.fpgun_fov_scale << "\n";
     file << "BigHUD=" << g_alpine_game_config.big_hud << "\n";
+    file << "DisableWeaponShake=" << g_alpine_game_config.try_disable_weapon_shake << "\n";
+    file << "FullbrightCharacters=" << g_alpine_game_config.try_fullbright_characters << "\n";
+    file << "DisableTextures=" << g_alpine_game_config.try_disable_textures << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
