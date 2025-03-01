@@ -1158,14 +1158,22 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
 CodeInjection ai_drop_corpse_achievement_patch{
     0x00409ADB,
     []() {
-        grant_achievement_sp(AchievementName::DropCorpse); // drop a corpse
+        std::string rfl_filename = rf::level.filename;
+        if (!string_equals_ignore_case(rfl_filename, "train01.rfl") &&
+            !string_equals_ignore_case(rfl_filename, "train02.rfl")) {
+            grant_achievement_sp(AchievementName::DropCorpse); // drop a corpse
+        }
     },
 };
 
 CodeInjection ai_medic_activate_achievement_patch{
     0x0040A73C,
     []() {
-        grant_achievement_sp(AchievementName::UseMedic); // get healed by a medic
+        std::string rfl_filename = rf::level.filename;
+        if (!string_equals_ignore_case(rfl_filename, "train01.rfl") &&
+            !string_equals_ignore_case(rfl_filename, "train02.rfl")) {
+            grant_achievement_sp(AchievementName::UseMedic); // get healed by a medic
+        }
     },
 };
 
@@ -1179,7 +1187,11 @@ CodeInjection player_handle_use_keypress_remote_charge_achievement_patch{
 CodeInjection player_attach_to_security_camera_achievement_patch{
     0x004A1950,
     []() {
-        grant_achievement_sp(AchievementName::ViewMonitor); // security monitor
+        std::string rfl_filename = rf::level.filename;
+        if (!string_equals_ignore_case(rfl_filename, "train01.rfl") &&
+            !string_equals_ignore_case(rfl_filename, "train02.rfl")) {
+            grant_achievement_sp(AchievementName::ViewMonitor); // security monitor
+        }
     },
 };
 
