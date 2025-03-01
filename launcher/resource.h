@@ -50,7 +50,7 @@
 #define IDC_MOD_COMBO                   1032
 #define IDC_KEEP_LAUNCHER_OPEN_CHECK    1033
 #define IDC_HIGH_MON_RES_CHECK          1034
-#define IDC_LINEAR_PITCH_CHECK          1035
+//#define IDC_LINEAR_PITCH_CHECK          1035
 #define IDC_LANG_COMBO                  1036
 #define IDC_REDUCED_SPEED_IN_BG_CHECK   1037
 #define IDC_ABOUT_LINK                  1038
@@ -60,9 +60,9 @@
 #define IDC_SRC_LINK                    1042
 #define IDC_RATE_EDIT                   1043
 #define IDC_ADAPTER_COMBO               1044
-#define IDC_BIG_HUD_CHECK               1045
-#define IDC_SWAP_ASSAULT_RIFLE_CONTROLS 1046
-#define IDC_SWAP_GRENADE_CONTROLS       1047
+//#define IDC_BIG_HUD_CHECK               1045
+//#define IDC_SWAP_ASSAULT_RIFLE_CONTROLS 1046
+//#define IDC_SWAP_GRENADE_CONTROLS       1047
 #define IDC_PLAYER_JOIN_BEEP_CHECK      1048
 #define IDC_MESH_STATIC_LIGHTING_CHECK  1049
 #define IDC_AUTOSAVE_CHECK              1050

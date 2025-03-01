@@ -21,7 +21,6 @@ BOOL OptionsInterfaceDlg::OnInitDialog()
 
     InitToolTip();
 
-    CheckDlgButton(IDC_BIG_HUD_CHECK, m_conf.big_hud ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_FPS_COUNTER_CHECK, m_conf.fps_counter ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_SCOREBOARD_ANIM_CHECK, m_conf.scoreboard_anim);
     CheckDlgButton(IDC_KEEP_LAUNCHER_OPEN_CHECK, m_conf.keep_launcher_open ? BST_CHECKED : BST_UNCHECKED);
@@ -33,7 +32,6 @@ BOOL OptionsInterfaceDlg::OnInitDialog()
 void OptionsInterfaceDlg::InitToolTip()
 {
     m_tool_tip.Create(*this);
-    m_tool_tip.AddTool(GetDlgItem(IDC_BIG_HUD_CHECK), "Increase HUD scale. Recommended for higher resolutions (1280x720 or higher)");
     m_tool_tip.AddTool(GetDlgItem(IDC_SCOREBOARD_ANIM_CHECK), "Scoreboard open/close animations");
     m_tool_tip.AddTool(GetDlgItem(IDC_FPS_COUNTER_CHECK), "Enable FPS counter in right-top corner of the screen");
     m_tool_tip.AddTool(GetDlgItem(IDC_KEEP_LAUNCHER_OPEN_CHECK), "Keep launcher window open after game or editor launch");
@@ -41,7 +39,6 @@ void OptionsInterfaceDlg::InitToolTip()
 
 void OptionsInterfaceDlg::OnSave()
 {
-    m_conf.big_hud = (IsDlgButtonChecked(IDC_BIG_HUD_CHECK) == BST_CHECKED);
     m_conf.scoreboard_anim = (IsDlgButtonChecked(IDC_SCOREBOARD_ANIM_CHECK) == BST_CHECKED);
     m_conf.fps_counter = (IsDlgButtonChecked(IDC_FPS_COUNTER_CHECK) == BST_CHECKED);
     m_conf.keep_launcher_open = (IsDlgButtonChecked(IDC_KEEP_LAUNCHER_OPEN_CHECK) == BST_CHECKED);
