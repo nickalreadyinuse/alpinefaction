@@ -76,6 +76,7 @@ enum class AchievementName : int
     DrillBit,
     MinerCapekPrison,
     MissileLaunchSabotage,
+    MedMax,
 };
 
 enum class AchievementType : int
@@ -126,6 +127,7 @@ struct LoggedUse
 struct AchievementStateInfo
 {
     bool unsure_what_for = false;
+    std::vector<int> train01_med_max_uids;
 };
 
 class AchievementManager

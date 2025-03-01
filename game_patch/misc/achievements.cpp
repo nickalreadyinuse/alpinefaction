@@ -110,6 +110,7 @@ void AchievementManager::initialize()
         {AchievementName::DrillBit, {65, "Un-Bore-Lievable", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
         {AchievementName::MinerCapekPrison, {66, "Early Release Program", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::MissileLaunchSabotage, {67, "The Final Countdown", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::MedMax, {68, "Med Max", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -1026,6 +1027,11 @@ void achievement_check_item_picked_up(rf::Item* item) {
 
         xlog::warn("item picked up {}, {}, {}, {}", item_uid, item_script_name, item_class_name, rfl_filename);
 
+        // clear MedMax achievement cache if not the right map
+        if (!string_equals_ignore_case(rfl_filename, "train01.rfl") && !achievement_state_info.train01_med_max_uids.empty()) {
+            achievement_state_info.train01_med_max_uids.clear();
+        }
+
         switch (item_uid) {
             // base campaign
             case 7737:
@@ -1037,6 +1043,21 @@ void achievement_check_item_picked_up(rf::Item* item) {
             case 7748: {
                 if (string_equals_ignore_case(rfl_filename, "l4s3.rfl")) {
                     grant_achievement(AchievementName::SecretStash); // 7 items behind geo secret in l4s3
+                }
+                break;
+            }
+
+            case 7443:
+            case 8546:
+            case 8547:
+            case 7442:
+            case 7444: {
+                if (string_equals_ignore_case(rfl_filename, "train01.rfl")) {
+                    achievement_state_info.train01_med_max_uids.push_back(item_uid);
+                    if (achievement_state_info.train01_med_max_uids.size() >= 5) {
+                        grant_achievement(AchievementName::MedMax);
+                        achievement_state_info.train01_med_max_uids.clear();
+                    }
                 }
                 break;
             }
