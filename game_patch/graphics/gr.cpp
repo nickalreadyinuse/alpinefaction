@@ -148,15 +148,15 @@ void evaluate_lightmaps_only()
         rf::is_multi && !rf::is_server && get_df_server_info() && !get_df_server_info()->allow_lmap;
 
     if (server_side_restrict_lightmaps_only) {
-        if (g_game_config.try_lightmaps_only) {
+        if (g_alpine_game_config.try_disable_textures) {
             rf::console::print("This server does not allow you to use lightmap only mode!");
             rf::gr::show_lightmaps = false;
             rf::g_cache_clear();
         }
     }
     else {
-        if (rf::gr::show_lightmaps != g_game_config.try_lightmaps_only) {
-            rf::gr::show_lightmaps = g_game_config.try_lightmaps_only;
+        if (rf::gr::show_lightmaps != g_alpine_game_config.try_disable_textures) {
+            rf::gr::show_lightmaps = g_alpine_game_config.try_disable_textures;
             rf::g_cache_clear();
         }
     }
@@ -165,12 +165,11 @@ void evaluate_lightmaps_only()
 ConsoleCommand2 lightmaps_only_cmd{
     "r_lightmaps",
     []() {
-        g_game_config.try_lightmaps_only = !g_game_config.try_lightmaps_only;
-        g_game_config.save();
+        g_alpine_game_config.try_disable_textures = !g_alpine_game_config.try_disable_textures;
 
         evaluate_lightmaps_only();
 
-        rf::console::print("Lightmap only mode is {}", g_game_config.try_lightmaps_only ?
+        rf::console::print("Lightmap only mode is {}", g_alpine_game_config.try_disable_textures ?
             "enabled. In multiplayer, this will only apply if the server allows it." : "disabled.");
     },
     "Render only lightmaps for level geometry (no textures). In multiplayer, this is only available if the server allows it.",

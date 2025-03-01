@@ -5,6 +5,7 @@
 #include "../rf/multi.h"
 #include "../os/console.h"
 #include "../misc/misc.h"
+#include "../misc/alpine_settings.h"
 #include "../multi/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/os/frametime.h"
@@ -33,7 +34,7 @@ CallHook<void(rf::Camera*, float, float)> camera_shake_hook{
     0x00426C79,
     [](rf::Camera* cp, float amplitude, float time_seconds) {
 
-        if (g_game_config.try_disable_screenshake && !server_side_restrict_disable_ss) {
+        if (g_alpine_game_config.try_disable_weapon_shake && !server_side_restrict_disable_ss) {
             return;
         }
 
@@ -47,26 +48,25 @@ void evaluate_restrict_disable_ss()
         rf::is_multi && !rf::is_server && get_df_server_info() && !get_df_server_info()->allow_no_ss;
 
     if (server_side_restrict_disable_ss) {
-        if (g_game_config.try_disable_screenshake) {
-            rf::console::print("This server does not allow you to disable screenshake!");
+        if (g_alpine_game_config.try_disable_weapon_shake) {
+            rf::console::print("This server does not allow you to disable weapon camera shake!");
         }
     }
 }
 
-ConsoleCommand2 disable_screenshake_cmd{
-    "cl_screenshake",
+ConsoleCommand2 disable_weaphake_cmd{
+    "cl_weapshake",
     []() {
-        g_game_config.try_disable_screenshake = !g_game_config.try_disable_screenshake;
-        g_game_config.save();
+        g_alpine_game_config.try_disable_weapon_shake = !g_alpine_game_config.try_disable_weapon_shake;
 
         evaluate_restrict_disable_ss();
 
         rf::console::print("Screenshake is {}",
-                           g_game_config.try_disable_screenshake
+                           g_alpine_game_config.try_disable_weapon_shake
                                ? "disabled. In multiplayer, this will only apply if the server allows it."
                                : "enabled.");
     },
-    "Disable screenshake. In multiplayer, this is only applied if the server allows it.",
+    "Disable camera shake from weapon firing. In multiplayer, this is only applied if the server allows it.",
 };
 
 void camera_do_patch()
@@ -78,6 +78,6 @@ void camera_do_patch()
     write_mem_ptr(0x0040DBCC + 2, &g_camera_shake_factor);
 
     // handle turning off screen shake
-    disable_screenshake_cmd.register_cmd();
+    disable_weaphake_cmd.register_cmd();
     camera_shake_hook.install();
 }

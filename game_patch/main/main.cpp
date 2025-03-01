@@ -31,6 +31,7 @@
 #include "../misc/misc.h"
 #include "../misc/achievements.h"
 #include "../misc/alpine_options.h"
+#include "../misc/alpine_settings.h"
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
 #include "../misc/player.h"
@@ -193,10 +194,10 @@ FunHook<void(bool)> level_init_post_hook{
                 build_chat_menu_comms_messages();
             }
 
-            if (g_game_config.try_lightmaps_only) {
+            if (g_alpine_game_config.try_disable_textures) {
                 evaluate_lightmaps_only();
             }
-            if (g_game_config.try_disable_screenshake) {
+            if (g_alpine_game_config.try_disable_weapon_shake) {
                 evaluate_restrict_disable_ss();
             }
             if (g_game_config.try_disable_muzzle_flash) {

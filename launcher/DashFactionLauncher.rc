@@ -220,10 +220,10 @@ BEGIN
     AUTOCHECKBOX    "Allow clientside mods in legacy directories",IDC_ALLOW_OVERWRITE_GAME_CHECK,0,36,150,10
     AUTOCHECKBOX    "Reduce out of focus game speed",IDC_REDUCED_SPEED_IN_BG_CHECK,0,48,150,10
     AUTOCHECKBOX    "Play out of focus join notifications",IDC_PLAYER_JOIN_BEEP_CHECK,0,60,150,10,BS_AUTOCHECKBOX    
-    AUTOCHECKBOX    "Fullbright characters",IDC_FULLBRIGHT,0,72,100,10
+    //AUTOCHECKBOX    "Fullbright characters",IDC_FULLBRIGHT,0,72,100,10
     AUTOCHECKBOX    "Disable muzzle flash lights",IDC_MUZZLEFLASH,0,84,100,10
-    AUTOCHECKBOX    "Disable camera shake",IDC_SCREENSHAKE,0,96,100,10
-    AUTOCHECKBOX    "Disable textures (only show lightmaps)",IDC_LIGHTMAPS,0,108,140,10
+    //AUTOCHECKBOX    "Disable camera shake",IDC_SCREENSHAKE,0,96,100,10
+    //AUTOCHECKBOX    "Disable textures (only show lightmaps)",IDC_LIGHTMAPS,0,108,140,10
     AUTOCHECKBOX    "Show red screen flash when damaged",IDC_DAMAGEFLASH,0,120,140,10
     AUTOCHECKBOX    "Enforce power of 2 texture resolution",IDC_POW2TEX,0,132,152,10
 END

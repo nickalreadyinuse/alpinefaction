@@ -68,9 +68,6 @@ struct GameConfig
     CfgVar<bool> glares = true;
     CfgVar<bool> show_enemy_bullets = true;
 
-    CfgVar<bool> try_mesh_fullbright = false;
-    CfgVar<bool> try_lightmaps_only = false;
-    CfgVar<bool> try_disable_screenshake = false;
     CfgVar<bool> try_disable_muzzle_flash = false;
 
     // Audio

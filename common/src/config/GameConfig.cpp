@@ -192,9 +192,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
     result &= visitor(dash_faction_key, "Glares", glares);
     result &= visitor(dash_faction_key, "Show Enemy Bullets", show_enemy_bullets);
-    result &= visitor(dash_faction_key, "Lightmaps Only", try_lightmaps_only);
-    result &= visitor(dash_faction_key, "Fullbright Meshes", try_mesh_fullbright);
-    result &= visitor(dash_faction_key, "Disable Screenshake", try_disable_screenshake);
     result &= visitor(dash_faction_key, "Disable Muzzle Flash Lights", try_disable_muzzle_flash);
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
     result &= visitor(dash_faction_key, "Damage Screen Flash", damage_screen_flash);

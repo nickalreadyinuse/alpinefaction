@@ -7,6 +7,9 @@
 #include <format>
 #include <algorithm>
 #include "alpine_settings.h"
+#include "misc.h"
+#include "../main/main.h"
+#include "../graphics/gr.h"
 #include "../rf/ui.h"
 #include "../rf/sound/sound.h"
 #include "../rf/input.h"
@@ -34,6 +37,12 @@ static rf::ui::Checkbox ao_swapgn_cbox;
 static rf::ui::Label ao_swapgn_label;
 static rf::ui::Checkbox ao_swapsg_cbox;
 static rf::ui::Label ao_swapsg_label;
+static rf::ui::Checkbox ao_weapshake_cbox;
+static rf::ui::Label ao_weapshake_label;
+static rf::ui::Checkbox ao_fullbrightchar_cbox;
+static rf::ui::Label ao_fullbrightchar_label;
+static rf::ui::Checkbox ao_notex_cbox;
+static rf::ui::Label ao_notex_label;
 
 static inline void debug_ui_layout([[ maybe_unused ]] rf::ui::Gadget& gadget)
 {
@@ -419,6 +428,51 @@ void ao_swapsg_cbox_on_click(int x, int y) {
     //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapsg_cbox.checked);
 }
 
+void ao_weapshake_cbox_on_click(int x, int y) {
+    g_alpine_game_config.try_disable_weapon_shake = !g_alpine_game_config.try_disable_weapon_shake;
+    ao_weapshake_cbox.checked = !g_alpine_game_config.try_disable_weapon_shake;
+    evaluate_restrict_disable_ss();
+
+    if (ao_weapshake_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_weapshake_cbox.checked);
+}
+
+void ao_fullbrightchar_cbox_on_click(int x, int y) {
+    g_alpine_game_config.try_fullbright_characters = !g_alpine_game_config.try_fullbright_characters;
+    ao_fullbrightchar_cbox.checked = g_alpine_game_config.try_fullbright_characters;
+    evaluate_fullbright_meshes();
+
+    if (ao_fullbrightchar_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_fullbrightchar_cbox.checked);
+}
+
+void ao_notex_cbox_on_click(int x, int y) {
+    g_alpine_game_config.try_disable_textures = !g_alpine_game_config.try_disable_textures;
+    ao_notex_cbox.checked = g_alpine_game_config.try_disable_textures;
+    evaluate_lightmaps_only();
+
+    if (ao_notex_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_notex_cbox.checked);
+}
+
 void alpine_options_panel_handle_key(rf::Key* key){
     // todo: more key support (tab, etc.)
     // close panel on escape
@@ -503,15 +557,21 @@ void alpine_options_panel_init() {
     alpine_options_panel_checkbox_init(
         &ao_bighud_cbox, &ao_bighud_label, ao_bighud_cbox_on_click, g_alpine_game_config.big_hud, 113, 18, "Big HUD");
     alpine_options_panel_checkbox_init(
-        &ao_linearpitch_cbox, &ao_linearpitch_label, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 113, 43, "Linear Pitch");
+        &ao_linearpitch_cbox, &ao_linearpitch_label, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 113, 43, "Linear pitch");
 
 
     alpine_options_panel_checkbox_init(
-        &ao_swapar_cbox, &ao_swapar_label, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 280, 18, "Swap AR Binds");
+        &ao_swapar_cbox, &ao_swapar_label, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 280, 18, "Swap AR binds");
     alpine_options_panel_checkbox_init(
-        &ao_swapgn_cbox, &ao_swapgn_label, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 280, 43, "Swap GN Binds");
+        &ao_swapgn_cbox, &ao_swapgn_label, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 280, 43, "Swap GN binds");
     alpine_options_panel_checkbox_init(
-        &ao_swapsg_cbox, &ao_swapsg_label, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 280, 68, "Swap SG Binds");
+        &ao_swapsg_cbox, &ao_swapsg_label, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 280, 68, "Swap SG binds");
+    alpine_options_panel_checkbox_init(
+        &ao_weapshake_cbox, &ao_weapshake_label, ao_weapshake_cbox_on_click, !g_alpine_game_config.try_disable_weapon_shake, 280, 93, "Weapon shake");
+    alpine_options_panel_checkbox_init(
+        &ao_notex_cbox, &ao_notex_label, ao_notex_cbox_on_click, g_alpine_game_config.try_disable_textures, 280, 118, "Lightmaps only");
+    alpine_options_panel_checkbox_init(
+        &ao_fullbrightchar_cbox, &ao_fullbrightchar_label, ao_fullbrightchar_cbox_on_click, g_alpine_game_config.try_fullbright_characters, 280, 143, "Fullbright models");
 }
 
 void alpine_options_panel_do_frame(int x) {

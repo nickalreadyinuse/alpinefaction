@@ -14,6 +14,7 @@
 #include "../rf/level.h"
 #include "../os/console.h"
 #include "../misc/misc.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/os/os.h"
 #include "../rf/gameseq.h"
 #include "../rf/os/timer.h"
@@ -117,7 +118,7 @@ CodeInjection multi_start_injection{
         debug_multi_init();
         void reset_restricted_cmds_on_init_multi();
         reset_restricted_cmds_on_init_multi();
-        if (g_game_config.try_lightmaps_only) {
+        if (g_alpine_game_config.try_disable_textures) {
             evaluate_lightmaps_only();
         }        
     },

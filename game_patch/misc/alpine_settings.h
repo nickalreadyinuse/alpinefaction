@@ -35,6 +35,10 @@ struct AlpineGameSettings
     bool mouse_linear_pitch = false;
     bool big_hud = false;
     int skip_cutscene_bind_alias = -1;
+    bool try_disable_weapon_shake = false;
+    bool try_fullbright_characters = false;
+    bool try_disable_textures = false;
+    bool try_disable_muzzle_flash_lights = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

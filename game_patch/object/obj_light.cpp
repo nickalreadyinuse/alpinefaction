@@ -6,6 +6,7 @@
 #include <patch_common/CodeInjection.h>
 #include <common/utils/list-utils.h>
 #include "../misc/misc.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/gr/gr_light.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
@@ -86,7 +87,7 @@ void evaluate_fullbright_meshes()
 
     bool should_fullbright = false;
 
-    if (g_game_config.try_mesh_fullbright) {
+    if (g_alpine_game_config.try_fullbright_characters) {
         bool server_side_restrict_fb_mesh =
             rf::is_multi && !rf::is_server && get_df_server_info() && !get_df_server_info()->allow_fb_mesh;
 
@@ -220,12 +221,11 @@ ConsoleCommand2 muzzle_flash_cmd{
 ConsoleCommand2 fullbright_models_cmd{
     "r_fullbright",
     []() {
-        g_game_config.try_mesh_fullbright = !g_game_config.try_mesh_fullbright;
-        g_game_config.save();
+        g_alpine_game_config.try_fullbright_characters = !g_alpine_game_config.try_fullbright_characters;
 
         evaluate_fullbright_meshes();    
                 
-        rf::console::print("Fullbright character meshes are {}", g_game_config.try_mesh_fullbright ?
+        rf::console::print("Fullbright character meshes are {}", g_alpine_game_config.try_fullbright_characters ?
 			"enabled. In multiplayer, this will only apply if the server allows it." : "disabled.");
     },
     "Toggle fullbright character meshes. In multiplayer, this is only available if the server allows it.",
