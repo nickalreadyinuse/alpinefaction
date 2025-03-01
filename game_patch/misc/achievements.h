@@ -73,6 +73,9 @@ enum class AchievementName : int
     DropAPCBridge,
     Toilets,
     Microwaves,
+    DrillBit,
+    MinerCapekPrison,
+    MissileLaunchSabotage,
 };
 
 enum class AchievementType : int

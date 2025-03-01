@@ -107,6 +107,9 @@ void AchievementManager::initialize()
         {AchievementName::DropAPCBridge, {62, "Bridge to Nowhere", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
         {AchievementName::Toilets, {63, "Pipe Dreams", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::Microwaves, {64, "The Hot Take", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::DrillBit, {65, "Un-Bore-Lievable", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
+        {AchievementName::MinerCapekPrison, {66, "Early Release Program", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::MissileLaunchSabotage, {67, "The Final Countdown", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -746,6 +749,21 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
+            case 9918:
+            case 9919: {
+                if (string_equals_ignore_case(rfl_filename, "l11s2.rfl")) {
+                    grant_achievement(AchievementName::MinerCapekPrison);
+                }
+                break;
+            }
+
+            case 9617: {
+                if (string_equals_ignore_case(rfl_filename, "l14s3.rfl")) {
+                    grant_achievement(AchievementName::MissileLaunchSabotage);
+                }
+                break;
+            }
+
             // Kava
             case 26156: {
                 if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
@@ -1172,6 +1190,13 @@ CodeInjection separated_solids_achievement_patch{
     },
 };
 
+CodeInjection drill_bit_maintenance_achievement_patch{
+    0x00421693,
+    []() {
+        grant_achievement_sp(AchievementName::DrillBit);
+    },
+};
+
 CodeInjection ai_go_berserk_achievement_patch{
     0x00408269,
     [](auto& regs) {
@@ -1443,6 +1468,7 @@ void achievements_apply_patch()
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
     separated_solids_achievement_patch.install();
+    drill_bit_maintenance_achievement_patch.install();
     ai_go_berserk_achievement_patch.install();
     clutter_use_achievement_patch.install();
     entity_crush_entity_achievement_patch.install();
