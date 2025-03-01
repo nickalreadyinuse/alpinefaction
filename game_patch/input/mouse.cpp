@@ -120,23 +120,22 @@ ConsoleCommand2 ms_cmd{
 
 void update_scope_sensitivity()
 {
-    scope_sensitivity_value = g_game_config.scope_sensitivity_modifier.value();
+    scope_sensitivity_value = g_alpine_game_config.scope_sensitivity_modifier;
 
     applied_dynamic_sensitivity_value =
-        (1 / (4 * g_game_config.scope_sensitivity_modifier.value())) * rf::scope_sensitivity_constant;
+        (1 / (4 * g_alpine_game_config.scope_sensitivity_modifier)) * rf::scope_sensitivity_constant;
 }
 
 void update_scanner_sensitivity()
 {
-    scanner_sensitivity_value = g_game_config.scanner_sensitivity_modifier;
+    scanner_sensitivity_value = g_alpine_game_config.scanner_sensitivity_modifier;
 }
 
 ConsoleCommand2 static_scope_sens_cmd{
     "cl_staticscopesens",
     []() {
-        g_game_config.scope_static_sensitivity = !g_game_config.scope_static_sensitivity;
-        g_game_config.save();
-        rf::console::print("Scope sensitivity is {}", g_game_config.scope_static_sensitivity ? "static" : "dynamic");
+        g_alpine_game_config.scope_static_sensitivity = !g_alpine_game_config.scope_static_sensitivity;
+        rf::console::print("Scope sensitivity is {}", g_alpine_game_config.scope_static_sensitivity ? "static" : "dynamic");
     },
     "Toggle whether scope mouse sensitivity is static or dynamic (based on zoom level)."
 };
@@ -145,13 +144,11 @@ ConsoleCommand2 scope_sens_cmd{
     "cl_scopesens",
     [](std::optional<float> value_opt) {
         if (value_opt) {
-            g_game_config.scope_sensitivity_modifier = std::clamp(value_opt.value(), 0.01f, 10.0f);
-            g_game_config.save();
+            g_alpine_game_config.set_scope_sens_mod(value_opt.value());
             update_scope_sensitivity();
         }
         else {
-            rf::console::print("Scope sensitivity modifier: {:.2f}",
-                g_game_config.scope_sensitivity_modifier.value());
+            rf::console::print("Scope sensitivity modifier: {:.2f}", g_alpine_game_config.scope_sensitivity_modifier);
         }
     },
     "Sets mouse sensitivity modifier used while in a scope.",
@@ -162,13 +159,11 @@ ConsoleCommand2 scanner_sens_cmd{
     "cl_scannersens",
     [](std::optional<float> value_opt) {
         if (value_opt) {
-            g_game_config.scanner_sensitivity_modifier = std::clamp(value_opt.value(), 0.01f, 10.0f);
-            g_game_config.save();
+            g_alpine_game_config.set_scanner_sens_mod(value_opt.value());
             update_scanner_sensitivity();
         }
         else {
-            rf::console::print("Scanner sensitivity modifier: {:.2f}",
-                g_game_config.scanner_sensitivity_modifier.value());
+            rf::console::print("Scanner sensitivity modifier: {:.2f}", g_alpine_game_config.scanner_sensitivity_modifier);
         }
     },
     "Sets mouse sensitivity modifier used while in a scanner.",
@@ -178,7 +173,7 @@ ConsoleCommand2 scanner_sens_cmd{
 CodeInjection static_zoom_sensitivity_patch {
     0x004309A2,
     [](auto& regs) {
-        if (g_game_config.scope_static_sensitivity) {
+        if (g_alpine_game_config.scope_static_sensitivity) {
             regs.eip = 0x004309D0; // use static sens calculation method for scopes (same as scanner and unscoped)
         }
     },
@@ -191,7 +186,7 @@ CodeInjection static_zoom_sensitivity_patch2 {
 
         if (player && rf::player_fpgun_is_zoomed(player)) {
             applied_static_sensitivity_value = scope_sensitivity_value;
-            if (g_game_config.scope_static_sensitivity) {
+            if (g_alpine_game_config.scope_static_sensitivity) {
                 regs.al = static_cast<int8_t>(1); // make cmp at 0x004309DA test true
             }
         }

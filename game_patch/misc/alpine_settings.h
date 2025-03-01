@@ -29,6 +29,21 @@ struct AlpineGameSettings
         fpgun_fov_scale = std::clamp(scale, min_fpgun_fov_scale, max_fpgun_fov_scale);
     }
 
+    // scope and scanner sens modifiers
+    static constexpr float min_sens_mod = 0.01f;
+    static constexpr float max_sens_mod = 10.0f;
+    float scope_sensitivity_modifier = 0.25f;    
+    void set_scope_sens_mod(float mod)
+    {
+        scope_sensitivity_modifier = std::clamp(mod, min_sens_mod, max_sens_mod);
+    }
+    float scanner_sensitivity_modifier = 0.25f;
+    void set_scanner_sens_mod(float mod)
+    {
+        scanner_sensitivity_modifier = std::clamp(mod, min_sens_mod, max_sens_mod);
+    }
+
+    bool scope_static_sensitivity = false;
     bool swap_ar_controls = false;
     bool swap_gn_controls = false;
     bool swap_sg_controls = false;
@@ -43,3 +58,5 @@ struct AlpineGameSettings
 
 extern AlpineGameSettings g_alpine_game_config;
 void set_big_hud(bool is_big);
+void update_scope_sensitivity();
+void update_scanner_sensitivity();

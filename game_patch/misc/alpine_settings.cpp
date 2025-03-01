@@ -286,6 +286,20 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.skip_cutscene_bind_alias = std::stoi(settings["SkipCutsceneBindAlias"]);
         processed_keys.insert("SkipCutsceneBindAlias");
     }
+    if (settings.count("StaticScopeSensitivity")) {
+        g_alpine_game_config.scope_static_sensitivity = std::stoi(settings["StaticScopeSensitivity"]);
+        processed_keys.insert("StaticScopeSensitivity");
+    }
+    if (settings.count("ScopeSensitivityModifier")) {
+        g_alpine_game_config.set_scope_sens_mod(std::stof(settings["ScopeSensitivityModifier"]));
+        update_scope_sensitivity();
+        processed_keys.insert("ScopeSensitivityModifier");
+    }
+    if (settings.count("ScannerSensitivityModifier")) {
+        g_alpine_game_config.set_scanner_sens_mod(std::stof(settings["ScannerSensitivityModifier"]));
+        update_scanner_sensitivity();
+        processed_keys.insert("ScannerSensitivityModifier");
+    }
 
     // Load binds
     for (const auto& [key, value] : settings) {
@@ -348,6 +362,9 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "MouseYInvert=" << cc.axes[1].invert << "\n";
     file << "MouseLinearPitch=" << g_alpine_game_config.mouse_linear_pitch << "\n";
     file << "SkipCutsceneBindAlias=" << g_alpine_game_config.skip_cutscene_bind_alias << "\n";
+    file << "StaticScopeSensitivity=" << g_alpine_game_config.scope_static_sensitivity << "\n";
+    file << "ScopeSensitivityModifier=" << g_alpine_game_config.scope_sensitivity_modifier << "\n";
+    file << "ScannerSensitivityModifier=" << g_alpine_game_config.scanner_sensitivity_modifier << "\n";
 
     file << "\n[ActionBinds]\n";
     file << "; Format is Bind:{Name}={ID},{ScanCode0},{ScanCode1},{MouseButtonID}\n";

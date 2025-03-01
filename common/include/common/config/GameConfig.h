@@ -87,9 +87,6 @@ struct GameConfig
 
     // Input
     CfgVar<bool> direct_input = true;
-    CfgVar<bool> scope_static_sensitivity = false;
-    CfgVar<float> scope_sensitivity_modifier = 0.25f;
-    CfgVar<float> scanner_sensitivity_modifier = 0.25f;
 
     // Interface
     CfgVar<bool> fps_counter = true;

@@ -185,9 +185,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Scoreboard Animations", scoreboard_anim);
     result &= visitor(dash_faction_key, "Spectate Mode Minimal UI", spectate_mode_minimal_ui);
     result &= visitor(dash_faction_key, "Level Sound Volume", level_sound_volume);
-    result &= visitor(dash_faction_key, "Static Scope Sensitivity", scope_static_sensitivity);
-    result &= visitor(dash_faction_key, "Scope Sensitivity Modifier", scope_sensitivity_modifier);
-    result &= visitor(dash_faction_key, "Scanner Sensitivity Modifier", scanner_sensitivity_modifier);
     result &= visitor(dash_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
     result &= visitor(dash_faction_key, "Glares", glares);
