@@ -487,6 +487,8 @@ void misc_init()
 
     // Allow loading of rfl files with supported AF-specific versions
     level_read_header_patch.install();
+    AsmWriter{0x004461BF}.jmp(0x00446200); // load Level Name from all rfls (any version) on listen server create panel
+
 
     // fog experimentation - attempting to stop fp weapon cutoff. Success when using static values but not when rfl has specified values
     //fog_near_clip_patch.install();
