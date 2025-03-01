@@ -11,6 +11,7 @@
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/entity.h"
+#include "../misc/alpine_settings.h"
 #include "../main/main.h"
 
 static float scope_sensitivity_value = 0.25f;
@@ -285,7 +286,7 @@ void linear_pitch_test()
 CodeInjection linear_pitch_patch{
     0x0049DEC9,
     [](auto& regs) {
-        if (!g_game_config.linear_pitch)
+        if (!g_alpine_game_config.mouse_linear_pitch)
             return;
         // Non-linear pitch value and delta from RF
         rf::Entity* entity = regs.esi;
@@ -322,11 +323,10 @@ ConsoleCommand2 linear_pitch_cmd{
         linear_pitch_test();
 #endif
 
-        g_game_config.linear_pitch = !g_game_config.linear_pitch;
-        g_game_config.save();
-        rf::console::print("Linear pitch is {}", g_game_config.linear_pitch ? "enabled" : "disabled");
+        g_alpine_game_config.mouse_linear_pitch = !g_alpine_game_config.mouse_linear_pitch;
+        rf::console::print("Linear pitch is {}", g_alpine_game_config.mouse_linear_pitch ? "enabled" : "disabled");
     },
-    "Toggles linear pitch angle",
+    "Toggles mouse linear pitch angle",
 };
 
 void mouse_apply_patch()

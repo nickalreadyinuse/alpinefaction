@@ -8,6 +8,7 @@
 #include "../rf/player/player.h"
 #include "../rf/multi.h"
 #include "../main/main.h"
+#include "../misc/alpine_settings.h"
 #include "../os/console.h"
 #include "hud_internal.h"
 
@@ -39,7 +40,7 @@ CallHook<void(int, int, int, rf::gr::Mode)> render_reticle_gr_bitmap_hook{
         0x0043A4FE,
     },
     [](int bm_handle, int x, int y, rf::gr::Mode mode) {
-        float base_scale = g_game_config.big_hud ? 2.0f : 1.0f;
+        float base_scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
         float scale = base_scale * g_game_config.reticle_scale;
         int clip_w = rf::gr::clip_width();
         int clip_h = rf::gr::clip_height();

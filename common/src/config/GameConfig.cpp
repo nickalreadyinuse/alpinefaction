@@ -191,10 +191,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Scanner Sensitivity Modifier", scanner_sensitivity_modifier);
     result &= visitor(dash_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
-    result &= visitor(dash_faction_key, "Swap Assault Rifle Controls", swap_assault_rifle_controls);
-    result &= visitor(dash_faction_key, "Swap Grenade Controls", swap_grenade_controls);
     result &= visitor(dash_faction_key, "Glares", glares);
-    result &= visitor(dash_faction_key, "Linear Pitch", linear_pitch);
     result &= visitor(dash_faction_key, "Show Enemy Bullets", show_enemy_bullets);
     result &= visitor(dash_faction_key, "Lightmaps Only", try_lightmaps_only);
     result &= visitor(dash_faction_key, "Fullbright Meshes", try_mesh_fullbright);
@@ -205,7 +202,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Death Bars", death_bars);
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
-    result &= visitor(dash_faction_key, "Big HUD", big_hud);
     result &= visitor(dash_faction_key, "Reticle Scale", reticle_scale);
     result &= visitor(dash_faction_key, "Mesh Static Lighting", mesh_static_lighting);
     result &= visitor(dash_faction_key, "Enforce Power of 2 Textures", pow2tex);

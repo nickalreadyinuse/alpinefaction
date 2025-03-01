@@ -92,6 +92,9 @@ Version 1.1.0 (Tamarack): Not yet released
 - Display control binds in spectate mode help test
 - Remove unrar library (no longer needed)
 - Move FOV setting from registry to `alpine_settings.ini`
+- Add `cl_swapsgcontrols` command to swap shotgun controls
+- Move Big HUD, Linear Pitch, and swap controls for AR, SG, GN to `alpine_settings.ini`
+- Add `Alpine Faction` options panel to in-game options menu
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

@@ -18,6 +18,7 @@
 #include "../main/main.h"
 #include "../graphics/gr.h"
 #include "../misc/alpine_options.h"
+#include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
 #include "hud_internal.h"
 #include "hud.h"
@@ -503,7 +504,7 @@ CallHook<void(int, int, int, rf::gr::Mode)> hud_render_power_ups_gr_bitmap_hook{
         0x0047FFFD,
     },
     [](int bm_handle, int x, int y, rf::gr::Mode mode) {
-        float scale = g_game_config.big_hud ? 2.0f : 1.0f;
+        float scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
         x = hud_transform_value(x, 640, rf::gr::clip_width());
         x = hud_scale_value(x, rf::gr::clip_width(), scale);
         y = hud_scale_value(y, rf::gr::clip_height(), scale);

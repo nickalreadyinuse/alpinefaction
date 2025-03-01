@@ -6,6 +6,7 @@
 #include "hud.h"
 #include "multi_scoreboard.h"
 #include "hud_internal.h"
+#include "../misc/alpine_settings.h"
 #include "../main/main.h"
 #include "../os/console.h"
 #include "../rf/gr/gr_font.h"
@@ -155,14 +156,13 @@ void set_big_hud(bool is_big)
 ConsoleCommand2 bighud_cmd{
     "bighud",
     []() {
-        if (!g_game_config.big_hud && is_screen_resolution_too_low_for_big_hud()) {
+        if (!g_alpine_game_config.big_hud && is_screen_resolution_too_low_for_big_hud()) {
             rf::console::print("Screen resolution is too low for big HUD!");
             return;
         }
-        g_game_config.big_hud = !g_game_config.big_hud;
-        set_big_hud(g_game_config.big_hud);
-        g_game_config.save();
-        rf::console::print("Big HUD is {}", g_game_config.big_hud ? "enabled" : "disabled");
+        g_alpine_game_config.big_hud = !g_alpine_game_config.big_hud;
+        set_big_hud(g_alpine_game_config.big_hud);
+        rf::console::print("Big HUD is {}", g_alpine_game_config.big_hud ? "enabled" : "disabled");
     },
     "Toggle big HUD",
     "bighud",
@@ -311,7 +311,7 @@ const char* hud_get_bold_font_name(bool big)
 
 int hud_get_small_font()
 {
-    if (g_game_config.big_hud) {
+    if (g_alpine_game_config.big_hud) {
         static int font = -2;
         if (font == -2) {
             font = rf::gr::load_font(hud_get_small_font_name(true));
@@ -327,7 +327,7 @@ int hud_get_small_font()
 
 int hud_get_default_font()
 {
-    if (g_game_config.big_hud) {
+    if (g_alpine_game_config.big_hud) {
         static int font = -2;
         if (font == -2) {
             font = rf::gr::load_font(hud_get_default_font_name(true));
@@ -343,7 +343,7 @@ int hud_get_default_font()
 
 int hud_get_large_font()
 {
-    if (g_game_config.big_hud) {
+    if (g_alpine_game_config.big_hud) {
         static int font = -2;
         if (font == -2) {
             font = rf::gr::load_font(hud_get_bold_font_name(true));
@@ -366,8 +366,8 @@ FunHook<void()> hud_init_hook{
         hud_init_hook.call_target();
         // Init big HUD
         if (!rf::is_dedicated_server) {
-            if (!g_game_config.big_hud || !is_screen_resolution_too_low_for_big_hud()) {
-                set_big_hud(g_game_config.big_hud);
+            if (!g_alpine_game_config.big_hud || !is_screen_resolution_too_low_for_big_hud()) {
+                set_big_hud(g_alpine_game_config.big_hud);
             }
         }
     },

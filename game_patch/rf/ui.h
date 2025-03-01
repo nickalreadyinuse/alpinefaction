@@ -2,6 +2,7 @@
 
 #include <patch_common/MemUtils.h>
 #include "gr/gr_font.h"
+#include "gr/gr.h"
 
 namespace rf::ui
 {
@@ -16,8 +17,8 @@ namespace rf::ui
         int w;
         int h;
         int key;
-        void(*on_click)();
-        void(*on_mouse_btn_down)();
+        void(*on_click)(int x, int y);
+        void(*on_mouse_btn_down)(int x, int y);
 
         [[nodiscard]] int get_absolute_x() const
         {
@@ -27,6 +28,11 @@ namespace rf::ui
         [[nodiscard]] int get_absolute_y() const
         {
             return AddrCaller{0x00456A00}.this_call<int>(this);
+        }
+
+        void unhighlight()
+        {
+            AddrCaller{0x00440970}.this_call<void>(this);
         }
     };
     static_assert(sizeof(Gadget) == 0x28);
@@ -47,8 +53,55 @@ namespace rf::ui
         int text_width;
         int text_height;
 #endif
+        void create(const char* normal_bm_name, const char* select_bitmap_name, int x, int y, int Id, const char* title, int font_num)
+        {
+            AddrCaller{0x004574D0}.this_call<void>(this, normal_bm_name, select_bitmap_name, x, y, Id, title, font_num);
+        }
+
+        void render()
+        {
+            AddrCaller{0x004577A0}.this_call<void>(this);
+        }
+
+        void init()
+        {
+            AddrCaller{0x004574B0}.this_call<void>(this);
+        }
     };
     static_assert(sizeof(Button) == 0x44);
+
+    struct Panel : Gadget
+    {
+        int bg_bm;
+
+        void create(const char* normal_bm_name, int x, int y)
+        {
+            AddrCaller{0x00456A40}.this_call<void>(this, normal_bm_name, x, y);
+        }
+
+        void render()
+        {
+            AddrCaller{0x00456A80}.this_call<void>(this);
+        }
+    };
+    static_assert(sizeof(Panel) == 0x2C);
+
+    struct Checkbox : Button
+    {
+        int checked_bm;
+        bool checked;
+
+        void create(const char* normal_bm_name, const char* select_bm_name, const char* checked_bm_name, int x, int y, int a7, const char* text, int font)
+        {
+            AddrCaller{0x00457960}.this_call<void>(this, normal_bm_name, select_bm_name, checked_bm_name, x, y, a7, text, font);
+        }
+
+        void render()
+        {
+            AddrCaller{0x004579C0}.this_call<void>(this);
+        }
+    };
+    static_assert(sizeof(Checkbox) == 0x4C);
 
     struct Label : Gadget
     {
@@ -64,6 +117,26 @@ namespace rf::ui
         int text_width;
 #endif
         int text_height;
+
+        void init()
+        {
+            AddrCaller{0x00456B30}.this_call<void>(this);
+        }
+
+        void create(Gadget* parent, int x, int y, const char* text, int font)
+        {
+            AddrCaller{0x00456B60}.this_call<void>(this, parent, x, y, text, font);
+        }
+
+        void create2(Gadget* parent, int x, int y, int w, int h, const char* text, int font)
+        {
+            AddrCaller{0x00456C20}.this_call<void>(this, parent, x, y, w, h, text, font);
+        }
+
+        void render()
+        {
+            AddrCaller{0x00456ED0}.this_call<void>(this);
+        }
     };
     static_assert(sizeof(Label) == 0x40);
 
@@ -113,4 +186,19 @@ namespace rf::ui
     static auto& medium_font_0 = addr_as_ref<int>(0x0063C060);
     static auto& medium_font_1 = addr_as_ref<int>(0x0063C064);
     static auto& small_font = addr_as_ref<int>(0x0063C068);
+
+    // options menu globals
+    static auto& g_MenuMainButtonsY = *reinterpret_cast<int*>(0x00598FCC);
+    static auto& menu_button_offset_y = *reinterpret_cast<int*>(0x00598FD0);
+    static auto& g_fOptionsMenuOffset = *reinterpret_cast<float*>(0x0063F8D8);
+    static auto& options_menu_tab_move_anim_speed = addr_as_ref<float>(0x0063F930);
+    static auto& options_current_panel = addr_as_ref<int>(0x0059A5D4);
+    static auto& menu_move_anim_speed = addr_as_ref<float>(0x00598FD4);
+    static auto& options_current_panel_id = addr_as_ref<int>(0x0059A5D8);
+    static auto& options_close_current_panel = addr_as_ref<int()>(0x0044F8D0);
+    static auto& options_set_panel_open = addr_as_ref<void()>(0x0044F8C0);
+    static auto& options_panel_x = addr_as_ref<int>(0x0063C058);
+    static auto& options_panel_y = addr_as_ref<int>(0x00598FE0);
+    static auto& options_animated_offset = addr_as_ref<float>(0x0063FA14);
+    static auto& options_back_button = addr_as_ref<Button>(0x0063FB28);
 }

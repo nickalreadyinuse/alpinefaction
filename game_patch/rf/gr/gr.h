@@ -17,6 +17,8 @@ namespace rf::gr
         ubyte blue;
         ubyte alpha;
 
+        constexpr Color() : red(255), green(255), blue(255), alpha(255) {}
+
         constexpr Color(ubyte r, ubyte g, ubyte b, ubyte a = 255) :
             red(r), green(g), blue(b), alpha(a) {}
 

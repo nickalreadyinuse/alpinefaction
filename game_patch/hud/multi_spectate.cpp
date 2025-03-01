@@ -15,6 +15,7 @@
 #include "../rf/player/camera.h"
 #include "../main/main.h"
 #include "../misc/player.h"
+#include "../misc/alpine_settings.h"
 #include <common/config/BuildConfig.h>
 #include <xlog/xlog.h>
 #include <patch_common/CallHook.h>
@@ -457,7 +458,7 @@ void multi_spectate_render()
     if (!g_spectate_mode_enabled) {
         if (rf::player_is_dead(rf::local_player)) {
             rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xC0);
-            int y = scr_h - (g_game_config.big_hud ? 170 : 155);
+            int y = scr_h - (g_alpine_game_config.big_hud ? 170 : 155);
             rf::gr::string(10, y, "Press Jump to enter Spectate Mode", medium_font);
         }
         return;
@@ -468,14 +469,14 @@ void multi_spectate_render()
 
     if (!g_game_config.spectate_mode_minimal_ui) {
         int title_x = scr_w / 2;
-        int title_y = g_game_config.big_hud ? 250 : 150;
+        int title_y = g_alpine_game_config.big_hud ? 250 : 150;
         draw_with_shadow(title_x, title_y, 2, 2, white_clr, shadow_clr, [=](int x, int y) {
             rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x, y, "SPECTATE MODE", large_font);
         });
 
-        int hints_y = scr_h - (g_game_config.big_hud ? 200 : 120);
-        int hints_left_x = g_game_config.big_hud ? 120 : 70;
-        int hints_right_x = g_game_config.big_hud ? 140 : 80;
+        int hints_y = scr_h - (g_alpine_game_config.big_hud ? 200 : 120);
+        int hints_left_x = g_alpine_game_config.big_hud ? 120 : 70;
+        int hints_right_x = g_alpine_game_config.big_hud ? 140 : 80;
         std::string next_player_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_PRIMARY_ATTACK);
         std::string prev_player_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_SECONDARY_ATTACK);
         std::string exit_spec_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_JUMP);
@@ -499,10 +500,10 @@ void multi_spectate_render()
     int small_font_h = rf::gr::get_font_height(small_font);
 
     int padding_y = 2;
-    const int bar_w = g_game_config.big_hud ? 500 : 300;
+    const int bar_w = g_alpine_game_config.big_hud ? 500 : 300;
     const int bar_h = small_font_h + large_font_h + 2 * padding_y;
     int bar_x = (scr_w - bar_w) / 2;
-    int bar_y = scr_h - (g_game_config.big_hud ? 15 : 10) - bar_h;
+    int bar_y = scr_h - (g_alpine_game_config.big_hud ? 15 : 10) - bar_h;
     rf::gr::set_color(0, 0, 0x00, 150);
     rf::gr::rect(bar_x, bar_y, bar_w, bar_h);
 

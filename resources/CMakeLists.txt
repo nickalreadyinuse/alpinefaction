@@ -49,6 +49,7 @@ add_packfile(alpinefaction.vpp
     sounds/af_hitsound1.wav
     sounds/af_killsound1.wav
 
+    images/alpine_options_panel.vbm
     images/af_wh_ctf_blue_a.tga
     images/af_wh_ctf_red_a.tga
     images/af_wh_ctf_blue_d.tga

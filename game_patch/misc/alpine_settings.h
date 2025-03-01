@@ -20,7 +20,12 @@ struct AlpineGameSettings
         }
     }
 
-
+    bool swap_ar_controls = false;
+    bool swap_gn_controls = false;
+    bool swap_sg_controls = false;
+    bool mouse_linear_pitch = false;
+    bool big_hud = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;
+void set_big_hud(bool is_big);

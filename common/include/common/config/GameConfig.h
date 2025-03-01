@@ -92,9 +92,6 @@ struct GameConfig
 
     // Input
     CfgVar<bool> direct_input = true;
-    CfgVar<bool> linear_pitch = true;
-    CfgVar<bool> swap_assault_rifle_controls = false;
-    CfgVar<bool> swap_grenade_controls = false;
     CfgVar<bool> scope_static_sensitivity = false;
     CfgVar<float> scope_sensitivity_modifier = 0.25f;
     CfgVar<float> scanner_sensitivity_modifier = 0.25f;
@@ -102,7 +99,6 @@ struct GameConfig
     // Interface
     CfgVar<bool> fps_counter = true;
     CfgVar<bool> ping_display = true;
-    CfgVar<bool> big_hud = false;
     CfgVar<float> reticle_scale = 1.0f;
     CfgVar<int> language = -1;
     CfgVar<bool> scoreboard_anim = false;

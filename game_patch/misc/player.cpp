@@ -16,6 +16,7 @@
 #include "../os/console.h"
 #include "../main/main.h"
 #include "../misc/alpine_options.h"
+#include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
 #include "../multi/multi.h"
 #include "../multi/server_internal.h"
@@ -122,14 +123,13 @@ bool should_swap_weapon_alt_fire(rf::Player* player)
         return false;
     }
 
-    if (g_game_config.swap_assault_rifle_controls &&
-        !get_option_or_default<bool>(AlpineOptionID::IgnoreSwapAssaultRifleControls, false) &&
-        entity->ai.current_primary_weapon == rf::assault_rifle_weapon_type)
+    if (g_alpine_game_config.swap_ar_controls && entity->ai.current_primary_weapon == rf::assault_rifle_weapon_type)
         return true;
 
-    if (g_game_config.swap_grenade_controls &&
-        !get_option_or_default<bool>(AlpineOptionID::IgnoreSwapGrenadeControls, false) &&
-        entity->ai.current_primary_weapon == rf::grenade_weapon_type)
+    if (g_alpine_game_config.swap_gn_controls && entity->ai.current_primary_weapon == rf::grenade_weapon_type)
+        return true;
+
+    if (g_alpine_game_config.swap_sg_controls && entity->ai.current_primary_weapon == rf::shotgun_weapon_type)
         return true;
 
     return false;
@@ -187,31 +187,28 @@ CodeInjection stop_continous_alternate_fire_patch{
 ConsoleCommand2 swap_assault_rifle_controls_cmd{
     "cl_swaparcontrols",
     []() {
-        g_game_config.swap_assault_rifle_controls = !g_game_config.swap_assault_rifle_controls;
-        g_game_config.save();
-        rf::console::print("Swap assault rifle controls: {}",
-                     g_game_config.swap_assault_rifle_controls ? "enabled" : "disabled");
-        if (get_option_or_default<bool>(AlpineOptionID::IgnoreSwapAssaultRifleControls, false)) {
-            rf::console::print("Note: This setting is disabled in the {} mod and will have no effect.",
-                rf::mod_param.get_arg());
-        }   
+        g_alpine_game_config.swap_ar_controls = !g_alpine_game_config.swap_ar_controls;
+        rf::console::print("Swap assault rifle controls: {}", g_alpine_game_config.swap_ar_controls ? "enabled" : "disabled");
     },
     "Swap Assault Rifle controls",
 };
 
 ConsoleCommand2 swap_grenade_controls_cmd{
-    "cl_swapnadecontrols",
+    "cl_swapgrenadecontrols",
     []() {
-        g_game_config.swap_grenade_controls = !g_game_config.swap_grenade_controls;
-        g_game_config.save();
-        rf::console::print("Swap grenade controls: {}",
-                     g_game_config.swap_grenade_controls ? "enabled" : "disabled");
-        if (get_option_or_default<bool>(AlpineOptionID::IgnoreSwapGrenadeControls, false)) {
-            rf::console::print("Note: This setting is disabled in the {} mod and will have no effect.",
-                rf::mod_param.get_arg());
-        }   
+        g_alpine_game_config.swap_gn_controls = !g_alpine_game_config.swap_gn_controls;
+        rf::console::print("Swap grenade controls: {}", g_alpine_game_config.swap_gn_controls ? "enabled" : "disabled"); 
     },
     "Swap grenade controls",
+};
+
+ConsoleCommand2 swap_shotgun_controls_cmd{
+    "cl_swapsgcontrols",
+    []() {
+        g_alpine_game_config.swap_sg_controls = !g_alpine_game_config.swap_sg_controls;
+        rf::console::print("Swap shotgun controls: {}", g_alpine_game_config.swap_sg_controls ? "enabled" : "disabled"); 
+    },
+    "Swap shotgun controls",
 };
 
 ConsoleCommand2 play_join_beep_cmd{
@@ -629,6 +626,7 @@ void player_do_patch()
     death_bars_cmd.register_cmd();
     swap_assault_rifle_controls_cmd.register_cmd();
     swap_grenade_controls_cmd.register_cmd();
+    swap_shotgun_controls_cmd.register_cmd();
     play_join_beep_cmd.register_cmd();
     localhitsound_cmd.register_cmd();
     tauntsound_cmd.register_cmd();

@@ -2,15 +2,38 @@
 #include <xlog/xlog.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
+#include <patch_common/CodeInjection.h>
+#include <patch_common/AsmWriter.h>
 #include <format>
 #include <algorithm>
+#include "alpine_settings.h"
 #include "../rf/ui.h"
+#include "../rf/sound/sound.h"
 #include "../rf/input.h"
 #include "../rf/misc.h"
 #include "../rf/os/os.h"
 
 #define DEBUG_UI_LAYOUT 0
 #define SHARP_UI_TEXT 1
+
+static rf::ui::Gadget* new_gadgets[6]; // Allocate space for 6 options buttons
+static rf::ui::Button alpine_options_btn;
+static rf::ui::Panel alpine_options_panel;
+std::vector<rf::ui::Gadget*> alpine_options_panel_settings;
+std::vector<rf::ui::Label*> alpine_options_panel_labels;
+
+// alpine options panel elements
+static rf::ui::Checkbox ao_bighud_cbox;
+static rf::ui::Label ao_bighud_label;
+static rf::ui::Checkbox ao_linearpitch_cbox;
+static rf::ui::Label ao_linearpitch_label;
+
+static rf::ui::Checkbox ao_swapar_cbox;
+static rf::ui::Label ao_swapar_label;
+static rf::ui::Checkbox ao_swapgn_cbox;
+static rf::ui::Label ao_swapgn_label;
+static rf::ui::Checkbox ao_swapsg_cbox;
+static rf::ui::Label ao_swapsg_label;
 
 static inline void debug_ui_layout([[ maybe_unused ]] rf::ui::Gadget& gadget)
 {
@@ -325,8 +348,367 @@ FunHook<bool __fastcall(void *this_, int edx, rf::Key key)> UiInputBox_process_k
     UiInputBox_process_key_new,
 };
 
+void ao_bighud_cbox_on_click(int x, int y) {
+    g_alpine_game_config.big_hud = !g_alpine_game_config.big_hud;
+    ao_bighud_cbox.checked = g_alpine_game_config.big_hud;
+    set_big_hud(g_alpine_game_config.big_hud);
+
+    if (ao_bighud_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {} {}", x, y, ao_bighud_cbox.checked, g_alpine_game_config.big_hud);
+}
+
+void ao_linearpitch_cbox_on_click(int x, int y) {
+    g_alpine_game_config.mouse_linear_pitch = !g_alpine_game_config.mouse_linear_pitch;
+    ao_linearpitch_cbox.checked = g_alpine_game_config.mouse_linear_pitch;
+
+    if (ao_linearpitch_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_linearpitch_cbox.checked);
+}
+
+void ao_swapar_cbox_on_click(int x, int y) {
+    g_alpine_game_config.swap_ar_controls = !g_alpine_game_config.swap_ar_controls;
+    ao_swapar_cbox.checked = g_alpine_game_config.swap_ar_controls;
+
+    if (ao_swapar_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapar_cbox.checked);
+}
+
+void ao_swapgn_cbox_on_click(int x, int y) {
+    g_alpine_game_config.swap_gn_controls = !g_alpine_game_config.swap_gn_controls;
+    ao_swapgn_cbox.checked = g_alpine_game_config.swap_gn_controls;
+
+    if (ao_swapgn_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapgn_cbox.checked);
+}
+
+void ao_swapsg_cbox_on_click(int x, int y) {
+    g_alpine_game_config.swap_sg_controls = !g_alpine_game_config.swap_sg_controls;
+    ao_swapsg_cbox.checked = g_alpine_game_config.swap_sg_controls;
+
+    if (ao_swapsg_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapsg_cbox.checked);
+}
+
+void alpine_options_panel_handle_key(rf::Key* key){
+    // todo: more key support (tab, etc.)
+    // close panel on escape
+    if (*key == rf::Key::KEY_ESC) {
+        rf::ui::options_close_current_panel();
+        rf::snd_play(43, 0, 0.0f, 1.0f);
+        return;
+    }
+}
+
+void alpine_options_panel_handle_mouse(int x, int y) {
+    int hovered_index = -1;
+    //xlog::warn("handling mouse {}, {}", x, y);
+
+    // Check which gadget is being hovered over
+    for (size_t i = 0; i < alpine_options_panel_settings.size(); ++i) {
+        auto* gadget = alpine_options_panel_settings[i];
+        if (gadget && gadget->enabled) {
+            int abs_x = static_cast<int>(gadget->get_absolute_x() * rf::ui::scale_x);
+            int abs_y = static_cast<int>(gadget->get_absolute_y() * rf::ui::scale_y);
+            int abs_w = static_cast<int>(gadget->w * rf::ui::scale_x);
+            int abs_h = static_cast<int>(gadget->h * rf::ui::scale_y);
+
+            //xlog::warn("Checking gadget {} at ({}, {}) size ({}, {})", i, abs_x, abs_y, abs_w, abs_h);
+
+            if (x >= abs_x && x <= abs_x + abs_w &&
+                y >= abs_y && y <= abs_y + abs_h) {
+                hovered_index = static_cast<int>(i);
+                break;
+            }
+        }
+    }
+    //xlog::warn("hovered {}", hovered_index);
+    if (hovered_index >= 0) {
+        auto* gadget = alpine_options_panel_settings[hovered_index];
+
+        if (gadget) {
+            if (rf::mouse_was_button_pressed(0)) { // Left mouse button pressed
+                //xlog::warn("Clicked on gadget index {}", hovered_index);
+
+                // Call on_click if assigned
+                if (gadget->on_click) {
+                    gadget->on_click(x, y);
+                }
+            }
+            else if (rf::mouse_button_is_down(0) && gadget->on_mouse_btn_down) {
+                // Handle mouse button being held down
+                gadget->on_mouse_btn_down(x, y);
+            }
+        }
+    }
+
+    // Update all gadgets
+    for (auto* gadget : alpine_options_panel_settings) {
+        if (gadget) {
+            gadget->highlighted = false;
+        }
+    }
+
+    if (hovered_index >= 0) {
+        alpine_options_panel_settings[hovered_index]->highlighted = true;
+    }
+}
+
+void alpine_options_panel_checkbox_init(rf::ui::Checkbox* checkbox, rf::ui::Label* label, void (*on_click)(int, int),
+    bool checked, int x, int y, std::string label_text) {
+    checkbox->create("checkbox.tga", "checkbox_selected.tga", "checkbox_checked.tga", x, y, 45, "", 0);
+    checkbox->parent = &alpine_options_panel;
+    checkbox->checked = checked;
+    checkbox->on_click = on_click;
+    checkbox->enabled = true;
+    alpine_options_panel_settings.push_back(checkbox);
+
+    label->create(&alpine_options_panel, x + 87, y + 5, label_text.c_str(), rf::ui::medium_font_0);
+    label->enabled = true;
+    alpine_options_panel_labels.push_back(label);
+}
+
+void alpine_options_panel_init() {
+    alpine_options_panel.create("alpine_options_panel.tga", rf::ui::options_panel_x, rf::ui::options_panel_y);
+
+    alpine_options_panel_checkbox_init(
+        &ao_bighud_cbox, &ao_bighud_label, ao_bighud_cbox_on_click, g_alpine_game_config.big_hud, 113, 18, "Big HUD");
+    alpine_options_panel_checkbox_init(
+        &ao_linearpitch_cbox, &ao_linearpitch_label, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 113, 43, "Linear Pitch");
+
+
+    alpine_options_panel_checkbox_init(
+        &ao_swapar_cbox, &ao_swapar_label, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 280, 18, "Swap AR Binds");
+    alpine_options_panel_checkbox_init(
+        &ao_swapgn_cbox, &ao_swapgn_label, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 280, 43, "Swap GN Binds");
+    alpine_options_panel_checkbox_init(
+        &ao_swapsg_cbox, &ao_swapsg_label, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 280, 68, "Swap SG Binds");
+}
+
+void alpine_options_panel_do_frame(int x) {
+    alpine_options_panel.x = x;
+    alpine_options_panel.render();
+
+    // render labels
+    for (auto* ui_label : alpine_options_panel_labels) {
+        if (ui_label) {
+            ui_label->render();
+        }
+    }
+
+    // render dynamic elements
+    for (auto* ui_element : alpine_options_panel_settings) {
+        if (ui_element) {
+            auto checkbox = static_cast<rf::ui::Checkbox*>(ui_element);
+            if (checkbox) {
+                checkbox->render();
+            }
+        }
+    }
+}
+
+static void options_alpine_on_click() {
+    //xlog::warn("Hello frozen world!");
+
+    constexpr int alpine_options_panel_id = 4;
+
+    if (rf::ui::options_current_panel == alpine_options_panel_id) {
+        rf::ui::options_close_current_panel();
+        return;
+    }
+
+    rf::ui::options_menu_tab_move_anim_speed = -rf::ui::menu_move_anim_speed;
+    rf::ui::options_current_panel_id = alpine_options_panel_id;
+    rf::ui::options_set_panel_open(); // Transition to new panel
+}
+
+// build alpine options button
+CodeInjection options_init_build_button_patch{
+    0x0044F038,
+    [](auto& regs) {
+        //xlog::warn("Creating new button...");
+        alpine_options_btn.init();
+        alpine_options_btn.create("button_more.tga", "button_selected.tga", 0, 0, 99, "ALPINE FACTION", rf::ui::medium_font_0);
+        alpine_options_btn.key = 0x2E;
+        alpine_options_btn.enabled = true;
+    },
+};
+
+// build new gadgets array
+CodeInjection options_init_build_button_array_patch{
+    0x0044F051,
+    [](auto& regs) {
+        regs.ecx += 0x4; // realignment
+
+        // fetch stock buttons, add to new array
+        rf::ui::Gadget** old_gadgets = reinterpret_cast<rf::ui::Gadget**>(0x0063FB6C);
+        for (int i = 0; i < 4; ++i) {
+            new_gadgets[i] = old_gadgets[i];
+        }
+
+        new_gadgets[4] = &alpine_options_btn; // add alpine options button
+        new_gadgets[5] = old_gadgets[4]; // position back button after alpine options
+
+        alpine_options_panel_init();
+    },
+};
+
+// handle button click
+CodeInjection handle_options_button_click_patch{
+    0x0044F337,
+    [](auto& regs) {
+        int index = regs.eax;
+        xlog::warn("button index {} clicked", index);
+
+        // 4 = alpine, 5 = back
+        if (index == 4 || index == 5) {
+            if (index == 4) {
+                options_alpine_on_click();
+                regs.eip = 0x0044F3D2;
+            }
+            if (index == 5) {
+                regs.eip = 0x0044F3A8;
+            }
+        }
+    },
+};
+
+// handle alpine options panel rendering
+CodeInjection options_render_alpine_panel_patch{
+    0x0044F80B,
+    []() {
+        int index = rf::ui::options_current_panel;
+        //xlog::warn("render index {}", index);
+
+        // render alpine options panel
+        if (index == 4) {
+            alpine_options_panel_do_frame(rf::ui::options_animated_offset);
+        }
+    },
+};
+
+// forward pressed keys to alpine options panel handler
+CodeInjection options_handle_key_patch{
+    0x0044F2D3,
+    [](auto& regs) {
+        rf::Key* key = reinterpret_cast<rf::Key*>(regs.esp + 0x4);
+        int index = rf::ui::options_current_panel;
+
+        if (index == 4) {
+            alpine_options_panel_handle_key(key);
+        }
+    },
+};
+
+// forward mouse activity to alpine options panel handler
+CodeInjection options_handle_mouse_patch{
+    0x0044F609,
+    [](auto& regs) {
+        int x = *reinterpret_cast<int*>(regs.esp + 0x8);
+        int y = *reinterpret_cast<int*>(regs.esp + 0x4);
+        int index = rf::ui::options_current_panel;
+
+        if (index == 4) {
+            alpine_options_panel_handle_mouse(x, y);
+        }
+    },
+};
+
+// unhighlight buttons when not active
+CodeInjection options_do_frame_unhighlight_buttons_patch{
+    0x0044F1E1,
+    [](auto& regs) {
+
+        for (int i = 0; i < 6; ++i) {
+            if (new_gadgets[i]) { // Avoid null pointer dereference
+                regs.ecx = regs.esi;
+                new_gadgets[i]->highlighted = false;
+                regs.esi += 0x44;
+            }
+        }
+
+        //regs.eip = 0x0044F1F8;
+
+    },
+};
+
+// render alpine options button
+CodeInjection options_render_alpine_options_button_patch{
+    0x0044F879,
+    [](auto& regs) {
+        // Loop through all options buttons and render them dynamically
+        for (int i = 0; i < 6; ++i) {
+            if (new_gadgets[i]) { // ensure the gadget pointer is valid
+                rf::ui::Button* button = static_cast<rf::ui::Button*>(new_gadgets[i]);
+                if (button) { // ensure the button pointer is valid
+                    button->x = static_cast<int>(rf::ui::g_fOptionsMenuOffset);
+                    button->y = rf::ui::g_MenuMainButtonsY + (i * rf::ui::menu_button_offset_y);
+                    button->render(); // Render the button
+                }
+            }
+        }
+
+        regs.eip = 0x0044F8A3; // skip stock rendering loop
+    },
+};
+
+// highlight options buttons with mouse
+CodeInjection options_do_frame_highlight_buttons_patch{
+    0x0044F233,
+    [](auto& regs) {
+        int index = regs.ecx;
+        int new_index = index / 16;
+        //xlog::warn("adding4  index {}", new_index);
+        new_gadgets[new_index]->highlighted = true;
+        regs.eip = 0x0044F23F;
+    },
+};
+
 void ui_apply_patch()
 {
+    // Alpine Faction options button and panel
+    options_init_build_button_patch.install();
+    options_init_build_button_array_patch.install();
+    handle_options_button_click_patch.install();
+    options_render_alpine_panel_patch.install();
+    options_render_alpine_options_button_patch.install();
+    options_do_frame_highlight_buttons_patch.install();
+    options_do_frame_unhighlight_buttons_patch.install();
+    options_handle_key_patch.install();
+    options_handle_mouse_patch.install();
+    AsmWriter{0x0044F550}.push(6); // num buttons in options menu
+    AsmWriter{0x0044F552}.push(&new_gadgets); // support mouseover for alpine options button
+    AsmWriter{0x0044F285}.push(5); // back button index, used when hitting esc in options menu
+
     // Sharp UI text
 #if SHARP_UI_TEXT
     UiButton_create_hook.install();

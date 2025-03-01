@@ -166,6 +166,18 @@ bool alpine_player_settings_load(rf::Player* player)
         player->settings.toggle_crouch = std::stoi(settings["ToggleCrouch"]);
         processed_keys.insert("ToggleCrouch");
     }
+    if (settings.count("SwapARBinds")) {
+        g_alpine_game_config.swap_ar_controls = std::stoi(settings["SwapARBinds"]);
+        processed_keys.insert("SwapARBinds");
+    }
+    if (settings.count("SwapGNBinds")) {
+        g_alpine_game_config.swap_gn_controls = std::stoi(settings["SwapGNBinds"]);
+        processed_keys.insert("SwapGNBinds");
+    }
+    if (settings.count("SwapSGBinds")) {
+        g_alpine_game_config.swap_sg_controls = std::stoi(settings["SwapSGBinds"]);
+        processed_keys.insert("SwapSGBinds");
+    }
 
     // Load weapon autoswitch priority
     if (settings.count("WeaponAutoswitchPriority")) {
@@ -235,6 +247,11 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_horz_fov(std::stof(settings["HorizontalFOV"]));
         processed_keys.insert("HorizontalFOV");
     }
+    if (settings.count("BigHUD")) {
+        g_alpine_game_config.big_hud = std::stoi(settings["BigHUD"]);
+        set_big_hud(g_alpine_game_config.big_hud);
+        processed_keys.insert("BigHUD");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -244,6 +261,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("MouseYInvert")) {
         player->settings.controls.axes[1].invert = std::stoi(settings["MouseYInvert"]);
         processed_keys.insert("MouseYInvert");
+    }
+    if (settings.count("MouseLinearPitch")) {
+        g_alpine_game_config.mouse_linear_pitch = std::stoi(settings["MouseLinearPitch"]);
+        processed_keys.insert("MouseLinearPitch");
     }
 
     // Load binds
@@ -305,6 +326,7 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "\n[InputSettings]\n";
     file << "MouseSensitivity=" << cc.mouse_sensitivity << "\n";
     file << "MouseYInvert=" << cc.axes[1].invert << "\n";
+    file << "MouseLinearPitch=" << g_alpine_game_config.mouse_linear_pitch << "\n";
 
     file << "\n[ActionBinds]\n";
     file << "; Format is Bind:{Name}={ID},{ScanCode0},{ScanCode1},{MouseButtonID}\n";
@@ -376,6 +398,9 @@ void alpine_player_settings_save(rf::Player* player)
     file << "AutoswitchWeapons=" << player->settings.autoswitch_weapons << "\n";
     file << "NeverAutoswitchExplosives=" << player->settings.dont_autoswitch_to_explosives << "\n";
     file << "ToggleCrouch=" << player->settings.toggle_crouch << "\n";
+    file << "SwapARBinds=" << g_alpine_game_config.swap_ar_controls << "\n";
+    file << "SwapGNBinds=" << g_alpine_game_config.swap_gn_controls << "\n";
+    file << "SwapSGBinds=" << g_alpine_game_config.swap_sg_controls << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";
@@ -409,6 +434,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "CharacterDetailLevel=" << player->settings.character_detail_level << "\n";
     file << "TextureDetailLevel=" << player->settings.textures_resolution_level << "\n";
     file << "HorizontalFOV=" << g_alpine_game_config.horz_fov << "\n";
+    file << "BigHUD=" << g_alpine_game_config.big_hud << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
