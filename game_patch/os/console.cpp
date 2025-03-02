@@ -16,6 +16,7 @@
 #include <patch_common/ShortTypes.h>
 #include <algorithm>
 #include <cassert>
+#include <xlog/xlog.h>
 
 // ConsoleDrawClientConsole uses 200 bytes long buffer for: "] ", user input and '\0'
 constexpr int max_cmd_line_len = 200 - 2 - 1;
@@ -184,12 +185,9 @@ void print_fflink_info() {
     rf::console::printf("-- %s --", msg);
 }
 
-FunHook<void(bool)> console_init_history_hook{
-    0x0050B550,
-    [](bool save_history) {
-        console_init_history_hook.call_target(g_alpine_game_config.save_console_history);
-    },
-};
+void apply_console_history_setting() {
+    rf::console::console_keep_history = g_alpine_game_config.save_console_history;
+}
 
 void console_commands_apply_patches();
 void console_auto_complete_apply_patches();
@@ -248,9 +246,7 @@ void console_apply_patches()
     // Reset clip window before rendering console
     console_draw_client_hook.install();
 
-    // Allow control of whether console_history is saved
-    console_init_history_hook.install();
-
+    apply_console_history_setting();
     console_commands_apply_patches();
     console_auto_complete_apply_patches();
 }

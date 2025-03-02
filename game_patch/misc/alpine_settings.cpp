@@ -172,6 +172,7 @@ bool alpine_player_settings_load(rf::Player* player)
     }
     if (settings.count("SaveConsoleHistory")) {
         g_alpine_game_config.save_console_history = std::stoi(settings["SaveConsoleHistory"]);
+        apply_console_history_setting();
         processed_keys.insert("SaveConsoleHistory");
     }
 
@@ -606,6 +607,12 @@ void close_and_restart_game() {
     rf::ui::mainmenu_quit_game_confirmed();
 }
 
+// defaults if alpine_settings.ini isn't loaded
+void set_alpine_config_defaults() {
+    rf::game_set_gore_level(2);
+    g_alpine_game_config.save_console_history = true; // must be set here because evaluated before config loaded
+}
+
 CallHook<void(rf::Player*)> player_settings_load_hook{
     0x004B2726,
     [](rf::Player* player) {
@@ -613,7 +620,7 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
             xlog::warn("Alpine Faction settings file not found. Attempting to import legacy RF settings file.");
             player_settings_load_hook.call_target(player); // load players.cfg
 
-            rf::game_set_gore_level(2); // default gore level to 2 if alpine_settings.ini isn't loaded
+            set_alpine_config_defaults();
 
             // Display restart popup due to players.cfg import
             // players.cfg from legacy client version will import fine on first load, apart from Alpine controls

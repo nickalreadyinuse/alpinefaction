@@ -37,6 +37,7 @@ ConsoleCommand2 console_history_cmd{
     "dbg_consolehistory",
     []() {
         g_alpine_game_config.save_console_history = !g_alpine_game_config.save_console_history;
+        apply_console_history_setting();
         rf::console::print("Console history {}.", g_alpine_game_config.save_console_history ? "enabled" : "disabled");
     },
     "Toggles whether console history persists between game launches",
