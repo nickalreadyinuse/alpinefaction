@@ -169,7 +169,7 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
             auto it = achievements.find(achievement_name);
             if (it != achievements.end() && !it->second.unlocked) {
                 it->second.unlocked = true;
-                xlog::warn("Achievement '{}' unlocked via FF.", it->second.name);
+                xlog::info("Achievement '{}' unlocked via FF.", it->second.name);
 
                 if (is_initial_sync) {
                     it->second.notified = true;

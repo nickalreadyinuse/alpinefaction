@@ -2,7 +2,7 @@
 #define SrcRootDir ".."
 #define BinDir "..\build\Release\bin"
 #define PatchesDir "patches\output"
-#define AppVer "1.1.0-beta1"
+#define AppVer "1.1.0-beta1_Tamarack"
 
 [Setup]
 AppId={{005AA7-D71920-FFC72C-4B6E-82D3-9F7B12A3C8D1}}
@@ -362,7 +362,7 @@ begin
     begin
         // Create a backup (if it does not exist already)
         Log('Creating RedFaction.exe backup: ' + GetGameDir('RedFaction.exe.bak'));
-        FileCopy(GetGameDir('RedFaction.exe'), GetGameDir('RedFaction.exe.bak'), True);
+        CopyFile(GetGameDir('RedFaction.exe'), GetGameDir('RedFaction.exe.bak'), True);
         Log('Deleting RedFaction.exe');
         DeleteFile(GetGameDir('RedFaction.exe'));
         Log('Creating RedFaction.exe symlink: ' + GetGameDir('RedFaction.exe'));
