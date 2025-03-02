@@ -223,6 +223,7 @@ void build_player_labels() {
     bool show_all = is_spectating && g_alpine_game_config.world_hud_spectate_player_labels;
     bool is_team_mode = rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM;
     bool show_teammates = g_alpine_game_config.world_hud_team_player_labels && is_team_mode && !is_spectating;
+    auto spectate_target = multi_spectate_get_target_player();
 
     int font = !g_alpine_game_config.world_hud_big_text;
     auto player_list = SinglyLinkedList{rf::player_list};
@@ -241,6 +242,10 @@ void build_player_labels() {
         // Determine if this player's label should be shown
         if (!(show_all || (show_teammates && player.team == rf::local_player->team))) {
             continue; // Don't show non-teammates if not spectating
+        }
+
+        if (is_spectating && spectate_target && &player == spectate_target) {
+            continue; // Don't show spectated player label
         }
 
         rf::Vector3 string_pos = player_entity->pos;
