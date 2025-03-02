@@ -107,6 +107,7 @@ Version 1.1.0 (Tamarack): Not yet released
     - Big HUD, linear pitch, swap controls for AR, SG, GN
     - Weapon shake, fullbright characters, lightmaps only
     - CTF icons, hit numbers, hit sounds, taunt sounds
+    - FPS counter, damage flash, mesh static lights, enemy bullets
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 

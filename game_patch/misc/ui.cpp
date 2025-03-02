@@ -38,6 +38,10 @@ static rf::ui::Checkbox ao_hitsounds_cbox;
 static rf::ui::Label ao_hitsounds_label;
 static rf::ui::Checkbox ao_taunts_cbox;
 static rf::ui::Label ao_taunts_label;
+static rf::ui::Checkbox ao_showfps_cbox;
+static rf::ui::Label ao_showfps_label;
+static rf::ui::Checkbox ao_redflash_cbox;
+static rf::ui::Label ao_redflash_label;
 
 static rf::ui::Checkbox ao_swapar_cbox;
 static rf::ui::Label ao_swapar_label;
@@ -51,6 +55,10 @@ static rf::ui::Checkbox ao_fullbrightchar_cbox;
 static rf::ui::Label ao_fullbrightchar_label;
 static rf::ui::Checkbox ao_notex_cbox;
 static rf::ui::Label ao_notex_label;
+static rf::ui::Checkbox ao_meshstatic_cbox;
+static rf::ui::Label ao_meshstatic_label;
+static rf::ui::Checkbox ao_enemybullets_cbox;
+static rf::ui::Label ao_enemybullets_label;
 
 static inline void debug_ui_layout([[ maybe_unused ]] rf::ui::Gadget& gadget)
 {
@@ -450,6 +458,34 @@ void ao_taunts_cbox_on_click(int x, int y) {
     //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_taunts_cbox.checked);
 }
 
+void ao_showfps_cbox_on_click(int x, int y) {
+    g_alpine_game_config.fps_counter = !g_alpine_game_config.fps_counter;
+    ao_showfps_cbox.checked = g_alpine_game_config.fps_counter;
+
+    if (ao_showfps_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_showfps_cbox.checked);
+}
+
+void ao_redflash_cbox_on_click(int x, int y) {
+    g_alpine_game_config.damage_screen_flash = !g_alpine_game_config.damage_screen_flash;
+    ao_redflash_cbox.checked = g_alpine_game_config.damage_screen_flash;
+
+    if (ao_redflash_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_redflash_cbox.checked);
+}
+
 void ao_swapar_cbox_on_click(int x, int y) {
     g_alpine_game_config.swap_ar_controls = !g_alpine_game_config.swap_ar_controls;
     ao_swapar_cbox.checked = g_alpine_game_config.swap_ar_controls;
@@ -535,6 +571,36 @@ void ao_notex_cbox_on_click(int x, int y) {
     }
 
     //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_notex_cbox.checked);
+}
+
+void ao_meshstatic_cbox_on_click(int x, int y) {
+    g_alpine_game_config.mesh_static_lighting = !g_alpine_game_config.mesh_static_lighting;
+    ao_meshstatic_cbox.checked = g_alpine_game_config.mesh_static_lighting;
+    recalc_mesh_static_lighting();
+
+    if (ao_meshstatic_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_meshstatic_cbox.checked);
+}
+
+void ao_enemybullets_cbox_on_click(int x, int y) {
+    g_alpine_game_config.show_enemy_bullets = !g_alpine_game_config.show_enemy_bullets;
+    ao_enemybullets_cbox.checked = g_alpine_game_config.show_enemy_bullets;
+    apply_show_enemy_bullets();
+
+    if (ao_enemybullets_cbox.checked) {
+        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    }
+
+    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_enemybullets_cbox.checked);
 }
 
 void alpine_options_panel_handle_key(rf::Key* key){
@@ -630,6 +696,10 @@ void alpine_options_panel_init() {
         &ao_hitsounds_cbox, &ao_hitsounds_label, ao_hitsounds_cbox_on_click, g_alpine_game_config.play_hit_sounds, 113, 118, "Hit sounds");
     alpine_options_panel_checkbox_init(
         &ao_taunts_cbox, &ao_taunts_label, ao_taunts_cbox_on_click, g_alpine_game_config.play_taunt_sounds, 113, 143, "Play taunts");
+    alpine_options_panel_checkbox_init(
+        &ao_showfps_cbox, &ao_showfps_label, ao_showfps_cbox_on_click, g_alpine_game_config.fps_counter, 113, 168, "FPS counter");
+    alpine_options_panel_checkbox_init(
+        &ao_redflash_cbox, &ao_redflash_label, ao_redflash_cbox_on_click, g_alpine_game_config.damage_screen_flash, 113, 193, "Damage flash");
 
     alpine_options_panel_checkbox_init(
         &ao_swapar_cbox, &ao_swapar_label, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 280, 18, "Swap AR binds");
@@ -643,6 +713,10 @@ void alpine_options_panel_init() {
         &ao_notex_cbox, &ao_notex_label, ao_notex_cbox_on_click, g_alpine_game_config.try_disable_textures, 280, 118, "Lightmaps only");
     alpine_options_panel_checkbox_init(
         &ao_fullbrightchar_cbox, &ao_fullbrightchar_label, ao_fullbrightchar_cbox_on_click, g_alpine_game_config.try_fullbright_characters, 280, 143, "Fullbright models");
+    alpine_options_panel_checkbox_init(
+        &ao_meshstatic_cbox, &ao_meshstatic_label, ao_meshstatic_cbox_on_click, g_alpine_game_config.mesh_static_lighting, 280, 168, "Mesh static light");
+    alpine_options_panel_checkbox_init(
+        &ao_enemybullets_cbox, &ao_enemybullets_label, ao_enemybullets_cbox_on_click, g_alpine_game_config.show_enemy_bullets, 280, 193, "Enemy bullets");
 }
 
 void alpine_options_panel_do_frame(int x) {
@@ -718,7 +792,7 @@ CodeInjection handle_options_button_click_patch{
     0x0044F337,
     [](auto& regs) {
         int index = regs.eax;
-        xlog::warn("button index {} clicked", index);
+        //xlog::warn("button index {} clicked", index);
 
         // 4 = alpine, 5 = back
         if (index == 4 || index == 5) {
