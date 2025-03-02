@@ -2,6 +2,7 @@
 #include <common/version/version.h>
 #include "console.h"
 #include "../misc/alpine_options.h"
+#include "../misc/alpine_settings.h"
 #include "../main/main.h"
 #include "../rf/player/camera.h"
 #include "../rf/multi.h"
@@ -35,9 +36,8 @@ ConsoleCommand2 dot_cmd{
 ConsoleCommand2 vli_cmd{
     "vli",
     []() {
-        g_game_config.glares = !g_game_config.glares;
-        g_game_config.save();
-        rf::console::print("Volumetric lightining is {}.", g_game_config.glares ? "enabled" : "disabled");
+        g_alpine_game_config.show_glares = !g_alpine_game_config.show_glares;
+        rf::console::print("Volumetric lightining is {}.", g_alpine_game_config.show_glares ? "enabled" : "disabled");
     },
     "Toggles volumetric lightining",
 };

@@ -109,13 +109,16 @@ CallHook<void(rf::Player*, int)> process_create_entity_packet_switch_weapon_fix{
     },
 };
 
+void apply_show_enemy_bullets() {
+    rf::hide_enemy_bullets = !g_alpine_game_config.show_enemy_bullets;
+}
+
 ConsoleCommand2 show_enemy_bullets_cmd{
     "cl_showenemybullets",
     []() {
-        g_game_config.show_enemy_bullets = !g_game_config.show_enemy_bullets;
-        g_game_config.save();
-        rf::hide_enemy_bullets = !g_game_config.show_enemy_bullets;
-        rf::console::print("Enemy bullet impact effects are {}", g_game_config.show_enemy_bullets ? "enabled" : "disabled");
+        g_alpine_game_config.show_enemy_bullets = !g_alpine_game_config.show_enemy_bullets;
+        apply_show_enemy_bullets();
+        rf::console::print("Enemy bullet impact effects are {}", g_alpine_game_config.show_enemy_bullets ? "enabled" : "disabled");
     },
     "Toggles visibility of enemy bullet impacts",
 };
@@ -306,7 +309,7 @@ void apply_weapon_patches()
     process_create_entity_packet_switch_weapon_fix.install();
 
     // Show enemy bullets
-    rf::hide_enemy_bullets = !g_game_config.show_enemy_bullets;
+    apply_show_enemy_bullets();
 
     // Fix rockets not making damage after hitting a detail brush
     weapon_hit_wall_obj_apply_radius_damage_hook.install();

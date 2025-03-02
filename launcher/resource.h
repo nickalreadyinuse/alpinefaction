@@ -38,7 +38,7 @@
 #define IDC_CLAMP_COMBO                 1020
 #define IDC_UPDATE_STATUS               1021
 #define IDC_FAST_START_CHECK            1022
-#define IDC_FPS_COUNTER_CHECK           1023
+//#define IDC_FPS_COUNTER_CHECK           1023
 #define IDC_ALLOW_OVERWRITE_GAME_CHECK  1024
 #define IDC_MAX_FPS_EDIT                1025
 #define IDC_HIGH_SCANNER_RES_CHECK      1026
@@ -80,7 +80,7 @@
 #define IDC_NEAREST                     1062
 //#define IDC_MUZZLEFLASH                 1063
 //#define IDC_SCREENSHAKE                 1064
-#define IDC_DAMAGEFLASH                 1065
+//#define IDC_DAMAGEFLASH                 1065
 #define IDC_POW2TEX                     1066
 
 #define IDC_VERSION_TEXT                3050

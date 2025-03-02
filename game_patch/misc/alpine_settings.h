@@ -71,9 +71,19 @@ struct AlpineGameSettings
     bool unlimited_semi_auto = false;
     bool gaussian_spread = false;
     bool multi_ricochet = false;
+    bool damage_screen_flash = true;
+    bool death_bars = true;
+    bool mesh_static_lighting = true;
+    bool show_glares = true;
+    bool show_enemy_bullets = true;
+    bool fps_counter = true;
+    bool ping_display = true;
+    bool spectate_mode_minimal_ui = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;
 void set_big_hud(bool is_big);
 void update_scope_sensitivity();
 void update_scanner_sensitivity();
+void recalc_mesh_static_lighting();
+void apply_show_enemy_bullets();

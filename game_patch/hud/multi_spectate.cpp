@@ -316,10 +316,9 @@ ConsoleCommand2 spectate_cmd{
 static ConsoleCommand2 spectate_mode_minimal_ui_cmd{
     "spectate_minui",
     []() {
-        g_game_config.spectate_mode_minimal_ui = !g_game_config.spectate_mode_minimal_ui;
-        g_game_config.save();
+        g_alpine_game_config.spectate_mode_minimal_ui = !g_alpine_game_config.spectate_mode_minimal_ui;
         rf::console::print("Spectate mode minimal UI is {}",
-                           g_game_config.spectate_mode_minimal_ui ? "enabled" : "disabled");
+                           g_alpine_game_config.spectate_mode_minimal_ui ? "enabled" : "disabled");
     },
     "Toggles spectate mode minimal UI",
 };
@@ -467,7 +466,7 @@ void multi_spectate_render()
     rf::Color white_clr{255, 255, 255, 255};
     rf::Color shadow_clr{0, 0, 0, 128};
 
-    if (!g_game_config.spectate_mode_minimal_ui) {
+    if (!g_alpine_game_config.spectate_mode_minimal_ui) {
         int title_x = scr_w / 2;
         int title_y = g_alpine_game_config.big_hud ? 250 : 150;
         draw_with_shadow(title_x, title_y, 2, 2, white_clr, shadow_clr, [=](int x, int y) {

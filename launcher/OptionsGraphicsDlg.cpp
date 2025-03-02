@@ -30,7 +30,6 @@ BOOL OptionsGraphicsDlg::OnInitDialog()
     CheckDlgButton(IDC_HIGH_SCANNER_RES_CHECK, m_conf.high_scanner_res ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_HIGH_MON_RES_CHECK, m_conf.high_monitor_res ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_TRUE_COLOR_TEXTURES_CHECK, m_conf.true_color_textures ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(IDC_MESH_STATIC_LIGHTING_CHECK, m_conf.mesh_static_lighting ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_NEAREST, m_conf.nearest_texture_filtering ? BST_CHECKED : BST_UNCHECKED);
 
     InitToolTip();
@@ -42,7 +41,6 @@ BOOL OptionsGraphicsDlg::OnInitDialog()
     CheckDlgButton(IDC_HIGH_SCANNER_RES_CHECK, m_conf.high_scanner_res ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_HIGH_MON_RES_CHECK, m_conf.high_monitor_res ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_TRUE_COLOR_TEXTURES_CHECK, m_conf.true_color_textures ? BST_CHECKED : BST_UNCHECKED);
-    CheckDlgButton(IDC_MESH_STATIC_LIGHTING_CHECK, m_conf.mesh_static_lighting ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_NEAREST, m_conf.nearest_texture_filtering ? BST_CHECKED : BST_UNCHECKED);
 
     return TRUE;
@@ -105,7 +103,6 @@ void OptionsGraphicsDlg::InitToolTip()
     m_tool_tip.AddTool(GetDlgItem(IDC_HIGH_SCANNER_RES_CHECK), "Increase scanner resolution (used by Rail Driver, Rocket Launcher and Fusion Launcher)");
     m_tool_tip.AddTool(GetDlgItem(IDC_HIGH_MON_RES_CHECK), "Increase monitors and mirrors resolution");
     m_tool_tip.AddTool(GetDlgItem(IDC_TRUE_COLOR_TEXTURES_CHECK), "Increase texture color depth - especially visible for lightmaps and shadows");
-    m_tool_tip.AddTool(GetDlgItem(IDC_MESH_STATIC_LIGHTING_CHECK), "Use static lighting for meshes instead of legacy ambient lighting");
     m_tool_tip.AddTool(GetDlgItem(IDC_NEAREST), "Use nearest neighbour texture filtering (hard pixel edges)");
 }
 
@@ -119,7 +116,6 @@ void OptionsGraphicsDlg::OnSave()
     m_conf.high_scanner_res = (IsDlgButtonChecked(IDC_HIGH_SCANNER_RES_CHECK) == BST_CHECKED);
     m_conf.high_monitor_res = (IsDlgButtonChecked(IDC_HIGH_MON_RES_CHECK) == BST_CHECKED);
     m_conf.true_color_textures = (IsDlgButtonChecked(IDC_TRUE_COLOR_TEXTURES_CHECK) == BST_CHECKED);
-    m_conf.mesh_static_lighting = (IsDlgButtonChecked(IDC_MESH_STATIC_LIGHTING_CHECK) == BST_CHECKED);
     m_conf.nearest_texture_filtering = (IsDlgButtonChecked(IDC_NEAREST) == BST_CHECKED);
 }
 

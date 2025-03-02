@@ -44,7 +44,7 @@ static void frametime_render_graph()
 
 static void frametime_render_fps_counter()
 {
-    if (g_game_config.fps_counter && !rf::hud_disabled) {
+    if (g_alpine_game_config.fps_counter && !rf::hud_disabled) {
         auto text = std::format("FPS: {:.1f}", rf::current_fps);
         rf::gr::set_color(0, 255, 0, 255);
         int x = rf::gr::screen_width() - (g_alpine_game_config.big_hud ? 165 : 90);
@@ -60,7 +60,7 @@ static void frametime_render_fps_counter()
         rf::gr::string(x, y, text.c_str(), font_id);
     }
 
-    if (g_game_config.ping_display && !rf::hud_disabled && rf::is_multi && !rf::is_server) {
+    if (g_alpine_game_config.ping_display && !rf::hud_disabled && rf::is_multi && !rf::is_server) {
         auto text = std::format("Ping: {}", rf::local_player->net_data->ping);
         rf::gr::set_color(0, 255, 0, 255);
         int x = rf::gr::screen_width() - (g_alpine_game_config.big_hud ? 165 : 90);
@@ -86,9 +86,8 @@ void frametime_render_ui()
 ConsoleCommand2 fps_counter_cmd{
     "cl_showfps",
     []() {
-        g_game_config.fps_counter = !g_game_config.fps_counter;
-        g_game_config.save();
-        rf::console::print("FPS counter display is {}", g_game_config.fps_counter ? "enabled" : "disabled");
+        g_alpine_game_config.fps_counter = !g_alpine_game_config.fps_counter;
+        rf::console::print("FPS counter display is {}", g_alpine_game_config.fps_counter ? "enabled" : "disabled");
     },
     "Toggle FPS counter",
     "cl_showfps",
@@ -97,9 +96,8 @@ ConsoleCommand2 fps_counter_cmd{
 ConsoleCommand2 ping_display_cmd{
     "cl_showping",
     []() {
-        g_game_config.ping_display = !g_game_config.ping_display;
-        g_game_config.save();
-        rf::console::print("Ping counter display is {}", g_game_config.ping_display ? "enabled" : "disabled");
+        g_alpine_game_config.ping_display = !g_alpine_game_config.ping_display;
+        rf::console::print("Ping counter display is {}", g_alpine_game_config.ping_display ? "enabled" : "disabled");
     },
     "Toggle ping counter",
     "cl_showping",

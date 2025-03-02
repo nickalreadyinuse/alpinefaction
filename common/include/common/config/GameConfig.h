@@ -61,12 +61,7 @@ struct GameConfig
     CfgVar<bool> high_scanner_res = true;
     CfgVar<bool> high_monitor_res = true;
     CfgVar<bool> true_color_textures = true;
-    CfgVar<bool> damage_screen_flash = true;
-    CfgVar<bool> death_bars = true;
-    CfgVar<bool> mesh_static_lighting = true;
     CfgVar<bool> pow2tex = false;   
-    CfgVar<bool> glares = true;
-    CfgVar<bool> show_enemy_bullets = true;
 
     // Audio
     CfgVar<float> level_sound_volume = 1.0f;
@@ -86,11 +81,8 @@ struct GameConfig
     CfgVar<bool> direct_input = true;
 
     // Interface
-    CfgVar<bool> fps_counter = true;
-    CfgVar<bool> ping_display = true;
     CfgVar<int> language = -1;
     CfgVar<bool> scoreboard_anim = false;
-    CfgVar<bool> spectate_mode_minimal_ui = false;
     CfgVar<bool> af_branding = true;
 
     // Misc

@@ -101,6 +101,8 @@ Version 1.1.0 (Tamarack): Not yet released
   - World HUD objective icons, overdraw, big text, damage numbers, spectate labels, team labels
   - Hit sounds and audio taunts
   - Muzzle flash lights, unlimited semi auto, gaussian spread, ricochet
+  - Damage screen flash, death bars, mesh static lighting, show glares, show enemy bullets
+  - Show FPS, show ping, spectate mode minimal UI
 - Add `Alpine Faction` options panel to in-game options menu with settings:
     - Big HUD, linear pitch, swap controls for AR, SG, GN
     - Weapon shake, fullbright characters, lightmaps only

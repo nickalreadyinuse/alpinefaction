@@ -55,7 +55,7 @@ void obj_mesh_lighting_update_one(rf::Object *objp)
 
 static bool obj_should_be_lit(rf::Object *objp)
 {
-    if (!g_game_config.mesh_static_lighting) {
+    if (!g_alpine_game_config.mesh_static_lighting) {
         return false;
     }
     if (!objp->vmesh || rf::vmesh_get_type(objp->vmesh) != rf::MESH_TYPE_STATIC) {
@@ -121,7 +121,7 @@ FunHook<void()> obj_light_calculate_hook{
         rf::gr::light_matrix.make_identity();
         rf::gr::light_base.zero();
 
-        if (g_game_config.mesh_static_lighting) {
+        if (g_alpine_game_config.mesh_static_lighting) {
             // Enable static lights
             gr_light_use_static(true);
             // Calculate lighting for meshes now
@@ -172,10 +172,9 @@ FunHook<void()> obj_light_free_hook{
 ConsoleCommand2 mesh_static_lighting_cmd{
     "r_meshlighting",
     []() {
-        g_game_config.mesh_static_lighting = !g_game_config.mesh_static_lighting;
-        g_game_config.save();
+        g_alpine_game_config.mesh_static_lighting = !g_alpine_game_config.mesh_static_lighting;
         recalc_mesh_static_lighting();
-        rf::console::print("Mesh static lighting is {}", g_game_config.mesh_static_lighting ? "enabled" : "disabled");
+        rf::console::print("Mesh static lighting is {}", g_alpine_game_config.mesh_static_lighting ? "enabled" : "disabled");
     },
     "Toggle mesh static lighting calculation",
 };

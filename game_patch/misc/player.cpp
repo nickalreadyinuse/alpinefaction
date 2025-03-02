@@ -273,7 +273,7 @@ FunHook<bool(rf::Player*)> player_is_local_hook{
 
 bool player_is_dead_and_not_spectating(rf::Player* player)
 {
-    if (multi_spectate_is_spectating() || !g_game_config.death_bars) {
+    if (multi_spectate_is_spectating() || !g_alpine_game_config.death_bars) {
         return false;
     }
     return rf::player_is_dead(player);
@@ -285,7 +285,7 @@ CallHook player_is_dead_scoreboard2_hook{0x00437C25, player_is_dead_and_not_spec
 
 static bool player_is_dying_and_not_spectating(rf::Player* player)
 {
-    if (multi_spectate_is_spectating() || !g_game_config.death_bars) {
+    if (multi_spectate_is_spectating() || !g_alpine_game_config.death_bars) {
         return false;
     }
     return rf::player_is_dying(player);
@@ -308,7 +308,7 @@ FunHook<void()> players_do_frame_hook{
 FunHook<void()> player_do_damage_screen_flash_hook{
     0x004A7520,
     []() {
-        if (g_game_config.damage_screen_flash) {
+        if (g_alpine_game_config.damage_screen_flash) {
             player_do_damage_screen_flash_hook.call_target();
         }
     },
@@ -317,9 +317,8 @@ FunHook<void()> player_do_damage_screen_flash_hook{
 ConsoleCommand2 damage_screen_flash_cmd{
     "cl_damageflash",
     []() {
-        g_game_config.damage_screen_flash = !g_game_config.damage_screen_flash;
-        g_game_config.save();
-        rf::console::print("Damage screen flash effect is {}", g_game_config.damage_screen_flash ? "enabled" : "disabled");
+        g_alpine_game_config.damage_screen_flash = !g_alpine_game_config.damage_screen_flash;
+        rf::console::print("Damage screen flash effect is {}", g_alpine_game_config.damage_screen_flash ? "enabled" : "disabled");
     },
     "Toggle damage screen flash effect",
 };
@@ -423,9 +422,8 @@ void ping_looked_at_location() {
 ConsoleCommand2 death_bars_cmd{
     "mp_deathbars",
     []() {
-        g_game_config.death_bars = !g_game_config.death_bars;
-        g_game_config.save();
-        rf::console::print("Death bars are {}", g_game_config.death_bars ? "enabled" : "disabled");
+        g_alpine_game_config.death_bars = !g_alpine_game_config.death_bars;
+        rf::console::print("Death bars are {}", g_alpine_game_config.death_bars ? "enabled" : "disabled");
     },
     "Toggle red bars at the top and bottom of screen when dead",
 };

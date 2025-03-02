@@ -16,6 +16,7 @@
 #include "../rf/math/ix.h"
 #include <common/utils/list-utils.h>
 #include "../main/main.h"
+#include "../misc/alpine_settings.h"
 
 static std::vector<rf::Object*> g_objects_to_check;
 static std::vector<rf::MoverBrush*> g_mover_brushes_to_check;
@@ -88,7 +89,7 @@ FunHook<void(bool)> glare_render_all_flares_hook{
     0x004154F0,
     [](bool reflections) {
         // check if glares were disabled by vli command
-        if (!g_game_config.glares) {
+        if (!g_alpine_game_config.show_glares) {
             return;
         }
 

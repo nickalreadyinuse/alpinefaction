@@ -224,7 +224,7 @@ BEGIN
     //AUTOCHECKBOX    "Disable muzzle flash lights",IDC_MUZZLEFLASH,0,84,100,10
     //AUTOCHECKBOX    "Disable camera shake",IDC_SCREENSHAKE,0,96,100,10
     //AUTOCHECKBOX    "Disable textures (only show lightmaps)",IDC_LIGHTMAPS,0,108,140,10
-    AUTOCHECKBOX    "Show red screen flash when damaged",IDC_DAMAGEFLASH,0,120,140,10
+    //AUTOCHECKBOX    "Show red screen flash when damaged",IDC_DAMAGEFLASH,0,120,140,10
     AUTOCHECKBOX    "Enforce power of 2 texture resolution",IDC_POW2TEX,0,132,152,10
 END
 
@@ -264,7 +264,7 @@ STYLE DS_SHELLFONT | WS_CHILD | WS_VISIBLE | DS_CONTROL
 FONT 8, "MS Shell Dlg"
 BEGIN
     //AUTOCHECKBOX    "Big HUD",IDC_BIG_HUD_CHECK,0,0,54,10
-    AUTOCHECKBOX    "FPS counter",IDC_FPS_COUNTER_CHECK,0,12,54,10
+    //AUTOCHECKBOX    "FPS counter",IDC_FPS_COUNTER_CHECK,0,12,54,10
     AUTOCHECKBOX    "Scoreboard animations",IDC_SCOREBOARD_ANIM_CHECK,60,0,88,10
     AUTOCHECKBOX    "Keep launcher open",IDC_KEEP_LAUNCHER_OPEN_CHECK,60,12,88,10
     LTEXT           "Game language:",IDC_STATIC,0,32,67,8

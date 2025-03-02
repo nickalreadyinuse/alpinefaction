@@ -171,8 +171,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Nearest Texture Filtering", nearest_texture_filtering);
     result &= visitor(dash_faction_key, "MSAA", msaa);
     result &= visitor(dash_faction_key, "Light Color Range", clamp_mode);
-    result &= visitor(dash_faction_key, "FPS Counter", fps_counter);
-    result &= visitor(dash_faction_key, "Ping Counter", ping_display);
     result &= visitor(dash_faction_key, "Max FPS", max_fps);
     result &= visitor(dash_faction_key, "Server Max FPS", server_max_fps);
     result &= visitor(dash_faction_key, "High Scanner Resolution", high_scanner_res);
@@ -183,18 +181,12 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Direct Input", direct_input);
     result &= visitor(dash_faction_key, "Fast Start", fast_start);
     result &= visitor(dash_faction_key, "Scoreboard Animations", scoreboard_anim);
-    result &= visitor(dash_faction_key, "Spectate Mode Minimal UI", spectate_mode_minimal_ui);
     result &= visitor(dash_faction_key, "Level Sound Volume", level_sound_volume);
     result &= visitor(dash_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
-    result &= visitor(dash_faction_key, "Glares", glares);
-    result &= visitor(dash_faction_key, "Show Enemy Bullets", show_enemy_bullets);
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
-    result &= visitor(dash_faction_key, "Damage Screen Flash", damage_screen_flash);
-    result &= visitor(dash_faction_key, "Death Bars", death_bars);
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
-    result &= visitor(dash_faction_key, "Mesh Static Lighting", mesh_static_lighting);
     result &= visitor(dash_faction_key, "Enforce Power of 2 Textures", pow2tex);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
     result &= visitor(dash_faction_key, "Autosave", autosave);
