@@ -317,13 +317,13 @@ static void af_process_obj_update_packet(const void* data, size_t len, const rf:
         // Validate the remote object
         rf::Object* remote_object = rf::obj_from_remote_handle(obj_update.obj_handle);
         if (!remote_object) {
-            xlog::warn("Received obj update for invalid remote handle: {:x}", obj_update.obj_handle);
+            //xlog::warn("Received obj update for invalid remote handle: {:x}", obj_update.obj_handle);
             continue;
         }
 
         rf::Entity* entity = rf::entity_from_handle(remote_object->handle);
         if (!entity) {
-            xlog::warn("Received obj update for invalid entity handle: {:x}", obj_update.obj_handle);
+            //xlog::warn("Received obj update for invalid entity handle: {:x}", obj_update.obj_handle);
             continue;
         }
 

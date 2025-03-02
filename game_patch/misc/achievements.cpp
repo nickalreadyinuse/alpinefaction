@@ -186,7 +186,7 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
             rf::console::printf("Successfully initialized Alpine Faction achievements for FactionFiles account %s", username.c_str());
         }
         else {
-            xlog::warn("Successfully processed FF update [{}].", expected_key);
+            xlog::info("Successfully processed FF update [{}].", expected_key);
             achievement_async_ff_string.clear();
             achievement_async_ff_key = 0; // Reset key
         }
@@ -205,7 +205,7 @@ void AchievementManager::sync_with_ff()
     }
 
     std::thread([token]() {
-        xlog::warn("Syncing achievements with FF...");
+        xlog::info("Syncing achievements with FF...");
 
         std::string url = "https://link.factionfiles.com/afachievement/v1/initial/" + encode_uri_component(token);
         std::string response;
@@ -244,7 +244,7 @@ void AchievementManager::send_update_to_ff()
     }
 
     std::thread([token]() {
-        xlog::warn("Sending achievement updates to FF [{}]...", achievement_async_ff_key);
+        xlog::info("Sending achievement updates to FF [{}]...", achievement_async_ff_key);
 
         std::string url =
             "https://link.factionfiles.com/afachievement/v1/update/" + encode_uri_component(token);
@@ -257,7 +257,7 @@ void AchievementManager::send_update_to_ff()
 
             std::string post_string =
                 "key=" + std::to_string(achievement_async_ff_key) + "," + achievement_async_ff_string;
-            xlog::warn("sending post string {}", post_string);
+            xlog::info("sending post string {}", post_string);
             request.send(post_string);
 
             char buffer[4096];
@@ -278,7 +278,7 @@ void AchievementManager::send_update_to_ff()
 void AchievementManager::add_key_to_ff_update_map()
 {
     if (!achievement_async_ff_string.empty()) {
-        xlog::warn("Skipping new update generation: Previous update still awaiting FF acknowledgment.");
+        xlog::info("Skipping new update generation: Previous update still awaiting FF acknowledgment.");
         return;
     }
 
@@ -351,7 +351,7 @@ void AchievementManager::add_key_to_ff_update_map()
         achievement_async_ff_key = dist(g_rng);
         achievement_async_ff_string = update_string;
 
-        xlog::warn("Queued new achievement update [{}]: {}", achievement_async_ff_key, achievement_async_ff_string);
+        xlog::info("Queued new achievement update [{}]: {}", achievement_async_ff_key, achievement_async_ff_string);
         send_update_to_ff(); // Send immediately
     }
     else {
@@ -395,7 +395,7 @@ void AchievementManager::grant_achievement(AchievementName achievement, int coun
     // Increment pending count if the achievement is either locked or ff_auth
     if (!it->second.unlocked || it->second.type == AchievementType::ff_authoritative) {
         it->second.pending_count += count;
-        xlog::warn("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}",
+        xlog::info("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}",
             it->second.name, it->second.root_uid, count, it->second.pending_count);
     }
 }
@@ -413,7 +413,7 @@ void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filenam
 
     logged_kills.push_back(new_kill);
 
-    xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}",
+    xlog::info("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}",
                entity_uid, rfl_filename, tc_mod, class_name, damage_type, likely_weapon);
 }
 
@@ -426,13 +426,13 @@ void AchievementManager::log_use(int used_uid, const std::string& rfl_filename, 
 
     logged_uses.push_back(new_use);
 
-    xlog::warn("Use logged: uid={}, map={}, mod={}", used_uid, rfl_filename, tc_mod);
+    xlog::info("Use logged: uid={}, map={}, mod={}", used_uid, rfl_filename, tc_mod);
 }
 
 void AchievementManager::show_notification(Achievement& achievement)
 {
     achievement.notified = true;
-    xlog::warn("Achievement notified: {}", achievement.name);
+    xlog::info("Achievement notified: {}", achievement.name);
 
     // clear previous info before repopulating
     clear_achievement_notification();
@@ -587,14 +587,14 @@ bool are_any_objects_alive(std::initializer_list<int> uids) {
             if (obj->type == rf::OT_ENTITY) {
                 auto entity = static_cast<rf::Entity*>(obj);
                 if (entity->life > 0) {
-                    xlog::warn("still alive: {}", obj->uid);
+                    xlog::info("still alive: {}", obj->uid);
                     return true;
                 }
             }
             else if (obj->type == rf::OT_CORPSE) {
             }
             else {
-                xlog::warn("still an object: {}", obj->uid);
+                xlog::info("still an object: {}", obj->uid);
                 return true;
             }
         }
@@ -890,7 +890,7 @@ void achievement_check_entity_death(rf::Entity* entity) {
         rf::String rfl_filename = rf::level.filename;
         bool killed_by_player = rf::local_player_entity ? entity->killer_handle == rf::local_player_entity->handle : false;
 
-        xlog::warn("entity died {}, {}, {}, {}, killer {}", entity_uid, entity_script_name, entity_class_name, rfl_filename, killed_by_player);
+        //xlog::warn("entity died {}, {}, {}, {}, killer {}", entity_uid, entity_script_name, entity_class_name, rfl_filename, killed_by_player);
 
         // special handling since this entity is created by code and has no reliable UID
         if (string_equals_ignore_case(rfl_filename, "l20s2.rfl") && entity_script_name == "masako_endgame") {
@@ -989,7 +989,7 @@ void achievement_check_clutter_death(rf::Clutter* clutter) {
         rf::String clutter_class_name = clutter->info->cls_name;
         rf::String rfl_filename = rf::level.filename;
 
-        xlog::warn("clutter died {}, {}, {}, {}", clutter_uid, clutter_script_name, clutter_class_name, rfl_filename);
+        //xlog::warn("clutter died {}, {}, {}, {}", clutter_uid, clutter_script_name, clutter_class_name, rfl_filename);
 
         /* if (string_equals_ignore_case(rfl_filename, "l6s1.rfl")) {
             switch (clutter_uid) {
@@ -1025,7 +1025,7 @@ void achievement_check_item_picked_up(rf::Item* item) {
         rf::String item_class_name = item->info->cls_name;
         rf::String rfl_filename = rf::level.filename;
 
-        xlog::warn("item picked up {}, {}, {}, {}", item_uid, item_script_name, item_class_name, rfl_filename);
+        //xlog::warn("item picked up {}, {}, {}, {}", item_uid, item_script_name, item_class_name, rfl_filename);
 
         // clear MedMax achievement cache if not the right map
         if (!string_equals_ignore_case(rfl_filename, "train01.rfl") && !achievement_state_info.train01_med_max_uids.empty()) {
@@ -1162,7 +1162,7 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
         }
     }
 
-    xlog::warn("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
+    xlog::info("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
             entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
 
     if (distance >= 100.0f) {
@@ -1358,7 +1358,7 @@ CodeInjection entity_update_water_status_achievement_patch{
     [](auto& regs) {
         rf::Entity* vehicle = regs.esi;
         if (vehicle) {
-            xlog::warn("vehicle {} ({}) uid {}", vehicle->name, vehicle->info->name, vehicle->uid);
+            //xlog::warn("vehicle {} ({}) uid {}", vehicle->name, vehicle->info->name, vehicle->uid);
             if (vehicle->info->name == "Jeep01") {
                 grant_achievement_sp(AchievementName::JeepWater); // submerge jeep in water
             }
