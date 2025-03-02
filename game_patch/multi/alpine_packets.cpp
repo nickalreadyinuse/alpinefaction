@@ -341,8 +341,7 @@ static void af_process_obj_update_packet(const void* data, size_t len, const rf:
                         entity->name, obj_update.current_primary_weapon, obj_update.ammo_type, 
                         obj_update.clip_ammo, obj_update.reserve_ammo);*/
         } else {
-            xlog::warn("Did not update player {} because packet weapon {}, their weapon {}", 
-                       entity->name, obj_update.current_primary_weapon, entity->ai.current_primary_weapon);
+            //xlog::warn("Did not update player {} because packet weapon {}, their weapon {}", entity->name, obj_update.current_primary_weapon, entity->ai.current_primary_weapon);
         }
     }
 }
