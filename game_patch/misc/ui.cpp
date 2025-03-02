@@ -60,6 +60,10 @@ static rf::ui::Label ao_meshstatic_label;
 static rf::ui::Checkbox ao_enemybullets_cbox;
 static rf::ui::Label ao_enemybullets_label;
 
+static rf::ui::Label ao_fflink_label1;
+static rf::ui::Label ao_fflink_label2;
+static rf::ui::Label ao_fflink_label3;
+
 static inline void debug_ui_layout([[ maybe_unused ]] rf::ui::Gadget& gadget)
 {
 #if DEBUG_UI_LAYOUT
@@ -717,6 +721,31 @@ void alpine_options_panel_init() {
         &ao_meshstatic_cbox, &ao_meshstatic_label, ao_meshstatic_cbox_on_click, g_alpine_game_config.mesh_static_lighting, 280, 168, "Mesh static light");
     alpine_options_panel_checkbox_init(
         &ao_enemybullets_cbox, &ao_enemybullets_label, ao_enemybullets_cbox_on_click, g_alpine_game_config.show_enemy_bullets, 280, 193, "Enemy bullets");
+
+    std::string fflink_username = g_game_config.fflink_username.value();
+    std::string fflink_label_text1 = "";
+    std::string fflink_label_text2 = "";
+    std::string fflink_label_text3 = "";
+    if (fflink_username.empty()) {
+        fflink_label_text1 = "Alpine Faction is NOT linked to a FactionFiles account!";
+        fflink_label_text2 = "Linking enables features like achievements and map ratings.";
+        fflink_label_text3 = "Visit alpinefaction.com/link for more information.";
+    }
+    else {
+        fflink_label_text1 = "";
+        fflink_label_text2 = "Alpine Faction is linked to FactionFiles as " + fflink_username;
+        fflink_label_text3 = "";
+    }
+
+    ao_fflink_label1.create(&alpine_options_panel, 125, 253, fflink_label_text1.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label1.enabled = true;
+    alpine_options_panel_labels.push_back(&ao_fflink_label1);
+    ao_fflink_label2.create(&alpine_options_panel, 125, 268, fflink_label_text2.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label2.enabled = true;
+    alpine_options_panel_labels.push_back(&ao_fflink_label2);
+    ao_fflink_label3.create(&alpine_options_panel, 125, 283, fflink_label_text3.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label3.enabled = true;
+    alpine_options_panel_labels.push_back(&ao_fflink_label3);
 }
 
 void alpine_options_panel_do_frame(int x) {
