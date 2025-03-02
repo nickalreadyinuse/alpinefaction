@@ -17,9 +17,9 @@
 #define PRODUCT_NAME           "Alpine Faction"
 #define VERSION_MAJOR          1
 #define VERSION_MINOR          1
-#define VERSION_PATCH          1
+#define VERSION_PATCH          0
 #define VERSION_TYPE           VERSION_TYPE_BETA
-#define VERSION_TYPE_REVISION  0
+#define VERSION_TYPE_REVISION  1
 #define VERSION_CODE           "Tamarack"
 
 // Version used for alpine_settings.ini settings files
