@@ -170,7 +170,7 @@ namespace rf
     {
         char event_specific_data[21]; // 24 in original code, adjust per new event struct size
     };
-    static_assert(sizeof(GenericEvent) == 0x2D0, "GenericEvent size is incorrect!");
+    static_assert(sizeof(GenericEvent) == 0x2D0);
 
     struct PersistentGoalEvent
     {

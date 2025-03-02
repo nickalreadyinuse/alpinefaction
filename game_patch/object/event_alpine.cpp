@@ -632,7 +632,7 @@ rf::Event* construct_alpine_event(int event_type, const rf::EventCreateParams& p
 }
 
 // assignment of factories for AF event types
-CodeInjection level_read_events_patch {
+CodeInjection level_read_events_factories_patch {
     0x00462910, [](auto& regs) {
         if (af_rfl_version(rf::level.version)) {
             int event_type = static_cast<int>(regs.ebp);
@@ -670,7 +670,7 @@ CodeInjection level_read_events_patch {
 };
 
 // set p_data orient for Anchor_Marker_Orient when event is created (required for use in moving groups)
-CodeInjection level_read_events_patch2 {
+CodeInjection level_read_events_movers_patch {
     0x0046294F, [](auto& regs) {
         if (af_rfl_version(rf::level.version)) {
             rf::Event* event = regs.esi;
@@ -796,7 +796,7 @@ void apply_alpine_events()
     event_allocate_hook.install();                  // load AF events at level start
     event_deallocate_hook.install();                // unload AF events at level end
     event_type_forwards_messages_patch.install();   // handle AF events that shouldn't forward messages by default
-    level_read_events_patch.install();              // assign factories for AF events
+    level_read_events_factories_patch.install();    // assign factories for AF events
     event_activate_route_node.install();            // handle activations for Route_Node event
-    level_read_events_patch2.install();             // handle p_data orient assignment for Anchor_Marker_Orient event    
+    level_read_events_movers_patch.install();       // handle p_data orient assignment for Anchor_Marker_Orient event
 }
