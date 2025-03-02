@@ -80,6 +80,7 @@ struct AlpineGameSettings
     bool ping_display = true;
     bool spectate_mode_minimal_ui = false;
     bool save_console_history = false; // checked before config loaded, must be false here
+    bool screen_shake_force_off = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

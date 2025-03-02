@@ -42,6 +42,19 @@ CallHook<void(rf::Camera*, float, float)> camera_shake_hook{
     }
 };
 
+// camera shake for everything
+FunHook<void(rf::Camera*, float, float)> camera_shake_global_hook{
+    0x0040E0B0,
+    [](rf::Camera* cp, float amplitude, float time_seconds) {
+
+        if (g_alpine_game_config.screen_shake_force_off && !rf::is_multi) {
+            return;
+        }
+
+        camera_shake_global_hook.call_target(cp, amplitude, time_seconds);
+    }
+};
+
 void evaluate_restrict_disable_ss()
 {
     server_side_restrict_disable_ss =
@@ -61,12 +74,25 @@ ConsoleCommand2 disable_weaphake_cmd{
 
         evaluate_restrict_disable_ss();
 
-        rf::console::print("Screenshake is {}",
+        rf::console::print("Camera shake from weapon fire is {}",
                            g_alpine_game_config.try_disable_weapon_shake
                                ? "disabled. In multiplayer, this will only apply if the server allows it."
                                : "enabled.");
     },
     "Disable camera shake from weapon firing. In multiplayer, this is only applied if the server allows it.",
+};
+
+ConsoleCommand2 force_disable_camerashake_cmd{
+    "sp_camerashake",
+    []() {
+        g_alpine_game_config.screen_shake_force_off = !g_alpine_game_config.screen_shake_force_off;
+
+        rf::console::print("All instances of camera shake are {}being forcefully turned off in single player.",
+                           g_alpine_game_config.screen_shake_force_off
+                               ? ""
+                               : "NOT ");
+    },
+    "Forcefully disable all forms of camera shake. Only applies to single player.",
 };
 
 void camera_do_patch()
@@ -80,4 +106,6 @@ void camera_do_patch()
     // handle turning off screen shake
     disable_weaphake_cmd.register_cmd();
     camera_shake_hook.install();
+    force_disable_camerashake_cmd.register_cmd();
+    camera_shake_global_hook.install();
 }

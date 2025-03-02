@@ -111,6 +111,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 - Add `dbg_consolehistory` command to toggle whether console history persists between game launches
+- Add `sp_camerashake` command to turn off all instances of camera shake
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
