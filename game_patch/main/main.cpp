@@ -200,7 +200,7 @@ FunHook<void(bool)> level_init_post_hook{
             if (g_alpine_game_config.try_disable_weapon_shake) {
                 evaluate_restrict_disable_ss();
             }
-            if (g_game_config.try_disable_muzzle_flash) {
+            if (g_alpine_game_config.try_disable_muzzle_flash_lights) {
                 evaluate_restrict_disable_muzzle_flash();
             }
         }

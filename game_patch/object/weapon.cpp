@@ -13,6 +13,7 @@
 #include "../os/console.h"
 #include "../main/main.h"
 #include "../multi/multi.h"
+#include "../misc/alpine_settings.h"
 
 bool entity_is_reloading_player_select_weapon_new(rf::Entity* entity)
 {
@@ -131,9 +132,8 @@ CallHook<void(rf::Vector3&, float, float, int, int)> weapon_hit_wall_obj_apply_r
 ConsoleCommand2 multi_ricochet_cmd{
     "mp_ricochet",
     []() {
-        g_game_config.multi_ricochet = !g_game_config.multi_ricochet;
-        g_game_config.save();
-        rf::console::print("Multiplayer ricochets are {}", g_game_config.multi_ricochet ? "enabled" : "disabled");
+        g_alpine_game_config.multi_ricochet = !g_alpine_game_config.multi_ricochet;
+        rf::console::print("Multiplayer ricochets are {}", g_alpine_game_config.multi_ricochet ? "enabled" : "disabled");
     },
     "Toggles whether bullets ricochet in multiplayer (strictly visual, they deal no damage regardless)",
 };
@@ -141,7 +141,7 @@ ConsoleCommand2 multi_ricochet_cmd{
 FunHook<bool(rf::Weapon*)> weapon_possibly_richochet {
     0x004C9D30,
     [](rf::Weapon* weapon) {
-        if (rf::is_multi && !g_game_config.multi_ricochet) {
+        if (rf::is_multi && !g_alpine_game_config.multi_ricochet) {
             return false;
         }
 
@@ -152,17 +152,16 @@ FunHook<bool(rf::Weapon*)> weapon_possibly_richochet {
 ConsoleCommand2 gaussian_spread_cmd{
     "sp_spreadmode",
     []() {
-        g_game_config.gaussian_spread = !g_game_config.gaussian_spread;
-        g_game_config.save();
+        g_alpine_game_config.gaussian_spread = !g_alpine_game_config.gaussian_spread;
         rf::console::print("Random bullet spread calculation is using the {} method",
-            g_game_config.gaussian_spread ? "new (gaussian)" : "legacy (uniform)");
+            g_alpine_game_config.gaussian_spread ? "new (gaussian)" : "legacy (uniform)");
     },
     "Toggles whether bullet spread randomness uses the new gaussian method or the legacy uniform method",
 };
 
 bool should_use_gaussian_spread()
 {
-    if (!rf::is_multi && g_game_config.gaussian_spread) {
+    if (!rf::is_multi && g_alpine_game_config.gaussian_spread) {
         return true;
     }
     else if ((rf::is_dedicated_server || rf::is_server) && g_additional_server_config.gaussian_spread) {
@@ -178,16 +177,15 @@ bool should_use_gaussian_spread()
 ConsoleCommand2 unlimited_semi_auto_cmd{
     "sp_unlimitedsemiauto",
     []() {
-        g_game_config.unlimited_semi_auto = !g_game_config.unlimited_semi_auto;
-        g_game_config.save();
+        g_alpine_game_config.unlimited_semi_auto = !g_alpine_game_config.unlimited_semi_auto;
         rf::console::print("Fire rate cooldown for semi-automatic weapons in single player is {}",
-            g_game_config.unlimited_semi_auto ? "disabled" : "enabled");
+            g_alpine_game_config.unlimited_semi_auto ? "disabled" : "enabled");
     },
     "Toggles whether the fire rate for semi-automatic weapons in single player has a cooldown",
 };
 
 bool should_apply_click_limiter() {
-    if (!rf::is_multi && !g_game_config.unlimited_semi_auto) {
+    if (!rf::is_multi && !g_alpine_game_config.unlimited_semi_auto) {
         return true;
     }
 

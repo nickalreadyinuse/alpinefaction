@@ -189,13 +189,11 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
     result &= visitor(dash_faction_key, "Glares", glares);
     result &= visitor(dash_faction_key, "Show Enemy Bullets", show_enemy_bullets);
-    result &= visitor(dash_faction_key, "Disable Muzzle Flash Lights", try_disable_muzzle_flash);
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
     result &= visitor(dash_faction_key, "Damage Screen Flash", damage_screen_flash);
     result &= visitor(dash_faction_key, "Death Bars", death_bars);
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
-    result &= visitor(dash_faction_key, "Reticle Scale", reticle_scale);
     result &= visitor(dash_faction_key, "Mesh Static Lighting", mesh_static_lighting);
     result &= visitor(dash_faction_key, "Enforce Power of 2 Textures", pow2tex);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
@@ -205,9 +203,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
     result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
     result &= visitor(dash_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);
-    result &= visitor(dash_faction_key, "Multi Ricochet", multi_ricochet);
-    result &= visitor(dash_faction_key, "Unlimited Semi Auto", unlimited_semi_auto);
-    result &= visitor(dash_faction_key, "Use Gaussian Bullet Spread", gaussian_spread);
 
     return result;
 }

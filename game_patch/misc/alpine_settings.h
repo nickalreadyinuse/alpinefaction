@@ -43,6 +43,12 @@ struct AlpineGameSettings
         scanner_sensitivity_modifier = std::clamp(mod, min_sens_mod, max_sens_mod);
     }
 
+    float reticle_scale = 1.0f;
+    void set_reticle_scale(float scale)
+    {
+        reticle_scale = std::clamp(scale, 0.0f, 100.0f);
+    }
+
     bool scope_static_sensitivity = false;
     bool swap_ar_controls = false;
     bool swap_gn_controls = false;
@@ -62,6 +68,9 @@ struct AlpineGameSettings
     bool world_hud_team_player_labels = true;
     bool play_hit_sounds = true;
     bool play_taunt_sounds = true;
+    bool unlimited_semi_auto = false;
+    bool gaussian_spread = false;
+    bool multi_ricochet = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

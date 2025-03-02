@@ -68,8 +68,6 @@ struct GameConfig
     CfgVar<bool> glares = true;
     CfgVar<bool> show_enemy_bullets = true;
 
-    CfgVar<bool> try_disable_muzzle_flash = false;
-
     // Audio
     CfgVar<float> level_sound_volume = 1.0f;
     CfgVar<bool> eax_sound = true;
@@ -78,7 +76,6 @@ struct GameConfig
     static const char default_rf_tracker[];
     CfgVar<std::string> tracker{default_rf_tracker};
     CfgVar<unsigned> server_netfps = 30;
-    CfgVar<bool> multi_ricochet = false;
 
     static constexpr unsigned default_update_rate = 200000; // T1/LAN in stock launcher
     CfgVar<unsigned> update_rate = default_update_rate;
@@ -91,7 +88,6 @@ struct GameConfig
     // Interface
     CfgVar<bool> fps_counter = true;
     CfgVar<bool> ping_display = true;
-    CfgVar<float> reticle_scale = 1.0f;
     CfgVar<int> language = -1;
     CfgVar<bool> scoreboard_anim = false;
     CfgVar<bool> spectate_mode_minimal_ui = false;
@@ -104,8 +100,6 @@ struct GameConfig
     CfgVar<bool> reduced_speed_in_background = false;
     CfgVar<bool> player_join_beep = false;
     CfgVar<bool> autosave = true;
-    CfgVar<bool> unlimited_semi_auto = false;
-    CfgVar<bool> gaussian_spread = false;
 
     // Internal
     CfgVar<std::string> alpine_faction_version{""};

@@ -142,10 +142,6 @@ bool alpine_player_settings_load(rf::Player* player)
         rf::game_set_gore_level(2); // if gore level not in ini file, default to 2
     }
 
-    if (settings.count("DifficultyLevel")) {
-        rf::game_set_skill_level(static_cast<rf::GameDifficultyLevel>(std::stoi(settings["DifficultyLevel"])));
-        processed_keys.insert("DifficultyLevel");
-    }
     if (settings.count("ShowFPGun")) {
         player->settings.render_fpgun = std::stoi(settings["ShowFPGun"]);
         processed_keys.insert("ShowFPGun");
@@ -161,18 +157,6 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("ToggleCrouch")) {
         player->settings.toggle_crouch = std::stoi(settings["ToggleCrouch"]);
         processed_keys.insert("ToggleCrouch");
-    }
-    if (settings.count("SwapARBinds")) {
-        g_alpine_game_config.swap_ar_controls = std::stoi(settings["SwapARBinds"]);
-        processed_keys.insert("SwapARBinds");
-    }
-    if (settings.count("SwapGNBinds")) {
-        g_alpine_game_config.swap_gn_controls = std::stoi(settings["SwapGNBinds"]);
-        processed_keys.insert("SwapGNBinds");
-    }
-    if (settings.count("SwapSGBinds")) {
-        g_alpine_game_config.swap_sg_controls = std::stoi(settings["SwapSGBinds"]);
-        processed_keys.insert("SwapSGBinds");
     }
 
     // Load weapon autoswitch priority
@@ -264,6 +248,24 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.try_disable_textures = std::stoi(settings["DisableTextures"]);
         processed_keys.insert("DisableTextures");
     }
+    if (settings.count("ReticleScale")) {
+        g_alpine_game_config.set_reticle_scale(std::stof(settings["ReticleScale"]));
+        processed_keys.insert("ReticleScale");
+    }
+
+    // Load singleplayer settings
+    if (settings.count("DifficultyLevel")) {
+        rf::game_set_skill_level(static_cast<rf::GameDifficultyLevel>(std::stoi(settings["DifficultyLevel"])));
+        processed_keys.insert("DifficultyLevel");
+    }
+    if (settings.count("UnlimitedSemiAuto")) {
+        g_alpine_game_config.unlimited_semi_auto = std::stoi(settings["UnlimitedSemiAuto"]);
+        processed_keys.insert("UnlimitedSemiAuto");
+    }
+    if (settings.count("GaussianSpread")) {
+        g_alpine_game_config.gaussian_spread = std::stoi(settings["GaussianSpread"]);
+        processed_keys.insert("GaussianSpread");
+    }
 
     // Load multiplayer settings
     if (settings.count("MultiplayerCharacter")) {
@@ -302,6 +304,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.play_taunt_sounds = std::stoi(settings["PlayTaunts"]);
         processed_keys.insert("PlayTaunts");
     }
+    if (settings.count("VisualRicochet")) {
+        g_alpine_game_config.multi_ricochet = std::stoi(settings["VisualRicochet"]);
+        processed_keys.insert("VisualRicochet");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -315,6 +321,18 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("MouseLinearPitch")) {
         g_alpine_game_config.mouse_linear_pitch = std::stoi(settings["MouseLinearPitch"]);
         processed_keys.insert("MouseLinearPitch");
+    }
+    if (settings.count("SwapARBinds")) {
+        g_alpine_game_config.swap_ar_controls = std::stoi(settings["SwapARBinds"]);
+        processed_keys.insert("SwapARBinds");
+    }
+    if (settings.count("SwapGNBinds")) {
+        g_alpine_game_config.swap_gn_controls = std::stoi(settings["SwapGNBinds"]);
+        processed_keys.insert("SwapGNBinds");
+    }
+    if (settings.count("SwapSGBinds")) {
+        g_alpine_game_config.swap_sg_controls = std::stoi(settings["SwapSGBinds"]);
+        processed_keys.insert("SwapSGBinds");
     }
     if (settings.count("SkipCutsceneBindAlias")) {
         g_alpine_game_config.skip_cutscene_bind_alias = std::stoi(settings["SkipCutsceneBindAlias"]);
@@ -395,6 +413,9 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "MouseSensitivity=" << cc.mouse_sensitivity << "\n";
     file << "MouseYInvert=" << cc.axes[1].invert << "\n";
     file << "MouseLinearPitch=" << g_alpine_game_config.mouse_linear_pitch << "\n";
+    file << "SwapARBinds=" << g_alpine_game_config.swap_ar_controls << "\n";
+    file << "SwapGNBinds=" << g_alpine_game_config.swap_gn_controls << "\n";
+    file << "SwapSGBinds=" << g_alpine_game_config.swap_sg_controls << "\n";
     file << "SkipCutsceneBindAlias=" << g_alpine_game_config.skip_cutscene_bind_alias << "\n";
     file << "StaticScopeSensitivity=" << g_alpine_game_config.scope_static_sensitivity << "\n";
     file << "ScopeSensitivityModifier=" << g_alpine_game_config.scope_sensitivity_modifier << "\n";
@@ -464,14 +485,10 @@ void alpine_player_settings_save(rf::Player* player)
     file << "\n[PlayerSettings]\n";
     file << "PlayerName=" << player->name << "\n";
     file << "GoreLevel=" << rf::game_get_gore_level() << "\n";
-    file << "DifficultyLevel=" << static_cast<int>(rf::game_get_skill_level()) << "\n";
     file << "ShowFPGun=" << player->settings.render_fpgun << "\n";
     file << "AutoswitchWeapons=" << player->settings.autoswitch_weapons << "\n";
     file << "NeverAutoswitchExplosives=" << player->settings.dont_autoswitch_to_explosives << "\n";
     file << "ToggleCrouch=" << player->settings.toggle_crouch << "\n";
-    file << "SwapARBinds=" << g_alpine_game_config.swap_ar_controls << "\n";
-    file << "SwapGNBinds=" << g_alpine_game_config.swap_gn_controls << "\n";
-    file << "SwapSGBinds=" << g_alpine_game_config.swap_sg_controls << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";
@@ -510,6 +527,13 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableWeaponShake=" << g_alpine_game_config.try_disable_weapon_shake << "\n";
     file << "FullbrightCharacters=" << g_alpine_game_config.try_fullbright_characters << "\n";
     file << "DisableTextures=" << g_alpine_game_config.try_disable_textures << "\n";
+    file << "ReticleScale=" << g_alpine_game_config.reticle_scale << "\n";
+
+    // Singleplayer
+    file << "\n[SingleplayerSettings]\n";
+    file << "DifficultyLevel=" << static_cast<int>(rf::game_get_skill_level()) << "\n";
+    file << "UnlimitedSemiAuto=" << g_alpine_game_config.unlimited_semi_auto << "\n";
+    file << "GaussianSpread=" << g_alpine_game_config.gaussian_spread << "\n";
 
     // Multiplayer
     file << "\n[MultiplayerSettings]\n";
@@ -522,6 +546,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "WorldHUDTeamLabels=" << g_alpine_game_config.world_hud_team_player_labels << "\n";
     file << "PlayHitsounds=" << g_alpine_game_config.play_hit_sounds << "\n";
     file << "PlayTaunts=" << g_alpine_game_config.play_taunt_sounds << "\n";
+    file << "VisualRicochet=" << g_alpine_game_config.multi_ricochet << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
