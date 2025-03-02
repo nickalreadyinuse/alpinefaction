@@ -33,6 +33,15 @@ ConsoleCommand2 dot_cmd{
     ". <query>",
 };
 
+ConsoleCommand2 console_history_cmd{
+    "dbg_consolehistory",
+    []() {
+        g_alpine_game_config.save_console_history = !g_alpine_game_config.save_console_history;
+        rf::console::print("Console history {}.", g_alpine_game_config.save_console_history ? "enabled" : "disabled");
+    },
+    "Toggles whether console history persists between game launches",
+};
+
 ConsoleCommand2 vli_cmd{
     "vli",
     []() {
@@ -523,6 +532,7 @@ void console_commands_init()
     // Custom commands
     pcollide_cmd.register_cmd();
     dot_cmd.register_cmd();
+    console_history_cmd.register_cmd();
     vli_cmd.register_cmd();
     player_count_cmd.register_cmd();
     find_level_cmd.register_cmd();

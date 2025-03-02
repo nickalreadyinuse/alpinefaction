@@ -110,6 +110,7 @@ Version 1.1.0 (Tamarack): Not yet released
     - FPS counter, damage flash, mesh static lights, enemy bullets
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
+- Add `dbg_consolehistory` command to toggle whether console history persists between game launches
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

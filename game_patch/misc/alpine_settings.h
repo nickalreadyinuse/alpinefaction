@@ -79,6 +79,7 @@ struct AlpineGameSettings
     bool fps_counter = true;
     bool ping_display = true;
     bool spectate_mode_minimal_ui = false;
+    bool save_console_history = true;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

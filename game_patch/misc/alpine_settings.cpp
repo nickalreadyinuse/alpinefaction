@@ -170,6 +170,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.fps_counter = std::stoi(settings["ShowFPS"]);
         processed_keys.insert("ShowFPS");
     }
+    if (settings.count("SaveConsoleHistory")) {
+        g_alpine_game_config.save_console_history = std::stoi(settings["SaveConsoleHistory"]);
+        processed_keys.insert("SaveConsoleHistory");
+    }
 
     // Load weapon autoswitch priority
     if (settings.count("WeaponAutoswitchPriority")) {
@@ -526,6 +530,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DamageScreenFlash=" << g_alpine_game_config.damage_screen_flash << "\n";
     file << "SpectateMinimalUI=" << g_alpine_game_config.spectate_mode_minimal_ui << "\n";
     file << "ShowFPS=" << g_alpine_game_config.fps_counter << "\n";
+    file << "SaveConsoleHistory=" << g_alpine_game_config.save_console_history << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";

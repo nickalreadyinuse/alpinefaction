@@ -2,6 +2,7 @@
 #include "../main/main.h"
 #include "../misc/player.h"
 #include "../misc/misc.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/player/player.h"
 #include "../rf/gameseq.h"
 #include "../rf/input.h"
@@ -183,6 +184,13 @@ void print_fflink_info() {
     rf::console::printf("-- %s --", msg);
 }
 
+FunHook<void(bool)> console_init_history_hook{
+    0x0050B550,
+    [](bool save_history) {
+        console_init_history_hook.call_target(g_alpine_game_config.save_console_history);
+    },
+};
+
 void console_commands_apply_patches();
 void console_auto_complete_apply_patches();
 void console_commands_init();
@@ -239,6 +247,9 @@ void console_apply_patches()
 
     // Reset clip window before rendering console
     console_draw_client_hook.install();
+
+    // Allow control of whether console_history is saved
+    console_init_history_hook.install();
 
     console_commands_apply_patches();
     console_auto_complete_apply_patches();
