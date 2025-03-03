@@ -9,7 +9,7 @@ struct AlpineGameSettings
     // fov
     static constexpr float min_fov = 75.0f;
     static constexpr float max_fov = 160.0f;
-    float horz_fov = 90.0f;
+    float horz_fov = 0.0f;
     void set_horz_fov(float fov)
     {
         if (fov == 0.0f) {
