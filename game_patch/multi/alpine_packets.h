@@ -42,7 +42,7 @@ struct af_damage_notify_packet
     RF_GamePacketHeader header;
     uint8_t player_id;
     uint16_t damage;
-    bool died;
+    uint8_t flags;
 };
 
 struct af_obj_update // members of af_obj_update_packet
@@ -60,6 +60,8 @@ struct af_obj_update_packet
     af_obj_update objects[];
 };
 
+#pragma pack(pop)
+
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
 void af_send_packet(rf::Player* player, const void* data, int len, bool is_reliable);
 
@@ -71,5 +73,3 @@ void af_send_damage_notify_packet(uint8_t player_id, float damage, bool died, rf
 static void af_process_damage_notify_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_obj_update_packet(rf::Player* player);
 static void af_process_obj_update_packet(const void* data, size_t len, const rf::NetAddr& addr);
-
-#pragma pack(pop)

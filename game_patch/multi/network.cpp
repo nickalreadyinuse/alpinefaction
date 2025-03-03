@@ -1379,8 +1379,10 @@ CodeInjection send_players_obj_update_packets_injection{
     [](auto& regs) {
         rf::Player* player = regs.esi;
         // use new packet for clients that can process it (Alpine 1.1+)
-        if (player && is_player_minimum_af_client_version(player, 1, 1)) {
-            af_send_obj_update_packet(player);
+        if (player) {
+            if (is_player_minimum_af_client_version(player, 1, 1)) {
+                af_send_obj_update_packet(player);
+            }
         }
     },
 };

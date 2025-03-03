@@ -54,11 +54,11 @@ PlayerAdditionalData& get_player_additional_data(rf::Player* player)
 
 // used for compatibility checks
 bool is_player_minimum_af_client_version(rf::Player* player, int version_major, int version_minor) {
-    auto& player_info = g_player_additional_data_map[player];
-
     if (!player) {
         return false;
     }
+
+    auto& player_info = g_player_additional_data_map[player];
 
     if (!&player_info) {
         return false;
