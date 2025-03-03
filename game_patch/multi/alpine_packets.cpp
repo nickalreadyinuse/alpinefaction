@@ -9,6 +9,7 @@
 #include "../rf/player/player.h"
 #include "../rf/weapon.h"
 #include "multi.h"
+#include "server_internal.h"
 #include "../hud/hud_world.h"
 #include "alpine_packets.h"
 #include "../misc/player.h"
@@ -70,7 +71,6 @@ void af_send_ping_location_req_packet(rf::Vector3* pos)
     ping_location_req_packet.pos.x = pos->x;
     ping_location_req_packet.pos.y = pos->y;
     ping_location_req_packet.pos.z = pos->z;
-
     std::memcpy(packet_buf, &ping_location_req_packet, sizeof(ping_location_req_packet));
     af_send_packet(rf::local_player, packet_buf, sizeof(ping_location_req_packet), false);
 }
@@ -78,12 +78,12 @@ void af_send_ping_location_req_packet(rf::Vector3* pos)
 static void af_process_ping_location_req_packet(const void* data, size_t len, const rf::NetAddr& addr)
 {
     // Receive: server <- client
-    if (!rf::is_server) {
+    if (!rf::is_dedicated_server) {
         return;
     }
 
     // ignore ping_location_req packets if location pinging is configured off
-    if (!get_df_server_info().has_value() || !get_df_server_info()->location_pinging) {
+    if (!server_get_df_config().location_pinging) {
         return;
     }
 
@@ -102,7 +102,6 @@ static void af_process_ping_location_req_packet(const void* data, size_t len, co
         pos.y = ping_location_req_packet.pos.y,
         pos.z = ping_location_req_packet.pos.z
     };
-
     af_send_ping_location_packet_to_team(&pos, player->net_data->player_id, player->team);
 }
 
