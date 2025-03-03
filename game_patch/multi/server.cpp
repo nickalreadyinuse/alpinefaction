@@ -1026,6 +1026,9 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
 
         float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
 
+        // damaged_ep may be invalid at this point. If so, assume dead to avoid a rare crash from checking life
+        bool is_dead = damaged_ep ? damaged_ep->life <= 0.0f : true;
+
         if (rf::is_server && is_pvp_damage && real_damage > 0.0f) {
 
             auto* killer_player_stats = static_cast<PlayerStatsNew*>(killer_player->stats);
@@ -1038,13 +1041,15 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
 
                 // use new packet for clients that can process it (Alpine 1.1+)
                 if (is_player_minimum_af_client_version(killer_player, 1, 1)) {
+                    //xlog::warn("sending damage notify to {}, is dead? {}", killer_player->name, is_dead);
                     af_send_damage_notify_packet(
                         damaged_player->net_data->player_id,
                         real_damage,
-                        damaged_ep->life <= 0.0f,
+                        is_dead,
                         killer_player);
                 }
                 else if (g_additional_server_config.damage_notifications.support_legacy_clients) {
+                    //xlog::warn("sending legacy notify to {}", killer_player->name);
                     send_hit_sound_packet(killer_player); // fallback for old clients
                 }
             }
