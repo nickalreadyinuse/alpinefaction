@@ -765,6 +765,15 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
+            case 6937: {
+                if (string_equals_ignore_case(rfl_filename, "L6S3.rfl") &&
+                    rf::player_is_undercover() &&
+                    !rf::player_undercover_alarm_is_on()) {
+                    grant_achievement(AchievementName::AdminStealth); // admin stealth finish
+                }
+                break;
+            }
+
             // Kava
             case 26156: {
                 if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
@@ -1399,15 +1408,6 @@ CodeInjection event_activate_links_achievement_patch{
                 case 9458: {
                     if (string_equals_ignore_case(rfl_filename, "l4s1a.rfl")) {
                         grant_achievement(AchievementName::HendrixHackDoor); // abandoned mines door
-                    }
-                    break;
-                }
-
-                case 6938: {
-                    if (string_equals_ignore_case(rfl_filename, "L6S3.rfl") &&
-                        rf::player_is_undercover() &&
-                        !rf::player_undercover_alarm_is_on()) {
-                        grant_achievement(AchievementName::AdminStealth); // admin stealth finish
                     }
                     break;
                 }
