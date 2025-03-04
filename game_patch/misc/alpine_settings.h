@@ -64,8 +64,8 @@ struct AlpineGameSettings
     bool world_hud_overdraw = true;
     bool world_hud_big_text = false;
     bool world_hud_damage_numbers = true;
-    bool world_hud_spectate_player_labels = true;
-    bool world_hud_team_player_labels = true;
+    bool world_hud_spectate_player_labels = false;
+    bool world_hud_team_player_labels = false;
     bool play_hit_sounds = true;
     bool play_taunt_sounds = true;
     bool unlimited_semi_auto = false;
