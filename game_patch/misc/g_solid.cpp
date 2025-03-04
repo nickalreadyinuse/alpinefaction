@@ -501,51 +501,21 @@ void g_solid_render_ui()
     }
 }
 
-std::optional<int> bm_get_cache_slot_opt(int handle)
-{
-    int cache_slot = rf::bm_get_cache_slot(handle);
-    return (cache_slot == -1) ? std::nullopt : std::optional<int>{cache_slot};
-}
+CodeInjection levelmod_do_blast_autotexture_ppm_patch{
+    0x00466C00,
+    [](auto& regs) {
+        rf::GSolid* solid = regs.ecx;
+        int bitmap_handle = regs.edi;
+        int bitmap_w = 256; // default to dimensions of stock geomod bitmaps
+        int bitmap_h = 256;
+        rf::bm::get_dimensions(bitmap_handle, &bitmap_w, &bitmap_h); // get dimensions of geomod bitmap if different
+        float ppm_default = 256.0f / 32.0f; // ppm of stock geomod bitmaps
 
-int bm_get_width(int handle)
-{
-    auto cache_slot = bm_get_cache_slot_opt(handle).value_or(0);
-    if (cache_slot == 0) {
-        return 0;
-    }
-    int index = 27 * cache_slot;
-    return *((uint16_t*)rf::bm_bitmaps + 2 * index + 22);
-}
-
-int bm_get_height(int handle)
-{
-    auto cache_slot = bm_get_cache_slot_opt(handle).value_or(0);
-    if (cache_slot == 0) {
-        return 0;
-    }
-    int index = 27 * cache_slot;
-    return *((uint16_t*)rf::bm_bitmaps + 2 * index + 23);
-}
-
-float bm_calculate_ppm(int handle)
-{
-    const int width = bm_get_width(handle);
-    const int height = bm_get_height(handle);
-
-    if (width <= 0 || height <= 0) {
-        // something weird happened, use default value and avoid divide by zero
-        return 32.0f;
-    }
-
-    const float max_dimension = static_cast<float>(std::max(width, height));
-    return 32.0f * (max_dimension / 256.0f);
-}
-
-using GSolid_SetAutotexture_Type = void __fastcall(rf::GSolid*, float);
-CallHook<GSolid_SetAutotexture_Type> set_geo_crater_ppm_hook{
-    0x00466BD4, [](rf::GSolid* solid, float ppm) {      
-        set_geo_crater_ppm_hook.call_target(solid, bm_calculate_ppm(rf::geomod_crater_texture_handle));
-    }
+        // New bitmap is likely square anyway, but if not, use maximum between its dimensions to prevent
+        // one dimension from displaying with higher pixel density than expected
+        float ppm_new = std::max(bitmap_w, bitmap_h) / ppm_default; // apply same ppm to new bitmap as default
+        solid->set_levelmod_blast_autotexture_ppm(ppm_new);
+    },
 };
 
 // currently unused
@@ -735,7 +705,7 @@ void g_solid_do_patch()
     AsmWriter{0x004D44C7}.nop(2);
 
     // Set PPM for geo crater texture based on its resolution instead of static value of 32.0
-    set_geo_crater_ppm_hook.install();
+    levelmod_do_blast_autotexture_ppm_patch.install();
 
     // Commands
     max_decals_cmd.register_cmd();

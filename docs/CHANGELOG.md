@@ -20,6 +20,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix `When_Picked_Up` events not activating for some item classes
 - Fix bug where players would be disconnected from high framerate servers if they were standing in a solo trigger
 - Fix listen server create panel not properly loading `Level Name` field for Alpine levels
+- Fix geomod autotexture ppm not being correctly calculated for all crater textures
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
