@@ -1419,6 +1419,13 @@ CodeInjection event_activate_links_achievement_patch{
                     break;
                 }
 
+                case 3337: {
+                    if (string_equals_ignore_case(rfl_filename, "l4s4.rfl")) {
+                        grant_achievement(AchievementName::HendrixHackDoor);
+                    }
+                    break;
+                }
+
                 default:
                     break;
             }
