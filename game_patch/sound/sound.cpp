@@ -557,6 +557,10 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
         return; // taunts are turned off
     }
 
+    if (!is_taunt) {
+        return; // temporary disable radio message audio while awaiting recordings
+    }
+
     // Remove the prefix from chat_message before comparing
     constexpr std::string_view normal_prefix = "\xA8 ";
     constexpr std::string_view taunt_prefix = "\xA8[Taunt] ";
