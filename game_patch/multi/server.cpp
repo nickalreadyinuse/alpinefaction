@@ -1038,25 +1038,28 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             damaged_player_stats->add_damage_received(real_damage);
 
             if (g_additional_server_config.damage_notifications.enabled && damaged_player && killer_player) {
+                if (!(!damaged_ep || rf::entity_is_dying(damaged_ep) || rf::player_is_dead(damaged_player))) {
 
-                // use new packet for clients that can process it (Alpine 1.1+)
-                if (is_player_minimum_af_client_version(killer_player, 1, 1)) {
-                    //xlog::warn("sending damage notify to {}, is dead? {}", killer_player->name, is_dead);
-                    af_send_damage_notify_packet(
-                        damaged_player->net_data->player_id,
-                        real_damage,
-                        is_dead,
-                        killer_player);
-                }
-                else if (g_additional_server_config.damage_notifications.support_legacy_clients) {
-                    //xlog::warn("sending legacy notify to {}", killer_player->name);
-                    send_hit_sound_packet(killer_player); // fallback for old clients
+                    // use new packet for clients that can process it (Alpine 1.1+)
+                    if (is_player_minimum_af_client_version(killer_player, 1, 1)) {
+                        //xlog::warn("sending damage notify to {}, is dead? {}", killer_player->name, is_dead);
+                        af_send_damage_notify_packet(
+                            damaged_player->net_data->player_id,
+                            real_damage,
+                            is_dead,
+                            killer_player);
+                    }
+                    else if (g_additional_server_config.damage_notifications.support_legacy_clients) {
+                        //xlog::warn("sending legacy notify to {}", killer_player->name);
+                        send_hit_sound_packet(killer_player); // fallback for old clients
+                    }
                 }
             }
         }
         
         if (is_achievement_system_initialized() &&
             !rf::is_multi &&
+            damaged_ep &&
             damaged_ep->life <= 0.0f) {
             achievement_player_killed_entity(damaged_ep, real_damage, damage_type, damaged_ep->killer_handle);
         }
