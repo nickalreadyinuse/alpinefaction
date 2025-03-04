@@ -265,6 +265,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.try_disable_textures = std::stoi(settings["DisableTextures"]);
         processed_keys.insert("DisableTextures");
     }
+    if (settings.count("DisableMuzzleFlashLights")) {
+        g_alpine_game_config.try_disable_muzzle_flash_lights = std::stoi(settings["DisableMuzzleFlashLights"]);
+        processed_keys.insert("DisableMuzzleFlashLights");
+    }
     if (settings.count("ReticleScale")) {
         g_alpine_game_config.set_reticle_scale(std::stof(settings["ReticleScale"]));
         processed_keys.insert("ReticleScale");
@@ -575,6 +579,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableWeaponShake=" << g_alpine_game_config.try_disable_weapon_shake << "\n";
     file << "FullbrightCharacters=" << g_alpine_game_config.try_fullbright_characters << "\n";
     file << "DisableTextures=" << g_alpine_game_config.try_disable_textures << "\n";
+    file << "DisableMuzzleFlashLights=" << g_alpine_game_config.try_disable_muzzle_flash_lights << "\n";
     file << "ReticleScale=" << g_alpine_game_config.reticle_scale << "\n";
     file << "ShowGlares=" << g_alpine_game_config.show_glares << "\n";
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
