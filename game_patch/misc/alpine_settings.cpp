@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <common/utils/os-utils.h>
 #include "alpine_settings.h"
+#include "alpine_options.h"
 #include <common/version/version.h>
 #include "../os/console.h"
 #include "../rf/ui.h"
@@ -81,7 +82,9 @@ void resolve_mouse_button_conflicts(rf::ControlConfig& config)
 
 std::string alpine_get_settings_filename()
 {
-    if (rf::mod_param.found()) {
+    if (rf::mod_param.found() &&
+        !(g_alpine_options_config.is_option_loaded(AlpineOptionID::UseStockPlayersConfig) &&
+        std::get<bool>(g_alpine_options_config.options[AlpineOptionID::UseStockPlayersConfig]))) {
         std::string mod_name = rf::mod_param.get_arg();
         return "alpine_settings_" + mod_name + ".ini";
     }
