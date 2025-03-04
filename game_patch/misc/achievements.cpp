@@ -750,8 +750,8 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
-            case 9918:
-            case 9919: {
+            case 10414:     // in cell
+            case 9918: {    // "2" button. "ALL" button links to event 11768 (handled in event section)
                 if (string_equals_ignore_case(rfl_filename, "l11s2.rfl")) {
                     grant_achievement(AchievementName::MinerCapekPrison);
                 }
@@ -1408,6 +1408,13 @@ CodeInjection event_activate_links_achievement_patch{
                         rf::player_is_undercover() &&
                         !rf::player_undercover_alarm_is_on()) {
                         grant_achievement(AchievementName::AdminStealth); // admin stealth finish
+                    }
+                    break;
+                }
+
+                case 11768: {
+                    if (string_equals_ignore_case(rfl_filename, "l11s2.rfl")) {
+                        grant_achievement(AchievementName::MinerCapekPrison);
                     }
                     break;
                 }
