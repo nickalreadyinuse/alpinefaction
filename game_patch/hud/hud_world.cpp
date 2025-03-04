@@ -235,6 +235,10 @@ void build_player_labels() {
             continue; // not spawned
         }
 
+        if (rf::entity_is_dying(player_entity)) {
+            continue; // dying
+        }
+
         if (player_entity == rf::local_player_entity) {
             continue; // myself
         }
