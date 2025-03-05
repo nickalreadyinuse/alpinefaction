@@ -20,6 +20,7 @@
 #include "../misc/alpine_options.h"
 #include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
+#include "../os/console.h"
 #include "hud_internal.h"
 #include "hud.h"
 
@@ -868,6 +869,27 @@ FunHook<void(rf::Player*, const char*, int)> chat_add_msg_hook{
     },
 };
 
+// displays name of player you're pointing at
+CallHook<void(int, int, const char*, int, rf::gr::Mode)> display_target_player_name_hook{
+    0x00478140,
+    [](int x, int y, const char* s, int font_num, rf::gr::Mode mode) {
+        if (!g_alpine_game_config.display_target_player_names) {
+            return;
+        }
+        display_target_player_name_hook.call_target(x, y, s, font_num, mode);
+    },
+};
+
+ConsoleCommand2 playernames_cmd{
+    "mp_playernames",
+    []() {
+        g_alpine_game_config.display_target_player_names = !g_alpine_game_config.display_target_player_names;
+        rf::console::print("Display of names of targeted players is {}", g_alpine_game_config.display_target_player_names ? "enabled" : "disabled");
+    },
+    "Toggle displaying names of targeted players",
+    "mp_playernames",
+};
+
 void multi_hud_apply_patches()
 {
     hud_render_patch_alpine.install();
@@ -876,12 +898,18 @@ void multi_hud_apply_patches()
     render_level_info_hook.install();
     multi_hud_init_hook.install();
 
+    // Drawing of targeted player names in multi
+    display_target_player_name_hook.install();
+
     // Play radio message and taunt sounds
     chat_add_msg_hook.install();
 
     // Change position of Time Left text
     write_mem<i8>(0x0047715F + 2, 21);
     write_mem<i32>(0x00477168 + 1, 154);
+
+    // console commands
+    playernames_cmd.register_cmd();
 }
 
 void multi_hud_set_big(bool is_big)

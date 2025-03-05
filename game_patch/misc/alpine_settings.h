@@ -81,6 +81,7 @@ struct AlpineGameSettings
     bool spectate_mode_minimal_ui = false;
     bool save_console_history = false; // checked before config loaded, must be false here
     bool screen_shake_force_off = false;
+    bool display_target_player_names = true;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

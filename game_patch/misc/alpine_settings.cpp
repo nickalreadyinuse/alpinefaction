@@ -358,6 +358,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.ping_display = std::stoi(settings["ShowPing"]);
         processed_keys.insert("ShowPing");
     }
+    if (settings.count("ShowPlayerNames")) {
+        g_alpine_game_config.display_target_player_names = std::stoi(settings["ShowPlayerNames"]);
+        processed_keys.insert("ShowPlayerNames");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -609,6 +613,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DeathBars=" << g_alpine_game_config.death_bars << "\n";
     file << "ShowEnemyBullets=" << g_alpine_game_config.show_enemy_bullets << "\n";
     file << "ShowPing=" << g_alpine_game_config.ping_display << "\n";
+    file << "ShowPlayerNames=" << g_alpine_game_config.display_target_player_names << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
