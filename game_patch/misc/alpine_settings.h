@@ -82,6 +82,7 @@ struct AlpineGameSettings
     bool save_console_history = false; // checked before config loaded, must be false here
     bool screen_shake_force_off = false;
     bool display_target_player_names = true;
+    bool verbose_time_left_display = true;
 };
 
 extern AlpineGameSettings g_alpine_game_config;
@@ -91,3 +92,4 @@ void update_scanner_sensitivity();
 void recalc_mesh_static_lighting();
 void apply_show_enemy_bullets();
 void apply_console_history_setting();
+void build_time_left_string_format();

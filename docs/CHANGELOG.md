@@ -21,6 +21,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix bug where players would be disconnected from high framerate servers if they were standing in a solo trigger
 - Fix listen server create panel not properly loading `Level Name` field for Alpine levels
 - Fix geomod autotexture ppm not being correctly calculated for all crater textures
+- Fix "Time Left" text label not being localized
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -113,6 +114,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 - Add `dbg_consolehistory` command to toggle whether console history persists between game launches
 - Add `sp_camerashake` command to turn off all instances of camera shake
+- Add `mp_playernames` command to toggle drawing of names of targeted players in multiplayer
+- Add `mp_verbosetimer` command to toggle drawing of the "Time Left" label on the multiplayer timer
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

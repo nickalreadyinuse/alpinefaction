@@ -362,6 +362,11 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.display_target_player_names = std::stoi(settings["ShowPlayerNames"]);
         processed_keys.insert("ShowPlayerNames");
     }
+    if (settings.count("VerboseTimer")) {
+        g_alpine_game_config.verbose_time_left_display = std::stoi(settings["VerboseTimer"]);
+        build_time_left_string_format();
+        processed_keys.insert("VerboseTimer");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -614,6 +619,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShowEnemyBullets=" << g_alpine_game_config.show_enemy_bullets << "\n";
     file << "ShowPing=" << g_alpine_game_config.ping_display << "\n";
     file << "ShowPlayerNames=" << g_alpine_game_config.display_target_player_names << "\n";
+    file << "VerboseTimer=" << g_alpine_game_config.verbose_time_left_display << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
@@ -630,6 +636,7 @@ void close_and_restart_game() {
 void set_alpine_config_defaults() {
     rf::game_set_gore_level(2);
     g_alpine_game_config.save_console_history = true; // must be set here because evaluated before config loaded
+    build_time_left_string_format();
 }
 
 CallHook<void(rf::Player*)> player_settings_load_hook{

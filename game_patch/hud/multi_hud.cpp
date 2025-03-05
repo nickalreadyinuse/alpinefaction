@@ -14,6 +14,7 @@
 #include "../rf/player/player.h"
 #include "../rf/os/frametime.h"
 #include "../rf/os/console.h"
+#include "../rf/os/os.h"
 #include "../misc/player.h"
 #include "../main/main.h"
 #include "../graphics/gr.h"
@@ -30,6 +31,9 @@ static bool g_draw_vote_notification = false;
 static std::string g_active_vote_type = "";
 static bool g_draw_ready_notification = false;
 bool g_pre_match_active = false;
+static std::string time_left_string_format = "";
+static int time_left_string_x_pos_offset = 135;
+static int time_left_string_y_pos_offset = 21;
 
 // Radio messages
 static const ChatMenuList radio_messages_menu{
@@ -777,7 +781,12 @@ void chat_menu_action_handler(rf::Key key) {
     }
 
     int index = static_cast<int>(key) - static_cast<int>(rf::KEY_1);
-    if (!g_active_menu || index < 0 || index >= g_active_menu->elements.size()) {
+    if (!g_active_menu) {
+        return;
+    }
+
+    int menu_size = static_cast<int>(g_active_menu->elements.size());
+    if (index < 0 || index >= menu_size) {
         return;
     }
 
@@ -890,6 +899,68 @@ ConsoleCommand2 playernames_cmd{
     "mp_playernames",
 };
 
+FunHook<void()> multi_hud_render_time_left_hook{
+    0x004770A0,
+    []() {
+        if (!rf::time_left_visible || rf::time_left_seconds < 0 || rf::time_left_minutes < 0 || rf::time_left_hours < 0) {
+        return;
+    }
+
+    if (rf::time_left_fade_in == 1) {
+        rf::time_left_alpha += rf::frametime * 500.0f;
+        if (rf::time_left_alpha > 192.0) {
+            rf::time_left_alpha = 192.0;
+            rf::time_left_fade_in = 0;
+        }
+    }
+
+    std::string time_left_string = std::format("{}{:02}:{:02}:{:02}", time_left_string_format,
+        rf::time_left_hours, rf::time_left_minutes, rf::time_left_seconds);
+
+    rf::gr::set_color(0, 255, 0, static_cast<int>(rf::time_left_alpha));
+
+    int x_pos = rf::gr::clip_width() - time_left_string_x_pos_offset;
+    int y_pos = rf::gr::clip_height() - time_left_string_y_pos_offset;
+
+    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, x_pos, y_pos, time_left_string.c_str(), 0, rf::gr::text_2d_mode);
+    },
+};
+
+void build_time_left_string_format() {
+    
+    if (g_alpine_game_config.verbose_time_left_display) {
+        auto language = rf::get_language();
+        switch (language) {
+            case 0: time_left_string_format = "Time Left: "; break;
+            case 1: time_left_string_format = "Verbleibende Zeit: "; break;
+            case 2: time_left_string_format = "Temps restant: "; break;
+            default: time_left_string_format = "";
+        }
+    } else {
+        time_left_string_format = "";
+    }
+
+    int format_text_width = 0, format_text_height = 0;
+
+    rf::gr::gr_get_string_size(&format_text_width, &format_text_height, 
+                               time_left_string_format.c_str(),
+                               time_left_string_format.size(), 0);
+
+    time_left_string_x_pos_offset = 135 + format_text_width;
+    time_left_string_y_pos_offset = 21;
+}
+
+ConsoleCommand2 verbosetimer_cmd{
+    "mp_verbosetimer",
+    []() {
+        g_alpine_game_config.verbose_time_left_display = !g_alpine_game_config.verbose_time_left_display;
+        build_time_left_string_format();
+        rf::console::print("Verbose in-game timer display is {}", g_alpine_game_config.verbose_time_left_display ? "enabled" : "disabled");
+    },
+    "Control whether the in-game timer displays the 'Time Left:' text",
+    "mp_verbosetimer",
+};
+
 void multi_hud_apply_patches()
 {
     hud_render_patch_alpine.install();
@@ -904,12 +975,12 @@ void multi_hud_apply_patches()
     // Play radio message and taunt sounds
     chat_add_msg_hook.install();
 
-    // Change position of Time Left text
-    write_mem<i8>(0x0047715F + 2, 21);
-    write_mem<i32>(0x00477168 + 1, 154);
+    // Draw Time Left label
+    multi_hud_render_time_left_hook.install();
 
-    // console commands
+    // Console commands
     playernames_cmd.register_cmd();
+    verbosetimer_cmd.register_cmd();
 }
 
 void multi_hud_set_big(bool is_big)

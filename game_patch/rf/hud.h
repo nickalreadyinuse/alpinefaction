@@ -146,4 +146,12 @@ namespace rf
     static auto& hud_do_frame = addr_as_ref<void(Player*)>(0x00437B80);
     static auto& hud_msg = addr_as_ref<void(const char* text, int, int duration, Color*)>(0x004383C0);
     static auto& hud_msg_clear = addr_as_ref<void()>(0x004381F0); // hud_msg_level_init in code
+
+    static auto& time_left_alpha = addr_as_ref<float>(0x006C9D48);
+    static auto& time_left_hours = addr_as_ref<int>(0x006C9D4C);
+    static auto& time_left_minutes = addr_as_ref<int>(0x006C9D50);
+    static auto& time_left_seconds = addr_as_ref<int>(0x006C9D54);
+    static auto& time_left_fade_in = addr_as_ref<bool>(0x0059DF68);
+    static auto& time_left_visible = addr_as_ref<bool>(0x006C9D5A);
+
 }
