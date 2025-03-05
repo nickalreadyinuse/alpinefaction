@@ -537,8 +537,7 @@ namespace rf
     {
         void turn_on() override
         {
-            for (size_t i = 0; i < this->links.size(); ++i) {
-                int link_handle = this->links[i];
+            for (int link_handle : this->links) {
                 Object* obj = obj_from_handle(link_handle);
 
                 if (obj && obj->type == OT_EVENT) {
@@ -568,8 +567,7 @@ namespace rf
 
         void turn_on() override
         {
-            for (size_t i = 0; i < this->links.size(); ++i) {
-                int link_handle = this->links[i];
+            for (int link_handle : this->links) {
                 Object* obj = obj_from_handle(link_handle);
 
                 if (obj && obj->type == OT_EVENT) {
@@ -659,14 +657,12 @@ namespace rf
 
             int subject_handle = subject_obj->handle;
 
-            for (size_t i = 0; i < this->links.size(); ++i) {
-                int target_link_handle = this->links[i];
-
+            for (int link_handle : this->links) {
                 if (inbound) {
-                    event_add_link(target_link_handle, subject_handle);
+                    event_add_link(link_handle, subject_handle);
                 }
                 else {
-                    event_add_link(subject_handle, target_link_handle);
+                    event_add_link(subject_handle, link_handle);
                 }
             }
         }

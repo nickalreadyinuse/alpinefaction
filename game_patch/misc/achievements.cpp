@@ -1280,7 +1280,7 @@ CodeInjection entity_crush_entity_achievement_patch{
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
 
             if (is_achievement_system_initialized()) {
-                achievement_player_killed_entity(hit_entity, 1000000.0f, 9, entity->handle);
+                achievement_player_killed_entity(hit_entity, 1000000, 9, entity->handle);
             }
         }
     },
@@ -1296,7 +1296,7 @@ CodeInjection entity_crush_entity_achievement_patch2{
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
 
             if (is_achievement_system_initialized()) {
-                achievement_player_killed_entity(hit_entity, 1000000.0f, 9, entity->handle);
+                achievement_player_killed_entity(hit_entity, 1000000, 9, entity->handle);
             }
         }
     },
