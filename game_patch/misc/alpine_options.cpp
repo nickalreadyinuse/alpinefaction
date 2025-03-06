@@ -33,6 +33,10 @@
 AlpineOptionsConfig g_alpine_options_config;
 AlpineLevelInfoConfig g_alpine_level_info_config;
 
+static std::string af_default_player_entity = "miner1";
+static std::string af_suit_player_entity = "parker_suit";
+static std::string af_sci_player_entity = "parker_sci";
+
 // trim leading and trailing whitespace
 std::string trim(const std::string& str, bool remove_quotes = false)
 {
@@ -677,6 +681,34 @@ void handle_summoner_trailer_button()
     }
 }
 
+// default player entity hook (miner1)
+CallHook<int(const char*)> player_entity_lookup_type_hook{
+    {
+        0x004A33D4, // player_allocate
+        0x004706A7, // multi_respawn_bot
+        0x0046D693, // multi_start
+        0x00480865, // multi_spawn_player_server_side
+        0x004B0044  // player_undercover_init
+    },
+    [](const char* entity_name) {
+        return player_entity_lookup_type_hook.call_target(af_default_player_entity.c_str());
+    }
+};
+
+// player entity hook (parker_sci)
+CallHook<int(const char*)> player_entity_sci_lookup_type_hook{
+    0x004B0062, [](const char* entity_name) {
+        return player_entity_sci_lookup_type_hook.call_target(af_sci_player_entity.c_str());
+    }
+};
+
+// player entity hook (parker_suit)
+CallHook<int(const char*)> player_entity_suit_lookup_type_hook{
+    0x004B0053, [](const char* entity_name) {
+        return player_entity_suit_lookup_type_hook.call_target(af_suit_player_entity.c_str());
+    }
+};
+
 // Only install hooks for options that have been loaded and specified
 void apply_af_options_patches()
 {
@@ -739,22 +771,18 @@ void apply_af_options_patches()
     }
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerEntityType)) {
-        static std::string new_entity_type = get_option_value<std::string>(AlpineOptionID::PlayerEntityType);
-        AsmWriter(0x0046D687).push(new_entity_type.c_str()); // multi_start
-        AsmWriter(0x004706A2).push(new_entity_type.c_str()); // multi_respawn_bot
-        AsmWriter(0x00480860).push(new_entity_type.c_str()); // multi_spawn_player_server_side
-        AsmWriter(0x004A33CF).push(new_entity_type.c_str()); // player_allocate
-        AsmWriter(0x004B003F).push(new_entity_type.c_str()); // player_undercover_init
+        af_default_player_entity = get_option_value<std::string>(AlpineOptionID::PlayerEntityType);
+        player_entity_lookup_type_hook.install();
     }
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerScientistEntityType)) {
-        static std::string new_sci_entity_type = get_option_value<std::string>(AlpineOptionID::PlayerScientistEntityType);
-        AsmWriter(0x004B0058).push(new_sci_entity_type.c_str()); // player_undercover_init
+        af_sci_player_entity = get_option_value<std::string>(AlpineOptionID::PlayerScientistEntityType);
+        player_entity_sci_lookup_type_hook.install();
     }
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerSuitEntityType)) {
-        static std::string new_suit_entity_type = get_option_value<std::string>(AlpineOptionID::PlayerSuitEntityType);
-        AsmWriter(0x004B0049).push(new_suit_entity_type.c_str()); // player_undercover_init
+        af_suit_player_entity = get_option_value<std::string>(AlpineOptionID::PlayerSuitEntityType);
+        player_entity_suit_lookup_type_hook.install();
     }
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::FallDamageSlamMultiplier)) {

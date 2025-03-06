@@ -11,9 +11,6 @@
 
 
 // ======= Globals and utility =======
-
-
-
 void load_af_options_config();
 void load_level_info_config(const std::string& level_filename);
 std::string trim(const std::string& str); // unused?

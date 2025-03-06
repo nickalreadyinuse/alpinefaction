@@ -452,11 +452,9 @@ CallHook level_init_pre_console_output_hook{
     },
 };
 
-CodeInjection all_table_files_loaded_injection{
-    //0x004B249E,
-    0x004B2438,
+CodeInjection game_boot_load_alpine_options_injection{
+    0x004B21B2,
     []() {
-        // after all other tbl files have been loaded, load alpine options
         load_af_options_config();
     }
 };
@@ -608,7 +606,7 @@ void misc_init()
     level_init_pre_console_output_hook.install();
 
     // Load alpine_options files (alpine_options.cpp)
-    all_table_files_loaded_injection.install();
+    game_boot_load_alpine_options_injection.install();
 
     // Apply patches from other files
     achievements_apply_patch();
