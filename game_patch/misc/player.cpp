@@ -424,7 +424,7 @@ void ping_looked_at_location() {
 
     auto point = get_player_look_at_point(rf::local_player);
     af_send_ping_location_req_packet(&point); // send to the server to replicate to other cleints
-    add_location_ping_world_hud_sprite(point, rf::local_player->name); // render locally
+    add_location_ping_world_hud_sprite(point, rf::local_player->name, -1); // render locally
 }
 
 ConsoleCommand2 death_bars_cmd{

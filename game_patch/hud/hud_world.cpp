@@ -367,11 +367,11 @@ void populate_world_hud_sprite_events()
     }
 }
 
-void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name)
+void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name, int player_id)
 {
     // Remove any existing entry from the same player name
     std::erase_if(ephemeral_world_hud_sprites,
-        [&](const EphemeralWorldHUDSprite& es) { return es.label == player_name; });
+        [&](const EphemeralWorldHUDSprite& es) { return es.player_id == player_id; });
 
     auto bitmap = rf::bm::load("af_wh_ping1.tga", -1, true);
 
@@ -379,6 +379,7 @@ void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name
     es.bitmap = bitmap;
     es.pos = pos;
     es.label = player_name;
+    es.player_id = player_id;
     es.timestamp.set(4000);
 
     play_local_sound_3d(get_custom_sound_id(1), pos, 0, 1.0f);

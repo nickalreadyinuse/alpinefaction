@@ -178,7 +178,7 @@ static void af_process_ping_location_packet(const void* data, size_t len, const 
         pos.z = ping_location_packet.pos.z
     };
 
-    add_location_ping_world_hud_sprite(pos, player->name);
+    add_location_ping_world_hud_sprite(pos, player->name, ping_location_packet.player_id);
 }
 
 void af_send_damage_notify_packet(uint8_t player_id, float damage, bool died, rf::Player* player)
