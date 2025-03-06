@@ -34,6 +34,7 @@ bool g_pre_match_active = false;
 static std::string time_left_string_format = "";
 static int time_left_string_x_pos_offset = 135;
 static int time_left_string_y_pos_offset = 21;
+static std::tuple time_left_string_color = {0, 255, 0, 255};
 
 // Radio messages
 static const ChatMenuList radio_messages_menu{
@@ -917,7 +918,12 @@ FunHook<void()> multi_hud_render_time_left_hook{
     std::string time_left_string = std::format("{}{:02}:{:02}:{:02}", time_left_string_format,
         rf::time_left_hours, rf::time_left_minutes, rf::time_left_seconds);
 
-    rf::gr::set_color(0, 255, 0, static_cast<int>(rf::time_left_alpha));
+    // set timer color, including alpha adjustment for fade in
+    rf::gr::set_color(
+        std::get<0>(time_left_string_color),
+        std::get<1>(time_left_string_color),
+        std::get<2>(time_left_string_color),
+        static_cast<int>(std::get<3>(time_left_string_color) * (rf::time_left_alpha / 255.0f)));
 
     int x_pos = rf::gr::clip_width() - time_left_string_x_pos_offset;
     int y_pos = rf::gr::clip_height() - time_left_string_y_pos_offset;
@@ -948,6 +954,25 @@ void build_time_left_string_format() {
 
     time_left_string_x_pos_offset = 135 + format_text_width;
     time_left_string_y_pos_offset = 21;
+
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiTimerXOffset)) {
+        int x_offset = std::get<int>(g_alpine_options_config.options[AlpineOptionID::MultiTimerXOffset]);
+        xlog::warn("applying offset X {}", x_offset);
+        time_left_string_x_pos_offset -= x_offset;
+    }
+
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiTimerYOffset)) {
+        int y_offset = std::get<int>(g_alpine_options_config.options[AlpineOptionID::MultiTimerYOffset]);
+        xlog::warn("applying offset Y {}", y_offset);
+        time_left_string_y_pos_offset -= y_offset;
+    }
+
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiTimerColor)) {
+        auto timer_color = std::get<uint32_t>(g_alpine_options_config.options[AlpineOptionID::MultiTimerColor]);
+        int red, green, blue, alpha;
+        std::tie(red, green, blue, alpha) = extract_color_components(timer_color);
+        time_left_string_color = {red, green, blue, alpha};
+    }
 }
 
 ConsoleCommand2 verbosetimer_cmd{

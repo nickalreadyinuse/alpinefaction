@@ -173,6 +173,9 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Player Headlamp Range", {AlpineOptionID::PlayerHeadlampRange, "af_game.tbl", parse_float}},
     {"$Player Headlamp Radius", {AlpineOptionID::PlayerHeadlampRadius, "af_game.tbl", parse_float}},
     {"$Rail Driver Scanner Color", {AlpineOptionID::RailDriverScannerColor, "af_client.tbl", parse_color}},
+    {"$Multi Timer X Offset", {AlpineOptionID::MultiTimerXOffset, "af_client.tbl", parse_int}},
+    {"$Multi Timer Y Offset", {AlpineOptionID::MultiTimerYOffset, "af_client.tbl", parse_int}},
+    {"$Multi Timer Color", {AlpineOptionID::MultiTimerColor, "af_client.tbl", parse_color}},
 };
 
 // ===== Parsers for Alpine level info =====

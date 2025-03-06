@@ -57,10 +57,11 @@ enum class AlpineOptionID
     PlayerHeadlampRange,
     PlayerHeadlampRadius,
     RailDriverScannerColor,
+    MultiTimerXOffset,
+    MultiTimerYOffset,
+    MultiTimerColor,
     _optioncount // dummy for total count
 };
-
-
 
 constexpr std::size_t to_index(AlpineOptionID option_id)
 {
