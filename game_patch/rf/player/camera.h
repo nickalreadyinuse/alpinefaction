@@ -29,6 +29,7 @@ namespace rf
     static_assert(sizeof(Camera) == 0xC);
 
     static auto& camera_enter_first_person = addr_as_ref<bool(Camera *camera)>(0x0040DDF0);
+    static auto& camera_enter_third_person = addr_as_ref<bool(Camera* camera)>(0x0040DE80);
     static auto& camera_enter_freelook = addr_as_ref<bool(Camera *camera)>(0x0040DCF0);
     static auto& camera_enter_fixed = addr_as_ref<bool(Camera *camera)>(0x0040DF70);
 

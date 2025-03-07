@@ -118,6 +118,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `mp_playernames` command to toggle drawing of names of targeted players in multiplayer
 - Add `mp_verbosetimer` command to toggle drawing of the "Time Left" label on the multiplayer timer
 - Add `Multi Timer X Offset`, `Multi Timer Y Offset`, and `Multi Timer Color` to `af_client.tbl`
+- Add `Default Third Person` to `af_game.tbl` to set default player camera to third person
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

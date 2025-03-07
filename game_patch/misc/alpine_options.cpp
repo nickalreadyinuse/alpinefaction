@@ -10,6 +10,7 @@
 #include "../os/console.h"
 #include "../rf/file/file.h"
 #include "../rf/gr/gr.h"
+#include "../rf/player/camera.h"
 #include "../rf/sound/sound.h"
 #include "../rf/geometry.h"
 #include "../rf/entity.h"
@@ -143,11 +144,6 @@ std::optional<OptionValue> parse_bool(const std::string& value) {
 
 // master list of options: mapped to option ID, associated tbl, and parser
 const std::unordered_map<std::string, OptionMetadata> option_metadata = {
-    //{"$Scoreboard Logo", {AlpineOptionID::ScoreboardLogo, "af_ui.tbl", parse_string}}, // applied in multi_scoreboard.cpp // possibly delete
-    {"$Default Geomod Mesh", {AlpineOptionID::GeomodMesh_Default, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$Driller Double Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerDouble, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$Driller Single Geomod Mesh", {AlpineOptionID::GeomodMesh_DrillerSingle, "af_game.tbl", parse_string}}, // unsupported currently
-    {"$APC Geomod Mesh", {AlpineOptionID::GeomodMesh_APC, "af_game.tbl", parse_string}}, // unsupported currently
     {"$Default Geomod Smoke Emitter", {AlpineOptionID::GeomodEmitter_Default, "af_game.tbl", parse_string}},
     {"$Driller Geomod Smoke Emitter", {AlpineOptionID::GeomodEmitter_Driller, "af_game.tbl", parse_string}},
     {"$Ice Geomod Texture", {AlpineOptionID::GeomodTexture_Ice, "af_game.tbl", parse_string}},
@@ -180,6 +176,7 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Multi Timer X Offset", {AlpineOptionID::MultiTimerXOffset, "af_client.tbl", parse_int}},
     {"$Multi Timer Y Offset", {AlpineOptionID::MultiTimerYOffset, "af_client.tbl", parse_int}},
     {"$Multi Timer Color", {AlpineOptionID::MultiTimerColor, "af_client.tbl", parse_color}},
+    {"$Default Third Person", {AlpineOptionID::DefaultThirdPerson, "af_game.tbl", parse_bool}},
 };
 
 // ===== Parsers for Alpine level info =====
@@ -459,115 +456,6 @@ CallHook<void(int, int, int, int)> rail_driver_scanner_color_hook{
     }
 };
 
-// consolidated logic for handling geo mesh changes
-int handle_geomod_shape_create(const char* filename, const std::optional<std::string>& config_value,
-                               CallHook<int(const char*)>& hook)
-{
-    std::string original_filename{filename};
-    std::string modded_filename = config_value.value_or(original_filename);
-    return hook.call_target(modded_filename.c_str());
-}
-
-// Set default geo mesh
-CallHook<int(const char*)> default_geomod_shape_create_hook{
-    0x004374CF, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_Default);
-        return default_geomod_shape_create_hook.call_target(modded_filename.c_str());
-    }
-};
-
-// Set driller double geo mesh
-CallHook<int(const char*)> driller_double_geomod_shape_create_hook{
-    0x004374D9, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_DrillerDouble);
-        return driller_double_geomod_shape_create_hook.call_target(modded_filename.c_str());
-    }
-};
-
-// Set driller single geo mesh
-CallHook<int(const char*)> driller_single_geomod_shape_create_hook{
-    0x004374E3, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_DrillerSingle);
-        return driller_single_geomod_shape_create_hook.call_target(modded_filename.c_str());
-    }
-};
-
-// Set APC geo mesh
-CallHook<int(const char*)> apc_geomod_shape_create_hook{
-    0x004374ED, [](const char* filename) -> int {
-        auto modded_filename = get_option_value<std::string>(AlpineOptionID::GeomodMesh_APC);
-        return apc_geomod_shape_create_hook.call_target(modded_filename.c_str());
-    }
-};
-
-void apply_geomod_mesh_patch()
-{
-    
-    /* if (g_alpine_options_config.geomodmesh_default.has_value()) {
-        AsmWriter(0x00437543).call(0x004ECED0);
-        const char filename = g_alpine_options_config.geomodmesh_default->c_str();
-        xlog::warn("set geo mesh to {}", filename);
-        static const char NEW_GEOMESH_FILENAME[] = "NewFile.v3d";
-
-        AsmWriter(0x004374C0).push(reinterpret_cast<uintptr_t>(NEW_GEOMESH_FILENAME));
-
-    }*/
-
-
-    /*// array of geomod mesh options
-    std::array<std::pair<AlpineOptionID, void (*)()>, 4> geomod_mesh_hooks = {
-        {{AlpineOptionID::GeomodMesh_Default, [] { default_geomod_shape_create_hook.install(); }},
-         {AlpineOptionID::GeomodMesh_DrillerDouble, [] { driller_double_geomod_shape_create_hook.install(); }},
-         {AlpineOptionID::GeomodMesh_DrillerSingle, [] { driller_single_geomod_shape_create_hook.install(); }},
-         {AlpineOptionID::GeomodMesh_APC, [] { apc_geomod_shape_create_hook.install(); }}
-        }};
-
-    bool any_option_loaded = false;
-
-    // install only the hooks for the ones that were set
-    for (const auto& [option_id, install_fn] : geomod_mesh_hooks) {
-        if (g_alpine_options_config.is_option_loaded(option_id)) {
-            install_fn();
-            any_option_loaded = true;
-        }
-    }*/
-    bool any_option_loaded = false;
-    // if any one was set, apply the necessary patches
-    if (any_option_loaded) {
-        AsmWriter(0x00437543).call(0x004ECED0); // Replace the call to load v3d instead of embedded
-        //rf::geomod_shape_init();                // Reinitialize geomod shapes
-    }
-}
-
-int geomod_shape_create(const char* filename, bool embedded)
-{
-    int shape_index = rf::g_num_geomod_shapes;
-    rf::g_geomod_shapes_strings[shape_index] = filename;
-
-    rf::GSolid* shape = embedded ?
-        rf::g_solid_load_v3d_embedded(filename) : rf::g_solid_load_v3d(filename);
-
-    rf::g_geomod_shapes_meshes[shape_index * 3] = reinterpret_cast<int>(shape);
-
-    return rf::g_num_geomod_shapes++;
-}
-
-FunHook<void()> geomod_shape_init_hook{
-    0x004374C0,
-    []() {
-        xlog::warn("Initing geomeshes");
-        rf::g_num_geomod_shapes = 0;
-        //rf::g_geomod_shapes_strings.clear();
-        //rf::g_geomod_shapes_meshes.clear();
-
-        geomod_shape_create("Holey01.v3d", true);
-        geomod_shape_create("bit_driller_double.v3d", true);
-        geomod_shape_create("bit_driller_single.v3d", true);
-        geomod_shape_create("Holey_APC.v3d", true);
-        rf::geomod_shape_shutdown();
-    }
-};
-
 // Override default geomod smoke emitter
 CallHook<int(const char*)> default_geomod_emitter_get_index_hook{
     0x00437150, [](const char* emitter_name) -> int {
@@ -748,7 +636,7 @@ void apply_af_options_patches()
         std::get<bool>(g_alpine_options_config.options[AlpineOptionID::UseStockPlayersConfig])) {
         AsmWriter(0x004A8F99).jmp(0x004A9010);
         AsmWriter(0x004A8DCC).jmp(0x004A8E53);
-    }    
+    }
 
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::GeomodEmitter_Default)) {
         default_geomod_emitter_get_index_hook.install();
@@ -808,6 +696,11 @@ void apply_af_options_patches()
         AsmWriter(0x004A0A82).fcomp<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&walkable_slope_threshold)));
     }
 
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::DefaultThirdPerson) &&
+        std::get<bool>(g_alpine_options_config.options[AlpineOptionID::DefaultThirdPerson])) {
+        AsmWriter{0x0040D727}.call(rf::camera_enter_third_person); 
+    }
+
     // ===========================
     // af_ui.tbl
     // ===========================
@@ -826,17 +719,7 @@ void apply_af_options_patches()
     if (g_alpine_options_config.is_option_loaded(AlpineOptionID::SumTrailerButtonAction)) {
         handle_summoner_trailer_button();
     }
-
-    xlog::debug("Alpine Faction Options patches applied successfully");
-
 }
-
-
-    // whether should apply is determined in helper function - TODO FIX
-    //apply_geomod_mesh_patch();
-    //geomod_shape_init_hook.install();
-    //rf::geomod_shape_init();
-
 
 void load_single_af_options_file(const std::string& file_name)
 {
@@ -939,7 +822,7 @@ void load_single_af_options_file(const std::string& file_name)
 
 void load_af_options_config()
 {
-    xlog::debug("Loading Alpine Faction Options configuration");
+    xlog::info("Loading Alpine Faction Options configuration");
 
     // load af_client_*.tbl
     vpackfile_find_matching_files(
@@ -976,5 +859,5 @@ void load_af_options_config()
     // Apply all specified patches based on the parsed configuration
     apply_af_options_patches();
 
-    rf::console::print("Alpine Faction Options configuration loaded");
+    xlog::info("Alpine Faction Options configuration loaded successfully");
 }

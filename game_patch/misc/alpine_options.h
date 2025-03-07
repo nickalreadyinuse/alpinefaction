@@ -13,18 +13,12 @@
 // ======= Globals and utility =======
 void load_af_options_config();
 void load_level_info_config(const std::string& level_filename);
-std::string trim(const std::string& str); // unused?
 std::tuple<int, int, int, int> extract_color_components(uint32_t color);
 std::tuple<float, float, float, float> extract_normalized_color_components(uint32_t color);
 
 // ======= Alpine options =======
 enum class AlpineOptionID
 {
-    ScoreboardLogo,
-    GeomodMesh_Default,
-    GeomodMesh_DrillerDouble,
-    GeomodMesh_DrillerSingle,
-    GeomodMesh_APC,
     GeomodEmitter_Default,
     GeomodEmitter_Driller,
     GeomodTexture_Ice,
@@ -57,6 +51,7 @@ enum class AlpineOptionID
     MultiTimerXOffset,
     MultiTimerYOffset,
     MultiTimerColor,
+    DefaultThirdPerson,
     _optioncount // dummy for total count
 };
 
