@@ -376,33 +376,6 @@ ConsoleCommand2 localhitsound_cmd{
     "cl_hitsounds",
 };
 
-rf::Vector3 get_player_look_at_point(rf::Player* player)
-{
-    if (!player || !player->cam) {
-        return rf::Vector3{0, 0, 0}; // Fallback if player or camera is null
-    }
-
-    // Get camera position and orientation (world-space)
-    rf::Vector3 p0 = rf::camera_get_pos(player->cam);
-    rf::Matrix3 orient = rf::camera_get_orient(player->cam);
-
-    // Define ray endpoint
-    rf::Vector3 p1 = p0 + orient.fvec * 10000.0f; // Large range for infinite look-at
-
-    // Perform raycast
-    rf::LevelCollisionOut col_info;
-    col_info.face = nullptr;
-    col_info.obj_handle = -1;
-    rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-    bool hit = rf::collide_linesegment_level_for_multi(p0, p1, entity, nullptr, &col_info, 0.1f, false, 1.0f);
-
-    if (hit) {
-        return col_info.hit_point; // Return exact hit position
-    }
-
-    return p1; // If no hit, return faraway point
-}
-
 void ping_looked_at_location() {
     if (!rf::is_multi) {
         return;
@@ -416,15 +389,37 @@ void ping_looked_at_location() {
     }
 
     if (rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_DM) {
-        rf::String msg{"Location pinging is not available in deathmatch"};
+        rf::String msg{"Location pinging is only available in team gametypes"};
         rf::String prefix;
         rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
         return;
     }
 
-    auto point = get_player_look_at_point(rf::local_player);
-    af_send_ping_location_req_packet(&point); // send to the server to replicate to other cleints
-    add_location_ping_world_hud_sprite(point, rf::local_player->name, -1); // render locally
+    // Get the point the player is looking at
+    rf::Player* player = rf::local_player;
+    if (!player || !player->cam) {
+        return; // check player and camera are valid
+    }
+
+    // Raycast from the player camera
+    rf::Vector3 p0 = rf::camera_get_pos(player->cam);
+    rf::Matrix3 orient = rf::camera_get_orient(player->cam);
+    rf::Vector3 p1 = p0 + orient.fvec * 10000.0f;
+
+    // Perform raycast
+    rf::LevelCollisionOut col_info;
+    col_info.face = nullptr;
+    col_info.obj_handle = -1;
+    rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
+    bool hit = rf::collide_linesegment_level_for_multi(p0, p1, entity, nullptr, &col_info, 0.1f, false, 1.0f);
+
+    if (!hit) {
+        return; // If no hit, do not proceed with the ping
+    }
+
+    // Only action ping if there's a valid hit
+    af_send_ping_location_req_packet(&col_info.hit_point);                    // Send to server
+    add_location_ping_world_hud_sprite(col_info.hit_point, player->name, -1); // Render locally
 }
 
 ConsoleCommand2 death_bars_cmd{
