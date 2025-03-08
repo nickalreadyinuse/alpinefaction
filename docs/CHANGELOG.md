@@ -106,9 +106,11 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `Multi Timer X Offset`, `Multi Timer Y Offset`, and `Multi Timer Color` to `af_client.tbl`
 - Add `Default Third Person` to `af_game.tbl` to set default player camera to third person
 - Made lava and acid damage result in a self kill in multiplayer rather than a mysterious kill
+- Add radio message audio
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
+- Master radio message audio
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

@@ -68,6 +68,8 @@ struct AlpineGameSettings
     bool world_hud_team_player_labels = false;
     bool play_hit_sounds = true;
     bool play_taunt_sounds = true;
+    bool play_global_rad_msg_sounds = true;
+    bool play_team_rad_msg_sounds = true;
     bool unlimited_semi_auto = false;
     bool gaussian_spread = false;
     bool multi_ricochet = false;

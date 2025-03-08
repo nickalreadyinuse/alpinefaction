@@ -48,6 +48,53 @@ add_packfile(alpinefaction.vpp
     sounds/af_pinglocation1.wav
     sounds/af_hitsound1.wav
     sounds/af_killsound1.wav
+    sounds/af_radmsg_000.ogg
+    sounds/af_radmsg_001.ogg
+    sounds/af_radmsg_002.ogg
+    sounds/af_radmsg_003.ogg
+    sounds/af_radmsg_004.ogg
+    sounds/af_radmsg_005.ogg
+    sounds/af_radmsg_006.ogg
+    sounds/af_radmsg_007.ogg
+    sounds/af_radmsg_008.ogg
+    sounds/af_radmsg_009.ogg
+    sounds/af_radmsg_010.ogg
+    sounds/af_radmsg_011.ogg
+    sounds/af_radmsg_012.ogg
+    sounds/af_radmsg_013.ogg
+    sounds/af_radmsg_014.ogg
+    sounds/af_radmsg_015.ogg
+    sounds/af_radmsg_016.ogg
+    sounds/af_radmsg_017.ogg
+    sounds/af_radmsg_018.ogg
+    sounds/af_radmsg_019.ogg
+    sounds/af_radmsg_020.ogg
+    sounds/af_radmsg_021.ogg
+    sounds/af_radmsg_022.ogg
+    sounds/af_radmsg_023.ogg
+    sounds/af_radmsg_024.ogg
+    sounds/af_radmsg_025.ogg
+    sounds/af_radmsg_026.ogg
+    sounds/af_radmsg_027.ogg
+    sounds/af_radmsg_028.ogg
+    sounds/af_radmsg_029.ogg
+    sounds/af_radmsg_030.ogg
+    sounds/af_radmsg_031.ogg
+    sounds/af_radmsg_032.ogg
+    sounds/af_radmsg_033.ogg
+    sounds/af_radmsg_034.ogg
+    sounds/af_radmsg_035.ogg
+    sounds/af_radmsg_036.ogg
+    sounds/af_radmsg_037.ogg
+    sounds/af_radmsg_038.ogg
+    sounds/af_radmsg_039.ogg
+    sounds/af_radmsg_040.ogg
+    sounds/af_radmsg_041.ogg
+    sounds/af_radmsg_042.ogg
+    sounds/af_radmsg_043.ogg
+    sounds/af_radmsg_044.ogg
+    sounds/af_radmsg_045.ogg
+    sounds/af_radmsg_046.ogg
 
     images/alpine_options_panel.vbm
     images/af_wh_ctf_blue_a.tga

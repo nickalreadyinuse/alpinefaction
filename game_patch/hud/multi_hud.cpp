@@ -350,6 +350,7 @@ static const ChatMenuList* g_previous_menu = nullptr;
 static bool g_level_chat_menu_present = false;
 rf::TimestampRealtime g_chat_menu_timer;
 rf::TimestampRealtime g_taunt_timer;
+rf::TimestampRealtime g_rad_msg_timer;
 
 bool is_element_valid(const ChatMenuElement& element) {
     if (element.type == ChatMenuListType::Basic) {
@@ -856,11 +857,18 @@ void chat_menu_action_handler(rf::Key key) {
         } 
         else {
             // Default chat behavior
-            bool use_team_chat = (g_active_menu->type != ChatMenuListType::Basic);
+            volatile bool use_team_chat = (g_active_menu->type != ChatMenuListType::Basic);
             const std::string msg = "\xA8 " + selected_element.long_string;
             if (!msg.empty()) {
-                rf::multi_chat_say(msg.c_str(), use_team_chat);
-                rf::snd_play(4, 0, 0.0f, 1.0f);
+                if (!g_rad_msg_timer.valid() || g_rad_msg_timer.elapsed()) {
+                    g_rad_msg_timer.set(1000);
+                    rf::multi_chat_say(msg.c_str(), use_team_chat);
+                    rf::snd_play(4, 0, 0.0f, 1.0f);
+                }
+                else {
+                    rf::String msg{"You must wait at least one second between radio messages"};
+                    rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
+                }
             }
         }
 

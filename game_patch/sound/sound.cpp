@@ -16,6 +16,7 @@
 
 static int g_cutscene_bg_sound_sig = -1;
 static int g_custom_sound_entry_start = -1;
+static int g_radmsg_sound_start = -1;
 static int g_taunt_sound_start = -1;
 #ifdef DEBUG
 int g_sound_test = 0;
@@ -450,7 +451,7 @@ int get_custom_sound_id(int custom_id) {
 
 int get_custom_chat_message_sound_id(int custom_id, bool is_taunt)
 {
-    return is_taunt ? g_taunt_sound_start + custom_id : g_custom_sound_entry_start + custom_id;
+    return is_taunt ? g_taunt_sound_start + custom_id : g_radmsg_sound_start + custom_id;
 }
 
 void gamesound_parse_custom_sounds() 
@@ -465,9 +466,53 @@ void gamesound_parse_custom_sounds()
         {"af_pinglocation1.wav", 10.0f, 1.0f, 1.0f},    // 1
         {"af_hitsound1.wav", 10.0f, 1.0f, 1.0f},        // 2
         {"af_killsound1.wav", 10.0f, 1.0f, 1.0f},       // 3
-        // pending availability of radio message recordings
-        
-        {"L19S1_MIN_07.wav", 10.0f, 1.0f, 1.0f},        // put this one after the built-in radio messages, in case its missing
+        {"af_radmsg_000.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_001.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_002.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_003.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_004.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_005.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_006.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_007.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_008.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_009.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_010.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_011.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_012.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_013.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_014.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_015.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_016.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_017.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_018.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_019.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_020.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_021.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_022.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_023.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_024.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_025.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_026.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_027.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_028.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_029.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_030.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_031.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_032.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_033.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_034.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_035.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_036.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_037.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_038.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_039.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_040.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_041.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_042.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_043.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_044.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_045.ogg", 10.0f, 1.0f, 1.0f},
+        {"af_radmsg_046.ogg", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_16.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_17.wav", 10.0f, 1.0f, 1.0f},
         {"MP_TAUNT_18.wav", 10.0f, 1.0f, 1.0f},
@@ -540,6 +585,7 @@ void gamesound_parse_custom_sounds()
     }
 
     g_taunt_sound_start = rf::snd_pc_find_by_name("MP_TAUNT_16.wav");
+    g_radmsg_sound_start = rf::snd_pc_find_by_name("af_radmsg_000.ogg");
 
     //xlog::warn("Custom sounds added, starting at ID {}. Taunts start at ID {}", g_custom_sound_entry_start, g_taunt_sound_start);
 }
@@ -555,10 +601,6 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
 {
     if (is_taunt && !g_alpine_game_config.play_taunt_sounds) {
         return; // taunts are turned off
-    }
-
-    if (!is_taunt) {
-        return; // temporary disable radio message audio while awaiting recordings
     }
 
     // Remove the prefix from chat_message before comparing
@@ -580,67 +622,67 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
     static const std::unordered_map<std::string, int> sound_map =
     {
         // Express
-        {"Hello", 4},
-        {"Goodbye", 5},
-        {"Oops...", 6},
-        {"RED FACTION!", 7},
-        {"Quiet!", 8},
-        {"Modder", 9},
+        {"Hello", 0},
+        {"Goodbye", 1},
+        {"Oops...", 2},
+        {"RED FACTION!", 3},
+        {"Quiet!", 4},
+        {"Modder", 5},
 
         // Compliment
-        {"Good job!", 10},
-        {"Well played!", 11},
-        {"Nice frag!", 12},
-        {"You're on fire!", 13},
+        {"Good job!", 6},
+        {"Well played!", 7},
+        {"Nice frag!", 8},
+        {"You're on fire!", 9},
 
         // Respond
-        {"Yes", 14},
-        {"No", 15},
-        {"I don't know", 16},
-        {"Thanks", 17},
-        {"Any time", 18},
-        {"Got it", 19},
-        {"Sorry", 20},
-        {"Wait", 21},
+        {"Yes", 10},
+        {"No", 11},
+        {"I don't know", 12},
+        {"Thanks", 13},
+        {"Any time", 14},
+        {"Got it", 15},
+        {"Sorry", 16},
+        {"Wait", 17},
 
         // Attack/Defend
-        {"Attack incoming from high", 22},
-        {"Attack incoming from mid", 23},
-        {"Attack incoming from low", 24},
-        {"Defend!", 25},
-        {"Cover me!", 26},
-        {"Wait for my signal", 27},
+        {"Attack incoming from high", 18},
+        {"Attack incoming from mid", 19},
+        {"Attack incoming from low", 20},
+        {"Defend!", 21},
+        {"Cover me!", 22},
+        {"Wait for my signal", 23},
 
         // Enemy
-        {"Enemy is going high", 28},
-        {"Enemy is going mid", 29},
-        {"Enemy is going low", 30},
-        {"Enemy is down", 31},
+        {"Enemy is going high", 24},
+        {"Enemy is going mid", 25},
+        {"Enemy is going low", 26},
+        {"Enemy is down", 27},
 
         // Timing
-        {"Damage Amp is respawning soon", 32},
-        {"Fusion is respawning soon", 33},
-        {"Super Armor is respawning soon", 34},
-        {"Super Health is respawning soon", 35},
-        {"Invulnerability is respawning soon", 36},
-        {"Rail Driver is respawning soon", 37},
+        {"Damage Amplifier is respawning soon", 28},
+        {"Fusion is respawning soon", 29},
+        {"Super Armor is respawning soon", 30},
+        {"Super Health is respawning soon", 31},
+        {"Invulnerability is respawning soon", 32},
+        {"Rail Driver is respawning soon", 33},
 
         // Powerup
-        {"Damage Amp is up!", 38},
-        {"Fusion is up!", 39},
-        {"Super Armor is up!", 40},
-        {"Super Health is up!", 41},
-        {"Invulnerability is up!", 42},
-        {"Rail Driver is up!", 43},
+        {"Damage Amplifier is up!", 34},
+        {"Fusion is up!", 35},
+        {"Super Armor is up!", 36},
+        {"Super Health is up!", 37},
+        {"Invulnerability is up!", 38},
+        {"Rail Driver is up!", 39},
 
         // Flag
-        {"Where's the enemy flag?", 44},
-        {"Where's our flag?", 45},
-        {"Take the flag from me", 46},
-        {"Give me the flag", 47},
-        {"I'm retrieving the flag", 48},
-        {"Retrieve our flag!", 49},
-        {"Our flag is secure", 50},
+        {"Where's the enemy flag?", 40},
+        {"Where's our flag?", 41},
+        {"Take the flag from me", 42},
+        {"Give me the flag", 43},
+        {"I'm retrieving the flag", 44},
+        {"Retrieve our flag!", 45},
+        {"Our flag is secure", 46},
 
         // Start taunts
         // Commander 1
@@ -723,8 +765,10 @@ void play_chat_sound(std::string& chat_message, bool is_taunt)
     auto it = sound_map.find(chat_message);
     if (it != sound_map.end()) {
         int sound_id = it->second;
-        play_local_sound_2d(get_custom_chat_message_sound_id(sound_id, is_taunt), 2, 1.0f);
-        //xlog::warn("Playing custom sound {} for radio message {}", sound_id, chat_message);
+        if ((sound_id <= 5 && g_alpine_game_config.play_global_rad_msg_sounds) || (sound_id > 5 && g_alpine_game_config.play_team_rad_msg_sounds)) {
+            play_local_sound_2d(get_custom_chat_message_sound_id(sound_id, is_taunt), 2, 1.0f);
+            // xlog::warn("Playing custom sound {} for radio message {}", sound_id, chat_message);
+        }
     }
 }
 
