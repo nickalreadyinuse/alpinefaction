@@ -2,6 +2,7 @@
 #include <xlog/xlog.h>
 #include <winsock2.h>
 #include <patch_common/FunHook.h>
+#include <patch_common/CallHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <common/version/version.h>
@@ -599,6 +600,20 @@ ConsoleCommand2 mapver_cmd{
     "dbg_mapver <filename>",
 };
 
+CallHook<float(int, float, int, int, int, rf::PCollisionOut*, int, bool)> obj_apply_damage_lava_hook{
+    {
+        0x004212A1,
+        0x004212D4
+    },
+    [](int obj_handle, float damage, int killer_handle, int a4, int damage_type, rf::PCollisionOut* collide_out, int resp_ent_uid, bool force) {
+        // use obj_handle for killer_handle on servers so players kill themselves in lava and acid instead of
+        // "killed mysteriously" or a random player getting credit for the kill
+        // on clients, use killer_handle as passed (-1) so players visually ignite in lava for clients
+        int killer_handle_new = rf::is_dedicated_server || rf::is_server ? obj_handle : killer_handle;
+        return obj_apply_damage_lava_hook.call_target(obj_handle, damage, killer_handle_new, a4, damage_type, collide_out, resp_ent_uid, force);
+    }
+};
+
 void multi_do_patch()
 {
     
@@ -640,6 +655,9 @@ void multi_do_patch()
 
     level_download_init();
     multi_ban_apply_patch();
+
+    // Fix lava damage sometimes being attributed to a player
+    obj_apply_damage_lava_hook.install();
 
     // Init cmd line param
     get_url_cmd_line_param();

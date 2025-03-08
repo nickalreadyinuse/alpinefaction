@@ -23,6 +23,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix geomod autotexture ppm not being correctly calculated for all crater textures
 - Fix "Time Left" text label not being localized
 - Fix `Player Entity Type`, `Player Undercover Suit Entity Type`, `Player Undercover Scientist Entity Type` not always applying
+- Fix lava and acid damage sometimes being attributed to a random player in the game
 
 ### New features and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -119,6 +120,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `mp_verbosetimer` command to toggle drawing of the "Time Left" label on the multiplayer timer
 - Add `Multi Timer X Offset`, `Multi Timer Y Offset`, and `Multi Timer Color` to `af_client.tbl`
 - Add `Default Third Person` to `af_game.tbl` to set default player camera to third person
+- Made lava and acid damage result in a self kill in multiplayer rather than a mysterious kill
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
