@@ -3,36 +3,26 @@
 
 Version 1.1.0 (Tamarack): Not yet released
 --------------------------------
-### Bug fixes
+### Major features
 [@GooberRF](https://github.com/GooberRF)
-- Fix server log output for status of `$Enforce Semi Auto Fire Rate Limit` being incorrect
-- Fix `AF_Teleport_Player` events sometimes not correctly translating player velocity
-- Fix `r_fullbright` sometimes applying to the host in listen servers even when not turned on
-- Fix character meshes not respecting level ambient light when `r_fullbright` is off
-- Fix pre-match ready up prompt sometimes displaying even when ready
-- Fix several niche issues where multiplayer spawn point selection would not work as intended
-- Fix match ready up prompt not being properly reset for players who leave the server during pre-match
-- Fix incorrect information in "You are no longer ready" message
-- Fix players leaving server during pre-match not always being removed from list of ready players
-- Fix players picking up items and activating triggers while teleporting
-- Fix listen server launching whenever menu opens if game was launched with `-levelm` command line argument
-- Fix clients not knowing correct ammo counts for other clients
-- Fix `When_Picked_Up` events not activating for some item classes
-- Fix bug where players would be disconnected from high framerate servers if they were standing in a solo trigger
-- Fix listen server create panel not properly loading `Level Name` field for Alpine levels
-- Fix geomod autotexture ppm not being correctly calculated for all crater textures
-- Fix "Time Left" text label not being localized
-- Fix `Player Entity Type`, `Player Undercover Suit Entity Type`, `Player Undercover Scientist Entity Type` not always applying
-- Fix lava and acid damage sometimes being attributed to a random player in the game
+- Add fully integrated achievements system via FFLink
+- Add gaussian bullet spread method (bell-curve distribution weighted to center of reticle)
+- Add command menu, spectate menu, and chat menus for radio messages and taunts
+- Add location pinging in team modes
+- Add visual hit notifications, enhanced hit sounds, and death sounds
+- Add `Alpine Faction` panel to in-game options menu for configuring AF settings
+- Add health, armour, and ammo display to first person spectate
+- Add "World HUD" sprite rendering for objective and player labels
+- Implement saving/loading of settings using readable `alpine_settings.ini`, remove reliance on legacy encoded `players.cfg`
+- Make servers report basic config information to tracker (visible on RFSB @ https://rfsb.factionfiles.com/)
 
-### New features and enhancements
+### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Add `Anchor_Marker_Orient` event
 - Add `Light_State` event
 - Bump RFL version to 301
 - Make endgame voting text prompt more appropriate
 - Make `vote rand` the same as `vote next` if `$Dynamic Rotation` is on (avoids repeats)
-- Add framework for world HUD sprite rendering
 - Add `cl_wh_overdraw` command for toggling objective world HUD sprites drawing through the world
 - Add world HUD icons for CTF flags
 - Add `cl_wh_ctf` command for toggling world HUD icons for CTF flags
@@ -41,7 +31,6 @@ Version 1.1.0 (Tamarack): Not yet released
 - Deprecate `/unready` chat command
 - Allow .bik video files to be loaded from `client_mods`
 - Add handling for `Active Distance` setting in Particle Emitter properties (level designers can use to optimize performance)
-- Add new gaussian bullet spread method (bell-curve distribution weighted to center of reticle)
 - Add `sp_spreadmode` command to toggle gaussian bullet spread in single player
 - Add `$Use Gaussian Bullet Spread` dedicated server config option to use gaussian bullet spread for damage calculation
 - Make clientside visual representation of bullet impacts use gaussian spread in servers with it enabled
@@ -51,10 +40,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Draw multiplayer respawn point world HUD icons in pre-match
 - Add `dbg_wh_mpspawns` command to draw multiplayer respawn point world HUD icons (supported in SP and as listen server)
 - Add compatibility table (lightmap clamp floor) for `dm-SpecialForces.rfl`
-- Add framework for chat menus
 - Add action binds for `Radio message menu`, `Taunt menu`, and `Command menu`
 - Add support for `$Chat Menu 1` (1 - 9) to `MAPNAME_info.tbl` (populates map chat menu on that map)
-- Implement settings saving/loading using readable `alpine_settings.ini` and remove reliance on legacy encoded file `players.cfg`
 - Import settings from `players.cfg` on launch if `alpine_settings.ini` is not found
 - Support TC mods with new settings file approach - `alpine_settings_MODNAME.ini`
 - Prevent MP character from being permanently changed after spawning in a server with `$Force Player Character` configured
@@ -67,10 +54,9 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `mapm` command as an alias for `levelm`
 - Add `+Require Official Build` and `+Enforce Server Version Minimum` settings to `$Clients Require Alpine Faction`
 - Add framework for custom packets
-- Add location pinging for multiplayer team modes with new action bind
+- Add new action bind for location pinging
 - Add `+Location Pinging` setting to `$Clients Require Alpine Faction`
 - Add `cl_showping` command to display current ping when connected to a server
-- Add achievements framework
 - Make cutscene skip prompt text more clear
 - Deprecate `(AF)` prefix on Alpine-specific action names
 - Change behaviour of `cl_screenshake` to only disable screenshake from weapon fire
@@ -85,7 +71,6 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add custom sounds framework
 - Add custom sounds for location ping and achievement unlock
 - Add kill sounds
-- Add health, armour, and ammo display to first person spectate
 - Support built-in RF taunts in Alpine Faction taunt menu (always included in game files but unused)
 - Add `mp_taunts` command to disable audio taunts
 - Default gore level to 2 unless otherwise set in `alpine_settings.ini`
@@ -124,6 +109,28 @@ Version 1.1.0 (Tamarack): Not yet released
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
+
+### Bug fixes
+[@GooberRF](https://github.com/GooberRF)
+- Fix server log output for status of `$Enforce Semi Auto Fire Rate Limit` being incorrect
+- Fix `AF_Teleport_Player` events sometimes not correctly translating player velocity
+- Fix `r_fullbright` sometimes applying to the host in listen servers even when not turned on
+- Fix character meshes not respecting level ambient light when `r_fullbright` is off
+- Fix pre-match ready up prompt sometimes displaying even when ready
+- Fix several niche issues where multiplayer spawn point selection would not work as intended
+- Fix match ready up prompt not being properly reset for players who leave the server during pre-match
+- Fix incorrect information in "You are no longer ready" message
+- Fix players leaving server during pre-match not always being removed from list of ready players
+- Fix players picking up items and activating triggers while teleporting
+- Fix listen server launching whenever menu opens if game was launched with `-levelm` command line argument
+- Fix clients not knowing correct ammo counts for other clients
+- Fix `When_Picked_Up` events not activating for some item classes
+- Fix bug where players would be disconnected from high framerate servers if they were standing in a solo trigger
+- Fix listen server create panel not properly loading `Level Name` field for Alpine levels
+- Fix geomod autotexture ppm not being correctly calculated for all crater textures
+- Fix "Time Left" text label not being localized
+- Fix `Player Entity Type`, `Player Undercover Suit Entity Type`, `Player Undercover Scientist Entity Type` not always applying
+- Fix lava and acid damage sometimes being attributed to a random player in the game
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
