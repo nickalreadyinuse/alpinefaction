@@ -7,6 +7,7 @@
 #include "../multi/endgame_votes.h"
 #include "../multi/multi.h"
 #include "../misc/alpine_options.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/player/control_config.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
@@ -287,7 +288,7 @@ void draw_scoreboard_internal_new(bool draw)
     float anim_progress = 1.0f;
     float progress_w = 1.0f;
     float progress_h = 1.0f;
-    if (g_game_config.scoreboard_anim) {
+    if (g_alpine_game_config.scoreboard_anim) {
         unsigned anim_delta = rf::timer_get(1000) - g_anim_ticks;
         if (g_enter_anim)
             anim_progress = anim_delta / ENTER_ANIM_MS;
@@ -367,7 +368,7 @@ FunHook<void(bool)> draw_scoreboard_internal_hook{0x00470880, draw_scoreboard_in
 
 void scoreboard_maybe_render(bool show_scoreboard)
 {
-    if (g_game_config.scoreboard_anim) {
+    if (g_alpine_game_config.scoreboard_anim) {
         if (!g_scoreboard_visible && show_scoreboard) {
             g_enter_anim = true;
             g_leave_anim = false;

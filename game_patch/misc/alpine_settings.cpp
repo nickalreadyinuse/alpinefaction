@@ -308,6 +308,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.screen_shake_force_off = std::stoi(settings["DisableAllCameraShake"]);
         processed_keys.insert("DisableAllCameraShake");
     }
+    if (settings.count("Autosave")) {
+        g_alpine_game_config.autosave = std::stoi(settings["Autosave"]);
+        processed_keys.insert("Autosave");
+    }
 
     // Load multiplayer settings
     if (settings.count("MultiplayerCharacter")) {
@@ -372,6 +376,10 @@ bool alpine_player_settings_load(rf::Player* player)
         build_time_left_string_format();
         processed_keys.insert("VerboseTimer");
     }
+    if (settings.count("ScoreboardAnimations")) {
+        g_alpine_game_config.scoreboard_anim = std::stoi(settings["ScoreboardAnimations"]);
+        processed_keys.insert("ScoreboardAnimations");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -381,6 +389,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("MouseYInvert")) {
         player->settings.controls.axes[1].invert = std::stoi(settings["MouseYInvert"]);
         processed_keys.insert("MouseYInvert");
+    }
+    if (settings.count("DirectInput")) {
+        g_alpine_game_config.direct_input = std::stoi(settings["DirectInput"]);
+        processed_keys.insert("DirectInput");
     }
     if (settings.count("MouseLinearPitch")) {
         g_alpine_game_config.mouse_linear_pitch = std::stoi(settings["MouseLinearPitch"]);
@@ -477,6 +489,7 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "\n[InputSettings]\n";
     file << "MouseSensitivity=" << cc.mouse_sensitivity << "\n";
     file << "MouseYInvert=" << cc.axes[1].invert << "\n";
+    file << "DirectInput=" << g_alpine_game_config.direct_input << "\n";
     file << "MouseLinearPitch=" << g_alpine_game_config.mouse_linear_pitch << "\n";
     file << "SwapARBinds=" << g_alpine_game_config.swap_ar_controls << "\n";
     file << "SwapGNBinds=" << g_alpine_game_config.swap_gn_controls << "\n";
@@ -608,6 +621,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "UnlimitedSemiAuto=" << g_alpine_game_config.unlimited_semi_auto << "\n";
     file << "GaussianSpread=" << g_alpine_game_config.gaussian_spread << "\n";
     file << "DisableAllCameraShake=" << g_alpine_game_config.screen_shake_force_off << "\n";
+    file << "Autosave=" << g_alpine_game_config.autosave << "\n";
 
     // Multiplayer
     file << "\n[MultiplayerSettings]\n";
@@ -626,6 +640,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShowPing=" << g_alpine_game_config.ping_display << "\n";
     file << "ShowPlayerNames=" << g_alpine_game_config.display_target_player_names << "\n";
     file << "VerboseTimer=" << g_alpine_game_config.verbose_time_left_display << "\n";
+    file << "ScoreboardAnimations=" << g_alpine_game_config.scoreboard_anim << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

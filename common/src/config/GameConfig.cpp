@@ -177,9 +177,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "True Color Textures", true_color_textures);
     result &= visitor(dash_faction_key, "Renderer", renderer);
     result &= visitor(dash_faction_key, "Executable Path", game_executable_path);
-    result &= visitor(dash_faction_key, "Direct Input", direct_input);
     result &= visitor(dash_faction_key, "Fast Start", fast_start);
-    result &= visitor(dash_faction_key, "Scoreboard Animations", scoreboard_anim);
     result &= visitor(dash_faction_key, "Level Sound Volume", level_sound_volume);
     result &= visitor(dash_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
@@ -188,7 +186,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
     result &= visitor(dash_faction_key, "Enforce Power of 2 Textures", pow2tex);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
-    result &= visitor(dash_faction_key, "Autosave", autosave);
     result &= visitor(dash_faction_key, "Server Net FPS", server_netfps);
     result &= visitor(dash_faction_key, "Alpine Branding", af_branding);
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);

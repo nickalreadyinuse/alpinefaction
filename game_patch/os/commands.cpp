@@ -325,9 +325,8 @@ FunHook<void()> verify_level_cmd_hook{
 ConsoleCommand2 autosave_cmd{
     "sp_autosave",
     []() {
-        g_game_config.autosave = !g_game_config.autosave;
-        g_game_config.save();
-        rf::console::print("Autosave is {}", g_game_config.autosave ? "enabled" : "disabled");
+        g_alpine_game_config.autosave = !g_alpine_game_config.autosave;
+        rf::console::print("Autosave is {}", g_alpine_game_config.autosave ? "enabled" : "disabled");
     },
     "Toggle autosave",
 };

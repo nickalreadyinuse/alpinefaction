@@ -37,7 +37,6 @@ bool set_direct_input_enabled(bool enabled)
         else
             rf::di_mouse->Acquire();
     }
-
     return true;
 }
 
@@ -69,7 +68,7 @@ FunHook<void()> mouse_keep_centered_enable_hook{
     0x0051E690,
     []() {
         if (!rf::keep_mouse_centered && !rf::is_dedicated_server)
-            set_direct_input_enabled(g_game_config.direct_input);
+            set_direct_input_enabled(g_alpine_game_config.direct_input);
         mouse_keep_centered_enable_hook.call_target();
     },
 };
@@ -86,11 +85,10 @@ FunHook<void()> mouse_keep_centered_disable_hook{
 ConsoleCommand2 input_mode_cmd{
     "inputmode",
     []() {
-        g_game_config.direct_input = !g_game_config.direct_input;
-        g_game_config.save();
+        g_alpine_game_config.direct_input = !g_alpine_game_config.direct_input;
 
-        if (g_game_config.direct_input) {
-            if (!set_direct_input_enabled(g_game_config.direct_input)) {
+        if (g_alpine_game_config.direct_input) {
+            if (!set_direct_input_enabled(g_alpine_game_config.direct_input)) {
                 rf::console::print("Failed to initialize DirectInput");
             }
             else {
@@ -98,8 +96,9 @@ ConsoleCommand2 input_mode_cmd{
                 rf::console::print("DirectInput is enabled");
             }
         }
-        else
+        else {
             rf::console::print("DirectInput is disabled");
+        }
     },
     "Toggles input mode",
 };

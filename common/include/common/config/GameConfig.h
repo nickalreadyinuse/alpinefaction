@@ -76,12 +76,8 @@ struct GameConfig
 
     CfgVar<unsigned> force_port{0, [](auto val) { return std::min<unsigned>(val, std::numeric_limits<uint16_t>::max()); }};
 
-    // Input
-    CfgVar<bool> direct_input = true;
-
     // Interface
     CfgVar<int> language = -1;
-    CfgVar<bool> scoreboard_anim = false;
     CfgVar<bool> af_branding = true;
 
     // Misc
@@ -90,7 +86,6 @@ struct GameConfig
     CfgVar<bool> keep_launcher_open = true;
     CfgVar<bool> reduced_speed_in_background = false;
     CfgVar<bool> player_join_beep = false;
-    CfgVar<bool> autosave = true;
 
     // Internal
     CfgVar<std::string> alpine_faction_version{""};

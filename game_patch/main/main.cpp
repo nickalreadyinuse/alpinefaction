@@ -97,7 +97,7 @@ CodeInjection cleanup_game_hook{
 static void maybe_autosave()
 {
     static int pending_autosave = 0;
-    if (rf::gameseq_get_state() == rf::GS_LEVEL_TRANSITION && g_game_config.autosave) {
+    if (rf::gameseq_get_state() == rf::GS_LEVEL_TRANSITION && g_alpine_game_config.autosave) {
         pending_autosave = 5; // wait 5 frames for the game state to fully stabilize
     }
     if (pending_autosave > 0) {
