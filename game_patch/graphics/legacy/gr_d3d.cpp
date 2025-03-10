@@ -17,6 +17,7 @@
 #include "../../rf/multi.h"
 #include "../../rf/player/player.h"
 #include "../../main/main.h"
+#include "../../misc/alpine_settings.h"
 #include "../../os/console.h"
 #include "../gr.h"
 #include "../gr_internal.h"
@@ -261,7 +262,7 @@ CodeInjection d3d_index_buffer_usage_patch{
 
 void gr_d3d_update_texture_filtering()
 {
-    if (g_game_config.nearest_texture_filtering) {
+    if (g_alpine_game_config.nearest_texture_filtering) {
         // use linear filtering for lightmaps because otherwise it looks bad
         set_texture_min_mag_filter_in_code(D3DTEXF_POINT, D3DTEXF_LINEAR);
     }

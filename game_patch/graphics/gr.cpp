@@ -260,10 +260,9 @@ ConsoleCommand2 windowed_cmd{
 ConsoleCommand2 nearest_texture_filtering_cmd{
     "r_nearest",
     []() {
-        g_game_config.nearest_texture_filtering = !g_game_config.nearest_texture_filtering;
-        g_game_config.save();
+        g_alpine_game_config.nearest_texture_filtering = !g_alpine_game_config.nearest_texture_filtering;
         gr_update_texture_filtering();
-        rf::console::print("Nearest texture filtering is {}", g_game_config.nearest_texture_filtering ? "enabled" : "disabled");
+        rf::console::print("Nearest texture filtering is {}", g_alpine_game_config.nearest_texture_filtering ? "enabled" : "disabled");
     },
     "Toggle nearest texture filtering",
 };

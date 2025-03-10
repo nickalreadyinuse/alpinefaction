@@ -1,6 +1,7 @@
 #include "gr_d3d11.h"
 #include "gr_d3d11_state.h"
 #include "../../main/main.h"
+#include "../../misc/alpine_settings.h"
 
 using namespace rf;
 
@@ -63,7 +64,7 @@ namespace df::gr::d3d11
                 break;
         }
 
-        if (g_game_config.nearest_texture_filtering) {
+        if (g_alpine_game_config.nearest_texture_filtering) {
             desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
         }
         else if (g_game_config.anisotropic_filtering && desc.Filter != D3D11_FILTER_MIN_MAG_MIP_POINT) {

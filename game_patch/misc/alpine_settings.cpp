@@ -285,6 +285,11 @@ bool alpine_player_settings_load(rf::Player* player)
         recalc_mesh_static_lighting();
         processed_keys.insert("MeshStaticLighting");
     }
+    if (settings.count("NearestTextureFiltering")) {
+        g_alpine_game_config.nearest_texture_filtering = std::stoi(settings["NearestTextureFiltering"]);
+        gr_update_texture_filtering();
+        processed_keys.insert("NearestTextureFiltering");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -595,6 +600,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ReticleScale=" << g_alpine_game_config.reticle_scale << "\n";
     file << "ShowGlares=" << g_alpine_game_config.show_glares << "\n";
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
+    file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
