@@ -193,4 +193,5 @@ void frametime_apply_patch()
     max_fps_cmd.register_cmd();
     frametime_graph_cmd.register_cmd();
     fps_counter_cmd.register_cmd();
+    ping_display_cmd.register_cmd();
 }
