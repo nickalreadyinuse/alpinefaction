@@ -564,7 +564,8 @@ void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_posit
     }
 
     if (auto* possible_new_sky_eye_anchor = rf::obj_lookup_from_uid(anchor_uid)) {
-        if (check_if_object_is_event_type(possible_new_sky_eye_anchor, rf::EventType::Anchor_Marker)) {
+        if (check_if_object_is_event_type(possible_new_sky_eye_anchor, rf::EventType::Anchor_Marker) ||
+            check_if_object_is_event_type(possible_new_sky_eye_anchor, rf::EventType::Anchor_Marker_Orient)) {
             g_sky_room_eye_anchor = possible_new_sky_eye_anchor;
 
             g_sky_room_eye_offset_scale =

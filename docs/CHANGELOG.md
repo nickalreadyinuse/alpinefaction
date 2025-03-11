@@ -10,11 +10,11 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add command menu, spectate menu, and chat menus for radio messages and taunts
 - Add location pinging in team modes
 - Add visual hit notifications, enhanced hit sounds, and death sounds
-- Add `Alpine Faction` panel to in-game options menu for configuring AF settings
+- Add `Advanced` panel to in-game options menu for configuring AF settings
 - Add health, armour, and ammo display to first person spectate
 - Add "World HUD" sprite rendering for objective and player labels
 - Implement saving/loading of settings using readable `alpine_settings.ini`, remove reliance on legacy encoded `players.cfg`
-- Make servers report basic config information to tracker (visible on RFSB @ https://rfsb.factionfiles.com/)
+- Make servers report basic config information to tracker (visible on https://rfsb.factionfiles.com/)
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -93,11 +93,6 @@ Version 1.1.0 (Tamarack): Not yet released
   - Damage screen flash, death bars, mesh static lighting, show glares, show enemy bullets
   - Show FPS, show ping, spectate mode minimal UI, nearest texture filtering
   - DirectInput, autosave, scoreboard animations, level sound modifier
-- Add `Alpine Faction` options panel to in-game options menu with FFLink status and the following settings:
-    - Big HUD, linear pitch, swap controls for AR, SG, GN
-    - Weapon shake, fullbright characters, lightmaps only
-    - CTF icons, hit numbers, hit sounds, taunt sounds
-    - FPS counter, damage flash, mesh static lights, enemy bullets
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 - Add `dbg_consolehistory` command to toggle whether console history persists between game launches
@@ -108,6 +103,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `Default Third Person` to `af_game.tbl` to set default player camera to third person
 - Made lava and acid damage result in a self kill in multiplayer rather than a mysterious kill
 - Add radio message audio
+- Allow `Anchor_Marker_Orient` event as skybox eye anchor
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
