@@ -63,9 +63,6 @@ The entire Red Faction community:
 Asset Attribution
 ---------------------------------
 
-Attribution and license (if available) is included below for all third party
-assets added to the Alpine Faction project after the fork from Dash Faction.
-
 HeyItsDuke:
 * reticle_rocketlock_1.tga
 

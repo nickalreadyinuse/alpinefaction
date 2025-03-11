@@ -178,137 +178,146 @@ static const ChatMenuList taunt_menu{
     .display_string = "TAUNTS",
     .type = ChatMenuListType::Basic,
     .elements = {
-        {true, ChatMenuListName::Commander1, ChatMenuListType::Basic, "Commander 1"},
-        {true, ChatMenuListName::Commander2, ChatMenuListType::Basic, "Commander 2"},
-        {true, ChatMenuListName::Guard1, ChatMenuListType::Basic, "Guard 1"},
-        {true, ChatMenuListName::Guard2, ChatMenuListType::Basic, "Guard 2"},
-        {true, ChatMenuListName::EnviroGuard1, ChatMenuListType::Basic, "Enviro Guard 1"},
-        {true, ChatMenuListName::EnviroGuard2, ChatMenuListType::Basic, "Enviro Guard 2"},
-        {true, ChatMenuListName::RiotGuard1, ChatMenuListType::Basic, "Riot Guard 1"},
-        {true, ChatMenuListName::RiotGuard2, ChatMenuListType::Basic, "Riot Guard 2"}
+        {true, ChatMenuListName::Intimidation, ChatMenuListType::Basic, "Intimidation"},
+        {true, ChatMenuListName::Mockery, ChatMenuListType::Basic, "Mockery"},
+        {true, ChatMenuListName::Celebration, ChatMenuListType::Basic, "Celebration"},
+        {true, ChatMenuListName::Dismissiveness, ChatMenuListType::Basic, "Dismissive"},
+        {true, ChatMenuListName::Bravado, ChatMenuListType::Basic, "Bravado"},
+        {true, ChatMenuListName::Derision, ChatMenuListType::Basic, "Derision"},
+        {true, ChatMenuListName::Casual, ChatMenuListType::Basic, "Casual"},
+        {true, ChatMenuListName::RandomFunny, ChatMenuListType::Basic, "Random"}
     }
 };
 
-// Commander 1
-static const ChatMenuList commander1_menu{
-    .display_string = "COMMANDER 1",
+// Intimidation
+static const ChatMenuList intimidation_menu{
+    .display_string = "INTIMIDATION",
     .type = ChatMenuListType::Basic,
     .elements = {
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Commence beatdown!", "Commence beatdown!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Rest in pieces.", "Rest in pieces."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Hey, is this your head?", "Hey, is this your head?"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You make a nice target.", "You make a nice target."},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Squeegee time!", "Squeegee time!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Nice catch!", "Nice catch!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye Mr. Gibs!", "Goodbye Mr. Gibs!"}
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Goodbye Mr. Gibs!", "Goodbye Mr. Gibs!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Have a seat, son!", "Have a seat, son!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Your move, creep!", "Your move, creep!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Messy.", "Messy."}
     }
 };
 
-// Commander 2
-static const ChatMenuList commander2_menu{
-    .display_string = "COMMANDER 2",
+// Mockery
+static const ChatMenuList mockery_menu{
+    .display_string = "MOCKERY",
     .type = ChatMenuListType::Basic,
     .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Got death smarts.", "Got death smarts."},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Just a flesh wound.", "Just a flesh wound."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Look, a jigsaw puzzle!", "Look, a jigsaw puzzle!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Llama!", "Llama!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Woohoo!", "Woohoo!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Chump!", "Chump!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Banned.", "Banned."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aww, does it hurt?", "Aww, does it hurt?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Pathetic!", "Pathetic!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Got death smarts.", "Got death smarts."}
+    }
+};
+
+// Celebration
+static const ChatMenuList celebration_menu{
+    .display_string = "CELEBRATION",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Damn, I'm good.", "Damn, I'm good."},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Ka-ching!", "Ka-ching!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Frag-o-licious!", "Frag-o-licious!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Me red, you dead!", "Me red, you dead!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Look, a jigsaw puzzle!", "Look, a jigsaw puzzle!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Damn, I'm good.", "Damn, I'm good."}
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Boom!", "Boom!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sweet!", "Sweet!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "I make this look good.", "I make this look good."}
     }
 };
 
-// Guard 1
-static const ChatMenuList guard1_menu{
-    .display_string = "GUARD 1",
+// Dismissiveness
+static const ChatMenuList dismissiveness_menu{
+    .display_string = "DISMISSIVE",
     .type = ChatMenuListType::Basic,
     .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Here's Johnny!", "Here's Johnny!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Lay down, play dead!", "Lay down, play dead!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sucks to be you!", "Sucks to be you!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You are so dead.", "You are so dead."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Woohoo!", "Woohoo!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Target practice!", "Target practice!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Get a load of this!", "Get a load of this!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Chump!", "Chump!"}
-    }
-};
-
-// Guard 2
-static const ChatMenuList guard2_menu{
-    .display_string = "GUARD 2",
-    .type = ChatMenuListType::Basic,
-    .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Feeble!", "Feeble!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sit down!", "Sit down!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Owned!", "Owned!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Have a seat, son!", "Have a seat, son!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Fresh meat!", "Fresh meat!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Boom!", "Boom!"}
-    }
-};
-
-// Enviro Guard 1
-static const ChatMenuList enviro_guard1_menu{
-    .display_string = "ENVIRO GUARD 1",
-    .type = ChatMenuListType::Basic,
-    .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Messy.", "Messy."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Blams!", "Blams!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Splat!", "Splat!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Crunch time!", "Crunch time!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Eat it!", "Eat it!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Annihilation!", "Annihilation!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Banned.", "Banned."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Catch!", "Catch!"}
-    }
-};
-
-// Enviro Guard 2
-static const ChatMenuList enviro_guard2_menu{
-    .display_string = "ENVIRO GUARD 2",
-    .type = ChatMenuListType::Basic,
-    .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You lack discipline!", "You lack discipline!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Lamer!", "Lamer!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Llama!", "Llama!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Order up!", "Order up!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Your move, creep!", "Your move, creep!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "What's your name, scumbag?!", "What's your name, scumbag?!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Arr matey!", "Arr matey!"}
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Target practice!", "Target practice!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Catch!", "Catch!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Blams!", "Blams!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sit down!", "Sit down!"}
     }
 };
 
-// Riot Guard 1
-static const ChatMenuList riot_guard1_menu{
-    .display_string = "RIOT GUARD 1",
+// Bravado
+static const ChatMenuList bravado_menu{
+    .display_string = "BRAVADO",
     .type = ChatMenuListType::Basic,
     .elements = {
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "I make this look good.", "I make this look good."},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Take off, hoser!", "Take off, hoser!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Get on the bus!", "Get on the bus!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "What's up, fool?!", "What's up, fool?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Take off, hoser!", "Take off, hoser!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Want some more?!", "Want some more?!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Give it up!", "Give it up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Bring it!", "Bring it!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Any time, anywhere!", "Any time, anywhere!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Tool!", "Tool!"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Oh, I still love you!", "Oh, I still love you!"}
     }
 };
 
-// Riot Guard 2
-static const ChatMenuList riot_guard2_menu{
-    .display_string = "RIOT GUARD 2",
+// Derision
+static const ChatMenuList derision_menu{
+    .display_string = "DERISION",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Feeble!", "Feeble!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Chump!", "Chump!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Order up!", "Order up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "What's your name, scumbag?!", "What's your name, scumbag?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Lay down, play dead!", "Lay down, play dead!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Crunch time!", "Crunch time!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Splat!", "Splat!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Annihilation!", "Annihilation!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "You lack discipline!", "You lack discipline!"}
+    }
+};
+
+// Casual
+static const ChatMenuList casual_menu{
+    .display_string = "CASUAL",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Here's Johnny!", "Here's Johnny!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Nice catch!", "Nice catch!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Hey, is this your head?", "Hey, is this your head?"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "What's up, fool?!", "What's up, fool?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Eat it!", "Eat it!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Catch!", "Catch!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Target practice!", "Target practice!"}
+    }
+};
+
+// Random/Funny
+static const ChatMenuList random_funny_menu{
+    .display_string = "RANDOM",
     .type = ChatMenuListType::Basic,
     .elements = {
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Geeze, what smells?", "Geeze, what smells?"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aww, does it hurt?", "Aww, does it hurt?"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Bring it!", "Bring it!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Any time, anywhere!", "Any time, anywhere!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Pathetic!", "Pathetic!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Sweet!", "Sweet!"},
-        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Tool!", "Tool!"}
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Oh, I still love you!", "Oh, I still love you!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Rest in pieces.", "Rest in pieces."},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Want some more?!", "Want some more?!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Give it up!", "Give it up!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Squeegee time!", "Squeegee time!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Aw yeah!", "Aw yeah!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Arr matey!", "Arr matey!"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Get a load of this!", "Get a load of this!"}
     }
 };
 
@@ -817,14 +826,14 @@ void chat_menu_action_handler(rf::Key key) {
             case ChatMenuListName::Map: g_active_menu = &level_menu; break;
 
             // Taunt menu
-            case ChatMenuListName::Commander1: g_active_menu = &commander1_menu; break;
-            case ChatMenuListName::Commander2: g_active_menu = &commander2_menu; break;
-            case ChatMenuListName::Guard1: g_active_menu = &guard1_menu; break;
-            case ChatMenuListName::Guard2: g_active_menu = &guard2_menu; break;
-            case ChatMenuListName::EnviroGuard1: g_active_menu = &enviro_guard1_menu; break;
-            case ChatMenuListName::EnviroGuard2: g_active_menu = &enviro_guard2_menu; break;
-            case ChatMenuListName::RiotGuard1: g_active_menu = &riot_guard1_menu; break;
-            case ChatMenuListName::RiotGuard2: g_active_menu = &riot_guard2_menu; break;
+            case ChatMenuListName::Intimidation: g_active_menu = &intimidation_menu; break;
+            case ChatMenuListName::Mockery: g_active_menu = &mockery_menu; break;
+            case ChatMenuListName::Celebration: g_active_menu = &celebration_menu; break;
+            case ChatMenuListName::Dismissiveness: g_active_menu = &dismissiveness_menu; break;
+            case ChatMenuListName::Bravado: g_active_menu = &bravado_menu; break;
+            case ChatMenuListName::Derision: g_active_menu = &derision_menu; break;
+            case ChatMenuListName::Casual: g_active_menu = &casual_menu; break;
+            case ChatMenuListName::RandomFunny: g_active_menu = &random_funny_menu; break;
 
             default: break;
         }

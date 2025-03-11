@@ -25,14 +25,14 @@ enum class ChatMenuListName : int
     Powerup,
     Flag,
     Map,
-    Commander1,
-    Commander2,
-    Guard1,
-    Guard2,
-    EnviroGuard1,
-    EnviroGuard2,
-    RiotGuard1,
-    RiotGuard2
+    Intimidation,
+    Mockery,
+    Celebration,
+    Dismissiveness,
+    Bravado,
+    Derision,
+    Casual,
+    RandomFunny
 };
 
 enum class ChatMenuListType : int
