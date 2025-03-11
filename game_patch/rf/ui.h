@@ -34,6 +34,11 @@ namespace rf::ui
         {
             AddrCaller{0x00440970}.this_call<void>(this);
         }
+
+        void disable()
+        {
+            AddrCaller{0x00448A00}.this_call<void>(this);
+        }
     };
     static_assert(sizeof(Gadget) == 0x28);
 
@@ -173,6 +178,7 @@ namespace rf::ui
                        PopupCallbackPtr choices_callbacks[], int default_choice, int keys[])>(0x004562A0);
     static auto& popup_abort = addr_as_ref<void()>(0x004559C0);
     static auto& popup_set_text = addr_as_ref<void(const char *text)>(0x00455A50);
+    static auto& popup_get_input = addr_as_ref<void(char* string, int max_len)>(0x004566A0);
 
     static auto& mainmenu_quit_game_confirmed = addr_as_ref<void()>(0x00443CB0);
 
