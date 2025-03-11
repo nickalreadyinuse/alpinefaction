@@ -13,36 +13,109 @@
 #include "../rf/ui.h"
 #include "../rf/sound/sound.h"
 #include "../rf/input.h"
+#include "../rf/player/player.h"
 #include "../rf/misc.h"
 #include "../rf/os/os.h"
 
 #define DEBUG_UI_LAYOUT 0
 #define SHARP_UI_TEXT 1
 
+// options menu elements
 static rf::ui::Gadget* new_gadgets[6]; // Allocate space for 6 options buttons
 static rf::ui::Button alpine_options_btn;
-static rf::ui::Panel alpine_options_panel;
-std::vector<rf::ui::Gadget*> alpine_options_panel_settings;
-std::vector<rf::ui::Label*> alpine_options_panel_labels;
 
 // alpine options panel elements
-static rf::ui::Checkbox ao_bighud_cbox;
-static rf::ui::Label ao_bighud_label;
+static rf::ui::Panel alpine_options_panel; // parent to all subpanels
+static rf::ui::Panel alpine_options_panel0;
+static rf::ui::Panel alpine_options_panel1;
+static rf::ui::Panel alpine_options_panel2;
+static rf::ui::Panel alpine_options_panel3;
+static int alpine_options_panel_current_tab = 0;
+std::vector<rf::ui::Gadget*> alpine_options_panel_settings;
+std::vector<rf::ui::Label*> alpine_options_panel_labels;
+std::vector<rf::ui::Label*> alpine_options_panel_tab_labels;
+
+// alpine options tabs
+static rf::ui::Checkbox ao_tab_0_cbox;
+static rf::ui::Label ao_tab_0_label;
+static rf::ui::Checkbox ao_tab_1_cbox;
+static rf::ui::Label ao_tab_1_label;
+static rf::ui::Checkbox ao_tab_2_cbox;
+static rf::ui::Label ao_tab_2_label;
+static rf::ui::Checkbox ao_tab_3_cbox;
+static rf::ui::Label ao_tab_3_label;
+
+// alpine options inputboxes and labels
+static rf::ui::Checkbox ao_retscale_cbox;
+static rf::ui::Label ao_retscale_label;
+static rf::ui::Label ao_retscale_butlabel;
+static char ao_retscale_butlabel_text[9];
+static rf::ui::Checkbox ao_fov_cbox;
+static rf::ui::Label ao_fov_label;
+static rf::ui::Label ao_fov_butlabel;
+static char ao_fov_butlabel_text[9];
+static rf::ui::Checkbox ao_fpfov_cbox;
+static rf::ui::Label ao_fpfov_label;
+static rf::ui::Label ao_fpfov_butlabel;
+static char ao_fpfov_butlabel_text[9];
+static rf::ui::Checkbox ao_ms_cbox;
+static rf::ui::Label ao_ms_label;
+static rf::ui::Label ao_ms_butlabel;
+static char ao_ms_butlabel_text[9];
+static rf::ui::Checkbox ao_scannersens_cbox;
+static rf::ui::Label ao_scannersens_label;
+static rf::ui::Label ao_scannersens_butlabel;
+static char ao_scannersens_butlabel_text[9];
+static rf::ui::Checkbox ao_scopesens_cbox;
+static rf::ui::Label ao_scopesens_label;
+static rf::ui::Label ao_scopesens_butlabel;
+static char ao_scopesens_butlabel_text[9];
+
+// alpine options checkboxes and labels
+static rf::ui::Checkbox ao_dinput_cbox;
+static rf::ui::Label ao_dinput_label;
 static rf::ui::Checkbox ao_linearpitch_cbox;
 static rf::ui::Label ao_linearpitch_label;
+static rf::ui::Checkbox ao_bighud_cbox;
+static rf::ui::Label ao_bighud_label;
 static rf::ui::Checkbox ao_ctfwh_cbox;
 static rf::ui::Label ao_ctfwh_label;
-static rf::ui::Checkbox ao_damagenum_cbox;
-static rf::ui::Label ao_damagenum_label;
+static rf::ui::Checkbox ao_overdrawwh_cbox;
+static rf::ui::Label ao_overdrawwh_label;
+static rf::ui::Checkbox ao_sbanim_cbox;
+static rf::ui::Label ao_sbanim_label;
+static rf::ui::Checkbox ao_teamlabels_cbox;
+static rf::ui::Label ao_teamlabels_label;
+static rf::ui::Checkbox ao_minimaltimer_cbox;
+static rf::ui::Label ao_minimaltimer_label;
+static rf::ui::Checkbox ao_targetnames_cbox;
+static rf::ui::Label ao_targetnames_label;
+static rf::ui::Checkbox ao_staticscope_cbox;
+static rf::ui::Label ao_staticscope_label;
 static rf::ui::Checkbox ao_hitsounds_cbox;
 static rf::ui::Label ao_hitsounds_label;
 static rf::ui::Checkbox ao_taunts_cbox;
 static rf::ui::Label ao_taunts_label;
+static rf::ui::Checkbox ao_teamrad_cbox;
+static rf::ui::Label ao_teamrad_label;
+static rf::ui::Checkbox ao_globalrad_cbox;
+static rf::ui::Label ao_globalrad_label;
+static rf::ui::Checkbox ao_clicklimit_cbox;
+static rf::ui::Label ao_clicklimit_label;
+static rf::ui::Checkbox ao_gaussian_cbox;
+static rf::ui::Label ao_gaussian_label;
+static rf::ui::Checkbox ao_autosave_cbox;
+static rf::ui::Label ao_autosave_label;
+static rf::ui::Checkbox ao_damagenum_cbox;
+static rf::ui::Label ao_damagenum_label;
 static rf::ui::Checkbox ao_showfps_cbox;
 static rf::ui::Label ao_showfps_label;
+static rf::ui::Checkbox ao_showping_cbox;
+static rf::ui::Label ao_showping_label;
 static rf::ui::Checkbox ao_redflash_cbox;
 static rf::ui::Label ao_redflash_label;
-
+static rf::ui::Checkbox ao_deathbars_cbox;
+static rf::ui::Label ao_deathbars_label;
 static rf::ui::Checkbox ao_swapar_cbox;
 static rf::ui::Label ao_swapar_label;
 static rf::ui::Checkbox ao_swapgn_cbox;
@@ -51,6 +124,16 @@ static rf::ui::Checkbox ao_swapsg_cbox;
 static rf::ui::Label ao_swapsg_label;
 static rf::ui::Checkbox ao_weapshake_cbox;
 static rf::ui::Label ao_weapshake_label;
+static rf::ui::Checkbox ao_firelights_cbox;
+static rf::ui::Label ao_firelights_label;
+static rf::ui::Checkbox ao_glares_cbox;
+static rf::ui::Label ao_glares_label;
+static rf::ui::Checkbox ao_nearest_cbox;
+static rf::ui::Label ao_nearest_label;
+static rf::ui::Checkbox ao_camshake_cbox;
+static rf::ui::Label ao_camshake_label;
+static rf::ui::Checkbox ao_ricochet_cbox;
+static rf::ui::Label ao_ricochet_label;
 static rf::ui::Checkbox ao_fullbrightchar_cbox;
 static rf::ui::Label ao_fullbrightchar_label;
 static rf::ui::Checkbox ao_notex_cbox;
@@ -60,6 +143,7 @@ static rf::ui::Label ao_meshstatic_label;
 static rf::ui::Checkbox ao_enemybullets_cbox;
 static rf::ui::Label ao_enemybullets_label;
 
+// fflink info strings
 static rf::ui::Label ao_fflink_label1;
 static rf::ui::Label ao_fflink_label2;
 static rf::ui::Label ao_fflink_label3;
@@ -377,234 +461,363 @@ FunHook<bool __fastcall(void *this_, int edx, rf::Key key)> UiInputBox_process_k
     UiInputBox_process_key_new,
 };
 
+void ao_play_button_snd(bool on) {
+    if (on) {
+        rf::snd_play(45, 0, 0.0f, 1.0f);
+    }
+    else {
+        rf::snd_play(44, 0, 0.0f, 1.0f);
+    }
+}
+
+void ao_play_tab_snd() {
+    rf::snd_play(41, 0, 0.0f, 1.0f);
+}
+
+void ao_tab_button_on_click_0(int x, int y) {
+    alpine_options_panel_current_tab = 0;
+    ao_play_tab_snd();
+}
+
+void ao_tab_button_on_click_1(int x, int y) {
+    alpine_options_panel_current_tab = 1;
+    ao_play_tab_snd();
+}
+
+void ao_tab_button_on_click_2(int x, int y) {
+    alpine_options_panel_current_tab = 2;
+    ao_play_tab_snd();
+}
+
+void ao_tab_button_on_click_3(int x, int y) {
+    alpine_options_panel_current_tab = 3;
+    ao_play_tab_snd();
+}
+
 void ao_bighud_cbox_on_click(int x, int y) {
     g_alpine_game_config.big_hud = !g_alpine_game_config.big_hud;
     ao_bighud_cbox.checked = g_alpine_game_config.big_hud;
     set_big_hud(g_alpine_game_config.big_hud);
+    ao_play_button_snd(g_alpine_game_config.big_hud);
+}
 
-    if (ao_bighud_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {} {}", x, y, ao_bighud_cbox.checked, g_alpine_game_config.big_hud);
+void ao_dinput_cbox_on_click(int x, int y)
+{
+    g_alpine_game_config.direct_input = !g_alpine_game_config.direct_input;
+    ao_dinput_cbox.checked = g_alpine_game_config.direct_input;
+    ao_play_button_snd(g_alpine_game_config.direct_input);
 }
 
 void ao_linearpitch_cbox_on_click(int x, int y) {
     g_alpine_game_config.mouse_linear_pitch = !g_alpine_game_config.mouse_linear_pitch;
     ao_linearpitch_cbox.checked = g_alpine_game_config.mouse_linear_pitch;
-
-    if (ao_linearpitch_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_linearpitch_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.mouse_linear_pitch);
 }
 
-void ao_ctfwh_cbox_on_click(int x, int y) {
-    g_alpine_game_config.world_hud_ctf_icons = !g_alpine_game_config.world_hud_ctf_icons;
-    ao_ctfwh_cbox.checked = g_alpine_game_config.world_hud_ctf_icons;
-
-    if (ao_ctfwh_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
+// fov
+void ao_fov_cbox_on_click_callback() {
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_fov = std::stof(str);
+        g_alpine_game_config.set_horz_fov(new_fov);
     }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
+    catch (const std::exception& e) {
+        xlog::warn("Invalid FOV input: '{}', reason: {}", str, e.what());
     }
+}
+void ao_fov_cbox_on_click(int x, int y) {
+    rf::ui::popup_message("Enter new FOV value (0 for automatic scaling):", "", ao_fov_cbox_on_click_callback, 1);
+    ao_play_tab_snd();
+}
 
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_ctfwh_cbox.checked);
+// fpgun fov
+void ao_fpfov_cbox_on_click_callback() {
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_fpfov = std::stof(str);
+        g_alpine_game_config.set_fpgun_fov_scale(new_fpfov);
+    }
+    catch (const std::exception& e) {
+        xlog::warn("Invalid FPGun FOV input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_fpfov_cbox_on_click(int x, int y) {
+    rf::ui::popup_message("Enter new FPGun FOV modifier value:", "", ao_fpfov_cbox_on_click_callback, 1);
+    ao_play_tab_snd();
+}
+
+// ms
+void ao_ms_cbox_on_click_callback() {
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_ms = std::stof(str);
+        rf::local_player->settings.controls.mouse_sensitivity = new_ms;
+    }
+    catch (const std::exception& e) {
+        xlog::warn("Invalid sensitivity input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_ms_cbox_on_click(int x, int y) {
+    rf::ui::popup_message("Enter new mouse sensitivity value:", "", ao_ms_cbox_on_click_callback, 1);
+    ao_play_tab_snd();
+}
+
+// scanner ms
+void ao_scannersens_cbox_on_click_callback() {
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_scale = std::stof(str);
+        g_alpine_game_config.scanner_sensitivity_modifier = new_scale;
+    }
+    catch (const std::exception& e) {
+        xlog::warn("Invalid modifier input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_scannersens_cbox_on_click(int x, int y) {
+    rf::ui::popup_message("Enter new scanner sensitivity modifier value:", "", ao_scannersens_cbox_on_click_callback, 1);
+    ao_play_tab_snd();
+}
+
+// scope ms
+void ao_scopesens_cbox_on_click_callback() {
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_scale = std::stof(str);
+        g_alpine_game_config.scope_sensitivity_modifier = new_scale;
+    }
+    catch (const std::exception& e) {
+        xlog::warn("Invalid modifier input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_scopesens_cbox_on_click(int x, int y) {
+    rf::ui::popup_message("Enter new scope sensitivity modifier value:", "", ao_scopesens_cbox_on_click_callback, 1);
+    ao_play_tab_snd();
+}
+
+// reticle scale
+void ao_retscale_cbox_on_click_callback() {
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_scale = std::stof(str);
+        g_alpine_game_config.set_reticle_scale(new_scale);
+    }
+    catch (const std::exception& e) {
+        xlog::warn("Invalid reticle scale input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_retscale_cbox_on_click(int x, int y) {
+    rf::ui::popup_message("Enter new reticle scale value:", "", ao_retscale_cbox_on_click_callback, 1);
+    ao_play_tab_snd();
 }
 
 void ao_damagenum_cbox_on_click(int x, int y) {
     g_alpine_game_config.world_hud_damage_numbers = !g_alpine_game_config.world_hud_damage_numbers;
     ao_damagenum_cbox.checked = g_alpine_game_config.world_hud_damage_numbers;
-
-    if (ao_damagenum_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_damagenum_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.world_hud_damage_numbers);
 }
 
 void ao_hitsounds_cbox_on_click(int x, int y) {
     g_alpine_game_config.play_hit_sounds = !g_alpine_game_config.play_hit_sounds;
     ao_hitsounds_cbox.checked = g_alpine_game_config.play_hit_sounds;
-
-    if (ao_hitsounds_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_hitsounds_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.play_hit_sounds);
 }
 
 void ao_taunts_cbox_on_click(int x, int y) {
     g_alpine_game_config.play_taunt_sounds = !g_alpine_game_config.play_taunt_sounds;
     ao_taunts_cbox.checked = g_alpine_game_config.play_taunt_sounds;
+    ao_play_button_snd(g_alpine_game_config.play_taunt_sounds);
+}
 
-    if (ao_taunts_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
+void ao_teamrad_cbox_on_click(int x, int y) {
+    g_alpine_game_config.play_team_rad_msg_sounds = !g_alpine_game_config.play_team_rad_msg_sounds;
+    ao_teamrad_cbox.checked = g_alpine_game_config.play_team_rad_msg_sounds;
+    ao_play_button_snd(g_alpine_game_config.play_team_rad_msg_sounds);
+}
 
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_taunts_cbox.checked);
+void ao_globalrad_cbox_on_click(int x, int y) {
+    g_alpine_game_config.play_global_rad_msg_sounds = !g_alpine_game_config.play_global_rad_msg_sounds;
+    ao_globalrad_cbox.checked = g_alpine_game_config.play_global_rad_msg_sounds;
+    ao_play_button_snd(g_alpine_game_config.play_global_rad_msg_sounds);
+}
+
+void ao_clicklimit_cbox_on_click(int x, int y) {
+    g_alpine_game_config.unlimited_semi_auto = !g_alpine_game_config.unlimited_semi_auto;
+    ao_clicklimit_cbox.checked = !g_alpine_game_config.unlimited_semi_auto;
+    ao_play_button_snd(!g_alpine_game_config.unlimited_semi_auto);
+}
+
+void ao_gaussian_cbox_on_click(int x, int y) {
+    g_alpine_game_config.gaussian_spread = !g_alpine_game_config.gaussian_spread;
+    ao_gaussian_cbox.checked = g_alpine_game_config.gaussian_spread;
+    ao_play_button_snd(g_alpine_game_config.gaussian_spread);
+}
+
+void ao_autosave_cbox_on_click(int x, int y) {
+    g_alpine_game_config.autosave = !g_alpine_game_config.autosave;
+    ao_autosave_cbox.checked = g_alpine_game_config.autosave;
+    ao_play_button_snd(g_alpine_game_config.autosave);
 }
 
 void ao_showfps_cbox_on_click(int x, int y) {
     g_alpine_game_config.fps_counter = !g_alpine_game_config.fps_counter;
     ao_showfps_cbox.checked = g_alpine_game_config.fps_counter;
+    ao_play_button_snd(g_alpine_game_config.fps_counter);
+}
 
-    if (ao_showfps_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_showfps_cbox.checked);
+void ao_showping_cbox_on_click(int x, int y) {
+    g_alpine_game_config.ping_display = !g_alpine_game_config.ping_display;
+    ao_showping_cbox.checked = g_alpine_game_config.ping_display;
+    ao_play_button_snd(g_alpine_game_config.ping_display);
 }
 
 void ao_redflash_cbox_on_click(int x, int y) {
     g_alpine_game_config.damage_screen_flash = !g_alpine_game_config.damage_screen_flash;
     ao_redflash_cbox.checked = g_alpine_game_config.damage_screen_flash;
+    ao_play_button_snd(g_alpine_game_config.damage_screen_flash);
+}
 
-    if (ao_redflash_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
+void ao_deathbars_cbox_on_click(int x, int y) {
+    g_alpine_game_config.death_bars = !g_alpine_game_config.death_bars;
+    ao_deathbars_cbox.checked = g_alpine_game_config.death_bars;
+    ao_play_button_snd(g_alpine_game_config.death_bars);
+}
 
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_redflash_cbox.checked);
+void ao_ctfwh_cbox_on_click(int x, int y) {
+    g_alpine_game_config.world_hud_ctf_icons = !g_alpine_game_config.world_hud_ctf_icons;
+    ao_ctfwh_cbox.checked = g_alpine_game_config.world_hud_ctf_icons;
+    ao_play_button_snd(g_alpine_game_config.world_hud_ctf_icons);
+}
+
+void ao_overdrawwh_cbox_on_click(int x, int y) {
+    g_alpine_game_config.world_hud_overdraw = !g_alpine_game_config.world_hud_overdraw;
+    ao_overdrawwh_cbox.checked = g_alpine_game_config.world_hud_overdraw;
+    ao_play_button_snd(g_alpine_game_config.world_hud_overdraw);
+}
+
+void ao_sbanim_cbox_on_click(int x, int y) {
+    g_alpine_game_config.scoreboard_anim = !g_alpine_game_config.scoreboard_anim;
+    ao_sbanim_cbox.checked = g_alpine_game_config.scoreboard_anim;
+    ao_play_button_snd(g_alpine_game_config.scoreboard_anim);
+}
+
+void ao_teamlabels_cbox_on_click(int x, int y) {
+    g_alpine_game_config.world_hud_team_player_labels = !g_alpine_game_config.world_hud_team_player_labels;
+    ao_teamlabels_cbox.checked = g_alpine_game_config.world_hud_team_player_labels;
+    ao_play_button_snd(g_alpine_game_config.world_hud_team_player_labels);
+}
+
+void ao_minimaltimer_cbox_on_click(int x, int y) {
+    g_alpine_game_config.verbose_time_left_display = !g_alpine_game_config.verbose_time_left_display;
+    ao_minimaltimer_cbox.checked = !g_alpine_game_config.verbose_time_left_display;
+    ao_play_button_snd(!g_alpine_game_config.verbose_time_left_display);
+}
+
+void ao_targetnames_cbox_on_click(int x, int y) {
+    g_alpine_game_config.display_target_player_names = !g_alpine_game_config.display_target_player_names;
+    ao_targetnames_cbox.checked = g_alpine_game_config.display_target_player_names;
+    ao_play_button_snd(g_alpine_game_config.display_target_player_names);
+}
+
+void ao_staticscope_cbox_on_click(int x, int y) {
+    g_alpine_game_config.scope_static_sensitivity = !g_alpine_game_config.scope_static_sensitivity;
+    ao_staticscope_cbox.checked = g_alpine_game_config.scope_static_sensitivity;
+    ao_play_button_snd(g_alpine_game_config.scope_static_sensitivity);
 }
 
 void ao_swapar_cbox_on_click(int x, int y) {
     g_alpine_game_config.swap_ar_controls = !g_alpine_game_config.swap_ar_controls;
     ao_swapar_cbox.checked = g_alpine_game_config.swap_ar_controls;
-
-    if (ao_swapar_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapar_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.swap_ar_controls);
 }
 
 void ao_swapgn_cbox_on_click(int x, int y) {
     g_alpine_game_config.swap_gn_controls = !g_alpine_game_config.swap_gn_controls;
     ao_swapgn_cbox.checked = g_alpine_game_config.swap_gn_controls;
-
-    if (ao_swapgn_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapgn_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.swap_gn_controls);
 }
 
 void ao_swapsg_cbox_on_click(int x, int y) {
     g_alpine_game_config.swap_sg_controls = !g_alpine_game_config.swap_sg_controls;
     ao_swapsg_cbox.checked = g_alpine_game_config.swap_sg_controls;
+    ao_play_button_snd(g_alpine_game_config.swap_sg_controls);
+}
 
-    if (ao_swapsg_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
+void ao_camshake_cbox_on_click(int x, int y) {
+    g_alpine_game_config.screen_shake_force_off = !g_alpine_game_config.screen_shake_force_off;
+    ao_camshake_cbox.checked = !g_alpine_game_config.screen_shake_force_off;
+    ao_play_button_snd(!g_alpine_game_config.screen_shake_force_off);
+}
 
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_swapsg_cbox.checked);
+void ao_ricochet_cbox_on_click(int x, int y) {
+    g_alpine_game_config.multi_ricochet = !g_alpine_game_config.multi_ricochet;
+    ao_ricochet_cbox.checked = g_alpine_game_config.multi_ricochet;
+    ao_play_button_snd(g_alpine_game_config.multi_ricochet);
+}
+
+void ao_firelights_cbox_on_click(int x, int y) {
+    g_alpine_game_config.try_disable_muzzle_flash_lights = !g_alpine_game_config.try_disable_muzzle_flash_lights;
+    ao_firelights_cbox.checked = !g_alpine_game_config.try_disable_muzzle_flash_lights;
+    ao_play_button_snd(!g_alpine_game_config.try_disable_muzzle_flash_lights);
+}
+
+void ao_glares_cbox_on_click(int x, int y) {
+    g_alpine_game_config.show_glares = !g_alpine_game_config.show_glares;
+    ao_glares_cbox.checked = g_alpine_game_config.show_glares;
+    ao_play_button_snd(g_alpine_game_config.show_glares);
+}
+
+void ao_nearest_cbox_on_click(int x, int y) {
+    g_alpine_game_config.nearest_texture_filtering = !g_alpine_game_config.nearest_texture_filtering;
+    ao_nearest_cbox.checked = g_alpine_game_config.nearest_texture_filtering;
+    gr_update_texture_filtering();
+    ao_play_button_snd(g_alpine_game_config.nearest_texture_filtering);
 }
 
 void ao_weapshake_cbox_on_click(int x, int y) {
     g_alpine_game_config.try_disable_weapon_shake = !g_alpine_game_config.try_disable_weapon_shake;
     ao_weapshake_cbox.checked = !g_alpine_game_config.try_disable_weapon_shake;
     evaluate_restrict_disable_ss();
-
-    if (ao_weapshake_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_weapshake_cbox.checked);
+    ao_play_button_snd(!g_alpine_game_config.try_disable_weapon_shake);
 }
 
 void ao_fullbrightchar_cbox_on_click(int x, int y) {
     g_alpine_game_config.try_fullbright_characters = !g_alpine_game_config.try_fullbright_characters;
     ao_fullbrightchar_cbox.checked = g_alpine_game_config.try_fullbright_characters;
     evaluate_fullbright_meshes();
-
-    if (ao_fullbrightchar_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_fullbrightchar_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.try_fullbright_characters);
 }
 
 void ao_notex_cbox_on_click(int x, int y) {
     g_alpine_game_config.try_disable_textures = !g_alpine_game_config.try_disable_textures;
     ao_notex_cbox.checked = g_alpine_game_config.try_disable_textures;
     evaluate_lightmaps_only();
-
-    if (ao_notex_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_notex_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.try_disable_textures);
 }
 
 void ao_meshstatic_cbox_on_click(int x, int y) {
     g_alpine_game_config.mesh_static_lighting = !g_alpine_game_config.mesh_static_lighting;
     ao_meshstatic_cbox.checked = g_alpine_game_config.mesh_static_lighting;
     recalc_mesh_static_lighting();
-
-    if (ao_meshstatic_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_meshstatic_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.mesh_static_lighting);
 }
 
 void ao_enemybullets_cbox_on_click(int x, int y) {
     g_alpine_game_config.show_enemy_bullets = !g_alpine_game_config.show_enemy_bullets;
     ao_enemybullets_cbox.checked = g_alpine_game_config.show_enemy_bullets;
     apply_show_enemy_bullets();
-
-    if (ao_enemybullets_cbox.checked) {
-        rf::snd_play(45, 0, 0.0f, 1.0f); // on
-    }
-    else {
-        rf::snd_play(44, 0, 0.0f, 1.0f); // off
-    }
-
-    //xlog::warn("cbox clicked {}, {}, is on? {}", x, y, ao_enemybullets_cbox.checked);
+    ao_play_button_snd(g_alpine_game_config.show_enemy_bullets);
 }
 
 void alpine_options_panel_handle_key(rf::Key* key){
@@ -671,65 +884,178 @@ void alpine_options_panel_handle_mouse(int x, int y) {
     }
 }
 
-void alpine_options_panel_checkbox_init(rf::ui::Checkbox* checkbox, rf::ui::Label* label, void (*on_click)(int, int),
-    bool checked, int x, int y, std::string label_text) {
+void alpine_options_panel_checkbox_init(rf::ui::Checkbox* checkbox, rf::ui::Label* label, rf::ui::Panel* parent_panel,
+    void (*on_click)(int, int), bool checked, int x, int y, std::string label_text) {
     checkbox->create("checkbox.tga", "checkbox_selected.tga", "checkbox_checked.tga", x, y, 45, "", 0);
-    checkbox->parent = &alpine_options_panel;
+    checkbox->parent = parent_panel;
     checkbox->checked = checked;
     checkbox->on_click = on_click;
     checkbox->enabled = true;
     alpine_options_panel_settings.push_back(checkbox);
 
-    label->create(&alpine_options_panel, x + 87, y + 5, label_text.c_str(), rf::ui::medium_font_0);
+    label->create(parent_panel, x + 87, y + 6, label_text.c_str(), rf::ui::medium_font_0);
     label->enabled = true;
     alpine_options_panel_labels.push_back(label);
 }
 
+void alpine_options_panel_inputbox_init(rf::ui::Checkbox* checkbox, rf::ui::Label* label, rf::ui::Label* but_label,
+    rf::ui::Panel* parent_panel, void (*on_click)(int, int), int x, int y, std::string label_text) {
+    checkbox->create("ao_smbut1.tga", "ao_smbut1_hover.tga", "ao_tab.tga", x, y, 45, "106.26", 0);
+    checkbox->parent = parent_panel;
+    checkbox->checked = false;
+    checkbox->on_click = on_click;
+    checkbox->enabled = true;
+    alpine_options_panel_settings.push_back(checkbox);
+
+    label->create(parent_panel, x + 87, y + 6, label_text.c_str(), rf::ui::medium_font_0);
+    label->enabled = true;
+    alpine_options_panel_labels.push_back(label);
+
+    but_label->create(parent_panel, x + 32, y + 6, "", rf::ui::medium_font_0);
+    but_label->clr = {255, 255, 255, 255};
+    but_label->enabled = true;
+    alpine_options_panel_labels.push_back(but_label);
+}
+
+void alpine_options_panel_tab_init(rf::ui::Checkbox* tab_button, rf::ui::Label* tab_label,
+    void (*on_click)(int, int), bool checked, int x, int y, int text_offset, std::string tab_label_text) {
+    tab_button->create("ao_tab.tga", "ao_tab_hover.tga", "ao_tab.tga", x, y, 0, "", 0);
+    tab_button->parent = &alpine_options_panel;
+    tab_button->checked = false;
+    tab_button->on_click = on_click;
+    tab_button->enabled = true;
+    alpine_options_panel_settings.push_back(tab_button);
+
+    tab_label->create(&alpine_options_panel, x + text_offset, y + 22, tab_label_text.c_str(), rf::ui::medium_font_0);
+    tab_label->enabled = true;
+    alpine_options_panel_tab_labels.push_back(tab_label);
+}
+
 void alpine_options_panel_init() {
-    alpine_options_panel.create("alpine_options_panel.tga", rf::ui::options_panel_x, rf::ui::options_panel_y);
+    // panels
+    alpine_options_panel.create("alpine_options_panelp.tga", rf::ui::options_panel_x, rf::ui::options_panel_y);
+    alpine_options_panel0.create("alpine_options_panel0.tga", 0, 0);
+    alpine_options_panel0.parent = &alpine_options_panel;
+    alpine_options_panel1.create("alpine_options_panel1.tga", 0, 0);
+    alpine_options_panel1.parent = &alpine_options_panel;
+    alpine_options_panel2.create("alpine_options_panel2.tga", 0, 0);
+    alpine_options_panel2.parent = &alpine_options_panel;
+    alpine_options_panel3.create("alpine_options_panel3.tga", 0, 0);
+    alpine_options_panel3.parent = &alpine_options_panel;
+
+    // tabs
+    alpine_options_panel_tab_init(
+        &ao_tab_0_cbox, &ao_tab_0_label, ao_tab_button_on_click_0, alpine_options_panel_current_tab == 0, 107, 0, 27, "Visual");
+    alpine_options_panel_tab_init(
+        &ao_tab_1_cbox, &ao_tab_1_label, ao_tab_button_on_click_1, alpine_options_panel_current_tab == 1, 199, 0, 18, "Interface");
+    alpine_options_panel_tab_init(
+        &ao_tab_2_cbox, &ao_tab_2_label, ao_tab_button_on_click_2, alpine_options_panel_current_tab == 2, 291, 0, 29, "Input");
+    alpine_options_panel_tab_init(
+        &ao_tab_3_cbox, &ao_tab_3_label, ao_tab_button_on_click_3, alpine_options_panel_current_tab == 3, 383, 0, 30, "Misc");
+
+    // panel 0
+    alpine_options_panel_checkbox_init(
+        &ao_enemybullets_cbox, &ao_enemybullets_label, &alpine_options_panel0, ao_enemybullets_cbox_on_click, g_alpine_game_config.show_enemy_bullets, 112, 54, "Enemy bullets");
+    alpine_options_panel_checkbox_init(
+        &ao_notex_cbox, &ao_notex_label, &alpine_options_panel0, ao_notex_cbox_on_click, g_alpine_game_config.try_disable_textures, 112, 84, "Lightmaps only");
+    alpine_options_panel_checkbox_init(
+        &ao_weapshake_cbox, &ao_weapshake_label, &alpine_options_panel0, ao_weapshake_cbox_on_click, !g_alpine_game_config.try_disable_weapon_shake, 112, 114, "Weapon shake");
+    alpine_options_panel_checkbox_init(
+        &ao_firelights_cbox, &ao_firelights_label, &alpine_options_panel0, ao_firelights_cbox_on_click, !g_alpine_game_config.try_disable_muzzle_flash_lights, 112, 144, "Muzzle lights");
+    alpine_options_panel_inputbox_init(
+        &ao_fov_cbox, &ao_fov_label, &ao_fov_butlabel, &alpine_options_panel0, ao_fov_cbox_on_click, 112, 174, "Horizontal FOV");
+    alpine_options_panel_inputbox_init(
+        &ao_fpfov_cbox, &ao_fpfov_label, &ao_fpfov_butlabel, &alpine_options_panel0, ao_fpfov_cbox_on_click, 112, 204, "Gun FOV mod");
 
     alpine_options_panel_checkbox_init(
-        &ao_bighud_cbox, &ao_bighud_label, ao_bighud_cbox_on_click, g_alpine_game_config.big_hud, 113, 18, "Big HUD");
+        &ao_camshake_cbox, &ao_camshake_label, &alpine_options_panel0, ao_camshake_cbox_on_click, !g_alpine_game_config.screen_shake_force_off, 280, 54, "View shake (SP)");
     alpine_options_panel_checkbox_init(
-        &ao_linearpitch_cbox, &ao_linearpitch_label, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 113, 43, "Linear pitch");
+        &ao_ricochet_cbox, &ao_ricochet_label, &alpine_options_panel0, ao_ricochet_cbox_on_click, g_alpine_game_config.multi_ricochet, 280, 84, "Ricochet FX (MP)");
     alpine_options_panel_checkbox_init(
-        &ao_ctfwh_cbox, &ao_ctfwh_label, ao_ctfwh_cbox_on_click, g_alpine_game_config.world_hud_ctf_icons, 113, 68, "CTF icons");
+        &ao_fullbrightchar_cbox, &ao_fullbrightchar_label, &alpine_options_panel0, ao_fullbrightchar_cbox_on_click, g_alpine_game_config.try_fullbright_characters, 280, 114, "Fullbright models");
     alpine_options_panel_checkbox_init(
-        &ao_damagenum_cbox, &ao_damagenum_label, ao_damagenum_cbox_on_click, g_alpine_game_config.world_hud_damage_numbers, 113, 93, "Hit numbers");
+        &ao_meshstatic_cbox, &ao_meshstatic_label, &alpine_options_panel0, ao_meshstatic_cbox_on_click, g_alpine_game_config.mesh_static_lighting, 280, 144, "Mesh static light");
     alpine_options_panel_checkbox_init(
-        &ao_hitsounds_cbox, &ao_hitsounds_label, ao_hitsounds_cbox_on_click, g_alpine_game_config.play_hit_sounds, 113, 118, "Hit sounds");
+        &ao_nearest_cbox, &ao_nearest_label, &alpine_options_panel0, ao_nearest_cbox_on_click, g_alpine_game_config.nearest_texture_filtering, 280, 174, "Nearest filtering");
     alpine_options_panel_checkbox_init(
-        &ao_taunts_cbox, &ao_taunts_label, ao_taunts_cbox_on_click, g_alpine_game_config.play_taunt_sounds, 113, 143, "Play taunts");
+        &ao_glares_cbox, &ao_glares_label, &alpine_options_panel0, ao_glares_cbox_on_click, g_alpine_game_config.show_glares, 280, 204, "Light glares");
+
+    // panel 1
     alpine_options_panel_checkbox_init(
-        &ao_showfps_cbox, &ao_showfps_label, ao_showfps_cbox_on_click, g_alpine_game_config.fps_counter, 113, 168, "FPS counter");
+        &ao_bighud_cbox, &ao_bighud_label, &alpine_options_panel1, ao_bighud_cbox_on_click, g_alpine_game_config.big_hud, 112, 54, "Big HUD");
     alpine_options_panel_checkbox_init(
-        &ao_redflash_cbox, &ao_redflash_label, ao_redflash_cbox_on_click, g_alpine_game_config.damage_screen_flash, 113, 193, "Damage flash");
+        &ao_damagenum_cbox, &ao_damagenum_label, &alpine_options_panel1, ao_damagenum_cbox_on_click, g_alpine_game_config.world_hud_damage_numbers, 112, 84, "Hit numbers");
+    alpine_options_panel_checkbox_init(
+        &ao_showfps_cbox, &ao_showfps_label, &alpine_options_panel1, ao_showfps_cbox_on_click, g_alpine_game_config.fps_counter, 112, 114, "Show FPS");
+    alpine_options_panel_checkbox_init(
+        &ao_showping_cbox, &ao_showping_label, &alpine_options_panel1, ao_showping_cbox_on_click, g_alpine_game_config.ping_display, 112, 144, "Show latency");
+    alpine_options_panel_checkbox_init(
+        &ao_redflash_cbox, &ao_redflash_label, &alpine_options_panel1, ao_redflash_cbox_on_click, g_alpine_game_config.damage_screen_flash, 112, 174, "Damage flash");
+    alpine_options_panel_checkbox_init(
+        &ao_deathbars_cbox, &ao_deathbars_label, &alpine_options_panel1, ao_deathbars_cbox_on_click, g_alpine_game_config.death_bars, 112, 204, "Death bars");
+    alpine_options_panel_inputbox_init(
+        &ao_retscale_cbox, &ao_retscale_label, &ao_retscale_butlabel, &alpine_options_panel1, ao_retscale_cbox_on_click, 112, 234, "Reticle scale");
 
     alpine_options_panel_checkbox_init(
-        &ao_swapar_cbox, &ao_swapar_label, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 280, 18, "Swap AR binds");
+        &ao_ctfwh_cbox, &ao_ctfwh_label, &alpine_options_panel1, ao_ctfwh_cbox_on_click, g_alpine_game_config.world_hud_ctf_icons, 280, 54, "CTF icons");
     alpine_options_panel_checkbox_init(
-        &ao_swapgn_cbox, &ao_swapgn_label, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 280, 43, "Swap GN binds");
+        &ao_overdrawwh_cbox, &ao_overdrawwh_label, &alpine_options_panel1, ao_overdrawwh_cbox_on_click, g_alpine_game_config.world_hud_overdraw, 280, 84, "Icon overdraw");
     alpine_options_panel_checkbox_init(
-        &ao_swapsg_cbox, &ao_swapsg_label, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 280, 68, "Swap SG binds");
+        &ao_sbanim_cbox, &ao_sbanim_label, &alpine_options_panel1, ao_sbanim_cbox_on_click, g_alpine_game_config.scoreboard_anim, 280, 114, "Scoreboard anim");
     alpine_options_panel_checkbox_init(
-        &ao_weapshake_cbox, &ao_weapshake_label, ao_weapshake_cbox_on_click, !g_alpine_game_config.try_disable_weapon_shake, 280, 93, "Weapon shake");
+        &ao_teamlabels_cbox, &ao_teamlabels_label, &alpine_options_panel1, ao_teamlabels_cbox_on_click, g_alpine_game_config.world_hud_team_player_labels, 280, 144, "Label teammates");
     alpine_options_panel_checkbox_init(
-        &ao_notex_cbox, &ao_notex_label, ao_notex_cbox_on_click, g_alpine_game_config.try_disable_textures, 280, 118, "Lightmaps only");
+        &ao_minimaltimer_cbox, &ao_minimaltimer_label, &alpine_options_panel1, ao_minimaltimer_cbox_on_click, !g_alpine_game_config.verbose_time_left_display, 280, 174, "Minimal timer");
     alpine_options_panel_checkbox_init(
-        &ao_fullbrightchar_cbox, &ao_fullbrightchar_label, ao_fullbrightchar_cbox_on_click, g_alpine_game_config.try_fullbright_characters, 280, 143, "Fullbright models");
-    alpine_options_panel_checkbox_init(
-        &ao_meshstatic_cbox, &ao_meshstatic_label, ao_meshstatic_cbox_on_click, g_alpine_game_config.mesh_static_lighting, 280, 168, "Mesh static light");
-    alpine_options_panel_checkbox_init(
-        &ao_enemybullets_cbox, &ao_enemybullets_label, ao_enemybullets_cbox_on_click, g_alpine_game_config.show_enemy_bullets, 280, 193, "Enemy bullets");
+        &ao_targetnames_cbox, &ao_targetnames_label, &alpine_options_panel1, ao_targetnames_cbox_on_click, g_alpine_game_config.display_target_player_names, 280, 204, "Target names");
 
+    // panel 2
+    alpine_options_panel_checkbox_init(
+        &ao_dinput_cbox, &ao_dinput_label, &alpine_options_panel2, ao_dinput_cbox_on_click, g_alpine_game_config.direct_input, 112, 54, "DirectInput"); 
+    alpine_options_panel_checkbox_init(
+        &ao_linearpitch_cbox, &ao_linearpitch_label, &alpine_options_panel2, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 112, 84, "Linear pitch");
+    alpine_options_panel_checkbox_init(
+        &ao_swapar_cbox, &ao_swapar_label, &alpine_options_panel2, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 112, 114, "Invert AR");
+    alpine_options_panel_checkbox_init(
+        &ao_swapgn_cbox, &ao_swapgn_label, &alpine_options_panel2, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 112, 144, "Invert GN");
+    alpine_options_panel_checkbox_init(
+        &ao_swapsg_cbox, &ao_swapsg_label, &alpine_options_panel2, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 112, 174, "Invert SG");
+
+    alpine_options_panel_inputbox_init(
+        &ao_ms_cbox, &ao_ms_label, &ao_ms_butlabel, &alpine_options_panel2, ao_ms_cbox_on_click, 280, 54, "Mouse sensitivity");
+    alpine_options_panel_inputbox_init(
+        &ao_scannersens_cbox, &ao_scannersens_label, &ao_scannersens_butlabel, &alpine_options_panel2, ao_scannersens_cbox_on_click, 280, 84, "Scanner modifier");
+    alpine_options_panel_inputbox_init(
+        &ao_scopesens_cbox, &ao_scopesens_label, &ao_scopesens_butlabel, &alpine_options_panel2, ao_scopesens_cbox_on_click, 280, 114, "Scope modifier");
+    alpine_options_panel_checkbox_init(
+        &ao_staticscope_cbox, &ao_staticscope_label, &alpine_options_panel2, ao_staticscope_cbox_on_click, g_alpine_game_config.scope_static_sensitivity, 280, 144, "Linear scope");
+
+    // panel 3
+    alpine_options_panel_checkbox_init(
+        &ao_hitsounds_cbox, &ao_hitsounds_label, &alpine_options_panel3, ao_hitsounds_cbox_on_click, g_alpine_game_config.play_hit_sounds, 112, 54, "Hit sounds");
+    alpine_options_panel_checkbox_init(
+        &ao_taunts_cbox, &ao_taunts_label, &alpine_options_panel3, ao_taunts_cbox_on_click, g_alpine_game_config.play_taunt_sounds, 112, 84, "Taunt sounds");
+    alpine_options_panel_checkbox_init(
+        &ao_autosave_cbox, &ao_autosave_label, &alpine_options_panel3, ao_autosave_cbox_on_click, g_alpine_game_config.autosave, 112, 114, "Autosave");
+    alpine_options_panel_checkbox_init(
+        &ao_clicklimit_cbox, &ao_clicklimit_label, &alpine_options_panel3, ao_clicklimit_cbox_on_click, !g_alpine_game_config.unlimited_semi_auto, 280, 114, "Click limiter");
+
+    alpine_options_panel_checkbox_init(
+        &ao_teamrad_cbox, &ao_teamrad_label, &alpine_options_panel3, ao_teamrad_cbox_on_click, g_alpine_game_config.play_team_rad_msg_sounds, 280, 54, "Team radio msgs");
+    alpine_options_panel_checkbox_init(
+        &ao_globalrad_cbox, &ao_globalrad_label, &alpine_options_panel3, ao_globalrad_cbox_on_click, g_alpine_game_config.play_global_rad_msg_sounds, 280, 84, "Global radio msgs");
+    alpine_options_panel_checkbox_init(
+        &ao_gaussian_cbox, &ao_gaussian_label, &alpine_options_panel3, ao_gaussian_cbox_on_click, g_alpine_game_config.gaussian_spread, 112, 144, "Gaussian RNG");
+
+    // fflink text (parent panel)
     std::string fflink_username = g_game_config.fflink_username.value();
     std::string fflink_label_text1 = "";
     std::string fflink_label_text2 = "";
     std::string fflink_label_text3 = "";
     if (fflink_username.empty()) {
         fflink_label_text1 = "Alpine Faction is NOT linked to a FactionFiles account!";
-        fflink_label_text2 = "Linking enables features like achievements and map ratings.";
-        fflink_label_text3 = "Visit alpinefaction.com/link for more information.";
+        fflink_label_text2 = "Linking enables achievements and map ratings.";
+        fflink_label_text3 = "Visit alpinefaction.com/link to link your account.";
     }
     else {
         fflink_label_text1 = "";
@@ -737,29 +1063,57 @@ void alpine_options_panel_init() {
         fflink_label_text3 = "";
     }
 
-    ao_fflink_label1.create(&alpine_options_panel, 125, 253, fflink_label_text1.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label1.create(&alpine_options_panel, 125, 304, fflink_label_text1.c_str(), rf::ui::medium_font_0);
     ao_fflink_label1.enabled = true;
     alpine_options_panel_labels.push_back(&ao_fflink_label1);
-    ao_fflink_label2.create(&alpine_options_panel, 125, 268, fflink_label_text2.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label2.create(&alpine_options_panel, 125, 319, fflink_label_text2.c_str(), rf::ui::medium_font_0);
     ao_fflink_label2.enabled = true;
     alpine_options_panel_labels.push_back(&ao_fflink_label2);
-    ao_fflink_label3.create(&alpine_options_panel, 125, 283, fflink_label_text3.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label3.create(&alpine_options_panel, 125, 334, fflink_label_text3.c_str(), rf::ui::medium_font_0);
     ao_fflink_label3.enabled = true;
     alpine_options_panel_labels.push_back(&ao_fflink_label3);
 }
 
-void alpine_options_panel_do_frame(int x) {
+void alpine_options_panel_do_frame(int x)
+{
+    // render parent panel
     alpine_options_panel.x = x;
     alpine_options_panel.render();
 
-    // render labels
-    for (auto* ui_label : alpine_options_panel_labels) {
-        if (ui_label) {
-            ui_label->render();
-        }
+    // render selected panel
+    switch (alpine_options_panel_current_tab) {
+    case 1:
+        alpine_options_panel1.x = 0;
+        alpine_options_panel1.render();
+        alpine_options_panel0.x = 10000;
+        alpine_options_panel2.x = 10000;
+        alpine_options_panel3.x = 10000;
+        break;
+    case 2:
+        alpine_options_panel2.x = 0;
+        alpine_options_panel2.render();
+        alpine_options_panel0.x = 10000;
+        alpine_options_panel1.x = 10000;
+        alpine_options_panel3.x = 10000;
+        break;
+    case 3:
+        alpine_options_panel3.x = 0;
+        alpine_options_panel3.render();
+        alpine_options_panel0.x = 10000;
+        alpine_options_panel1.x = 10000;
+        alpine_options_panel2.x = 10000;
+        break;
+    case 0:
+    default:
+        alpine_options_panel0.x = 0;
+        alpine_options_panel0.render();
+        alpine_options_panel1.x = 10000;
+        alpine_options_panel2.x = 10000;
+        alpine_options_panel3.x = 10000;
+        break;
     }
 
-    // render dynamic elements
+    // render dynamic elements across all panels
     for (auto* ui_element : alpine_options_panel_settings) {
         if (ui_element) {
             auto checkbox = static_cast<rf::ui::Checkbox*>(ui_element);
@@ -768,11 +1122,53 @@ void alpine_options_panel_do_frame(int x) {
             }
         }
     }
+
+    // render tab labels
+    for (auto* ui_label : alpine_options_panel_tab_labels) {
+        if (ui_label) {
+            ui_label->render();
+        }
+    }
+
+    // set dynamic strings for button labels
+    // fov
+    if (g_alpine_game_config.horz_fov == 0.0f) {
+        snprintf(ao_fov_butlabel_text, sizeof(ao_fov_butlabel_text), " auto ");
+    }
+    else {
+        snprintf(ao_fov_butlabel_text, sizeof(ao_fov_butlabel_text), "%6.2f", g_alpine_game_config.horz_fov);
+    }
+    ao_fov_butlabel.text = ao_fov_butlabel_text;
+
+    // fpgun fov
+    snprintf(ao_fpfov_butlabel_text, sizeof(ao_fpfov_butlabel_text), "%6.2f", g_alpine_game_config.fpgun_fov_scale);
+    ao_fpfov_butlabel.text = ao_fpfov_butlabel_text;
+
+    // ms
+    snprintf(ao_ms_butlabel_text, sizeof(ao_ms_butlabel_text), "%6.4f", rf::local_player->settings.controls.mouse_sensitivity);
+    ao_ms_butlabel.text = ao_ms_butlabel_text;
+
+    // scanner ms
+    snprintf(ao_scannersens_butlabel_text, sizeof(ao_scannersens_butlabel_text), "%6.4f", g_alpine_game_config.scanner_sensitivity_modifier);
+    ao_scannersens_butlabel.text = ao_scannersens_butlabel_text;
+
+    // scope ms
+    snprintf(ao_scopesens_butlabel_text, sizeof(ao_scopesens_butlabel_text), "%6.4f", g_alpine_game_config.scope_sensitivity_modifier);
+    ao_scopesens_butlabel.text = ao_scopesens_butlabel_text;
+
+    // ret scale
+    snprintf(ao_retscale_butlabel_text, sizeof(ao_retscale_butlabel_text), "%6.2f", g_alpine_game_config.reticle_scale);
+    ao_retscale_butlabel.text = ao_retscale_butlabel_text;
+
+    // render button labels
+    for (auto* ui_label : alpine_options_panel_labels) {
+        if (ui_label) {
+            ui_label->render();
+        }
+    }
 }
 
 static void options_alpine_on_click() {
-    //xlog::warn("Hello frozen world!");
-
     constexpr int alpine_options_panel_id = 4;
 
     if (rf::ui::options_current_panel == alpine_options_panel_id) {
@@ -791,7 +1187,7 @@ CodeInjection options_init_build_button_patch{
     [](auto& regs) {
         //xlog::warn("Creating new button...");
         alpine_options_btn.init();
-        alpine_options_btn.create("button_more.tga", "button_selected.tga", 0, 0, 99, "ALPINE FACTION", rf::ui::medium_font_0);
+        alpine_options_btn.create("button_more.tga", "button_selected.tga", 0, 0, 99, "ADVANCED", rf::ui::medium_font_0);
         alpine_options_btn.key = 0x2E;
         alpine_options_btn.enabled = true;
     },
@@ -809,8 +1205,8 @@ CodeInjection options_init_build_button_array_patch{
             new_gadgets[i] = old_gadgets[i];
         }
 
-        new_gadgets[4] = &alpine_options_btn; // add alpine options button
-        new_gadgets[5] = old_gadgets[4]; // position back button after alpine options
+        new_gadgets[4] = &alpine_options_btn;   // add alpine options button
+        new_gadgets[5] = old_gadgets[4];        // position back button after alpine options
 
         alpine_options_panel_init();
     },
@@ -845,7 +1241,7 @@ CodeInjection options_render_alpine_panel_patch{
 
         // render alpine options panel
         if (index == 4) {
-            alpine_options_panel_do_frame(rf::ui::options_animated_offset);
+            alpine_options_panel_do_frame(static_cast<int>(rf::ui::options_animated_offset));
         }
     },
 };
@@ -942,6 +1338,9 @@ void ui_apply_patch()
     AsmWriter{0x0044F550}.push(6); // num buttons in options menu
     AsmWriter{0x0044F552}.push(&new_gadgets); // support mouseover for alpine options button
     AsmWriter{0x0044F285}.push(5); // back button index, used when hitting esc in options menu
+
+    // set mouse sens slider in controls options panel to max at 0.5 (stock game is 1.0)
+    AsmWriter{0x004504AE}.push(0x3F000000);
 
     // Sharp UI text
 #if SHARP_UI_TEXT

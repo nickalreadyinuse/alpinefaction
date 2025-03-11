@@ -96,7 +96,15 @@ add_packfile(alpinefaction.vpp
     sounds/af_radmsg_045.ogg
     sounds/af_radmsg_046.ogg
 
-    images/alpine_options_panel.vbm
+    images/alpine_options_panelp.tga
+    images/alpine_options_panel0.tga
+    images/alpine_options_panel1.tga
+    images/alpine_options_panel2.tga
+    images/alpine_options_panel3.tga
+    images/ao_tab.tga
+    images/ao_tab_hover.tga
+    images/ao_smbut1.tga
+    images/ao_smbut1_hover.tga
     images/af_wh_ctf_blue_a.tga
     images/af_wh_ctf_red_a.tga
     images/af_wh_ctf_blue_d.tga
