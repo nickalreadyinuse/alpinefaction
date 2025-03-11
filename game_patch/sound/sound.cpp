@@ -29,15 +29,14 @@ namespace rf
 
 void player_fpgun_move_sounds(const rf::Vector3& camera_pos, const rf::Vector3& camera_vel);
 
-void set_play_sound_events_volume_scale(float volume_scale)
+void set_play_sound_events_volume_scale()
 {
-    volume_scale = std::clamp(volume_scale, 0.0f, 1.0f);
     uintptr_t offsets[] = {
         // Play Sound event
         0x004BA4D8, 0x004BA515, 0x004BA71C, 0x004BA759, 0x004BA609, 0x004BA5F2, 0x004BA63F,
     };
     for (auto offset : offsets) {
-        write_mem<float>(offset + 1, volume_scale);
+        write_mem<float>(offset + 1, g_alpine_game_config.level_sound_volume);
     }
 }
 
@@ -129,14 +128,11 @@ void set_sound_enabled(bool enabled)
 ConsoleCommand2 level_sounds_cmd{
     "levelsounds",
     [](std::optional<float> volume) {
-        if (volume) {
-            float vol_scale = std::clamp(volume.value(), 0.0f, 1.0f);
-            set_play_sound_events_volume_scale(vol_scale);
-
-            g_game_config.level_sound_volume = vol_scale;
-            g_game_config.save();
+        if (volume.has_value()) {
+            g_alpine_game_config.set_level_sound_volume(volume.value());
+            set_play_sound_events_volume_scale();
         }
-        rf::console::print("Level sound volume: {:.1f}", g_game_config.level_sound_volume.value());
+        rf::console::print("Level sound volume: {:.1f}", g_alpine_game_config.level_sound_volume);
     },
     "Sets level sounds volume scale",
     "levelsounds <volume>",
@@ -346,9 +342,9 @@ void snd_update_ambient_sounds(const rf::Vector3& camera_pos)
             auto& sound = rf::sounds[ambient_snd.handle];
             bool in_range = distance <= sound.max_range;
             // Note: when ambient sound is muted its volume is set to 0 (events can mute/unmute ambient sounds)
-            // When it's muted destroy it so it can be recreated when unmuted and start playing from the beggining
+            // When it's muted destroy it so it can be recreated when unmuted and start playing from the beginning
             if (in_range && ambient_snd.volume > 0.0f) {
-                float vol_scale = ambient_snd.volume * rf::snd_group_volume[rf::SOUND_GROUP_EFFECTS] * g_game_config.level_sound_volume;
+                float vol_scale = ambient_snd.volume * rf::snd_group_volume[rf::SOUND_GROUP_EFFECTS] * g_alpine_game_config.level_sound_volume;
                 if (ambient_snd.sig < 0) {
                     bool is_looping = rf::sounds[ambient_snd.handle].is_looping;
                     ambient_snd.sig = snd_pc_play_3d_new(ambient_snd.handle, ambient_snd.pos, vol_scale, is_looping);
@@ -782,9 +778,6 @@ void apply_sound_patches()
     // Cutscene skip support
     cutscene_play_music_hook.install();
     snd_music_play_cutscene_hook.install();
-
-    // Level sounds
-    set_play_sound_events_volume_scale(g_game_config.level_sound_volume);
 
     // Fix ambient sound volume updating
     AsmWriter(0x00505FD7, 0x00505FFB)

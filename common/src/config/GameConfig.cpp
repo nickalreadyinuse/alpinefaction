@@ -178,7 +178,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Renderer", renderer);
     result &= visitor(dash_faction_key, "Executable Path", game_executable_path);
     result &= visitor(dash_faction_key, "Fast Start", fast_start);
-    result &= visitor(dash_faction_key, "Level Sound Volume", level_sound_volume);
     result &= visitor(dash_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
     result &= visitor(dash_faction_key, "Version", alpine_faction_version);
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);

@@ -92,7 +92,7 @@ Version 1.1.0 (Tamarack): Not yet released
   - Muzzle flash lights, unlimited semi auto, gaussian spread, ricochet
   - Damage screen flash, death bars, mesh static lighting, show glares, show enemy bullets
   - Show FPS, show ping, spectate mode minimal UI, nearest texture filtering
-  - DirectInput, autosave, scoreboard animations
+  - DirectInput, autosave, scoreboard animations, level sound modifier
 - Add `Alpine Faction` options panel to in-game options menu with FFLink status and the following settings:
     - Big HUD, linear pitch, swap controls for AR, SG, GN
     - Weapon shake, fullbright characters, lightmaps only

@@ -49,6 +49,12 @@ struct AlpineGameSettings
         reticle_scale = std::clamp(scale, 0.0f, 100.0f);
     }
 
+    float level_sound_volume = 1.0f;
+    void set_level_sound_volume(float scale)
+    {
+        level_sound_volume = std::clamp(scale, 0.0f, 1.0f);
+    }
+
     bool scope_static_sensitivity = false;
     bool swap_ar_controls = false;
     bool swap_gn_controls = false;
@@ -101,3 +107,4 @@ void apply_show_enemy_bullets();
 void apply_console_history_setting();
 void build_time_left_string_format();
 void gr_update_texture_filtering();
+void set_play_sound_events_volume_scale();

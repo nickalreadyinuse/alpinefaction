@@ -63,7 +63,6 @@ struct GameConfig
     CfgVar<bool> pow2tex = false;   
 
     // Audio
-    CfgVar<float> level_sound_volume = 1.0f;
     CfgVar<bool> eax_sound = true;
 
     // Multiplayer

@@ -209,6 +209,11 @@ bool alpine_player_settings_load(rf::Player* player)
         rf::snd_set_group_volume(2, std::stof(settings["MessagesVolume"]));
         processed_keys.insert("MessagesVolume");
     }
+    if (settings.count("LevelSoundVolume")) {
+        g_alpine_game_config.set_level_sound_volume(std::stof(settings["LevelSoundVolume"]));
+        set_play_sound_events_volume_scale();
+        processed_keys.insert("LevelSoundVolume");
+    }
 
     // Load video settings
     if (settings.count("Gamma")) {
@@ -592,6 +597,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "EffectsVolume=" << rf::snd_get_group_volume(0) << "\n";
     file << "MusicVolume=" << rf::snd_get_group_volume(1) << "\n";
     file << "MessagesVolume=" << rf::snd_get_group_volume(2) << "\n";
+    file << "LevelSoundVolume=" << g_alpine_game_config.level_sound_volume << "\n";
 
     // Video
     file << "\n[VideoSettings]\n";
@@ -658,6 +664,7 @@ void set_alpine_config_defaults() {
     rf::game_set_gore_level(2);
     g_alpine_game_config.save_console_history = true; // must be set here because evaluated before config loaded
     build_time_left_string_format();
+    set_play_sound_events_volume_scale();
 }
 
 CallHook<void(rf::Player*)> player_settings_load_hook{
