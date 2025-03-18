@@ -927,8 +927,7 @@ namespace rf
                 initial_value = persist_event->initial_count;
             }
 
-            xlog::warn("Current goal value for '{}': {}, Initial value: {}", effective_goal, current_value,
-                       initial_value);
+            //xlog::info("Current goal value for '{}': {}, Initial value: {}", effective_goal, current_value, initial_value);
 
             bool pass = false;
 
