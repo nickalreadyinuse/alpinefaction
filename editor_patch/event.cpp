@@ -1030,6 +1030,7 @@ CodeInjection arrows_for_events_patch {
 
         int event_type = *reinterpret_cast<int*>(regs.esi + 0x94);
 
+        // Arrow is drawn for Teleport_Player as well (stock game behaviour)
         if (event_type == 41 || // Play_VClip
             event_type == 69 || // Teleport
             event_type == static_cast<int>(AlpineDedEventID::AF_Teleport_Player) ||
