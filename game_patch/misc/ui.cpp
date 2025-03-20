@@ -142,6 +142,8 @@ static rf::ui::Checkbox ao_meshstatic_cbox;
 static rf::ui::Label ao_meshstatic_label;
 static rf::ui::Checkbox ao_enemybullets_cbox;
 static rf::ui::Label ao_enemybullets_label;
+static rf::ui::Checkbox ao_togglecrouch_cbox;
+static rf::ui::Label ao_togglecrouch_label;
 
 // fflink info strings
 static rf::ui::Label ao_fflink_label1;
@@ -524,12 +526,12 @@ void ao_fov_cbox_on_click_callback() {
         g_alpine_game_config.set_horz_fov(new_fov);
     }
     catch (const std::exception& e) {
-        xlog::warn("Invalid FOV input: '{}', reason: {}", str, e.what());
+        xlog::info("Invalid FOV input: '{}', reason: {}", str, e.what());
     }
 }
 void ao_fov_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new FOV value (0 for automatic scaling):", "", ao_fov_cbox_on_click_callback, 1);
-    ao_play_tab_snd();
+    //ao_play_tab_snd();
 }
 
 // fpgun fov
@@ -542,12 +544,12 @@ void ao_fpfov_cbox_on_click_callback() {
         g_alpine_game_config.set_fpgun_fov_scale(new_fpfov);
     }
     catch (const std::exception& e) {
-        xlog::warn("Invalid FPGun FOV input: '{}', reason: {}", str, e.what());
+        xlog::info("Invalid FPGun FOV input: '{}', reason: {}", str, e.what());
     }
 }
 void ao_fpfov_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new FPGun FOV modifier value:", "", ao_fpfov_cbox_on_click_callback, 1);
-    ao_play_tab_snd();
+    //ao_play_tab_snd();
 }
 
 // ms
@@ -560,12 +562,12 @@ void ao_ms_cbox_on_click_callback() {
         rf::local_player->settings.controls.mouse_sensitivity = new_ms;
     }
     catch (const std::exception& e) {
-        xlog::warn("Invalid sensitivity input: '{}', reason: {}", str, e.what());
+        xlog::info("Invalid sensitivity input: '{}', reason: {}", str, e.what());
     }
 }
 void ao_ms_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new mouse sensitivity value:", "", ao_ms_cbox_on_click_callback, 1);
-    ao_play_tab_snd();
+    //ao_play_tab_snd();
 }
 
 // scanner ms
@@ -578,12 +580,12 @@ void ao_scannersens_cbox_on_click_callback() {
         g_alpine_game_config.scanner_sensitivity_modifier = new_scale;
     }
     catch (const std::exception& e) {
-        xlog::warn("Invalid modifier input: '{}', reason: {}", str, e.what());
+        xlog::info("Invalid modifier input: '{}', reason: {}", str, e.what());
     }
 }
 void ao_scannersens_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new scanner sensitivity modifier value:", "", ao_scannersens_cbox_on_click_callback, 1);
-    ao_play_tab_snd();
+    //ao_play_tab_snd();
 }
 
 // scope ms
@@ -596,12 +598,12 @@ void ao_scopesens_cbox_on_click_callback() {
         g_alpine_game_config.scope_sensitivity_modifier = new_scale;
     }
     catch (const std::exception& e) {
-        xlog::warn("Invalid modifier input: '{}', reason: {}", str, e.what());
+        xlog::info("Invalid modifier input: '{}', reason: {}", str, e.what());
     }
 }
 void ao_scopesens_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new scope sensitivity modifier value:", "", ao_scopesens_cbox_on_click_callback, 1);
-    ao_play_tab_snd();
+    //ao_play_tab_snd();
 }
 
 // reticle scale
@@ -614,12 +616,12 @@ void ao_retscale_cbox_on_click_callback() {
         g_alpine_game_config.set_reticle_scale(new_scale);
     }
     catch (const std::exception& e) {
-        xlog::warn("Invalid reticle scale input: '{}', reason: {}", str, e.what());
+        xlog::info("Invalid reticle scale input: '{}', reason: {}", str, e.what());
     }
 }
 void ao_retscale_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new reticle scale value:", "", ao_retscale_cbox_on_click_callback, 1);
-    ao_play_tab_snd();
+    //ao_play_tab_snd();
 }
 
 void ao_damagenum_cbox_on_click(int x, int y) {
@@ -644,6 +646,12 @@ void ao_teamrad_cbox_on_click(int x, int y) {
     g_alpine_game_config.play_team_rad_msg_sounds = !g_alpine_game_config.play_team_rad_msg_sounds;
     ao_teamrad_cbox.checked = g_alpine_game_config.play_team_rad_msg_sounds;
     ao_play_button_snd(g_alpine_game_config.play_team_rad_msg_sounds);
+}
+
+void ao_togglecrouch_cbox_on_click(int x, int y) {
+    rf::local_player->settings.toggle_crouch = !rf::local_player->settings.toggle_crouch;
+    ao_togglecrouch_cbox.checked = rf::local_player->settings.toggle_crouch;
+    ao_play_button_snd(rf::local_player->settings.toggle_crouch);
 }
 
 void ao_globalrad_cbox_on_click(int x, int y) {
@@ -1015,11 +1023,11 @@ void alpine_options_panel_init() {
     alpine_options_panel_checkbox_init(
         &ao_linearpitch_cbox, &ao_linearpitch_label, &alpine_options_panel2, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 112, 84, "Linear pitch");
     alpine_options_panel_checkbox_init(
-        &ao_swapar_cbox, &ao_swapar_label, &alpine_options_panel2, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 112, 114, "Invert AR");
+        &ao_swapar_cbox, &ao_swapar_label, &alpine_options_panel2, ao_swapar_cbox_on_click, g_alpine_game_config.swap_ar_controls, 112, 114, "Swap AR");
     alpine_options_panel_checkbox_init(
-        &ao_swapgn_cbox, &ao_swapgn_label, &alpine_options_panel2, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 112, 144, "Invert GN");
+        &ao_swapgn_cbox, &ao_swapgn_label, &alpine_options_panel2, ao_swapgn_cbox_on_click, g_alpine_game_config.swap_gn_controls, 112, 144, "Swap Grenade");
     alpine_options_panel_checkbox_init(
-        &ao_swapsg_cbox, &ao_swapsg_label, &alpine_options_panel2, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 112, 174, "Invert SG");
+        &ao_swapsg_cbox, &ao_swapsg_label, &alpine_options_panel2, ao_swapsg_cbox_on_click, g_alpine_game_config.swap_sg_controls, 112, 174, "Swap Shotgun");
 
     alpine_options_panel_inputbox_init(
         &ao_ms_cbox, &ao_ms_label, &ao_ms_butlabel, &alpine_options_panel2, ao_ms_cbox_on_click, 280, 54, "Mouse sensitivity");
@@ -1029,6 +1037,8 @@ void alpine_options_panel_init() {
         &ao_scopesens_cbox, &ao_scopesens_label, &ao_scopesens_butlabel, &alpine_options_panel2, ao_scopesens_cbox_on_click, 280, 114, "Scope modifier");
     alpine_options_panel_checkbox_init(
         &ao_staticscope_cbox, &ao_staticscope_label, &alpine_options_panel2, ao_staticscope_cbox_on_click, g_alpine_game_config.scope_static_sensitivity, 280, 144, "Linear scope");
+    alpine_options_panel_checkbox_init(
+        &ao_togglecrouch_cbox, &ao_togglecrouch_label, &alpine_options_panel2, ao_togglecrouch_cbox_on_click, rf::local_player->settings.toggle_crouch, 280, 174, "Toggle crouch");
 
     // panel 3
     alpine_options_panel_checkbox_init(
@@ -1037,15 +1047,15 @@ void alpine_options_panel_init() {
         &ao_taunts_cbox, &ao_taunts_label, &alpine_options_panel3, ao_taunts_cbox_on_click, g_alpine_game_config.play_taunt_sounds, 112, 84, "Taunt sounds");
     alpine_options_panel_checkbox_init(
         &ao_autosave_cbox, &ao_autosave_label, &alpine_options_panel3, ao_autosave_cbox_on_click, g_alpine_game_config.autosave, 112, 114, "Autosave");
-    alpine_options_panel_checkbox_init(
-        &ao_clicklimit_cbox, &ao_clicklimit_label, &alpine_options_panel3, ao_clicklimit_cbox_on_click, !g_alpine_game_config.unlimited_semi_auto, 280, 114, "Click limiter");
+    //alpine_options_panel_checkbox_init(
+    //    &ao_clicklimit_cbox, &ao_clicklimit_label, &alpine_options_panel3, ao_clicklimit_cbox_on_click, !g_alpine_game_config.unlimited_semi_auto, 280, 114, "Click limiter");
 
     alpine_options_panel_checkbox_init(
         &ao_teamrad_cbox, &ao_teamrad_label, &alpine_options_panel3, ao_teamrad_cbox_on_click, g_alpine_game_config.play_team_rad_msg_sounds, 280, 54, "Team radio msgs");
     alpine_options_panel_checkbox_init(
         &ao_globalrad_cbox, &ao_globalrad_label, &alpine_options_panel3, ao_globalrad_cbox_on_click, g_alpine_game_config.play_global_rad_msg_sounds, 280, 84, "Global radio msgs");
     alpine_options_panel_checkbox_init(
-        &ao_gaussian_cbox, &ao_gaussian_label, &alpine_options_panel3, ao_gaussian_cbox_on_click, g_alpine_game_config.gaussian_spread, 112, 144, "Gaussian RNG");
+        &ao_gaussian_cbox, &ao_gaussian_label, &alpine_options_panel3, ao_gaussian_cbox_on_click, g_alpine_game_config.gaussian_spread, 280, 114, "Gaussian RNG");
 
     // fflink text (parent panel)
     std::string fflink_username = g_game_config.fflink_username.value();
