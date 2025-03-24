@@ -354,7 +354,7 @@ void CMainFrame_PlayMulti(CWnd* this_)
 
     xlog::warn("Launching game with filename: {}", filename);
 
-    std::string commandLine = g_launcher_pathname + " -game -levelm " + filename;
+    std::string commandLine = g_launcher_pathname + " -game -levelm \"" + filename + "\"";
     xlog::warn("Running: {}", commandLine);
 
     STARTUPINFOA startupInfo{};

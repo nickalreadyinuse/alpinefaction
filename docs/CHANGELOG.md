@@ -131,6 +131,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix `Player Entity Type`, `Player Undercover Suit Entity Type`, `Player Undercover Scientist Entity Type` not always applying
 - Fix lava and acid damage sometimes being attributed to a random player in the game
 - Fix level editor not handling new events with orient values from loaded groups (bump version field for rfg files)
+- Fix `Play (multi)` button in level editor not launching levels with spaces in filename
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
