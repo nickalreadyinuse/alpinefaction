@@ -104,6 +104,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Made lava and acid damage result in a self kill in multiplayer rather than a mysterious kill
 - Add radio message audio
 - Allow `Anchor_Marker_Orient` event as skybox eye anchor
+- Add support for `$Crater Texture PPM` to `MAPNAME_info.tbl`
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

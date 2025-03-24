@@ -17,3 +17,4 @@ bool rfl_version_minimum(int check_version);
 void evaluate_restrict_disable_ss();
 void evaluate_restrict_disable_muzzle_flash();
 void initialize_achievement_manager();
+void set_levelmod_autotexture_ppm();

@@ -186,6 +186,7 @@ FunHook<void(bool)> level_init_post_hook{
 
         if (!rf::is_dedicated_server) {
             evaluate_fullbright_meshes();
+            set_levelmod_autotexture_ppm();
             if (!rf::is_multi) {
                 update_player_flashlight();
             }

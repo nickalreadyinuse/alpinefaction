@@ -23,6 +23,7 @@
 constexpr auto reference_fps = 30.0f;
 constexpr auto reference_frametime = 1.0f / reference_fps;
 static int g_max_decals = 512;
+static float g_crater_autotexture_ppm = 32.0f;
 static bool g_show_room_clip_wnd = false;
 std::optional<int> g_sky_room_uid_override;
 std::optional<rf::Object*> g_sky_room_eye_anchor;
@@ -509,7 +510,7 @@ CodeInjection levelmod_do_blast_autotexture_ppm_patch{
         int bitmap_w = 256; // default to dimensions of stock geomod bitmaps
         int bitmap_h = 256;
         rf::bm::get_dimensions(bitmap_handle, &bitmap_w, &bitmap_h); // get dimensions of geomod bitmap if different
-        float ppm_default = 256.0f / 32.0f; // ppm of stock geomod bitmaps
+        float ppm_default = 256.0f / g_crater_autotexture_ppm;       // ppm of stock geomod bitmaps
 
         // New bitmap is likely square anyway, but if not, use maximum between its dimensions to prevent
         // one dimension from displaying with higher pixel density than expected
@@ -517,6 +518,15 @@ CodeInjection levelmod_do_blast_autotexture_ppm_patch{
         solid->set_levelmod_blast_autotexture_ppm(ppm_new);
     },
 };
+
+void set_levelmod_autotexture_ppm() {
+    if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::CraterTexturePPM)) {
+        g_crater_autotexture_ppm = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::CraterTexturePPM);
+    }
+    else {
+        g_crater_autotexture_ppm = 32.0f;
+    }
+}
 
 // currently unused
 CallHook<void(rf::GSolid*, rf::GSolid*, rf::GBooleanOperation, bool, rf::Vector3*, rf::Matrix3*, rf::GSolid*,
