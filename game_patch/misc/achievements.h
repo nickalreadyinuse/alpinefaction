@@ -77,6 +77,10 @@ enum class AchievementName : int
     MinerCapekPrison,
     MissileLaunchSabotage,
     MedMax,
+    Robots100,
+    Guards500,
+    Mercs250,
+    GlassHouseShatter,
 };
 
 enum class AchievementType : int
@@ -87,19 +91,19 @@ enum class AchievementType : int
 
 enum class AchievementCategory : int
 {
-    general,                // non-gameplay events
-    statistics,             // derived from kill stats from FF
+    general,                // non-gameplay events, or events that don't fit anywhere else
+    //statistics,             // derived from kill stats from FF (currently unused)
     singleplayer,           // singleplayer mode, not necessarily base campaign
     multiplayer,            // multiplayer mode
     base_campaign,          // base campaign
-    kava,                   // kava mod
+    kava,                   // kava mod campaign
 };
 
 struct Achievement
 {
     int root_uid = -1;
     std::string name = "";
-    std::string icon = ""; // af_achico_000.tga
+    //std::string icon = ""; // af_achico_000.tga
     AchievementCategory category = AchievementCategory::general;
     AchievementType type = AchievementType::basic;
     int pending_count = 0; // local storage, pending sending to ff
@@ -122,11 +126,12 @@ struct LoggedUse
     std::string rfl_filename = "";
     std::string tc_mod_name = "";
     int used_uid = -1;
+    int type = 1; // 1 = object uid, 2 = face id
 };
 
 struct AchievementStateInfo
 {
-    bool unsure_what_for = false;
+    int glass_house_shatters = 0;
     std::vector<int> train01_med_max_uids;
 };
 
@@ -165,7 +170,7 @@ public:
     void log_kill(int entity_uid, const std::string& rfl_filename, const std::string& tc_mod,
         const std::string& class_name, int damage_type, int likely_weapon);
 
-    void log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod);
+    void log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod, int type);
 
 private:
     std::unordered_map<AchievementName, Achievement> achievements;
@@ -191,3 +196,4 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
 
 void achievement_system_do_frame();
 void clear_achievement_notification();
+void reset_achievement_state_info();

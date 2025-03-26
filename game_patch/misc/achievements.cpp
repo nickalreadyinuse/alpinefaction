@@ -42,75 +42,79 @@ void AchievementManager::initialize()
     }
 
     std::vector<std::pair<AchievementName, Achievement>> predefined_achievements = {
-        {AchievementName::SecretFusion, {1, "Explosive Discovery", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::StartTraining, {2, "Tools of the Trade", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FinishTraining, {3, "Welcome to Mars", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FinishCampaignEasy, {4, "Too Easy!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FinishCampaignMedium, {5, "Moderate Success", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FinishCampaignHard, {6, "Tough as Nails", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FinishCampaignImp, {7, "Martian All-Star", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillFish, {8, "Gone Fishin'", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillGuards, {9, "Target Practice", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::LockedInTram, {10, "Red Alert", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::MissShuttle, {11, "If only you'd been faster", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::Ventilation, {12, "Not a fan", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::DestroyGeothermal, {13, "Sabotage", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::DestroyTrashBot, {14, "Unsuppressed", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::MeetCapek, {15, "Mad Martian Meetup", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::CapekVoiceEnd, {16, "It Suddenly Worked", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillSnake, {17, "Who's Cleaning This Up?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::GoSpaceStation, {18, "Stowaway", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::ComputersSpaceStation, {19, "Try a Reboot", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::DestroySpaceStation, {20, "...Oops", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::MercJail, {21, "Forget About Parker!", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillMasako, {22, "Parental Visit Denied", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::UseFlashlight, {23, "Let There be Light!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::UnderwaterSub, {24, "Submerged Secret", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillDrone, {25, "The Dangers of Recycling", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillCapekFlamethrower, {26, "Pyroscientist", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::DropCorpse, {27, "Body Hiders", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::UseMedic, {28, "Healthy as a Horse", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::DupeC4, {29, "Double Demolition", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::ViewMonitor, {30, "Watchful Eye", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::EnterAesir, {31, "A Decent Descent", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::EnterSub, {32, "Water on Mars", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::EnterAPC, {33, "Tread Lightly", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::EnterJeep, {34, "We Don't Need Roads", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::EnterDriller, {35, "Totally Recalled", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::SecretSub, {36, "Sub-dued", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::AdminFountain, {37, "Goin' for a swim, sir?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::HendrixHackDoor, {38, "Hendrix Saves the Day", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::SubCraneButton, {39, "GeoMod Limitation", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::JeepWater, {40, "Amphibious Car Challenge", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::DestroyPumpStations, {41, "Embrace Futility", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::StartCampaign, {42, "Starter Rebel", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FastBomb, {43, "Red Wire Redemption", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FarKill, {44, "Martian Marksman", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::CoffeeMakers, {45, "Brewed Awakening", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
-        {AchievementName::SeparateGeometry, {46, "Geological Warfare", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::GibEnemy, {47, "Messy!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::RunOver, {48, "Crunch Time!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::RunOverMore, {48, "Crunch Time 1k!", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::SaveBarracksMiner, {49, "Prison Break", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::SaveMinesMiner, {50, "Who put that there?", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::MedLabStealth, {51, "Trust me, I'm a doctor.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::AdminStealth, {52, "Boardroom Bounty", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::AdminMinerBerserk, {53, "Here, hold this.", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillDavis, {54, "While I'm here...", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::KillCiviliansAdmin, {55, "Undercover Undertaker", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::FartherKill, {56, "Martian Sharpshooter", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::KavaSurface, {57, "Surface Tension", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
-        {AchievementName::Kava00bSecret1, {58, "Kava 00b Secret 1", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
-        {AchievementName::Kava00bSecret2, {59, "Kava 00b Secret 2", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
-        {AchievementName::KavaAATurrets, {60, "Anti-Aircraft", "APC_Cocpit_P13.tga", AchievementCategory::kava}},
-        {AchievementName::SecretStash, {61, "Secret Stash", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::DropAPCBridge, {62, "Bridge to Nowhere", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::Toilets, {63, "Pipe Dreams", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
-        {AchievementName::Microwaves, {64, "The Hot Take", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
-        {AchievementName::DrillBit, {65, "Un-Bore-Lievable", "APC_Cocpit_P13.tga", AchievementCategory::singleplayer}},
-        {AchievementName::MinerCapekPrison, {66, "Early Release Program", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::MissileLaunchSabotage, {67, "The Final Countdown", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
-        {AchievementName::MedMax, {68, "Med Max", "APC_Cocpit_P13.tga", AchievementCategory::base_campaign}},
+        {AchievementName::SecretFusion, {1, "Explosive Discovery", AchievementCategory::base_campaign}},
+        {AchievementName::StartTraining, {2, "Tools of the Trade", AchievementCategory::base_campaign}},
+        {AchievementName::FinishTraining, {3, "Welcome to Mars", AchievementCategory::base_campaign}},
+        {AchievementName::FinishCampaignEasy, {4, "Too Easy!", AchievementCategory::base_campaign}},
+        {AchievementName::FinishCampaignMedium, {5, "Moderate Success", AchievementCategory::base_campaign}},
+        {AchievementName::FinishCampaignHard, {6, "Tough as Nails", AchievementCategory::base_campaign}},
+        {AchievementName::FinishCampaignImp, {7, "Martian All-Star", AchievementCategory::base_campaign}},
+        {AchievementName::KillFish, {8, "Gone Fishin'", AchievementCategory::base_campaign}},
+        {AchievementName::KillGuards, {9, "Target Practice", AchievementCategory::base_campaign}},
+        {AchievementName::LockedInTram, {10, "Red Alert", AchievementCategory::base_campaign}},
+        {AchievementName::MissShuttle, {11, "If only you'd been faster", AchievementCategory::base_campaign}},
+        {AchievementName::Ventilation, {12, "Not a fan", AchievementCategory::base_campaign}},
+        {AchievementName::DestroyGeothermal, {13, "Sabotage", AchievementCategory::base_campaign}},
+        {AchievementName::DestroyTrashBot, {14, "Unsuppressed", AchievementCategory::base_campaign}},
+        {AchievementName::MeetCapek, {15, "Mad Martian Meetup", AchievementCategory::base_campaign}},
+        {AchievementName::CapekVoiceEnd, {16, "It Suddenly Worked", AchievementCategory::base_campaign}},
+        {AchievementName::KillSnake, {17, "Who's Cleaning This Up?", AchievementCategory::base_campaign}},
+        {AchievementName::GoSpaceStation, {18, "Stowaway", AchievementCategory::base_campaign}},
+        {AchievementName::ComputersSpaceStation, {19, "Try a Reboot", AchievementCategory::base_campaign}},
+        {AchievementName::DestroySpaceStation, {20, "...Oops", AchievementCategory::base_campaign}},
+        {AchievementName::MercJail, {21, "Forget About Parker!", AchievementCategory::base_campaign}},
+        {AchievementName::KillMasako, {22, "Parental Visit Denied", AchievementCategory::base_campaign}},
+        {AchievementName::UseFlashlight, {23, "Let There be Light!", AchievementCategory::singleplayer}},
+        {AchievementName::UnderwaterSub, {24, "Submerged Secret", AchievementCategory::base_campaign}},
+        {AchievementName::KillDrone, {25, "The Dangers of Recycling", AchievementCategory::base_campaign}},
+        {AchievementName::KillCapekFlamethrower, {26, "Pyroscientist", AchievementCategory::base_campaign}},
+        {AchievementName::DropCorpse, {27, "Body Hiders", AchievementCategory::singleplayer}},
+        {AchievementName::UseMedic, {28, "Healthy as a Horse", AchievementCategory::singleplayer}},
+        {AchievementName::DupeC4, {29, "Double Demolition", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::ViewMonitor, {30, "Watchful Eye", AchievementCategory::singleplayer}},
+        {AchievementName::EnterAesir, {31, "A Decent Descent", AchievementCategory::singleplayer}},
+        {AchievementName::EnterSub, {32, "Water on Mars", AchievementCategory::singleplayer}},
+        {AchievementName::EnterAPC, {33, "Tread Lightly", AchievementCategory::singleplayer}},
+        {AchievementName::EnterJeep, {34, "We Don't Need Roads", AchievementCategory::singleplayer}},
+        {AchievementName::EnterDriller, {35, "Totally Recalled", AchievementCategory::singleplayer}},
+        {AchievementName::SecretSub, {36, "Sub-dued", AchievementCategory::base_campaign}},
+        {AchievementName::AdminFountain, {37, "Goin' for a swim, sir?", AchievementCategory::base_campaign}},
+        {AchievementName::HendrixHackDoor, {38, "Hendrix Saves the Day", AchievementCategory::base_campaign}},
+        {AchievementName::SubCraneButton, {39, "GeoMod Limitation", AchievementCategory::base_campaign}},
+        {AchievementName::JeepWater, {40, "Amphibious Car Challenge", AchievementCategory::singleplayer}},
+        {AchievementName::DestroyPumpStations, {41, "Embrace Futility", AchievementCategory::base_campaign}},
+        {AchievementName::StartCampaign, {42, "Starter Rebel", AchievementCategory::base_campaign}},
+        {AchievementName::FastBomb, {43, "Red Wire Redemption", AchievementCategory::base_campaign}},
+        {AchievementName::FarKill, {44, "Martian Marksman", AchievementCategory::singleplayer}},
+        {AchievementName::CoffeeMakers, {45, "Brewed Awakening", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::SeparateGeometry, {46, "Geological Warfare", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::GibEnemy, {47, "Messy!", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::RunOver, {48, "Crunch Time!", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::RunOverMore, {48, "Crunch Time 1k!", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::SaveBarracksMiner, {49, "Prison Break", AchievementCategory::base_campaign}},
+        {AchievementName::SaveMinesMiner, {50, "Who put that there?", AchievementCategory::base_campaign}},
+        {AchievementName::MedLabStealth, {51, "Trust me, I'm a doctor.", AchievementCategory::base_campaign}},
+        {AchievementName::AdminStealth, {52, "Boardroom Bounty", AchievementCategory::base_campaign}},
+        {AchievementName::AdminMinerBerserk, {53, "Here, hold this.", AchievementCategory::base_campaign}},
+        {AchievementName::KillDavis, {54, "While I'm here...", AchievementCategory::base_campaign}},
+        {AchievementName::KillCiviliansAdmin, {55, "Undercover Undertaker", AchievementCategory::base_campaign}},
+        {AchievementName::FartherKill, {56, "Martian Sharpshooter", AchievementCategory::singleplayer}},
+        {AchievementName::KavaSurface, {57, "Surface Tension", AchievementCategory::kava}},
+        {AchievementName::Kava00bSecret1, {58, "Kava 00b Secret 1", AchievementCategory::kava}},
+        {AchievementName::Kava00bSecret2, {59, "Kava 00b Secret 2", AchievementCategory::kava}},
+        {AchievementName::KavaAATurrets, {60, "Anti-Aircraft", AchievementCategory::kava}},
+        {AchievementName::SecretStash, {61, "Secret Stash", AchievementCategory::base_campaign}},
+        {AchievementName::DropAPCBridge, {62, "Bridge to Nowhere", AchievementCategory::base_campaign}},
+        {AchievementName::Toilets, {63, "Pipe Dreams", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::Microwaves, {64, "The Hot Take", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::DrillBit, {65, "Un-Bore-Lievable", AchievementCategory::singleplayer}},
+        {AchievementName::MinerCapekPrison, {66, "Early Release Program", AchievementCategory::base_campaign}},
+        {AchievementName::MissileLaunchSabotage, {67, "The Final Countdown", AchievementCategory::base_campaign}},
+        {AchievementName::MedMax, {68, "Med Max", AchievementCategory::base_campaign}},
+        {AchievementName::Robots100, {69, "Rust in Pieces", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::Guards500, {70, "Security Breach", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::Mercs250, {71, "Splintered Cells", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::GlassHouseShatter, {72, "Housewarming", AchievementCategory::general}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -336,7 +340,8 @@ void AchievementManager::add_key_to_ff_update_map()
             oss << "use="
                 << use.rfl_filename << "/"
                 << use.tc_mod_name << "/"
-                << use.used_uid;
+                << use.used_uid << "/"
+                << use.type;
             first_use = false;
         }
 
@@ -351,7 +356,7 @@ void AchievementManager::add_key_to_ff_update_map()
         achievement_async_ff_key = dist(g_rng);
         achievement_async_ff_string = update_string;
 
-        xlog::info("Queued new achievement update [{}]: {}", achievement_async_ff_key, achievement_async_ff_string);
+        xlog::warn("Queued new achievement update [{}]: {}", achievement_async_ff_key, achievement_async_ff_string);
         send_update_to_ff(); // Send immediately
     }
     else {
@@ -395,7 +400,7 @@ void AchievementManager::grant_achievement(AchievementName achievement, int coun
     // Increment pending count if the achievement is either locked or ff_auth
     if (!it->second.unlocked || it->second.type == AchievementType::ff_authoritative) {
         it->second.pending_count += count;
-        xlog::info("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}",
+        xlog::warn("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}",
             it->second.name, it->second.root_uid, count, it->second.pending_count);
     }
 }
@@ -413,32 +418,33 @@ void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filenam
 
     logged_kills.push_back(new_kill);
 
-    xlog::info("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}",
+    xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}",
                entity_uid, rfl_filename, tc_mod, class_name, damage_type, likely_weapon);
 }
 
-void AchievementManager::log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod)
+void AchievementManager::log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod, int type)
 {
     LoggedUse new_use;
     new_use.used_uid = used_uid;
     new_use.rfl_filename = rfl_filename;
     new_use.tc_mod_name = tc_mod;
+    new_use.type = type;
 
     logged_uses.push_back(new_use);
 
-    xlog::info("Use logged: uid={}, map={}, mod={}", used_uid, rfl_filename, tc_mod);
+    xlog::warn("Use logged: uid={}, map={}, mod={}, type={}", used_uid, rfl_filename, tc_mod, type);
 }
 
 void AchievementManager::show_notification(Achievement& achievement)
 {
     achievement.notified = true;
-    xlog::info("Achievement notified: {}", achievement.name);
+    xlog::warn("Achievement notified: {}", achievement.name);
 
     // clear previous info before repopulating
     clear_achievement_notification();
 
     // drawn in draw_achievement_box
-    achievement_box_icon = rf::bm::load(achievement.icon.c_str(), -1, true);
+    achievement_box_icon = rf::bm::load("2partswitch_Back.tga", -1, true);
     achievement_box_name = achievement.name;
     achievement_box_timestamp.set(10000); // 10 seconds
     achievement_box_visible = true;
@@ -492,7 +498,7 @@ void log_kill(int entity_uid, const std::string& class_name, int damage_type, in
         tc_mod_name, entity_class_name, damage_type, likely_weapon);
 }
 
-void log_use(int used_uid) {
+void log_use(int used_uid, int type) {
     if (!achievement_system_initialized) {
         return;
     }
@@ -520,7 +526,7 @@ void log_use(int used_uid) {
     sanitize(tc_mod_name);
 
     // log the use
-    AchievementManager::get_instance().log_use(used_uid, rfl_filename, tc_mod_name);
+    AchievementManager::get_instance().log_use(used_uid, rfl_filename, tc_mod_name, type);
 }
 
 void initialize_achievement_manager() {
@@ -587,14 +593,14 @@ bool are_any_objects_alive(std::initializer_list<int> uids) {
             if (obj->type == rf::OT_ENTITY) {
                 auto entity = static_cast<rf::Entity*>(obj);
                 if (entity->life > 0) {
-                    xlog::info("still alive: {}", obj->uid);
+                    //xlog::info("still alive: {}", obj->uid);
                     return true;
                 }
             }
             else if (obj->type == rf::OT_CORPSE) {
             }
             else {
-                xlog::info("still an object: {}", obj->uid);
+                //xlog::info("still an object: {}", obj->uid);
                 return true;
             }
         }
@@ -1171,7 +1177,7 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
         }
     }
 
-    xlog::info("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
+    xlog::warn("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
             entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
 
     if (distance >= 100.0f) {
@@ -1251,6 +1257,31 @@ CodeInjection ai_go_berserk_achievement_patch{
     },
 };
 
+CodeInjection glass_shatter_achievement_patch{
+    0x00490C6B,
+    [](auto& regs) {
+        if (!rf::is_multi) {
+            rf::String rfl_filename = rf::level.filename;
+
+            //xlog::warn("{}, {}", achievement_state_info.glass_house_shatter_timestamp, achievement_state_info.glass_house_shatters);
+
+            if (string_equals_ignore_case(rfl_filename, "glass_house.rfl")) {
+                achievement_state_info.glass_house_shatters += 1;
+                if (achievement_state_info.glass_house_shatters == 64) {
+                    grant_achievement_sp(AchievementName::GlassHouseShatter);
+                }
+            }
+
+            rf::GFace* face = regs.esi;
+
+            if (face) {
+                xlog::warn("shattered face {}", face->attributes.face_id);
+                log_use(face->attributes.face_id, 2); // log the shatter
+            }
+        }
+    },
+};
+
 // only hits on clutter with a valid use sound configured
 CodeInjection clutter_use_achievement_patch{
     0x00410EB1,
@@ -1264,7 +1295,7 @@ CodeInjection clutter_use_achievement_patch{
                 cls_name == "Toilet2" ||
                 cls_name == "Urinal" ||
                 cls_name == "Urinal2") {
-                log_use(clutter->uid); // log the use
+                log_use(clutter->uid, 1); // log the use
             }
         }
     },
@@ -1468,16 +1499,16 @@ ConsoleCommand2 debug_achievement_cmd{
             "Notified? {}\n"
             "Type: {}\n"
             "Category: {}\n"
-            "Pending Count: {}\n"
-            "Icon: {}\n",
+            "Pending Count: {}\n",
+            //"Icon: {}\n"
             uid,
             achievement.name,
             achievement.unlocked ? "Yes" : "No",
             achievement.notified ? "Yes" : "No",
             static_cast<int>(achievement.type),
             static_cast<int>(achievement.category),
-            achievement.pending_count,
-            achievement.icon
+            achievement.pending_count
+            //achievement.icon
         );
 
         rf::console::printf(msg.c_str());
@@ -1507,6 +1538,16 @@ ConsoleCommand2 debug_reset_achievements_cmd{
     "dbg_resetachievements"
 };
 
+void reset_achievement_state_info() {
+    if (rf::is_multi) {
+        return;
+    }
+
+    AchievementStateInfo* state_info = &achievement_state_info;
+    state_info->glass_house_shatters = 0;
+    state_info->train01_med_max_uids.clear();
+}
+
 void achievements_apply_patch()
 {
     // Achievement hooks
@@ -1517,6 +1558,7 @@ void achievements_apply_patch()
     separated_solids_achievement_patch.install();
     drill_bit_maintenance_achievement_patch.install();
     ai_go_berserk_achievement_patch.install();
+    glass_shatter_achievement_patch.install();
     clutter_use_achievement_patch.install();
     entity_crush_entity_achievement_patch.install();
     entity_crush_entity_achievement_patch2.install();
