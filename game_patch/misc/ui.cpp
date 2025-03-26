@@ -729,6 +729,7 @@ void ao_teamlabels_cbox_on_click(int x, int y) {
 void ao_minimaltimer_cbox_on_click(int x, int y) {
     g_alpine_game_config.verbose_time_left_display = !g_alpine_game_config.verbose_time_left_display;
     ao_minimaltimer_cbox.checked = !g_alpine_game_config.verbose_time_left_display;
+    build_time_left_string_format();
     ao_play_button_snd(!g_alpine_game_config.verbose_time_left_display);
 }
 
