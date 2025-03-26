@@ -285,8 +285,6 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             "meatchunk4.v3m",
             "meatchunk5.v3m"};
 
-        grant_achievement_sp(AchievementName::GibEnemy);
-
         for (int i = 0; i < gib_count; ++i) {
             rf::DebrisCreateStruct debris_info;
 
@@ -329,6 +327,10 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             if (gib) {
                 gib->obj_flags |= rf::OF_INVULNERABLE;
             }
+        }
+
+        if (objp->type == rf::OT_ENTITY) {
+            grant_achievement_sp(AchievementName::GibEnemy);
         }
     }
 };
