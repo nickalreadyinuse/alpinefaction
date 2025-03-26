@@ -587,7 +587,7 @@ void gamesound_parse_custom_sounds()
 }
 
 CodeInjection gamesound_parse_sounds_table_patch{
-    0x004347BC,
+    0x00434708,
     []() {
         gamesound_parse_custom_sounds();
     },
