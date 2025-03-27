@@ -81,6 +81,9 @@ enum class AchievementName : int
     Guards500,
     Mercs250,
     GlassHouseShatter,
+    GlassBreaks,
+    ShatterShield,
+    ShootHelmets
 };
 
 enum class AchievementType : int

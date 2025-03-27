@@ -115,6 +115,9 @@ void AchievementManager::initialize()
         {AchievementName::Guards500, {70, "Security Breach", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::Mercs250, {71, "Splintered Cells", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::GlassHouseShatter, {72, "Housewarming", AchievementCategory::general}},
+        {AchievementName::GlassBreaks, {74, "Pane Management", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::ShatterShield, {75, "The Riot Act", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::ShootHelmets, {76, "One to the Dome", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -1202,6 +1205,20 @@ CodeInjection ai_drop_corpse_achievement_patch{
     },
 };
 
+CodeInjection riot_shield_shatter_achievement_patch{
+    0x00410330,
+    []() {
+        grant_achievement_sp(AchievementName::ShatterShield);
+    },
+};
+
+CodeInjection entity_shoot_off_helmet_achievement_patch{
+    0x00429E7F,
+    []() {
+        grant_achievement_sp(AchievementName::ShootHelmets);
+    },
+};
+
 CodeInjection ai_medic_activate_achievement_patch{
     0x0040A73C,
     []() {
@@ -1552,6 +1569,8 @@ void achievements_apply_patch()
 {
     // Achievement hooks
     ai_drop_corpse_achievement_patch.install();
+    riot_shield_shatter_achievement_patch.install();
+    entity_shoot_off_helmet_achievement_patch.install();
     ai_medic_activate_achievement_patch.install();
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
