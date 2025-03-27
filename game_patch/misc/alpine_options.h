@@ -35,6 +35,7 @@ enum class AlpineOptionID
     SumTrailerButtonAction,
     SumTrailerButtonURL,
     SumTrailerButtonBikFile,
+    SumTrailerButtonLevelFile,
     PlayerEntityType,
     PlayerSuitEntityType,
     PlayerScientistEntityType,

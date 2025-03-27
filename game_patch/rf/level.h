@@ -119,6 +119,9 @@ namespace rf
     static auto& level_filename_to_load = addr_as_ref<String>(0x00646140);
     static auto& level_get_push_region_from_uid = addr_as_ref<PushRegion*(int uid)>(0x0045D6D0);
 
+    static auto& level_set_level_to_load = addr_as_ref<void(String filename, String state_filename)>(0x0045E2E0);
+    static auto& game_new_game = addr_as_ref<void()>(0x00436950);
+
     //ClimbRegion* level_get_climb_region_from_uid(int uid);
 
 }

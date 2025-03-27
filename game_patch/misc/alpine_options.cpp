@@ -13,6 +13,7 @@
 #include "../rf/player/camera.h"
 #include "../rf/sound/sound.h"
 #include "../rf/geometry.h"
+#include "../rf/level.h"
 #include "../rf/entity.h"
 #include "../rf/multi.h"
 #include "../rf/misc.h"
@@ -160,6 +161,7 @@ const std::unordered_map<std::string, OptionMetadata> option_metadata = {
     {"$Summoner Trailer Button Action", {AlpineOptionID::SumTrailerButtonAction, "af_ui.tbl", parse_int}},
     {"+Summoner Trailer Button URL", {AlpineOptionID::SumTrailerButtonURL, "af_ui.tbl", parse_string}},
     {"+Summoner Trailer Button Bink Filename", {AlpineOptionID::SumTrailerButtonBikFile, "af_ui.tbl", parse_string}},
+    {"+Summoner Trailer Button Level Filename", {AlpineOptionID::SumTrailerButtonLevelFile, "af_ui.tbl", parse_string}},
     {"$Player Entity Type", {AlpineOptionID::PlayerEntityType, "af_game.tbl", parse_string, true}},
     {"$Player Undercover Suit Entity Type", {AlpineOptionID::PlayerSuitEntityType, "af_game.tbl", parse_string}},
     {"$Player Undercover Scientist Entity Type", {AlpineOptionID::PlayerScientistEntityType, "af_game.tbl", parse_string}},
@@ -541,8 +543,15 @@ FunHook<void(int, int)> extras_summoner_trailer_click_hook{
                 }
                 break;
             }
+            case 3: // Remove button
             case 2: // Disable button
                 break;
+            case 4: { // Load level
+                auto level_filename = get_option_value<std::string>(AlpineOptionID::SumTrailerButtonLevelFile);
+                rf::level_set_level_to_load(level_filename.c_str(), "");
+                rf::game_new_game();
+                break;
+            }
             default: { // Play Bink video
                 auto trailer_path = get_option_value<std::string>(AlpineOptionID::SumTrailerButtonBikFile);
                 xlog::debug("Playing BIK file: {}", trailer_path);

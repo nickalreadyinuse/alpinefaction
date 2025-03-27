@@ -105,6 +105,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add radio message audio
 - Allow `Anchor_Marker_Orient` event as skybox eye anchor
 - Add support for `$Crater Texture PPM` to `MAPNAME_info.tbl`
+- Add options to `af_ui.tbl` to set the Summoner Trailer button to load a specific level in TC mods
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
