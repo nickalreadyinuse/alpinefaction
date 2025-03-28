@@ -63,11 +63,6 @@ enum class AchievementName : int
     AdminMinerBerserk,
     KillDavis,
     KillCiviliansAdmin,
-    FartherKill,
-    KavaSurface,
-    Kava00bSecret1,
-    Kava00bSecret2,
-    KavaAATurrets,
     RunOverMore,
     SecretStash,
     DropAPCBridge,
@@ -83,7 +78,9 @@ enum class AchievementName : int
     GlassHouseShatter,
     GlassBreaks,
     ShatterShield,
-    ShootHelmets
+    ShootHelmets,
+    LockedRockets,
+    GeoCrater,
 };
 
 enum class AchievementType : int
@@ -136,6 +133,7 @@ struct AchievementStateInfo
 {
     int glass_house_shatters = 0;
     std::vector<int> train01_med_max_uids;
+    rf::GameDifficultyLevel game_start_difficulty = rf::GameDifficultyLevel::DIFFICULTY_EASY; // only set on l1s1
 };
 
 class AchievementManager

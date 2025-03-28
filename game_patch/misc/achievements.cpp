@@ -8,6 +8,7 @@
 #include <common/HttpRequest.h>
 #include "../rf/os/console.h"
 #include "../rf/trigger.h"
+#include "../rf/player/camera.h"
 #include "../rf/clutter.h"
 #include "../rf/gameseq.h"
 #include "../rf/entity.h"
@@ -67,7 +68,7 @@ void AchievementManager::initialize()
         {AchievementName::UseFlashlight, {23, "Let There be Light!", AchievementCategory::singleplayer}},
         {AchievementName::UnderwaterSub, {24, "Submerged Secret", AchievementCategory::base_campaign}},
         {AchievementName::KillDrone, {25, "The Dangers of Recycling", AchievementCategory::base_campaign}},
-        {AchievementName::KillCapekFlamethrower, {26, "Pyroscientist", AchievementCategory::base_campaign}},
+        {AchievementName::KillCapekFlamethrower, {26, "The Tipping Point", AchievementCategory::base_campaign}},
         {AchievementName::DropCorpse, {27, "Body Hiders", AchievementCategory::singleplayer}},
         {AchievementName::UseMedic, {28, "Healthy as a Horse", AchievementCategory::singleplayer}},
         {AchievementName::DupeC4, {29, "Double Demolition", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
@@ -98,11 +99,6 @@ void AchievementManager::initialize()
         {AchievementName::AdminMinerBerserk, {53, "Here, hold this.", AchievementCategory::base_campaign}},
         {AchievementName::KillDavis, {54, "While I'm here...", AchievementCategory::base_campaign}},
         {AchievementName::KillCiviliansAdmin, {55, "Undercover Undertaker", AchievementCategory::base_campaign}},
-        {AchievementName::FartherKill, {56, "Martian Sharpshooter", AchievementCategory::singleplayer}},
-        {AchievementName::KavaSurface, {57, "Surface Tension", AchievementCategory::kava}},
-        {AchievementName::Kava00bSecret1, {58, "Kava 00b Secret 1", AchievementCategory::kava}},
-        {AchievementName::Kava00bSecret2, {59, "Kava 00b Secret 2", AchievementCategory::kava}},
-        {AchievementName::KavaAATurrets, {60, "Anti-Aircraft", AchievementCategory::kava}},
         {AchievementName::SecretStash, {61, "Secret Stash", AchievementCategory::base_campaign}},
         {AchievementName::DropAPCBridge, {62, "Bridge to Nowhere", AchievementCategory::base_campaign}},
         {AchievementName::Toilets, {63, "Pipe Dreams", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
@@ -116,8 +112,10 @@ void AchievementManager::initialize()
         {AchievementName::Mercs250, {71, "Splintered Cells", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::GlassHouseShatter, {72, "Housewarming", AchievementCategory::general}},
         {AchievementName::GlassBreaks, {74, "Pane Management", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
-        {AchievementName::ShatterShield, {75, "The Riot Act", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
-        {AchievementName::ShootHelmets, {76, "One to the Dome", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::ShatterShield, {75, "The Riot Act", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::ShootHelmets, {76, "One to the Dome", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::LockedRockets, {77, "Rocket Science", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
+        {AchievementName::GeoCrater, {78, "Terraformer", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -467,6 +465,13 @@ void grant_achievement_sp(AchievementName achievement, int count) {
     }
 }
 
+void grant_achievement_bomb_defuse(AchievementName achievement) {
+    // confirm we finished the game on the same difficulty we started
+    if (rf::game_get_skill_level() == achievement_state_info.game_start_difficulty) {
+        grant_achievement(achievement);
+    }
+}
+
 void log_kill(int entity_uid, const std::string& class_name, int damage_type, int likely_weapon) {
     if (!achievement_system_initialized) {
         return;
@@ -783,7 +788,8 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                 break;
             }
 
-            // Kava
+            // Kava (to be supported in the future)
+            /*
             case 26156: {
                 if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
                     grant_achievement(AchievementName::KavaSurface);
@@ -803,7 +809,7 @@ void achievement_check_trigger(rf::Trigger* trigger) {
                     grant_achievement(AchievementName::Kava00bSecret2); // toolshed
                 }
                 break;
-            }
+            }*/
 
             default:
                 break;
@@ -847,8 +853,8 @@ void achievement_check_event(rf::Event* event) {
 
             case 10626: {
                 if (string_equals_ignore_case(rfl_filename, "l11s3.rfl") &&
-                    rf::local_player_entity->ai.current_primary_weapon == 12) { // flamethrower
-                    grant_achievement(AchievementName::KillCapekFlamethrower); // kill capek with flamethrower
+                    rf::local_player_entity->ai.current_primary_weapon != 12) { // flamethrower
+                    grant_achievement(AchievementName::KillCapekFlamethrower); // kill capek with not flamethrower
                 }
                 break;
             }
@@ -980,6 +986,8 @@ void achievement_check_entity_death(rf::Entity* entity) {
             }
         }
 
+        // kava (to be supported in the future)
+        /*
         if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
             static const std::initializer_list<int> all_aa_turrets = {
                 21, 33469, 33481, 33493, 33505, 33517, 33529, 33541, 33553, 33565, 33577, 33589, 33601, 33613,
@@ -989,7 +997,7 @@ void achievement_check_entity_death(rf::Entity* entity) {
             if (!are_any_objects_alive(all_aa_turrets)) {
                 grant_achievement(AchievementName::KavaAATurrets);
             }
-        }
+        }*/
 
     }
 }
@@ -1184,9 +1192,15 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
             entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
 
     if (distance >= 100.0f) {
-        grant_achievement_sp(AchievementName::FarKill); // kill from 100m or more
+        // do not award far kill achievements unless in first person mode
+        if (rf::camera_get_mode(*rf::local_player->cam) == rf::CameraMode::CAMERA_FIRST_PERSON) {
+            grant_achievement_sp(AchievementName::FarKill); // kill from 100m or more
+
+        // kava (to be supported in the future)
+        /*
         if (distance >= 200.0f) {
             grant_achievement_sp(AchievementName::FartherKill); // kill from 200m or more
+        }*/
         }
     }
 
@@ -1216,6 +1230,41 @@ CodeInjection entity_shoot_off_helmet_achievement_patch{
     0x00429E7F,
     []() {
         grant_achievement_sp(AchievementName::ShootHelmets);
+    },
+};
+
+CodeInjection player_fire_locked_on_rocket_achievement_patch{
+    0x004AD002,
+    []() {
+        grant_achievement_sp(AchievementName::LockedRockets);
+    },
+};
+
+// rocket and fusion impact explosion geos
+CodeInjection geomod_weapon_hit_wall_achievement_patch{
+    0x004C533D,
+    [](auto& regs) {
+        rf::Weapon* wp = regs.esi;
+        if (wp) {
+            auto pp = rf::player_from_entity_handle(wp->parent_handle);
+            if (pp) {
+                grant_achievement_sp(AchievementName::GeoCrater);
+            }
+        }
+    },
+};
+
+// grenade and remote charge explosion geos
+CodeInjection weapon_process_pre_geomod_achievement_patch{
+    0x004C6C25,
+    [](auto& regs) {
+        rf::Weapon* wp = regs.esi;
+        if (wp) {
+            auto pp = rf::player_from_entity_handle(wp->parent_handle);
+            if (pp) {
+                grant_achievement_sp(AchievementName::GeoCrater);
+            }
+        }
     },
 };
 
@@ -1357,19 +1406,19 @@ CodeInjection bomb_defuse_achievement_patch{
 
         switch (rf::game_get_skill_level()) {
             case rf::GameDifficultyLevel::DIFFICULTY_EASY:
-                grant_achievement_sp(AchievementName::FinishCampaignEasy); // finish campaign on easy
+                grant_achievement_bomb_defuse(AchievementName::FinishCampaignEasy); // finish campaign on easy
                 fast_bomb_achievement = rf::bomb_defuse_time_left >= 42.34f;
                 break;
             case rf::GameDifficultyLevel::DIFFICULTY_MEDIUM:
-                grant_achievement_sp(AchievementName::FinishCampaignMedium); // finish campaign on medium
+                grant_achievement_bomb_defuse(AchievementName::FinishCampaignMedium); // finish campaign on medium
                 fast_bomb_achievement = rf::bomb_defuse_time_left >= 26.77f;
                 break;
             case rf::GameDifficultyLevel::DIFFICULTY_HARD:
-                grant_achievement_sp(AchievementName::FinishCampaignHard); // finish campaign on hard
+                grant_achievement_bomb_defuse(AchievementName::FinishCampaignHard); // finish campaign on hard
                 fast_bomb_achievement = rf::bomb_defuse_time_left >= 21.03f;
                 break;
             case rf::GameDifficultyLevel::DIFFICULTY_IMPOSSIBLE:
-                grant_achievement_sp(AchievementName::FinishCampaignImp); // finish campaign on impossible
+                grant_achievement_bomb_defuse(AchievementName::FinishCampaignImp); // finish campaign on impossible
                 fast_bomb_achievement = rf::bomb_defuse_time_left >= 10.26f;
                 break;
         }
@@ -1563,6 +1612,11 @@ void reset_achievement_state_info() {
     AchievementStateInfo* state_info = &achievement_state_info;
     state_info->glass_house_shatters = 0;
     state_info->train01_med_max_uids.clear();
+
+    // store starting difficulty, checked for achievements on bomb defuse
+    if (string_equals_ignore_case(rf::level.filename, "l1s1.rfl")) {
+        state_info->game_start_difficulty = rf::game_get_skill_level();
+    }
 }
 
 void achievements_apply_patch()
@@ -1571,6 +1625,9 @@ void achievements_apply_patch()
     ai_drop_corpse_achievement_patch.install();
     riot_shield_shatter_achievement_patch.install();
     entity_shoot_off_helmet_achievement_patch.install();
+    player_fire_locked_on_rocket_achievement_patch.install();
+    geomod_weapon_hit_wall_achievement_patch.install();
+    weapon_process_pre_geomod_achievement_patch.install();
     ai_medic_activate_achievement_patch.install();
     player_handle_use_keypress_remote_charge_achievement_patch.install();
     player_attach_to_security_camera_achievement_patch.install();
