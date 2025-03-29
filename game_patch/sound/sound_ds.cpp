@@ -243,6 +243,7 @@ ConsoleCommand2 playing_sounds_cmd{
 #endif
 
 struct MmioWrapper {
+    uint32_t magic = 0xDEADBEEF; // used to validate existence of wrappers
     HMMIO hmmio = nullptr;
     stb_vorbis* vorbis = nullptr;
 };
@@ -299,50 +300,93 @@ FunHook<int(LPSTR, LONG, HMMIO*, WAVEFORMATEX**, WAVEFORMATEX**, LPMMCKINFO)> sn
 FunHook<int(HMMIO*, LPMMCKINFO, const MMCKINFO*)> snd_mmio_find_data_chunk_hook{
     0x005635D0,
     [](HMMIO* hmmio, LPMMCKINFO data_mmcki, const MMCKINFO* riff_mmcki) {
-        auto wrapper = reinterpret_cast<MmioWrapper*>(*hmmio);
-        if (wrapper->vorbis) {
-            xlog::info("Ogg Vorbis seek start");
-            stb_vorbis_seek_start(wrapper->vorbis);
-            stb_vorbis_info info = stb_vorbis_get_info(wrapper->vorbis);
-            float length = stb_vorbis_stream_length_in_seconds(wrapper->vorbis);
-            data_mmcki->cksize = info.sample_rate * info.channels * sizeof(short) * length;
-            return 0;
-        } else {
-            return snd_mmio_find_data_chunk_hook.call_target(&wrapper->hmmio, data_mmcki, riff_mmcki);
+        // hmmio is invalid, handle as original function
+        if (!hmmio || !*hmmio) {
+            return snd_mmio_find_data_chunk_hook.call_target(hmmio, data_mmcki, riff_mmcki);
         }
+
+        // verify we have been passed a wrapper
+        // sounds that have already been played will not be passed with a wrapper, and will crash a Music_Start event
+        auto* wrapper = reinterpret_cast<MmioWrapper*>(*hmmio);
+        if (wrapper->magic == 0xDEADBEEF) {
+            if (wrapper->vorbis) {
+                xlog::info("Ogg Vorbis seek start");
+                stb_vorbis_seek_start(wrapper->vorbis);
+                stb_vorbis_info info = stb_vorbis_get_info(wrapper->vorbis);
+                float length = stb_vorbis_stream_length_in_seconds(wrapper->vorbis);
+                data_mmcki->cksize = info.sample_rate * info.channels * sizeof(short) * length;
+                return 0;
+            }
+            else {
+                return snd_mmio_find_data_chunk_hook.call_target(&wrapper->hmmio, data_mmcki, riff_mmcki);
+            }
+        }
+        else {
+            // fallback: not a wrapper, treat as native
+            return snd_mmio_find_data_chunk_hook.call_target(hmmio, data_mmcki, riff_mmcki);
+        }
+
     },
 };
 
 FunHook<int(HMMIO, unsigned, BYTE*, MMCKINFO*, int*)> snd_mmio_read_chunk_hook{
     0x00563620,
     [](HMMIO hmmio, unsigned buf_size, BYTE *buf, MMCKINFO *mmcki, int *bytes_read) {
-        auto wrapper = reinterpret_cast<MmioWrapper*>(hmmio);
-        if (wrapper->vorbis) {
-            stb_vorbis_info info = stb_vorbis_get_info(wrapper->vorbis);
-            int samples_read = stb_vorbis_get_samples_short_interleaved(wrapper->vorbis, info.channels, reinterpret_cast<short*>(buf), buf_size / 2);
-            *bytes_read = samples_read * info.channels * sizeof(short);
-            xlog::info("Ogg Vorbis: read {} samples", samples_read);
-            return 0;
+        // hmmio is invalid, handle as original function
+        if (!hmmio) {
+            return snd_mmio_read_chunk_hook.call_target(hmmio, buf_size, buf, mmcki, bytes_read);
         }
-        return snd_mmio_read_chunk_hook.call_target(wrapper->hmmio, buf_size, buf, mmcki, bytes_read);
+
+        // verify we have been passed a wrapper
+        // sounds that have already been played will not be passed with a wrapper, and will crash a Music_Start event
+        auto wrapper = reinterpret_cast<MmioWrapper*>(hmmio);
+        if (wrapper->magic == 0xDEADBEEF) {
+            auto wrapper = reinterpret_cast<MmioWrapper*>(hmmio);
+            if (wrapper->vorbis) {
+                stb_vorbis_info info = stb_vorbis_get_info(wrapper->vorbis);
+                int samples_read = stb_vorbis_get_samples_short_interleaved(wrapper->vorbis, info.channels, reinterpret_cast<short*>(buf), buf_size / 2);
+                *bytes_read = samples_read * info.channels * sizeof(short);
+                xlog::info("Ogg Vorbis: read {} samples", samples_read);
+                return 0;
+            }
+            return snd_mmio_read_chunk_hook.call_target(wrapper->hmmio, buf_size, buf, mmcki, bytes_read);
+        }
+        else {
+            // fallback: not a wrapper, treat as native
+            return snd_mmio_read_chunk_hook.call_target(hmmio, buf_size, buf, mmcki, bytes_read);
+        }
     },
 };
 
 FunHook<void(HMMIO*)> snd_mmio_close_hook{
     0x005636E0,
     [](HMMIO *hmmio) {
+        // hmmio is invalid or already closed, handle as original function
+        if (!hmmio || !*hmmio) {
+            return;
+        }
+
         auto wrapper = reinterpret_cast<MmioWrapper*>(*hmmio);
         if (!wrapper) {
             return;
         }
-        if (wrapper->vorbis) {
-            xlog::info("Closing Ogg Vorbis stream");
-            stb_vorbis_close(wrapper->vorbis);
-        } else {
-            snd_mmio_close_hook.call_target(&wrapper->hmmio);
+
+        // verify we have been passed a wrapper
+        if (wrapper->magic == 0xDEADBEEF) {
+            if (wrapper->vorbis) {
+                xlog::info("Closing Ogg Vorbis stream");
+                stb_vorbis_close(wrapper->vorbis);
+            }
+            else {
+                snd_mmio_close_hook.call_target(&wrapper->hmmio);
+            }
+            delete wrapper;
+            *hmmio = nullptr;
         }
-        delete wrapper;
-        *hmmio = nullptr;
+        else {
+            // not our wrapper, treat as native hmmio
+            snd_mmio_close_hook.call_target(hmmio);
+        }
     },
 };
 
