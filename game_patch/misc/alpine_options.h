@@ -183,3 +183,5 @@ inline T get_level_info_or_default(const std::string& level, AlpineLevelInfoID i
     }
     return default_value;
 }
+
+bool is_p2t_fix_level(const std::string& filename);

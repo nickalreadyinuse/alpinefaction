@@ -22,6 +22,7 @@ endfunction()
 add_packfile(alpinefaction.vpp
     tables/maps_df.txt
     tables/events.tbl
+    tables/af_level_quirks.tbl
 
     # compatibility _info.tbls
     tables/pdm01_info.tbl

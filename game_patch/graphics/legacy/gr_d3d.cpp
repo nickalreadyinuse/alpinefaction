@@ -18,6 +18,7 @@
 #include "../../rf/player/player.h"
 #include "../../main/main.h"
 #include "../../misc/alpine_settings.h"
+#include "../../misc/alpine_options.h"
 #include "../../os/console.h"
 #include "../gr.h"
 #include "../gr_internal.h"
@@ -441,9 +442,6 @@ CodeInjection gr_d3d_init_device_injection{
             DWORD anisotropy_level = setup_max_anisotropy();
             xlog::info("Anisotropic Filtering enabled (level: {})", anisotropy_level);
         }
-
-        // set initial pow2tex value
-        rf::gr::d3d::p2t = g_game_config.pow2tex;
     },
 };
 
@@ -633,11 +631,8 @@ CodeInjection gr_d3d_close_injection{
 ConsoleCommand2 pow2_tex_cmd{
     "r_pow2tex",
     []() {
-        g_game_config.pow2tex = !g_game_config.pow2tex;
-        g_game_config.save();
-
-        rf::gr::d3d::p2t = g_game_config.pow2tex;        
-        rf::console::print("Enforcement of power of 2 textures is {}", g_game_config.pow2tex ? "enabled" : "disabled");
+        rf::gr::d3d::p2t = !rf::gr::d3d::p2t;  
+        rf::console::print("Enforcement of power of 2 textures is {}", rf::gr::d3d::p2t ? "enabled" : "disabled");
     },
     "Enforce power of 2 textures. Fixes textures in older levels, may cause issues with textures in newer ones. Only affects levels loaded after usage of this command.",
 };
@@ -714,6 +709,18 @@ void gr_d3d_bitmap_float(int bitmap_handle, float x, float y, float w, float h,
     verts[3].u1 = u_left;
     verts[3].v1 = v_bottom;
     rf::gr::tmapper(std::size(verts_ptrs), verts_ptrs, rf::gr::TMAP_FLAG_TEXTURED, mode);
+}
+
+// checked during level load
+void evaluate_pow2tex(rf::String level_filename) {
+    bool should_p2t_fix = false;
+
+    if (is_p2t_fix_level(level_filename)) {
+        should_p2t_fix = true;
+        rf::console::print("Applying power of 2 texture fix to known affected level {}", level_filename);
+    }
+
+    rf::gr::d3d::p2t = should_p2t_fix;
 }
 
 void gr_d3d_apply_patch()

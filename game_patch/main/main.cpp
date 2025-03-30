@@ -20,6 +20,7 @@
 #include "../bmpman/bmpman.h"
 #include "../debug/debug.h"
 #include "../graphics/gr.h"
+#include "../graphics/legacy/gr_d3d.h"
 #include "../hud/hud.h"
 #include "../hud/hud_world.h"
 #include "../hud/multi_scoreboard.h"
@@ -158,6 +159,7 @@ FunHook<int(rf::String&, rf::String&, char*)> level_load_hook{
     0x0045C540,
     [](rf::String& level_filename, rf::String& save_filename, char* error) {
         xlog::info("Loading level: {}", level_filename);
+        evaluate_pow2tex(level_filename);
         if (!save_filename.empty())
             xlog::info("Restoring game from save file: {}", save_filename);
 
