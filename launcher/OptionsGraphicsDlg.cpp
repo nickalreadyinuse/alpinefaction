@@ -25,7 +25,6 @@ BOOL OptionsGraphicsDlg::OnInitDialog()
     // Graphics
     UpdateMsaaCombo();
     UpdateAnisotropyCheckbox();
-    CheckDlgButton(IDC_FAST_ANIMS_CHECK, m_conf.fast_anims ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_DISABLE_LOD_CHECK, m_conf.disable_lod_models ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_HIGH_SCANNER_RES_CHECK, m_conf.high_scanner_res ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_HIGH_MON_RES_CHECK, m_conf.high_monitor_res ? BST_CHECKED : BST_UNCHECKED);
@@ -35,7 +34,6 @@ BOOL OptionsGraphicsDlg::OnInitDialog()
 
     UpdateMsaaCombo();
     UpdateAnisotropyCheckbox();
-    CheckDlgButton(IDC_FAST_ANIMS_CHECK, m_conf.fast_anims ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_DISABLE_LOD_CHECK, m_conf.disable_lod_models ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_HIGH_SCANNER_RES_CHECK, m_conf.high_scanner_res ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_HIGH_MON_RES_CHECK, m_conf.high_monitor_res ? BST_CHECKED : BST_UNCHECKED);
@@ -95,7 +93,6 @@ void OptionsGraphicsDlg::InitToolTip()
 {
     m_tool_tip.Create(*this);
     m_tool_tip.AddTool(GetDlgItem(IDC_CLAMP_COMBO), "Stock game does not allow full color range for lighting, AF fixes that. Use this option to apply this to older maps.");
-    m_tool_tip.AddTool(GetDlgItem(IDC_FAST_ANIMS_CHECK), "Reduce animation smoothness for far models");
     m_tool_tip.AddTool(GetDlgItem(IDC_DISABLE_LOD_CHECK), "Use more detailed LOD models for objects in the distance");
     m_tool_tip.AddTool(GetDlgItem(IDC_ANISOTROPIC_CHECK), "Improve render quality of textures at far distances");
     m_tool_tip.AddTool(GetDlgItem(IDC_HIGH_SCANNER_RES_CHECK), "Increase scanner resolution (used by Rail Driver, Rocket Launcher and Fusion Launcher)");
@@ -105,7 +102,6 @@ void OptionsGraphicsDlg::InitToolTip()
 
 void OptionsGraphicsDlg::OnSave()
 {
-    m_conf.fast_anims = (IsDlgButtonChecked(IDC_FAST_ANIMS_CHECK) == BST_CHECKED);
     m_conf.msaa = m_multi_sample_types[m_msaa_combo.GetCurSel()];
     m_conf.clamp_mode = static_cast<GameConfig::ClampMode>(m_clamp_combo.GetCurSel());
     m_conf.anisotropic_filtering = (IsDlgButtonChecked(IDC_ANISOTROPIC_CHECK) == BST_CHECKED);

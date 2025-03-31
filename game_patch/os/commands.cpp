@@ -10,6 +10,7 @@
 #include "../rf/level.h"
 #include "../rf/entity.h"
 #include "../rf/hud.h"
+#include "../rf/character.h"
 #include "../misc/misc.h"
 #include "../misc/vpackfile.h"
 #include <common/utils/list-utils.h>
@@ -50,6 +51,15 @@ ConsoleCommand2 vli_cmd{
         rf::console::print("Volumetric lightining is {}.", g_alpine_game_config.show_glares ? "enabled" : "disabled");
     },
     "Toggles volumetric lightining",
+};
+
+ConsoleCommand2 fast_anim_cmd{
+    "r_fastanim",
+    []() {
+        rf::g_fast_animations = !rf::g_fast_animations;
+        rf::console::print("Fast animations are {}.", rf::g_fast_animations ? "enabled" : "disabled");
+    },
+    "Toggles fast animations for characters (reduce animation smoothness at far distances)",
 };
 
 ConsoleCommand2 player_count_cmd{
@@ -534,6 +544,7 @@ void console_commands_init()
     dot_cmd.register_cmd();
     console_history_cmd.register_cmd();
     vli_cmd.register_cmd();
+    fast_anim_cmd.register_cmd();
     player_count_cmd.register_cmd();
     find_level_cmd.register_cmd();
     find_map_cmd.register_cmd();

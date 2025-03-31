@@ -3,6 +3,7 @@
 #include <cstring>
 #include <patch_common/FunHook.h>
 #include <patch_common/CodeInjection.h>
+#include <patch_common/AsmWriter.h>
 #include <common/utils/string-utils.h>
 #include <common/utils/mem-pool.h>
 #include <xlog/xlog.h>
@@ -154,6 +155,9 @@ static FunHook<void()> character_level_init_hook{
 
 void character_apply_patch()
 {
+    // do not load fast_anims value from registry
+    AsmWriter{0x0050C24B}.nop(5);
+
     skeleton_find_hook.install();
     skeleton_unlink_base_hook.install();
     skeleton_init_hook.install();

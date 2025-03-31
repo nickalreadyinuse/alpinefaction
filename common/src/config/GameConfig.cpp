@@ -156,7 +156,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(red_faction_key, "Resolution Backbuffer Format", res_backbuffer_format);
     result &= visitor(red_faction_key, "Selected Video Card", selected_video_card);
     result &= visitor(red_faction_key, "Vsync", vsync);
-    result &= visitor(red_faction_key, "Fast Animations", fast_anims);
     result &= visitor(red_faction_key, "Geometry Cache Size", geometry_cache_size);
     result &= visitor(red_faction_key, "GameTracker", tracker);
     result &= visitor(red_faction_key, "UpdateRate", update_rate);

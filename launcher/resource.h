@@ -24,7 +24,7 @@
 #define IDC_TRACKER_EDIT                1006
 #define IDC_VSYNC_CHECK                 1007
 #define IDC_EAX_SOUND_CHECK             1008
-#define IDC_FAST_ANIMS_CHECK            1009
+//#define IDC_FAST_ANIMS_CHECK            1009
 #define IDC_RENDERING_CACHE_EDIT        1010
 #define IDC_DIRECT_INPUT_CHECK          1011
 #define IDC_ANISOTROPIC_CHECK           1012

@@ -118,6 +118,8 @@ namespace rf
         CharacterInstance *prev;
     };
 
+    static auto& g_fast_animations = addr_as_ref<bool>(0x005A4459);
+
     static auto& skeleton_link_base = addr_as_ref<Skeleton *__cdecl(const char *filename)>(0x00539D00);
     static auto& skeleton_unlink_base = addr_as_ref<void __cdecl(Skeleton *s, bool force_unload)>(0x00539D20);
     static auto& skeleton_page_in = addr_as_ref<bool __cdecl(const char *filename, void *data_block)>(0x0053A980);

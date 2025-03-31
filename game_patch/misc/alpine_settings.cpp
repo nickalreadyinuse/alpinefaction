@@ -8,6 +8,7 @@
 #include <common/version/version.h>
 #include "../os/console.h"
 #include "../rf/ui.h"
+#include "../rf/character.h"
 #include "../rf/os/console.h"
 #include "../rf/player/player.h"
 #include "../rf/sound/sound.h"
@@ -294,6 +295,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.nearest_texture_filtering = std::stoi(settings["NearestTextureFiltering"]);
         gr_update_texture_filtering();
         processed_keys.insert("NearestTextureFiltering");
+    }
+    if (settings.count("FastAnimations")) {
+        rf::g_fast_animations = std::stoi(settings["FastAnimations"]);
+        processed_keys.insert("FastAnimations");
     }
 
     // Load singleplayer settings
@@ -620,6 +625,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShowGlares=" << g_alpine_game_config.show_glares << "\n";
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
     file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
+    file << "FastAnimations=" << rf::g_fast_animations << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
@@ -662,6 +668,7 @@ void close_and_restart_game() {
 // defaults if alpine_settings.ini isn't loaded
 void set_alpine_config_defaults() {
     rf::game_set_gore_level(2);
+    rf::g_fast_animations = false;
     g_alpine_game_config.save_console_history = true; // must be set here because evaluated before config loaded
     build_time_left_string_format();
     set_play_sound_events_volume_scale();
