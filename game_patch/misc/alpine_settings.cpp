@@ -398,6 +398,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.scoreboard_anim = std::stoi(settings["ScoreboardAnimations"]);
         processed_keys.insert("ScoreboardAnimations");
     }
+    if (settings.count("MultiplayerTracker")) {
+        g_alpine_game_config.set_multiplayer_tracker(settings["MultiplayerTracker"]);
+        processed_keys.insert("MultiplayerTracker");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -663,6 +667,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShowPlayerNames=" << g_alpine_game_config.display_target_player_names << "\n";
     file << "VerboseTimer=" << g_alpine_game_config.verbose_time_left_display << "\n";
     file << "ScoreboardAnimations=" << g_alpine_game_config.scoreboard_anim << "\n";
+    file << "MultiplayerTracker=" << g_alpine_game_config.multiplayer_tracker << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
@@ -753,6 +758,16 @@ CodeInjection player_settings_load_players_cfg_patch{
     }
 };
 
+CallHook<int(const char*, const char*, char*)> os_config_read_string_tracker_hook{
+    0x00482B97,
+    [](const char* key_name, const char* value_name, char* str_out) {
+        constexpr size_t max_len = AlpineGameSettings::max_tracker_hostname_length + 1; // allow for null terminator
+        std::strncpy(str_out, g_alpine_game_config.multiplayer_tracker.c_str(), max_len - 1);
+        str_out[max_len - 1] = '\0';
+        return 0; // success
+    }
+};
+
 ConsoleCommand2 load_settings_cmd{
     "dbg_loadsettings",
     []() {
@@ -778,6 +793,8 @@ void alpine_settings_apply_patch()
     player_settings_save_hook.install();
     player_settings_save_quit_hook.install();
     player_settings_load_players_cfg_patch.install();
+
+    os_config_read_string_tracker_hook.install();
 
     // Register commands
     load_settings_cmd.register_cmd();
