@@ -49,7 +49,7 @@
 #define IDC_LEVEL_SOUNDS_CHECK          1031
 #define IDC_MOD_COMBO                   1032
 #define IDC_KEEP_LAUNCHER_OPEN_CHECK    1033
-#define IDC_HIGH_MON_RES_CHECK          1034
+//#define IDC_HIGH_MON_RES_CHECK          1034
 //#define IDC_LINEAR_PITCH_CHECK          1035
 #define IDC_LANG_COMBO                  1036
 #define IDC_REDUCED_SPEED_IN_BG_CHECK   1037
@@ -74,7 +74,7 @@
 #define IDC_INPUT_OPTIONS_BOX           1056
 #define IDC_INTERFACE_OPTIONS_BOX       1057
 #define IDC_RENDERER_COMBO              1058
-#define IDC_ALPINE_BRAND_CHECK          3083
+//#define IDC_ALPINE_BRAND_CHECK          3083
 //#define IDC_FULLBRIGHT                  1060
 //#define IDC_LIGHTMAPS                   1061
 #define IDC_NEAREST                     1062

@@ -55,6 +55,12 @@ struct AlpineGameSettings
         level_sound_volume = std::clamp(scale, 0.0f, 1.0f);
     }
 
+    int monitor_resolution_scale = 2;
+    void set_monitor_resolution_scale(int scale)
+    {
+        monitor_resolution_scale = std::clamp(scale, 1, 8);
+    }
+
     bool scope_static_sensitivity = false;
     bool swap_ar_controls = false;
     bool swap_gn_controls = false;

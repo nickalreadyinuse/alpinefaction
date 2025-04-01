@@ -304,6 +304,10 @@ bool alpine_player_settings_load(rf::Player* player)
         rf::g_fast_animations = std::stoi(settings["FastAnimations"]);
         processed_keys.insert("FastAnimations");
     }
+    if (settings.count("MonitorResolutionScale")) {
+        g_alpine_game_config.set_monitor_resolution_scale(std::stoi(settings["MonitorResolutionScale"]));
+        processed_keys.insert("MonitorResolutionScale");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -631,6 +635,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
     file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
     file << "FastAnimations=" << rf::g_fast_animations << "\n";
+    file << "MonitorResolutionScale=" << g_alpine_game_config.monitor_resolution_scale << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";

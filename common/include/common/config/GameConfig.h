@@ -57,9 +57,7 @@ struct GameConfig
     CfgVar<ClampMode> clamp_mode = ALPINEONLY;
 
     CfgVar<bool> high_scanner_res = true;
-    CfgVar<bool> high_monitor_res = true;
     CfgVar<bool> true_color_textures = true;
-    CfgVar<bool> pow2tex = false;   
 
     // Audio
     CfgVar<bool> eax_sound = true;

@@ -172,7 +172,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Max FPS", max_fps);
     result &= visitor(dash_faction_key, "Server Max FPS", server_max_fps);
     result &= visitor(dash_faction_key, "High Scanner Resolution", high_scanner_res);
-    result &= visitor(dash_faction_key, "High Monitor Resolution", high_monitor_res);
     result &= visitor(dash_faction_key, "True Color Textures", true_color_textures);
     result &= visitor(dash_faction_key, "Renderer", renderer);
     result &= visitor(dash_faction_key, "Executable Path", game_executable_path);
@@ -182,7 +181,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
-    result &= visitor(dash_faction_key, "Enforce Power of 2 Textures", pow2tex);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
     result &= visitor(dash_faction_key, "Server Net FPS", server_netfps);
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);

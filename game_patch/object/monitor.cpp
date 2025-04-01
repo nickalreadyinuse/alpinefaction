@@ -12,15 +12,16 @@
 #include "../main/main.h"
 #include "../graphics/gr.h"
 #include "../bmpman/bmpman.h"
+#include "../misc/alpine_settings.h"
 
 FunHook<char(int, int, int, int, char)> monitor_create_hook{
     0x00412470,
     [](int clutter_handle, int always_minus_1, int w, int h, char always_1) {
-        if (g_game_config.high_monitor_res) {
-            constexpr int factor = 2;
-            w *= factor;
-            h *= factor;
-        }
+
+        int factor = g_alpine_game_config.monitor_resolution_scale;
+        w *= factor;
+        h *= factor;
+
         return monitor_create_hook.call_target(clutter_handle, always_minus_1, w, h, always_1);
     },
 };

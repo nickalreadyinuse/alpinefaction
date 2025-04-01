@@ -53,6 +53,17 @@ ConsoleCommand2 vli_cmd{
     "Toggles volumetric lightining",
 };
 
+ConsoleCommand2 monitor_resolution_scale_cmd{
+    "r_monitorscale",
+    [](std::optional<int> scale_opt) {
+        if (scale_opt) {
+            g_alpine_game_config.set_monitor_resolution_scale(scale_opt.value());
+        }
+        rf::console::print("Monitor resolution scale is {}", g_alpine_game_config.monitor_resolution_scale);
+    },
+    "Set resolution scale for security monitor screens and mirrors (reload level to apply)",
+};
+
 ConsoleCommand2 fast_anim_cmd{
     "r_fastanim",
     []() {
@@ -544,6 +555,7 @@ void console_commands_init()
     dot_cmd.register_cmd();
     console_history_cmd.register_cmd();
     vli_cmd.register_cmd();
+    monitor_resolution_scale_cmd.register_cmd();
     fast_anim_cmd.register_cmd();
     player_count_cmd.register_cmd();
     find_level_cmd.register_cmd();
