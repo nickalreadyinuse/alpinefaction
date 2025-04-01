@@ -43,7 +43,7 @@ CallHook<void(int, rf::ParticleCreateInfo&, rf::GRoom*, rf::Vector3*, int, rf::P
     [](int pool_id, rf::ParticleCreateInfo& pci, rf::GRoom* room, rf::Vector3 *a4, int parent_obj, rf::Particle** result, rf::ParticleEmitter* emitter) {
         // On AF levels, create particles only within the active distance
         // Applies to particle emitters placed in level file
-        if (af_rfl_version(rf::level.version) && parent_obj == 0 && emitter->uid > 0) {
+        if (!rf::is_server && !rf::is_dedicated_server && af_rfl_version(rf::level.version) && parent_obj == 0 && emitter->uid > 0) {
             rf::Vector3 camera_pos = rf::camera_get_pos(rf::local_player->cam);
             float dist = camera_pos.distance_to(emitter->pos);
             if (emitter->active_distance != 0.0f && emitter->active_distance <= dist) {
