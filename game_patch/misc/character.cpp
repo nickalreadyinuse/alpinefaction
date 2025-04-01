@@ -156,7 +156,7 @@ static FunHook<void()> character_level_init_hook{
 void character_apply_patch()
 {
     // do not load fast_anims value from registry
-    AsmWriter{0x0050C24B}.nop(5);
+    AsmWriter{0x0050C24B}.nop(6);
 
     skeleton_find_hook.install();
     skeleton_unlink_base_hook.install();
