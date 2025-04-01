@@ -93,6 +93,7 @@ Version 1.1.0 (Tamarack): Not yet released
   - Damage screen flash, death bars, mesh static lighting, show glares, show enemy bullets
   - Show FPS, show ping, spectate mode minimal UI, nearest texture filtering
   - DirectInput, autosave, scoreboard animations, level sound modifier
+  - High monitor resolution, Alpine branding, multiplayer tracker, fast animations
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 - Add `dbg_consolehistory` command to toggle whether console history persists between game launches
@@ -106,8 +107,9 @@ Version 1.1.0 (Tamarack): Not yet released
 - Allow `Anchor_Marker_Orient` event as skybox eye anchor
 - Add support for `$Crater Texture PPM` to `MAPNAME_info.tbl`
 - Add options to `af_ui.tbl` to set the Summoner Trailer button to load a specific level in TC mods
-- Move FastAnimations to `alpine_settings.ini` instead of using RF registry value
 - Add `r_fastanims` console command to toggle fast animations
+- Shift High Monitor Resolution config to MonitorResolutionScale, allowing for greater control
+- Add `r_monitorscale` console command to set monitor resolution scale
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
