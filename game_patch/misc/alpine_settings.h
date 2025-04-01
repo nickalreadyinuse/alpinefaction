@@ -96,6 +96,7 @@ struct AlpineGameSettings
     bool direct_input = true;
     bool scoreboard_anim = true;
     bool autosave = true;
+    bool af_branding = true;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

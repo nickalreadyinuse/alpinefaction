@@ -76,7 +76,6 @@ struct GameConfig
 
     // Interface
     CfgVar<int> language = -1;
-    CfgVar<bool> af_branding = true;
 
     // Misc
     CfgVar<bool> fast_start = true;

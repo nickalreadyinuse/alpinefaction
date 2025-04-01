@@ -179,6 +179,10 @@ bool alpine_player_settings_load(rf::Player* player)
         apply_console_history_setting();
         processed_keys.insert("SaveConsoleHistory");
     }
+    if (settings.count("AlpineBranding")) {
+        g_alpine_game_config.af_branding = std::stoi(settings["AlpineBranding"]);
+        processed_keys.insert("AlpineBranding");
+    }
 
     // Load weapon autoswitch priority
     if (settings.count("WeaponAutoswitchPriority")) {
@@ -581,6 +585,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "SpectateMinimalUI=" << g_alpine_game_config.spectate_mode_minimal_ui << "\n";
     file << "ShowFPS=" << g_alpine_game_config.fps_counter << "\n";
     file << "SaveConsoleHistory=" << g_alpine_game_config.save_console_history << "\n";
+    file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";

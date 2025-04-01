@@ -52,7 +52,7 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
     if (!dry_run) {
         rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xFF);
         static int score_rflogo_bm =
-            rf::bm::load(g_game_config.af_branding ? "score_aflogo.tga" : "score_rflogo.tga", -1, false);
+            rf::bm::load(g_alpine_game_config.af_branding ? "score_aflogo.tga" : "score_rflogo.tga", -1, false);
         rf::gr::bitmap(score_rflogo_bm, x_center - 170, cur_y);
     }
     cur_y += 30;
