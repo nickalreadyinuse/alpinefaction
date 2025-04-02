@@ -20,6 +20,5 @@ private:
     CToolTip m_tool_tip;
 
     void InitToolTip();
-    void OnBnClickedResetTrackerBtn();
     void OnForcePortClick();
 };

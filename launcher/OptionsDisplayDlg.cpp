@@ -48,7 +48,6 @@ BOOL OptionsDisplayDlg::OnInitDialog()
     m_wnd_mode_combo.SetCurSel(static_cast<int>(m_conf.wnd_mode));
     CheckDlgButton(IDC_VSYNC_CHECK, m_conf.vsync ? BST_CHECKED : BST_UNCHECKED);
     SetDlgItemInt(IDC_RENDERING_CACHE_EDIT, m_conf.geometry_cache_size, false);
-    SetDlgItemInt(IDC_MAX_FPS_EDIT, m_conf.max_fps, false);
 
     InitToolTip();
 
@@ -63,7 +62,6 @@ void OptionsDisplayDlg::InitToolTip()
     m_tool_tip.AddTool(GetDlgItem(IDC_RENDERING_CACHE_EDIT), "RAM allocated for level geometry rendering, max 32 MB");
     m_tool_tip.AddTool(GetDlgItem(IDC_RESOLUTIONS_COMBO), "Select resolution from provided dropdown list or type a resolution manually");
     m_tool_tip.AddTool(GetDlgItem(IDC_VSYNC_CHECK), "Enable vertical synchronization (reduces tearing but adds input latency)");
-    m_tool_tip.AddTool(GetDlgItem(IDC_MAX_FPS_EDIT), "Limit maximum FPS (in addition to this setting, a limit of 240 is enforced in multiplayer due to relevant bugs)");
 }
 
 void OptionsDisplayDlg::UpdateAdapterCombo()
@@ -192,7 +190,6 @@ void OptionsDisplayDlg::OnSave()
     m_conf.wnd_mode = static_cast<GameConfig::WndMode>(m_wnd_mode_combo.GetCurSel());
     m_conf.vsync = (IsDlgButtonChecked(IDC_VSYNC_CHECK) == BST_CHECKED);
     m_conf.geometry_cache_size = GetDlgItemInt(IDC_RENDERING_CACHE_EDIT, false);
-    m_conf.max_fps = GetDlgItemInt(IDC_MAX_FPS_EDIT, false);
 }
 
 void OptionsDisplayDlg::OnRendererChange()

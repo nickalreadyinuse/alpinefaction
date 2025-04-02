@@ -21,7 +21,7 @@
 #define IDC_OPTIONS_BTN                 1001
 #define IDC_RESOLUTIONS_COMBO           1002
 #define IDC_WND_MODE_COMBO              1003
-#define IDC_TRACKER_EDIT                1006
+//#define IDC_TRACKER_EDIT                1006
 #define IDC_VSYNC_CHECK                 1007
 #define IDC_EAX_SOUND_CHECK             1008
 //#define IDC_FAST_ANIMS_CHECK            1009
@@ -33,14 +33,14 @@
 #define IDC_HEADER_PIC                  1015
 #define IDC_EXE_PATH_EDIT               1016
 #define IDC_EXE_BROWSE                  1017
-#define IDC_RESET_TRACKER_BTN           1018
+//#define IDC_RESET_TRACKER_BTN           1018
 #define IDC_COLOR_DEPTH_COMBO           1019
 #define IDC_CLAMP_COMBO                 1020
 #define IDC_UPDATE_STATUS               1021
 #define IDC_FAST_START_CHECK            1022
 //#define IDC_FPS_COUNTER_CHECK           1023
 #define IDC_ALLOW_OVERWRITE_GAME_CHECK  1024
-#define IDC_MAX_FPS_EDIT                1025
+//#define IDC_MAX_FPS_EDIT                1025
 #define IDC_HIGH_SCANNER_RES_CHECK      1026
 #define IDC_TRUE_COLOR_TEXTURES_CHECK   1027
 #define IDC_SCOREBOARD_ANIM_CHECK       1028

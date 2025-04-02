@@ -217,10 +217,6 @@ void LauncherApp::MigrateConfig()
     try {
         GameConfig config;
         if (config.load() && config.alpine_faction_version.value() != VERSION_STR) {
-            xlog::info("Old version detected, migrating config");
-            //if (config.tracker.value() == "rf.thqmultiplay.net" && config.alpine_faction_version->empty()) // < 1.1.0
-            if (config.alpine_faction_version->empty()) // always set FF tracker if new install
-                config.tracker = GameConfig::default_rf_tracker;
             config.alpine_faction_version = VERSION_STR;
             config.save();
         }

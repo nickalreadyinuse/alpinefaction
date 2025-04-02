@@ -12,7 +12,6 @@ BOOL OptionsMultiplayerDlg::OnInitDialog()
 {
     InitToolTip();
 
-    SetDlgItemTextA(IDC_TRACKER_EDIT, m_conf.tracker->c_str());
     CheckDlgButton(IDC_FORCE_PORT_CHECK, m_conf.force_port != 0);
     if (m_conf.force_port)
         SetDlgItemInt(IDC_PORT_EDIT, m_conf.force_port, false);
@@ -26,18 +25,12 @@ BOOL OptionsMultiplayerDlg::OnInitDialog()
 void OptionsMultiplayerDlg::InitToolTip()
 {
     m_tool_tip.Create(*this);
-    m_tool_tip.AddTool(GetDlgItem(IDC_TRACKER_EDIT), "Tracker for finding avaliable multiplayer servers (click Reset to use default)");
     m_tool_tip.AddTool(GetDlgItem(IDC_RATE_EDIT), "Internet connection speed in bytes/s (recommended to leave the default value of 200000)");
     m_tool_tip.AddTool(GetDlgItem(IDC_FORCE_PORT_CHECK), "If not checked, port is randomly selected");
 }
 
 void OptionsMultiplayerDlg::OnSave()
 {
-    // fix for strange bug that would blank tracker field if changing force port or maxfps
-    if (!GetDlgItemTextA(IDC_TRACKER_EDIT).GetString().empty()) {
-        m_conf.tracker = GetDlgItemTextA(IDC_TRACKER_EDIT).GetString();
-    }
-    
     bool force_port = IsDlgButtonChecked(IDC_FORCE_PORT_CHECK) == BST_CHECKED;
     m_conf.force_port = force_port ? GetDlgItemInt(IDC_PORT_EDIT, false) : 0;
     m_conf.update_rate = GetDlgItemInt(IDC_RATE_EDIT, false);
@@ -49,20 +42,12 @@ BOOL OptionsMultiplayerDlg::OnCommand(WPARAM wparam, LPARAM lparam)
 
     UINT id = LOWORD(wparam);
     switch (id) {
-    case IDC_RESET_TRACKER_BTN:
-        OnBnClickedResetTrackerBtn();
-        return TRUE;
     case IDC_FORCE_PORT_CHECK:
         OnForcePortClick();
         return TRUE;
     }
 
     return FALSE;
-}
-
-void OptionsMultiplayerDlg::OnBnClickedResetTrackerBtn()
-{
-    SetDlgItemTextA(IDC_TRACKER_EDIT, GameConfig::default_rf_tracker);
 }
 
 void OptionsMultiplayerDlg::OnForcePortClick()
