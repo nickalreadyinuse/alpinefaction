@@ -67,7 +67,7 @@ void AchievementManager::initialize()
         {AchievementName::KillMasako, {22, "Kill Masako", AchievementCategory::base_campaign}},
         {AchievementName::UseFlashlight, {23, "Let There be Light!", AchievementCategory::singleplayer}},
         {AchievementName::UnderwaterSub, {24, "Submerged Secret", AchievementCategory::base_campaign}},
-        {AchievementName::KillDrone, {25, "Kill Drone", AchievementCategory::base_campaign}},
+        {AchievementName::KillDrone, {25, "Heavy Equipment", AchievementCategory::base_campaign}},
         {AchievementName::KillCapekFlamethrower, {26, "Kill Capek", AchievementCategory::base_campaign}},
         {AchievementName::DropCorpse, {27, "Body Hiders", AchievementCategory::singleplayer}},
         {AchievementName::UseMedic, {28, "Healthy as a Horse", AchievementCategory::singleplayer}},
