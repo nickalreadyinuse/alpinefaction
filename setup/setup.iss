@@ -74,7 +74,6 @@ Name: "{autodesktop}\Alpine Faction"; Filename: "{app}\AlpineFactionLauncher.exe
 [Run]
 Filename: "{app}\AlpineFactionLauncher.exe"; Description: "{cm:LaunchProgram,Alpine Faction}"; Flags: nowait postinstall skipifsilent
 Filename: "REG"; Parameters: "ADD ""HKCU\Software\Volition\Red Faction\Alpine Faction"" /v ""Executable Path"" /d ""{code:GetFinalGameExePath}"" /f"; Flags: runhidden runasoriginaluser
-Filename: "REG"; Parameters: "ADD ""HKCU\Software\Volition\Red Faction"" /v GameTracker /d rfgt.factionfiles.com /f"; Flags: runhidden runasoriginaluser
 
 [Registry]
 ; rf:// protocol
