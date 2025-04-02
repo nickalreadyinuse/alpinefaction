@@ -94,6 +94,7 @@ Version 1.1.0 (Tamarack): Not yet released
   - Show FPS, show ping, spectate mode minimal UI, nearest texture filtering
   - DirectInput, autosave, scoreboard animations, level sound modifier
   - High monitor resolution, Alpine branding, multiplayer tracker, fast animations
+  - Max FPS, max server FPS, server netfps
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 - Add `dbg_consolehistory` command to toggle whether console history persists between game launches

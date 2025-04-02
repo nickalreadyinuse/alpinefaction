@@ -8,18 +8,6 @@
 const char rf_key_name[] = R"(SOFTWARE\Volition\Red Faction)";
 const char df_subkey_name[] = "Alpine Faction";
 
-const char GameConfig::default_rf_tracker[] = "rfgt.factionfiles.com";
-
-#if VERSION_TYPE == VERSION_TYPE_DEV
-unsigned GameConfig::min_fps_limit = 1u;
-unsigned GameConfig::max_fps_limit = 10000u;
-unsigned GameConfig::max_fps_limit_mp = 240u;
-#else
-unsigned GameConfig::min_fps_limit = 10u;
-unsigned GameConfig::max_fps_limit = 10000u;
-unsigned GameConfig::max_fps_limit_mp = 240u;
-#endif
-
 const char fallback_executable_path[] = R"(C:\games\RedFaction\rf.exe)";
 
 bool GameConfig::load() try
@@ -157,7 +145,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(red_faction_key, "Selected Video Card", selected_video_card);
     result &= visitor(red_faction_key, "Vsync", vsync);
     result &= visitor(red_faction_key, "Geometry Cache Size", geometry_cache_size);
-    result &= visitor(red_faction_key, "GameTracker", tracker);
     result &= visitor(red_faction_key, "UpdateRate", update_rate);
     result &= visitor(red_faction_key, "EAX", eax_sound);
     result &= visitor(red_faction_key, "ForcePort", force_port);
@@ -169,8 +156,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Anisotropic Filtering", anisotropic_filtering);
     result &= visitor(dash_faction_key, "MSAA", msaa);
     result &= visitor(dash_faction_key, "Light Color Range", clamp_mode);
-    result &= visitor(dash_faction_key, "Max FPS", max_fps);
-    result &= visitor(dash_faction_key, "Server Max FPS", server_max_fps);
     result &= visitor(dash_faction_key, "High Scanner Resolution", high_scanner_res);
     result &= visitor(dash_faction_key, "True Color Textures", true_color_textures);
     result &= visitor(dash_faction_key, "Renderer", renderer);
@@ -182,7 +167,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
     result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
-    result &= visitor(dash_faction_key, "Server Net FPS", server_netfps);
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
     result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
     result &= visitor(dash_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);

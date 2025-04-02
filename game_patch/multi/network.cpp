@@ -40,6 +40,7 @@
 #include "../rf/level.h"
 #include "../misc/misc.h"
 #include "../misc/player.h"
+#include "../misc/alpine_settings.h"
 #include "../object/object.h"
 #include "../os/console.h"
 #include "../purefaction/pf.h"
@@ -1233,7 +1234,7 @@ CodeInjection server_update_rate_injection{
     0x0047E891,
     [](auto& regs) {
         auto& min_send_obj_update_interval = *static_cast<int*>(regs.esp);
-        min_send_obj_update_interval = 1000 / g_game_config.server_netfps;
+        min_send_obj_update_interval = 1000 / g_alpine_game_config.server_netfps;
     },
 };
 
@@ -1241,11 +1242,9 @@ ConsoleCommand2 netfps_cmd{
     "sv_netfps",
     [](std::optional<int> update_rate) {
         if (update_rate) {
-            // By default server-side update-rate is set to 1/0.085 ~= 12
-            g_game_config.server_netfps = std::clamp(update_rate.value(), 12, 300);
-            g_game_config.save();
+            g_alpine_game_config.set_server_netfps(update_rate.value());
         }
-        rf::console::print("Server netfps: {}", g_game_config.server_netfps.value());
+        rf::console::print("Server netfps: {}", g_alpine_game_config.server_netfps);
     },
     "Set number of updates sent from server to clients per second",
 };

@@ -28,12 +28,6 @@ struct GameConfig
     CfgVar<bool> vsync = false;
     CfgVar<unsigned> geometry_cache_size{32, [](auto val) { return std::clamp(val, 2u, 32u); }};
 
-    static unsigned min_fps_limit;
-    static unsigned max_fps_limit;
-    static unsigned max_fps_limit_mp;
-    CfgVar<unsigned> max_fps{240, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
-    CfgVar<unsigned> server_max_fps{60, [](auto val) { return std::clamp(val, min_fps_limit, max_fps_limit); }};
-
     enum class Renderer
     {
         // separate values for d3d8/d3d9?
@@ -63,10 +57,6 @@ struct GameConfig
     CfgVar<bool> eax_sound = true;
 
     // Multiplayer
-    static const char default_rf_tracker[];
-    CfgVar<std::string> tracker{default_rf_tracker};
-    CfgVar<unsigned> server_netfps = 30;
-
     static constexpr unsigned default_update_rate = 200000; // T1/LAN in stock launcher
     CfgVar<unsigned> update_rate = default_update_rate;
 

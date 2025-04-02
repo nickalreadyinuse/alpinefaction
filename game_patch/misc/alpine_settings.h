@@ -112,6 +112,31 @@ struct AlpineGameSettings
         else
             multiplayer_tracker = "rfgt.factionfiles.com";
     }
+
+    // max_fps default is 120
+    static constexpr unsigned min_fps_limit = 1u;
+    static constexpr unsigned max_fps_limit = 100000u;
+    static constexpr unsigned max_fps_limit_mp = 240u;
+    unsigned max_fps = 240u;
+    void set_max_fps(unsigned fps_value)
+    {
+        max_fps = std::clamp(fps_value, min_fps_limit, max_fps_limit);
+    }
+
+    unsigned server_max_fps = 60u;
+    void set_server_max_fps(unsigned fps_value)
+    {
+        server_max_fps = std::clamp(fps_value, min_fps_limit, max_fps_limit);
+    }
+
+    // server netfps default is 1/0.085 ~= 12
+    static constexpr unsigned min_server_netfps = 12u;
+    static constexpr unsigned max_server_netfps = 300u;
+    unsigned server_netfps = 30u;
+    void set_server_netfps(unsigned netfps_value)
+    {
+        server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
+    }
 };
 
 extern AlpineGameSettings g_alpine_game_config;

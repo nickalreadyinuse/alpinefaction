@@ -7,6 +7,7 @@
 #include "alpine_options.h"
 #include <common/version/version.h>
 #include "../os/console.h"
+#include "../os/os.h"
 #include "../rf/ui.h"
 #include "../rf/character.h"
 #include "../rf/os/console.h"
@@ -308,6 +309,11 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_monitor_resolution_scale(std::stoi(settings["MonitorResolutionScale"]));
         processed_keys.insert("MonitorResolutionScale");
     }
+    if (settings.count("MaxFPS")) {
+        g_alpine_game_config.set_max_fps(std::stoi(settings["MaxFPS"]));
+        apply_maximum_fps();
+        processed_keys.insert("MaxFPS");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -401,6 +407,15 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("MultiplayerTracker")) {
         g_alpine_game_config.set_multiplayer_tracker(settings["MultiplayerTracker"]);
         processed_keys.insert("MultiplayerTracker");
+    }
+    if (settings.count("ServerMaxFPS")) {
+        g_alpine_game_config.set_server_max_fps(std::stoi(settings["ServerMaxFPS"]));
+        apply_maximum_fps();
+        processed_keys.insert("ServerMaxFPS");
+    }
+    if (settings.count("ServerNetFPS")) {
+        g_alpine_game_config.set_server_netfps(std::stoi(settings["ServerNetFPS"]));
+        processed_keys.insert("ServerNetFPS");
     }
 
     // Load input settings
@@ -640,6 +655,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
     file << "FastAnimations=" << rf::g_fast_animations << "\n";
     file << "MonitorResolutionScale=" << g_alpine_game_config.monitor_resolution_scale << "\n";
+    file << "MaxFPS=" << g_alpine_game_config.max_fps << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
@@ -668,6 +684,8 @@ void alpine_player_settings_save(rf::Player* player)
     file << "VerboseTimer=" << g_alpine_game_config.verbose_time_left_display << "\n";
     file << "ScoreboardAnimations=" << g_alpine_game_config.scoreboard_anim << "\n";
     file << "MultiplayerTracker=" << g_alpine_game_config.multiplayer_tracker << "\n";
+    file << "ServerMaxFPS=" << g_alpine_game_config.server_max_fps << "\n";
+    file << "ServerNetFPS=" << g_alpine_game_config.server_netfps << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

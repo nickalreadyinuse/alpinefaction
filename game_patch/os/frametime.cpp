@@ -123,22 +123,23 @@ void apply_maximum_fps()
     unsigned max_fps;
 
     if (rf::is_dedicated_server) {
-        max_fps = g_game_config.server_max_fps.value();
+        max_fps = g_alpine_game_config.server_max_fps;
     }
     else if (rf::is_multi) {
         const auto& server_info_opt = get_df_server_info();
         if (server_info_opt && server_info_opt->unlimited_fps) {
-            max_fps = g_game_config.max_fps.value();
+            max_fps = g_alpine_game_config.max_fps;
         }
         else {
-            max_fps = std::clamp(g_game_config.max_fps.value(), GameConfig::min_fps_limit, GameConfig::max_fps_limit_mp);
+            max_fps = std::clamp(g_alpine_game_config.max_fps, g_alpine_game_config.min_fps_limit, g_alpine_game_config.max_fps_limit_mp);
         }
     }
     else {
-        max_fps = g_game_config.max_fps.value();
+        max_fps = g_alpine_game_config.max_fps;
     }
 
     rf::frametime_min = 1.0f / static_cast<float>(max_fps);
+    //xlog::warn("applying max fps {}", max_fps);
 }
 
 FunHook<void()> frametime_reset_hook{
@@ -155,14 +156,12 @@ ConsoleCommand2 max_fps_cmd{
     "maxfps",
     [](std::optional<int> limit_opt) {
         if (limit_opt) {
-            int limit = std::clamp<int>(limit_opt.value(), GameConfig::min_fps_limit, GameConfig::max_fps_limit);
             if (rf::is_dedicated_server) {
-                g_game_config.server_max_fps = limit;
+                g_alpine_game_config.set_server_max_fps(limit_opt.value());
             }
             else {
-                g_game_config.max_fps = limit;
+                g_alpine_game_config.set_max_fps(limit_opt.value());
             }
-            g_game_config.save();
             apply_maximum_fps();
         }
         else
