@@ -145,6 +145,13 @@ static rf::ui::Label ao_enemybullets_label;
 static rf::ui::Checkbox ao_togglecrouch_cbox;
 static rf::ui::Label ao_togglecrouch_label;
 
+// levelsounds audio options slider
+std::vector<rf::ui::Gadget*> alpine_audio_panel_settings;
+std::vector<rf::ui::Gadget*> alpine_audio_panel_settings_buttons;
+static rf::ui::Slider levelsound_opt_slider;
+static rf::ui::Button levelsound_opt_button;
+static rf::ui::Label levelsound_opt_label;
+
 // fflink info strings
 static rf::ui::Label ao_fflink_label1;
 static rf::ui::Label ao_fflink_label2;
@@ -1334,6 +1341,143 @@ CodeInjection options_do_frame_highlight_buttons_patch{
     },
 };
 
+void levelsound_opt_slider_on_click(int x, int y)
+{
+    levelsound_opt_slider.update_value(x, y);
+    float vol_value = levelsound_opt_slider.get_value();
+    g_alpine_game_config.set_level_sound_volume(vol_value);
+    set_play_sound_events_volume_scale();
+}
+
+// Add level sounds slider to audio options panel
+CodeInjection options_audio_init_patch{
+    0x004544F6,
+    [](auto& regs) {
+        alpine_audio_panel_settings.push_back(&rf::ui::audio_sfx_slider);
+        rf::ui::audio_sfx_slider.on_mouse_btn_down = rf::ui::audio_sfx_slider_on_click;
+
+        alpine_audio_panel_settings.push_back(&rf::ui::audio_music_slider);
+        rf::ui::audio_music_slider.on_mouse_btn_down = rf::ui::audio_music_slider_on_click;
+
+        alpine_audio_panel_settings.push_back(&rf::ui::audio_message_slider);
+        rf::ui::audio_message_slider.on_mouse_btn_down = rf::ui::audio_message_slider_on_click;
+
+        alpine_audio_panel_settings_buttons.push_back(&rf::ui::audio_sfx_button);
+        alpine_audio_panel_settings_buttons.push_back(&rf::ui::audio_music_button);
+        alpine_audio_panel_settings_buttons.push_back(&rf::ui::audio_message_button);
+
+        levelsound_opt_slider.create(&rf::ui::audio_options_panel, "slider_bar.tga", "slider_bar_on.tga", 141, 176, 118, 21, 0.0, 1.0);
+        levelsound_opt_slider.on_click = levelsound_opt_slider_on_click;
+        levelsound_opt_slider.on_mouse_btn_down = levelsound_opt_slider_on_click;
+        float levelsound_value = g_alpine_game_config.level_sound_volume;
+        levelsound_opt_slider.set_value(levelsound_value);
+        levelsound_opt_slider.enabled = true;
+        alpine_audio_panel_settings.push_back(&levelsound_opt_slider);
+
+        levelsound_opt_button.create("indicator.tga", "indicator_selected.tga", 110, 172, -1, "", 0);
+        levelsound_opt_button.parent = &rf::ui::audio_options_panel;
+        levelsound_opt_button.enabled = true;
+        alpine_audio_panel_settings_buttons.push_back(&levelsound_opt_button);
+
+        levelsound_opt_label.create(&rf::ui::audio_options_panel, 285, 178, "Environment Sounds Volume", rf::ui::medium_font_1);
+        levelsound_opt_label.enabled = true;
+    },
+};
+
+CodeInjection options_audio_do_frame_patch{
+    0x0045487B,
+    [](auto& regs) {
+        levelsound_opt_slider.render();
+        levelsound_opt_button.render();
+        levelsound_opt_label.render();
+    },
+};
+
+FunHook<int(int, int)> audio_panel_handle_mouse_hook{
+    0x004548B0,
+    [](int x, int y) {
+        static int last_hovered_index = -1;
+        static int last_hover_sound_index = -1;
+        int hovered_index = -1;
+        //xlog::warn("handling mouse {}, {}", x, y);
+
+        // Check which gadget is being hovered over
+        for (size_t i = 0; i < alpine_audio_panel_settings.size(); ++i) {
+            auto* gadget = alpine_audio_panel_settings[i];
+            if (gadget && gadget->enabled) {
+                int abs_x = static_cast<int>(gadget->get_absolute_x() * rf::ui::scale_x);
+                int abs_y = static_cast<int>(gadget->get_absolute_y() * rf::ui::scale_y);
+                int abs_w = static_cast<int>(gadget->w * rf::ui::scale_x);
+                int abs_h = static_cast<int>(gadget->h * rf::ui::scale_y);
+
+                //xlog::warn("Checking gadget {} at ({}, {}) size ({}, {})", i, abs_x, abs_y, abs_w, abs_h);
+
+                if (x >= abs_x && x <= abs_x + abs_w && y >= abs_y && y <= abs_y + abs_h) {
+                    hovered_index = static_cast<int>(i);
+
+                    if (last_hover_sound_index != hovered_index) {
+                        rf::snd_play(42, 0, 0.0f, 1.0f);
+                        last_hover_sound_index = hovered_index;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Click
+        if (hovered_index >= 0) {
+            auto* gadget = alpine_audio_panel_settings[hovered_index];
+            if (gadget && rf::mouse_was_button_pressed(0)) {
+                if (gadget->on_click)
+                    gadget->on_click(x, y);
+
+                last_hovered_index = hovered_index; // remember active gadget for slider drag
+                rf::snd_play(43, 0, 0.0f, 1.0f);
+            }
+        }
+
+        // Drag or movement on last clicked gadget
+        int dx = 0, dy = 0, dz = 0;
+        rf::mouse_get_delta(dx, dy, dz);
+        if ((dx || dy) && rf::mouse_button_is_down(0)) {
+            if (last_hovered_index >= 0) {
+                auto* gadget = alpine_audio_panel_settings[last_hovered_index];
+                if (gadget && gadget->on_mouse_btn_down)
+                    gadget->on_mouse_btn_down(x, y);
+            }
+        }
+
+        // Reset last hovered index if mouse is released
+        if (!rf::mouse_button_is_down(0)) {
+            last_hovered_index = -1;
+        }
+
+        for (auto* gadget : alpine_audio_panel_settings) {
+            if (gadget) {
+                gadget->highlighted = false;
+            }
+        }
+
+        for (auto* gadget : alpine_audio_panel_settings_buttons) {
+            if (gadget) {
+                gadget->highlighted = false;
+            }
+        }
+
+        if (hovered_index >= 0) {
+            alpine_audio_panel_settings[hovered_index]->highlighted = true;
+            alpine_audio_panel_settings_buttons[hovered_index]->highlighted = true;
+        }
+
+        if (hovered_index == -1) {
+            last_hover_sound_index = -1; // reset so next hover triggers sound again
+        }
+
+        //xlog::warn("over {}", hovered_index);
+        return 0;
+    },
+};
+
 void ui_apply_patch()
 {
     // Alpine Faction options button and panel
@@ -1349,6 +1493,11 @@ void ui_apply_patch()
     AsmWriter{0x0044F550}.push(6); // num buttons in options menu
     AsmWriter{0x0044F552}.push(&new_gadgets); // support mouseover for alpine options button
     AsmWriter{0x0044F285}.push(5); // back button index, used when hitting esc in options menu
+
+    // Audio options panel
+    options_audio_init_patch.install();
+    options_audio_do_frame_patch.install();
+    audio_panel_handle_mouse_hook.install();
 
     // set mouse sens slider in controls options panel to max at 0.5 (stock game is 1.0)
     AsmWriter{0x004504AE}.push(0x3F000000);

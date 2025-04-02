@@ -102,6 +102,7 @@ add_packfile(alpinefaction.vpp
     images/alpine_options_panel1.tga
     images/alpine_options_panel2.tga
     images/alpine_options_panel3.tga
+    images/audio_panel.vbm
     images/ao_tab.tga
     images/ao_tab_hover.tga
     images/ao_smbut1.tga

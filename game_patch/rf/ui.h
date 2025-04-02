@@ -35,6 +35,11 @@ namespace rf::ui
             AddrCaller{0x00440970}.this_call<void>(this);
         }
 
+        void highlight()
+        {
+            AddrCaller{0x00436DF0}.this_call<void>(this);
+        }
+
         void disable()
         {
             AddrCaller{0x00448A00}.this_call<void>(this);
@@ -75,6 +80,44 @@ namespace rf::ui
     };
     static_assert(sizeof(Button) == 0x44);
 
+    struct Slider : Gadget
+    {
+        bool vertical;
+        int bm_w;
+        int bm_h;
+        float value;
+        int bm_handle;
+        int bm_handle_on;
+        float min_value;
+        float max_value;
+
+        void create(rf::ui::Gadget* parent, const char* texture, const char* texture_slider_on, int x, int y, int w, int h, float min, float max)
+        {
+            AddrCaller{0x00457BD0}.this_call<void>(this, parent, texture, texture_slider_on, x, y, w, h, min, max);
+        }
+
+        void render()
+        {
+            AddrCaller{0x00457CA0}.this_call<void>(this);
+        }
+
+        void update_value(int x, int y)
+        {
+            AddrCaller{0x00457E10}.this_call<void>(this, x, y);
+        }
+
+        float get_value()
+        {
+            return AddrCaller{0x00457ED0}.this_call<float>(this);
+        }
+
+        void set_value(float value)
+        {
+            AddrCaller{0x00457EB0}.this_call<void>(this, value);
+        }
+    };
+    static_assert(sizeof(Slider) == 0x48);
+
     struct Panel : Gadget
     {
         int bg_bm;
@@ -90,6 +133,18 @@ namespace rf::ui
         }
     };
     static_assert(sizeof(Panel) == 0x2C);
+
+    struct Container : Gadget
+    {
+        void *gadgets[32];
+        int count;
+
+        void add_gadget(Gadget* gadget)
+        {
+            AddrCaller{0x00458300}.this_call<void>(this, gadget);
+        }
+    };
+    static_assert(sizeof(Container) == 0xAC);
 
     struct Checkbox : Button
     {
@@ -192,6 +247,17 @@ namespace rf::ui
     static auto& medium_font_0 = addr_as_ref<int>(0x0063C060);
     static auto& medium_font_1 = addr_as_ref<int>(0x0063C064);
     static auto& small_font = addr_as_ref<int>(0x0063C068);
+
+    static auto& audio_options_panel = addr_as_ref<Panel>(0x006424D8);
+    static auto& audio_sfx_slider = addr_as_ref<Slider>(0x00642418);
+    static auto& audio_sfx_slider_on_click = addr_as_ref<void(int x, int y)>(0x00454070);
+    static auto& audio_music_slider = addr_as_ref<Slider>(0x006423D0);
+    static auto& audio_music_slider_on_click = addr_as_ref<void(int x, int y)>(0x004540E0);
+    static auto& audio_message_slider = addr_as_ref<Slider>(0x00642490);
+    static auto& audio_message_slider_on_click = addr_as_ref<void(int x, int y)>(0x00454150);
+    static auto& audio_sfx_button = addr_as_ref<Button>(0x006421E0);
+    static auto& audio_music_button = addr_as_ref<Button>(0x00642098);
+    static auto& audio_message_button = addr_as_ref<Button>(0x00642228);
 
     // options menu globals
     static auto& g_MenuMainButtonsY = *reinterpret_cast<int*>(0x00598FCC);

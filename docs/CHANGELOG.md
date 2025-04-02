@@ -111,6 +111,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `r_fastanims` console command to toggle fast animations
 - Shift High Monitor Resolution config to MonitorResolutionScale, allowing for greater control
 - Add `r_monitorscale` console command to set monitor resolution scale
+- Add environmental sounds slider to audio options panel
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
