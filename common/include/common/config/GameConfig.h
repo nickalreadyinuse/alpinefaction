@@ -38,7 +38,6 @@ struct GameConfig
     CfgVar<Renderer> renderer = Renderer::d3d9;
 
     // Graphics
-    CfgVar<bool> disable_lod_models = true;
     CfgVar<bool> anisotropic_filtering = true;
     CfgVar<unsigned> msaa = 0;
 

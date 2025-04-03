@@ -454,6 +454,7 @@ namespace rf
     static auto& entity_restore_mesh = addr_as_ref<void(Entity *ep, const char *mesh_name)>(0x0042C570);
     static auto& entity_detach_from_host = addr_as_ref<void(Entity* ep)>(0x004279D0);
     static auto& entity_set_skin = addr_as_ref<void(Entity* ep, const char* skin_name)>(0x00428FB0);
+    static auto& entity_sim_distance = addr_as_ref<float>(0x00589548);
 
     static auto& entity_list = addr_as_ref<Entity>(0x005CB060);
     static auto& local_player_entity = addr_as_ref<Entity*>(0x005CB054);

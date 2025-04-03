@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../misc/achievements.h"
+#include "../misc/alpine_settings.h"
 #include "../os/console.h"
 #include "../rf/entity.h"
 #include "../rf/event.h"
@@ -365,6 +366,10 @@ CodeInjection player_create_entity_patch {
     }
 };
 
+void apply_entity_sim_distance() {
+    rf::entity_sim_distance = g_alpine_game_config.entity_sim_distance;
+}
+
 void entity_do_patch()
 {
     //player_create_entity_patch.install(); // force team skin experiment
@@ -383,12 +388,6 @@ void entity_do_patch()
     AsmWriter(0x0042809F, 0x004280A9).nop();
     entity_on_land_hook.install();
     entity_make_run_after_climbing_patch.install();
-
-    // Increase entity simulation max distance
-    // TODO: create a config property for this
-    if (g_game_config.disable_lod_models) {
-        write_mem<float>(0x00589548, 100.0f);
-    }
 
     // Fix crash when particle emitter allocation fails during entity ignition
     entity_fire_switch_parent_to_corpse_hook.install();

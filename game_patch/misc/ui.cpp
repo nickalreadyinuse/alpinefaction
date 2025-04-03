@@ -74,8 +74,18 @@ static rf::ui::Checkbox ao_maxfps_cbox;
 static rf::ui::Label ao_maxfps_label;
 static rf::ui::Label ao_maxfps_butlabel;
 static char ao_maxfps_butlabel_text[9];
+static rf::ui::Checkbox ao_loddist_cbox;
+static rf::ui::Label ao_loddist_label;
+static rf::ui::Label ao_loddist_butlabel;
+static char ao_loddist_butlabel_text[9];
+static rf::ui::Checkbox ao_simdist_cbox;
+static rf::ui::Label ao_simdist_label;
+static rf::ui::Label ao_simdist_butlabel;
+static char ao_simdist_butlabel_text[9];
 
 // alpine options checkboxes and labels
+static rf::ui::Checkbox ao_mpcharlod_cbox;
+static rf::ui::Label ao_mpcharlod_label;
 static rf::ui::Checkbox ao_dinput_cbox;
 static rf::ui::Label ao_dinput_label;
 static rf::ui::Checkbox ao_linearpitch_cbox;
@@ -651,8 +661,56 @@ void ao_maxfps_cbox_on_click_callback()
 }
 void ao_maxfps_cbox_on_click(int x, int y)
 {
-    rf::ui::popup_message("Enter new maximum FPS value:", "Caution: this is a value that is this is a value that is yup it really is this is long wow lol", ao_maxfps_cbox_on_click_callback, 1);
+    rf::ui::popup_message("Enter new maximum FPS value:", "", ao_maxfps_cbox_on_click_callback, 1);
     // ao_play_tab_snd();
+}
+
+// lod dist scale
+void ao_loddist_cbox_on_click_callback()
+{
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_dist = std::stof(str);
+        g_alpine_game_config.set_lod_dist_scale(new_dist);
+    }
+    catch (const std::exception& e) {
+        xlog::info("Invalid LOD distance scale input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_loddist_cbox_on_click(int x, int y)
+{
+    rf::ui::popup_message("Enter new LOD distance scale value:", "", ao_loddist_cbox_on_click_callback, 1);
+    // ao_play_tab_snd();
+}
+
+// simulation distance
+void ao_simdist_cbox_on_click_callback()
+{
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        float new_dist = std::stof(str);
+        g_alpine_game_config.set_entity_sim_distance(new_dist);
+        apply_entity_sim_distance();
+    }
+    catch (const std::exception& e) {
+        xlog::info("Invalid simulation distance input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_simdist_cbox_on_click(int x, int y)
+{
+    rf::ui::popup_message("Enter new simulation distance value:", "", ao_simdist_cbox_on_click_callback, 1);
+    // ao_play_tab_snd();
+}
+
+void ao_mpcharlod_cbox_on_click(int x, int y)
+{
+    g_alpine_game_config.multi_no_character_lod = !g_alpine_game_config.multi_no_character_lod;
+    ao_mpcharlod_cbox.checked = !g_alpine_game_config.multi_no_character_lod;
+    ao_play_button_snd(!g_alpine_game_config.multi_no_character_lod);
 }
 
 void ao_damagenum_cbox_on_click(int x, int y) {
@@ -1000,14 +1058,17 @@ void alpine_options_panel_init() {
         &ao_notex_cbox, &ao_notex_label, &alpine_options_panel0, ao_notex_cbox_on_click, g_alpine_game_config.try_disable_textures, 112, 84, "Lightmaps only");
     alpine_options_panel_checkbox_init(
         &ao_weapshake_cbox, &ao_weapshake_label, &alpine_options_panel0, ao_weapshake_cbox_on_click, !g_alpine_game_config.try_disable_weapon_shake, 112, 114, "Weapon shake");
-    alpine_options_panel_checkbox_init(
-        &ao_firelights_cbox, &ao_firelights_label, &alpine_options_panel0, ao_firelights_cbox_on_click, !g_alpine_game_config.try_disable_muzzle_flash_lights, 112, 144, "Muzzle lights");
     alpine_options_panel_inputbox_init(
-        &ao_fov_cbox, &ao_fov_label, &ao_fov_butlabel, &alpine_options_panel0, ao_fov_cbox_on_click, 112, 174, "Horizontal FOV");
+        &ao_fov_cbox, &ao_fov_label, &ao_fov_butlabel, &alpine_options_panel0, ao_fov_cbox_on_click, 112, 144, "Horizontal FOV");
     alpine_options_panel_inputbox_init(
-        &ao_fpfov_cbox, &ao_fpfov_label, &ao_fpfov_butlabel, &alpine_options_panel0, ao_fpfov_cbox_on_click, 112, 204, "Gun FOV mod");
+        &ao_fpfov_cbox, &ao_fpfov_label, &ao_fpfov_butlabel, &alpine_options_panel0, ao_fpfov_cbox_on_click, 112, 174, "Gun FOV mod");
     alpine_options_panel_inputbox_init(
-        &ao_maxfps_cbox, &ao_maxfps_label, &ao_maxfps_butlabel, &alpine_options_panel0, ao_maxfps_cbox_on_click, 112, 234, "Max FPS");
+        &ao_maxfps_cbox, &ao_maxfps_label, &ao_maxfps_butlabel, &alpine_options_panel0, ao_maxfps_cbox_on_click, 112, 204, "Max FPS");
+    alpine_options_panel_inputbox_init(
+        &ao_simdist_cbox, &ao_simdist_label, &ao_simdist_butlabel, &alpine_options_panel0, ao_simdist_cbox_on_click, 112, 234, "Simulation dist");
+    alpine_options_panel_inputbox_init(
+        &ao_loddist_cbox, &ao_loddist_label, &ao_loddist_butlabel, &alpine_options_panel0, ao_loddist_cbox_on_click, 112, 262, "LOD scale");
+    
 
     alpine_options_panel_checkbox_init(
         &ao_camshake_cbox, &ao_camshake_label, &alpine_options_panel0, ao_camshake_cbox_on_click, !g_alpine_game_config.screen_shake_force_off, 280, 54, "View shake (SP)");
@@ -1021,6 +1082,10 @@ void alpine_options_panel_init() {
         &ao_nearest_cbox, &ao_nearest_label, &alpine_options_panel0, ao_nearest_cbox_on_click, g_alpine_game_config.nearest_texture_filtering, 280, 174, "Nearest filtering");
     alpine_options_panel_checkbox_init(
         &ao_glares_cbox, &ao_glares_label, &alpine_options_panel0, ao_glares_cbox_on_click, g_alpine_game_config.show_glares, 280, 204, "Light glares");
+    alpine_options_panel_checkbox_init(
+        &ao_firelights_cbox, &ao_firelights_label, &alpine_options_panel0, ao_firelights_cbox_on_click, !g_alpine_game_config.try_disable_muzzle_flash_lights, 280, 234, "Muzzle lights");
+    alpine_options_panel_checkbox_init(
+        &ao_mpcharlod_cbox, &ao_mpcharlod_label, &alpine_options_panel0, ao_mpcharlod_cbox_on_click, !g_alpine_game_config.multi_no_character_lod, 280, 262, "Entity LOD (MP)");
 
     // panel 1
     alpine_options_panel_checkbox_init(
@@ -1207,6 +1272,14 @@ void alpine_options_panel_do_frame(int x)
     // max fps
     snprintf(ao_maxfps_butlabel_text, sizeof(ao_maxfps_butlabel_text), "%u", g_alpine_game_config.max_fps);
     ao_maxfps_butlabel.text = ao_maxfps_butlabel_text;
+
+    // lod dist
+    snprintf(ao_loddist_butlabel_text, sizeof(ao_loddist_butlabel_text), "%6.2f", g_alpine_game_config.lod_dist_scale);
+    ao_loddist_butlabel.text = ao_loddist_butlabel_text;
+
+    // simulation dist
+    snprintf(ao_simdist_butlabel_text, sizeof(ao_simdist_butlabel_text), "%6.2f", g_alpine_game_config.entity_sim_distance);
+    ao_simdist_butlabel.text = ao_simdist_butlabel_text;
 
     // render button labels
     for (auto* ui_label : alpine_options_panel_labels) {

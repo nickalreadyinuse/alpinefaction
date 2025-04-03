@@ -33,8 +33,6 @@ namespace df::gr::d3d11
     void bitmap_float(int bitmap_handle, float x, float y, float w, float h, float sx, float sy, float sw, float sh, bool flip_x, bool flip_y, rf::gr::Mode mode);
 }
 
-float gr_lod_dist_scale = 1.0f;
-
 CodeInjection gr_init_stretched_window_injection{
     0x0050C464,
     [](auto& regs) {
@@ -178,7 +176,7 @@ ConsoleCommand2 lightmaps_only_cmd{
 FunHook<float(const rf::Vector3&)> gr_get_apparent_distance_from_camera_hook{
     0x005182F0,
     [](const rf::Vector3& pos) {
-        return gr_get_apparent_distance_from_camera_hook.call_target(pos) / gr_lod_dist_scale;
+        return gr_get_apparent_distance_from_camera_hook.call_target(pos) / g_alpine_game_config.lod_dist_scale;
     },
 };
 
@@ -271,11 +269,21 @@ ConsoleCommand2 lod_distance_scale_cmd{
     "r_lodscale",
     [](std::optional<float> scale_opt) {
         if (scale_opt.has_value()) {
-            gr_lod_dist_scale = scale_opt.value();
+            g_alpine_game_config.set_lod_dist_scale(scale_opt.value());
         }
-        rf::console::print("LOD distance scale: {:.2f}", gr_lod_dist_scale);
+        rf::console::print("LOD distance scale: {:.2f}", g_alpine_game_config.lod_dist_scale);
     },
     "Sets LOD distance scale factor",
+};
+
+CodeInjection gr_d3d_render_lod_vif_injection{
+    0x0052FAEA,
+    [](auto& regs) {
+        if (g_alpine_game_config.multi_no_character_lod) {
+            regs.esp += 0x4;
+            regs.eip = 0x0052FAFB;
+        }
+    },
 };
 
 void gr_apply_patch()
@@ -343,12 +351,7 @@ void gr_apply_patch()
 
     // Increase mesh details
     gr_get_apparent_distance_from_camera_hook.install();
-    if (g_game_config.disable_lod_models) {
-        // Do not scale LOD distance for character in multi (gr_d3d_render_lod_vif)
-        AsmWriter{0x0052FAED, 0x0052FAFB}.nop();
-        // Change default LOD scale
-        gr_lod_dist_scale = 10.0f;
-    }
+    gr_d3d_render_lod_vif_injection.install();
 
     // Fix gr_rect_border not drawing left border
     AsmWriter{0x0050DF2D}.push(asm_regs::ebp).push(asm_regs::ebx);

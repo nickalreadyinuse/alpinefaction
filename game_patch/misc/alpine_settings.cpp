@@ -314,6 +314,15 @@ bool alpine_player_settings_load(rf::Player* player)
         apply_maximum_fps();
         processed_keys.insert("MaxFPS");
     }
+    if (settings.count("LODDistanceScale")) {
+        g_alpine_game_config.set_lod_dist_scale(std::stof(settings["LODDistanceScale"]));
+        processed_keys.insert("LODDistanceScale");
+    }
+    if (settings.count("SimulationDistance")) {
+        g_alpine_game_config.set_entity_sim_distance(std::stof(settings["SimulationDistance"]));
+        apply_entity_sim_distance();
+        processed_keys.insert("SimulationDistance");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -416,6 +425,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("ServerNetFPS")) {
         g_alpine_game_config.set_server_netfps(std::stoi(settings["ServerNetFPS"]));
         processed_keys.insert("ServerNetFPS");
+    }
+    if (settings.count("DisableMultiCharacterLOD")) {
+        g_alpine_game_config.multi_no_character_lod = std::stoi(settings["DisableMultiCharacterLOD"]);
+        processed_keys.insert("DisableMultiCharacterLOD");
     }
 
     // Load input settings
@@ -656,6 +669,8 @@ void alpine_player_settings_save(rf::Player* player)
     file << "FastAnimations=" << rf::g_fast_animations << "\n";
     file << "MonitorResolutionScale=" << g_alpine_game_config.monitor_resolution_scale << "\n";
     file << "MaxFPS=" << g_alpine_game_config.max_fps << "\n";
+    file << "LODDistanceScale=" << g_alpine_game_config.lod_dist_scale << "\n";
+    file << "SimulationDistance=" << g_alpine_game_config.entity_sim_distance << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
@@ -686,6 +701,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "MultiplayerTracker=" << g_alpine_game_config.multiplayer_tracker << "\n";
     file << "ServerMaxFPS=" << g_alpine_game_config.server_max_fps << "\n";
     file << "ServerNetFPS=" << g_alpine_game_config.server_netfps << "\n";
+    file << "DisableMultiCharacterLOD=" << g_alpine_game_config.multi_no_character_lod << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
@@ -705,6 +721,7 @@ void set_alpine_config_defaults() {
     g_alpine_game_config.save_console_history = true; // must be set here because evaluated before config loaded
     build_time_left_string_format();
     set_play_sound_events_volume_scale();
+    apply_entity_sim_distance();
 }
 
 CallHook<void(rf::Player*)> player_settings_load_hook{

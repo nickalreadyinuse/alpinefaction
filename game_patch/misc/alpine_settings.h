@@ -55,6 +55,21 @@ struct AlpineGameSettings
         level_sound_volume = std::clamp(scale, 0.0f, 1.0f);
     }
 
+    // lod settings
+    bool multi_no_character_lod = true;
+
+    float entity_sim_distance = 100.0f;
+    void set_entity_sim_distance(float dist)
+    {
+        entity_sim_distance = std::clamp(dist, 1.0f, 100000.0f);
+    }
+
+    float lod_dist_scale = 10.0f;
+    void set_lod_dist_scale(float scale)
+    {
+        lod_dist_scale = std::clamp(scale, 0.1f, 1000.0f);
+    }
+
     int monitor_resolution_scale = 2;
     void set_monitor_resolution_scale(int scale)
     {
@@ -149,3 +164,4 @@ void apply_console_history_setting();
 void build_time_left_string_format();
 void gr_update_texture_filtering();
 void set_play_sound_events_volume_scale();
+void apply_entity_sim_distance();

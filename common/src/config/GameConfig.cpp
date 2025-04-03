@@ -152,7 +152,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     RegKey dash_faction_key(red_faction_key, df_subkey_name, is_save ? KEY_WRITE : KEY_READ, is_save);
     result &= dash_faction_key.is_open();
     result &= visitor(dash_faction_key, "Window Mode", wnd_mode);
-    result &= visitor(dash_faction_key, "Disable LOD Models", disable_lod_models);
     result &= visitor(dash_faction_key, "Anisotropic Filtering", anisotropic_filtering);
     result &= visitor(dash_faction_key, "MSAA", msaa);
     result &= visitor(dash_faction_key, "Light Color Range", clamp_mode);
