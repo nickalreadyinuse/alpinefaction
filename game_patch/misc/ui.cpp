@@ -70,6 +70,10 @@ static rf::ui::Checkbox ao_scopesens_cbox;
 static rf::ui::Label ao_scopesens_label;
 static rf::ui::Label ao_scopesens_butlabel;
 static char ao_scopesens_butlabel_text[9];
+static rf::ui::Checkbox ao_maxfps_cbox;
+static rf::ui::Label ao_maxfps_label;
+static rf::ui::Label ao_maxfps_butlabel;
+static char ao_maxfps_butlabel_text[9];
 
 // alpine options checkboxes and labels
 static rf::ui::Checkbox ao_dinput_cbox;
@@ -631,6 +635,26 @@ void ao_retscale_cbox_on_click(int x, int y) {
     //ao_play_tab_snd();
 }
 
+// max fps
+void ao_maxfps_cbox_on_click_callback()
+{
+    char str_buffer[7] = "";
+    rf::ui::popup_get_input(str_buffer, sizeof(str_buffer));
+    std::string str = str_buffer;
+    try {
+        unsigned new_fps = std::stoi(str);
+        g_alpine_game_config.set_max_fps(new_fps);
+    }
+    catch (const std::exception& e) {
+        xlog::info("Invalid max FPS input: '{}', reason: {}", str, e.what());
+    }
+}
+void ao_maxfps_cbox_on_click(int x, int y)
+{
+    rf::ui::popup_message("Enter new maximum FPS value:", "Caution: this is a value that is this is a value that is yup it really is this is long wow lol", ao_maxfps_cbox_on_click_callback, 1);
+    // ao_play_tab_snd();
+}
+
 void ao_damagenum_cbox_on_click(int x, int y) {
     g_alpine_game_config.world_hud_damage_numbers = !g_alpine_game_config.world_hud_damage_numbers;
     ao_damagenum_cbox.checked = g_alpine_game_config.world_hud_damage_numbers;
@@ -982,6 +1006,8 @@ void alpine_options_panel_init() {
         &ao_fov_cbox, &ao_fov_label, &ao_fov_butlabel, &alpine_options_panel0, ao_fov_cbox_on_click, 112, 174, "Horizontal FOV");
     alpine_options_panel_inputbox_init(
         &ao_fpfov_cbox, &ao_fpfov_label, &ao_fpfov_butlabel, &alpine_options_panel0, ao_fpfov_cbox_on_click, 112, 204, "Gun FOV mod");
+    alpine_options_panel_inputbox_init(
+        &ao_maxfps_cbox, &ao_maxfps_label, &ao_maxfps_butlabel, &alpine_options_panel0, ao_maxfps_cbox_on_click, 112, 234, "Max FPS");
 
     alpine_options_panel_checkbox_init(
         &ao_camshake_cbox, &ao_camshake_label, &alpine_options_panel0, ao_camshake_cbox_on_click, !g_alpine_game_config.screen_shake_force_off, 280, 54, "View shake (SP)");
@@ -1177,6 +1203,10 @@ void alpine_options_panel_do_frame(int x)
     // ret scale
     snprintf(ao_retscale_butlabel_text, sizeof(ao_retscale_butlabel_text), "%6.2f", g_alpine_game_config.reticle_scale);
     ao_retscale_butlabel.text = ao_retscale_butlabel_text;
+
+    // max fps
+    snprintf(ao_maxfps_butlabel_text, sizeof(ao_maxfps_butlabel_text), "%u", g_alpine_game_config.max_fps);
+    ao_maxfps_butlabel.text = ao_maxfps_butlabel_text;
 
     // render button labels
     for (auto* ui_label : alpine_options_panel_labels) {
