@@ -331,7 +331,7 @@ FunHook<MultiIoPacketHandler> process_join_deny_packet_hook{
 FunHook<MultiIoPacketHandler> process_new_player_packet_hook{
     0x0047A580,
     [](char* data, const rf::NetAddr& addr) {
-        if (GetForegroundWindow() != rf::main_wnd && g_game_config.player_join_beep)
+        if (GetForegroundWindow() != rf::main_wnd && g_alpine_game_config.player_join_beep)
             Beep(750, 300);
         process_new_player_packet_hook.call_target(data, addr);
     },

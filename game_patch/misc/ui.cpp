@@ -158,6 +158,8 @@ static rf::ui::Checkbox ao_enemybullets_cbox;
 static rf::ui::Label ao_enemybullets_label;
 static rf::ui::Checkbox ao_togglecrouch_cbox;
 static rf::ui::Label ao_togglecrouch_label;
+static rf::ui::Checkbox ao_joinbeep_cbox;
+static rf::ui::Label ao_joinbeep_label;
 
 // levelsounds audio options slider
 std::vector<rf::ui::Gadget*> alpine_audio_panel_settings;
@@ -743,6 +745,13 @@ void ao_togglecrouch_cbox_on_click(int x, int y) {
     ao_play_button_snd(rf::local_player->settings.toggle_crouch);
 }
 
+void ao_joinbeep_cbox_on_click(int x, int y)
+{
+    g_alpine_game_config.player_join_beep = !g_alpine_game_config.player_join_beep;
+    ao_joinbeep_cbox.checked = g_alpine_game_config.player_join_beep;
+    ao_play_button_snd(g_alpine_game_config.player_join_beep);
+}
+
 void ao_globalrad_cbox_on_click(int x, int y) {
     g_alpine_game_config.play_global_rad_msg_sounds = !g_alpine_game_config.play_global_rad_msg_sounds;
     ao_globalrad_cbox.checked = g_alpine_game_config.play_global_rad_msg_sounds;
@@ -1146,8 +1155,8 @@ void alpine_options_panel_init() {
         &ao_taunts_cbox, &ao_taunts_label, &alpine_options_panel3, ao_taunts_cbox_on_click, g_alpine_game_config.play_taunt_sounds, 112, 84, "Taunt sounds");
     alpine_options_panel_checkbox_init(
         &ao_autosave_cbox, &ao_autosave_label, &alpine_options_panel3, ao_autosave_cbox_on_click, g_alpine_game_config.autosave, 112, 114, "Autosave");
-    //alpine_options_panel_checkbox_init(
-    //    &ao_clicklimit_cbox, &ao_clicklimit_label, &alpine_options_panel3, ao_clicklimit_cbox_on_click, !g_alpine_game_config.unlimited_semi_auto, 280, 114, "Click limiter");
+    alpine_options_panel_checkbox_init(
+        &ao_joinbeep_cbox, &ao_joinbeep_label, &alpine_options_panel3, ao_joinbeep_cbox_on_click, g_alpine_game_config.player_join_beep, 112, 144, "Join beep");
 
     alpine_options_panel_checkbox_init(
         &ao_teamrad_cbox, &ao_teamrad_label, &alpine_options_panel3, ao_teamrad_cbox_on_click, g_alpine_game_config.play_team_rad_msg_sounds, 280, 54, "Team radio msgs");

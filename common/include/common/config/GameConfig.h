@@ -69,7 +69,6 @@ struct GameConfig
     CfgVar<bool> allow_overwrite_game_files = false;
     CfgVar<bool> keep_launcher_open = true;
     CfgVar<bool> reduced_speed_in_background = false;
-    CfgVar<bool> player_join_beep = false;
 
     // Internal
     CfgVar<std::string> alpine_faction_version{""};

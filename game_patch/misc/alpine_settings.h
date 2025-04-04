@@ -117,6 +117,7 @@ struct AlpineGameSettings
     bool scoreboard_anim = true;
     bool autosave = true;
     bool af_branding = true;
+    bool player_join_beep = false;
 
     std::string multiplayer_tracker = "rfgt.factionfiles.com";
     static constexpr size_t max_tracker_hostname_length = 200;

@@ -430,6 +430,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.multi_no_character_lod = std::stoi(settings["DisableMultiCharacterLOD"]);
         processed_keys.insert("DisableMultiCharacterLOD");
     }
+    if (settings.count("PlayerJoinBeep")) {
+        g_alpine_game_config.player_join_beep = std::stoi(settings["PlayerJoinBeep"]);
+        processed_keys.insert("PlayerJoinBeep");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -702,6 +706,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ServerMaxFPS=" << g_alpine_game_config.server_max_fps << "\n";
     file << "ServerNetFPS=" << g_alpine_game_config.server_netfps << "\n";
     file << "DisableMultiCharacterLOD=" << g_alpine_game_config.multi_no_character_lod << "\n";
+    file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

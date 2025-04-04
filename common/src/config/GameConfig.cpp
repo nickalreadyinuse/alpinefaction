@@ -165,7 +165,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
     result &= visitor(dash_faction_key, "Language", language);
     result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
-    result &= visitor(dash_faction_key, "Player Join Beep", player_join_beep);
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
     result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
     result &= visitor(dash_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);

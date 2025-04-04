@@ -222,10 +222,9 @@ ConsoleCommand2 swap_shotgun_controls_cmd{
 ConsoleCommand2 play_join_beep_cmd{
     "mp_notifyonjoin",
     []() {
-        g_game_config.player_join_beep = !g_game_config.player_join_beep;
-        g_game_config.save();
-        rf::console::print("Out of focus player join notifications: {}",
-                     g_game_config.player_join_beep ? "enabled" : "disabled");
+        g_alpine_game_config.player_join_beep = !g_alpine_game_config.player_join_beep;
+        rf::console::print("Out of focus player join notifications are {}",
+            g_alpine_game_config.player_join_beep ? "enabled" : "disabled");
     },
     "Toggle notification beeps being played when a player joins the server you are in when your game doesn't have focus",
 };
