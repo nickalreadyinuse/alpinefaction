@@ -457,7 +457,7 @@ void AchievementManager::show_notification(Achievement& achievement)
     clear_achievement_notification();
 
     // drawn in draw_achievement_box
-    achievement_box_icon = rf::bm::load("2partswitch_Back.tga", -1, true);
+    achievement_box_icon = rf::bm::load("af_achtrophy1.tga", -1, true);
     achievement_box_name = achievement.name;
     achievement_box_timestamp.set(10000); // 10 seconds
     achievement_box_visible = true;
