@@ -165,12 +165,12 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
 
         // If this is an update, validate the key
         if (!is_initial_sync && key_received != expected_key) {
-            xlog::warn("Response received but key mismatch, ignoring.");
+            xlog::info("Response received but key mismatch, ignoring.");
             return;
         }
 
         if (is_initial_sync && synced_with_ff) {
-            xlog::warn("Initial sync response received but already synced, ignoring.");
+            xlog::info("Initial sync response received but already synced, ignoring.");
             return;
         }
 
@@ -217,7 +217,7 @@ void AchievementManager::sync_with_ff()
 {
     std::string token = g_game_config.fflink_token.value();
     if (token.empty()) {
-        xlog::warn("Skipping achievement sync: No FactionFiles authentication token found.");
+        xlog::info("Skipping achievement sync: No FactionFiles authentication token found.");
         return;
     }
 
@@ -369,7 +369,7 @@ void AchievementManager::add_key_to_ff_update_map()
         achievement_async_ff_key = dist(g_rng);
         achievement_async_ff_string = update_string;
 
-        xlog::warn("Queued new achievement update [{}]: {}", achievement_async_ff_key, achievement_async_ff_string);
+        //xlog::warn("Queued new achievement update [{}]: {}", achievement_async_ff_key, achievement_async_ff_string);
         send_update_to_ff(); // Send immediately
     }
     else {
@@ -413,8 +413,7 @@ void AchievementManager::grant_achievement(AchievementName achievement, int coun
     // Increment pending count if the achievement is either locked or ff_auth
     if (!it->second.unlocked || it->second.type == AchievementType::ff_authoritative) {
         it->second.pending_count += count;
-        xlog::warn("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}",
-            it->second.name, it->second.root_uid, count, it->second.pending_count);
+        //xlog::warn("Incremented achievement '{}' (root_uid: {}) by {}. Pending count now {}", it->second.name, it->second.root_uid, count, it->second.pending_count);
     }
 }
 
@@ -431,8 +430,7 @@ void AchievementManager::log_kill(int entity_uid, const std::string& rfl_filenam
 
     logged_kills.push_back(new_kill);
 
-    xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}",
-               entity_uid, rfl_filename, tc_mod, class_name, damage_type, likely_weapon);
+    //xlog::warn("Kill logged: entity_uid={}, map={}, mod={}, class={}, damage_type={}, likely_weapon={}", entity_uid, rfl_filename, tc_mod, class_name, damage_type, likely_weapon);
 }
 
 void AchievementManager::log_use(int used_uid, const std::string& rfl_filename, const std::string& tc_mod, int type)
@@ -445,13 +443,13 @@ void AchievementManager::log_use(int used_uid, const std::string& rfl_filename, 
 
     logged_uses.push_back(new_use);
 
-    xlog::warn("Use logged: uid={}, map={}, mod={}, type={}", used_uid, rfl_filename, tc_mod, type);
+    //xlog::warn("Use logged: uid={}, map={}, mod={}, type={}", used_uid, rfl_filename, tc_mod, type);
 }
 
 void AchievementManager::show_notification(Achievement& achievement)
 {
     achievement.notified = true;
-    xlog::warn("Achievement notified: {}", achievement.name);
+    //xlog::warn("Achievement notified: {}", achievement.name);
 
     // clear previous info before repopulating
     clear_achievement_notification();
@@ -1200,8 +1198,7 @@ void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int
         }
     }
 
-    xlog::warn("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}",
-            entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
+    //xlog::warn("player killed {} ({}) with weapon {}, damage {}, damage type {}, dist {}", entity_script_name, entity_uid, weapon, lethal_damage, lethal_damage_type, distance);
 
     if (distance >= 100.0f) {
         // do not award far kill achievements unless in first person mode
@@ -1360,7 +1357,7 @@ CodeInjection glass_shatter_achievement_patch{
             rf::GFace* face = regs.esi;
 
             if (face) {
-                xlog::warn("shattered face {}", face->attributes.face_id);
+                //xlog::warn("shattered face {}", face->attributes.face_id);
                 log_use(face->attributes.face_id, 2); // log the shatter
             }
         }
