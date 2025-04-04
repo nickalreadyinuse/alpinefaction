@@ -113,6 +113,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Shift High Monitor Resolution config to MonitorResolutionScale, allowing for greater control
 - Add `r_monitorscale` console command to set monitor resolution scale
 - Add environmental sounds slider to audio options panel
+- Add in-game panel to recommend FF account linking
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

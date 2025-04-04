@@ -169,6 +169,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
     result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
     result &= visitor(dash_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);
+    result &= visitor(dash_faction_key, "Already Saw FF Link Prompt", suppress_ff_link_prompt);
 
     return result;
 }

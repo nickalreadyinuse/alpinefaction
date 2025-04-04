@@ -714,6 +714,17 @@ void close_and_restart_game() {
     rf::ui::mainmenu_quit_game_confirmed();
 }
 
+void ignore_ff_link_prompt()
+{
+    rf::console::print("Ignoring FF link prompt...");
+}
+
+void open_ff_link_info_and_close_game()
+{
+    open_url("https://alpinefaction.com/link");
+    rf::ui::mainmenu_quit_game_confirmed();
+}
+
 // defaults if alpine_settings.ini isn't loaded
 void set_alpine_config_defaults() {
     rf::game_set_gore_level(2);
@@ -727,6 +738,7 @@ void set_alpine_config_defaults() {
 CallHook<void(rf::Player*)> player_settings_load_hook{
     0x004B2726,
     [](rf::Player* player) {
+        bool ff_link_prompt = true;
         if (!alpine_player_settings_load(player)) {
             xlog::warn("Alpine Faction settings file not found. Attempting to import legacy RF settings file.");
             player_settings_load_hook.call_target(player); // load players.cfg
@@ -737,6 +749,8 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
             // players.cfg from legacy client version will import fine on first load, apart from Alpine controls
             // Restart cleanly loads game without baggage from players.cfg, and adds Alpine controls without issue
             if (g_loaded_players_cfg_file) {
+                ff_link_prompt = false; // do not display both ff link popup and config migration popup
+
                 const char* choices[1] = {"RESTART GAME"};
                 void (*callbacks[1])() = {close_and_restart_game};
                 int keys[1] = {1};
@@ -748,6 +762,24 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
             }
             else {
                 xlog::warn("Legacy RF settings file not found. Applying default settings.");
+            }
+        }
+
+        // display popup recommending ff link
+        if (ff_link_prompt && !g_game_config.suppress_ff_link_prompt) {
+            g_game_config.suppress_ff_link_prompt = true; // only display popup once
+            g_game_config.save();
+
+            // only display popup if unlinked
+            if (g_game_config.fflink_token.value().empty()) {
+                const char* choices[2] = {"IGNORE", "LEARN MORE"};
+                void (*callbacks[2])() = {ignore_ff_link_prompt, open_ff_link_info_and_close_game};
+                int keys[2] = {1, 2};
+
+                rf::ui::popup_custom(
+                    "IMPORTANT: Not yet linked to FactionFiles!",
+                    "FactionFiles account linking enables achievements and other features.\nTo learn more, click to visit alpinefaction.com/link",
+                    2, choices, callbacks, 1, keys);
             }
         }
     }

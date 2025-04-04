@@ -76,6 +76,7 @@ struct GameConfig
     CfgVar<std::string> fflink_token{""};
     CfgVar<std::string> fflink_username{""};
     CfgVar<bool> suppress_first_launch_window = false;
+    CfgVar<bool> suppress_ff_link_prompt = false;
 
     bool load();
     void save();
