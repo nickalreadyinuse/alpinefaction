@@ -63,7 +63,7 @@ enum class AchievementName : int
     AdminMinerBerserk = 53,
     KillDavis = 54,
     KillCiviliansAdmin = 55,
-    RunOverMore = 61,
+    StuckEntities = 61,
     SecretStash = 62,
     DropAPCBridge = 63,
     Toilets = 64,

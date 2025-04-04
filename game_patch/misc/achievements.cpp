@@ -91,7 +91,6 @@ void AchievementManager::initialize()
         {AchievementName::SeparateGeometry, {46, "Geological Warfare", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::GibEnemy, {47, "Messy!", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::RunOver, {48, "Crunch Time!", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
-        {AchievementName::RunOverMore, {48, "Ashes and Asphalt", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
         {AchievementName::SaveBarracksMiner, {49, "Prison Break", AchievementCategory::base_campaign}},
         {AchievementName::SaveMinesMiner, {50, "Who put that there?", AchievementCategory::base_campaign}},
         {AchievementName::MedLabStealth, {51, "Trust me, I'm a doctor.", AchievementCategory::base_campaign}},
@@ -128,6 +127,7 @@ void AchievementManager::initialize()
         {AchievementName::SMG50, {88, "SMG Expert", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::Baton25, {89, "Melee Expert", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
         {AchievementName::AR50, {90, "AR Expert", AchievementCategory::base_campaign, AchievementType::ff_authoritative}},
+        {AchievementName::StuckEntities, {91, "Guerrilla Glue", AchievementCategory::singleplayer, AchievementType::ff_authoritative}},
     };
 
     for (const auto& [achievement_name, achievement] : predefined_achievements) {
@@ -1323,14 +1323,21 @@ CodeInjection drill_bit_maintenance_achievement_patch{
     },
 };
 
-CodeInjection ai_go_berserk_achievement_patch{
-    0x00408269,
+CodeInjection stuck_with_remote_charge_achievement_patch{
+    0x004C5C33,
     [](auto& regs) {
-        rf::AiInfo* aip = regs.esi;
+        rf::AiInfo* aip = regs.edx;
 
         if (aip) {
-            if (aip->ep->uid == 4707 && string_equals_ignore_case(rf::level.filename, "l5s4.rfl"))
-            grant_achievement_sp(AchievementName::AdminMinerBerserk);
+            if (aip->ep->uid == 4707 && string_equals_ignore_case(rf::level.filename, "l5s4.rfl")) {
+                grant_achievement_sp(AchievementName::AdminMinerBerserk);
+            }
+            else {
+                rf::Entity* ep = regs.ebx;
+                if (ep && !rf::entity_is_slippery(ep) && !rf::entity_is_vehicle(ep)) {
+                    grant_achievement_sp(AchievementName::StuckEntities);
+                }
+            }
         }
     },
 };
@@ -1645,7 +1652,7 @@ void achievements_apply_patch()
     player_attach_to_security_camera_achievement_patch.install();
     separated_solids_achievement_patch.install();
     drill_bit_maintenance_achievement_patch.install();
-    ai_go_berserk_achievement_patch.install();
+    stuck_with_remote_charge_achievement_patch.install();
     glass_shatter_achievement_patch.install();
     clutter_use_achievement_patch.install();
     entity_crush_entity_achievement_patch.install();
