@@ -323,6 +323,14 @@ bool alpine_player_settings_load(rf::Player* player)
         apply_entity_sim_distance();
         processed_keys.insert("SimulationDistance");
     }
+    if (settings.count("FullRangeLighting")) {
+        g_alpine_game_config.full_range_lighting = std::stoi(settings["FullRangeLighting"]);
+        processed_keys.insert("FullRangeLighting");
+    }
+    if (settings.count("AlwaysClampOfficialLightmaps")) {
+        g_alpine_game_config.always_clamp_official_lightmaps = std::stoi(settings["AlwaysClampOfficialLightmaps"]);
+        processed_keys.insert("AlwaysClampOfficialLightmaps");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -675,6 +683,8 @@ void alpine_player_settings_save(rf::Player* player)
     file << "MaxFPS=" << g_alpine_game_config.max_fps << "\n";
     file << "LODDistanceScale=" << g_alpine_game_config.lod_dist_scale << "\n";
     file << "SimulationDistance=" << g_alpine_game_config.entity_sim_distance << "\n";
+    file << "FullRangeLighting=" << g_alpine_game_config.full_range_lighting << "\n";
+    file << "AlwaysClampOfficialLightmaps=" << g_alpine_game_config.always_clamp_official_lightmaps << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";

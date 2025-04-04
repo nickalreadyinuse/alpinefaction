@@ -41,14 +41,6 @@ struct GameConfig
     CfgVar<bool> anisotropic_filtering = true;
     CfgVar<unsigned> msaa = 0;
 
-    enum ClampMode
-    {
-        ALPINEONLY,
-        COMMUNITY,
-        ALL,
-    };
-    CfgVar<ClampMode> clamp_mode = ALPINEONLY;
-
     CfgVar<bool> high_scanner_res = true;
     CfgVar<bool> true_color_textures = true;
 

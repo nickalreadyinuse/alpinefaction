@@ -154,7 +154,6 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(dash_faction_key, "Window Mode", wnd_mode);
     result &= visitor(dash_faction_key, "Anisotropic Filtering", anisotropic_filtering);
     result &= visitor(dash_faction_key, "MSAA", msaa);
-    result &= visitor(dash_faction_key, "Light Color Range", clamp_mode);
     result &= visitor(dash_faction_key, "High Scanner Resolution", high_scanner_res);
     result &= visitor(dash_faction_key, "True Color Textures", true_color_textures);
     result &= visitor(dash_faction_key, "Renderer", renderer);
@@ -179,14 +178,6 @@ bool is_valid_enum_value<GameConfig::WndMode>(int value)
     return value == GameConfig::FULLSCREEN
         || value == GameConfig::WINDOWED
         || value == GameConfig::STRETCHED;
-}
-
-template<>
-bool is_valid_enum_value<GameConfig::ClampMode>(int value)
-{
-    return value == GameConfig::ALPINEONLY
-        || value == GameConfig::COMMUNITY
-        || value == GameConfig::ALL;
 }
 
 template<>

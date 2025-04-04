@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../misc/alpine_options.h"
+#include "../misc/alpine_settings.h"
 #include "../main/main.h"
 #include "../misc/misc.h"
 #include "../rf/geometry.h"
@@ -248,37 +249,41 @@ CodeInjection level_load_lightmaps_color_conv_patch{
         uint32_t clamp_floor = 0; // no floor
         uint32_t clamp_ceiling = 0xFFFFFFFF; // no ceiling
         bool should_clamp = false; // no clamping by default
+        bool floor_clamp_defined = false;
 
-        // check if LightmapClampFloor is defined for this level
+        // Check if the level explicitly defines clamp floor
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
             clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+            floor_clamp_defined = true;
             should_clamp = true;
         }
-        else {
-            // Apply default clamping logic based on clamp mode
-            if ((g_game_config.clamp_mode == GameConfig::ALPINEONLY && rf::level.version < 300) ||
-                  (g_game_config.clamp_mode == GameConfig::COMMUNITY && rf::level.version < 200)) {
-                should_clamp = true;
-                clamp_floor = 0x202020FF; // stock game clamping value 32, 32, 32, 255
-            }
-        }
 
-        // check if LightmapClampCeiling is defined for this level
+        // Check if the level explicitly defines clamp ceiling
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
             clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
             should_clamp = true;
         }
 
-        // Extract RGB components from clamping values
-        auto [clamp_r_floor, clamp_g_floor, clamp_b_floor, _] = extract_color_components(clamp_floor);
-        auto [clamp_r_ceiling, clamp_g_ceiling, clamp_b_ceiling, __] = extract_color_components(clamp_ceiling);
+        // If no per-level floor clamp, consider using legacy clamping for non-Alpine levels
+        if (!floor_clamp_defined && rf::level.version < 300) {
 
-        //xlog::warn("Clamp floor for {}: R={}, G={}, B={}", rf::level.filename, clamp_r_floor, clamp_g_floor, clamp_b_floor);
-        //xlog::warn("Clamp ceiling for {}: R={}, G={}, B={}", rf::level.filename, clamp_r_ceiling, clamp_g_ceiling, clamp_b_ceiling);
+            // If not full range OR official + forced clamping
+            if (!g_alpine_game_config.full_range_lighting || (g_alpine_game_config.always_clamp_official_lightmaps && rf::level.version < 200)) {
+                should_clamp = true;
+
+                if (!floor_clamp_defined) {
+                    clamp_floor = 0x202020FF; // default floor clamp (R,G,B = 32)
+                }
+            }
+        }
 
         // Apply clamping
         if (should_clamp) {
             xlog::debug("Applying lightmap clamping");
+
+            // Extract RGB components from clamping values
+            auto [clamp_r_floor, clamp_g_floor, clamp_b_floor, _] = extract_color_components(clamp_floor);
+            auto [clamp_r_ceiling, clamp_g_ceiling, clamp_b_ceiling, __] = extract_color_components(clamp_ceiling);
 
             for (int i = 0; i < lightmap->w * lightmap->h * 3; i += 3) {
                 // Apply floor clamp
@@ -303,39 +308,21 @@ CodeInjection level_load_lightmaps_color_conv_patch{
 };
 
 ConsoleCommand2 lighting_color_range_cmd{
-    "r_scopefullrangelights", [] (std::optional<std::string> range_arg)
-    {
-        GameConfig::ClampMode new_mode;
-        bool set = false;
-
-        if (range_arg == "alpine" || range_arg == "af" || range_arg == "alpineonly" || range_arg == "0") {
-            new_mode = GameConfig::ClampMode::ALPINEONLY;
-            set = true;
-        }
-        else if (range_arg == "community" || range_arg == "custom" || range_arg == "1") {
-            new_mode = GameConfig::ClampMode::COMMUNITY;
-            set = true;
-        }
-        else if (range_arg == "all" || range_arg == "2") {
-            new_mode = GameConfig::ClampMode::ALL;
-            set = true;
-        }
-        else if (range_arg.has_value() && range_arg != "?") {
-            rf::console::printf("Invalid option. Valid options are alpine, community, all");
-            return;
-        }
-
-        if (set) {
-            g_game_config.clamp_mode = new_mode;
-            g_game_config.save();
-        }
-        
-        rf::console::printf("Level scope for full range lighting is: %s", g_game_config.clamp_mode ==
-                GameConfig::ClampMode::ALPINEONLY ? "alpine" : g_game_config.clamp_mode ==
-                GameConfig::ClampMode::COMMUNITY ? "community" : "all");
+    "r_fullrangelighting",
+    []() {
+        g_alpine_game_config.full_range_lighting = !g_alpine_game_config.full_range_lighting;        
+        rf::console::printf("Full range lighting is: %s", g_alpine_game_config.full_range_lighting ? "enabled" : "disabled");
     },
-    "Set level scope for full range lighting. Only affects levels loaded after usage of this command.",
-    "r_scopefullrangelights [alpine, community, or all]",
+    "Toggle full range lighting. Only affects new level loads.",
+};
+
+ConsoleCommand2 clamp_official_lightmaps_cmd{
+    "r_clampofficiallightmaps",
+    []() {
+        g_alpine_game_config.always_clamp_official_lightmaps = !g_alpine_game_config.always_clamp_official_lightmaps;        
+        rf::console::printf("Forced clamping of lightmaps in official levels is: %s", g_alpine_game_config.always_clamp_official_lightmaps ? "enabled" : "disabled");
+    },
+    "Toggle forced lightmap clamping for official Volition levels. Only affects new level loads. Only applicable if full range lighting is enabled.",
 };
 
 CodeInjection shadow_render_one_injection{
@@ -722,4 +709,5 @@ void g_solid_do_patch()
     max_decals_cmd.register_cmd();
     dbg_room_clip_wnd_cmd.register_cmd();
     lighting_color_range_cmd.register_cmd();
+    clamp_official_lightmaps_cmd.register_cmd();
 }
