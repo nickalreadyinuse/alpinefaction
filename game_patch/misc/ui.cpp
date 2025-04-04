@@ -1165,7 +1165,7 @@ void alpine_options_panel_init() {
     alpine_options_panel_checkbox_init(
         &ao_gaussian_cbox, &ao_gaussian_label, &alpine_options_panel3, ao_gaussian_cbox_on_click, g_alpine_game_config.gaussian_spread, 280, 114, "Gaussian spread");
 
-    // fflink text (parent panel)
+    // fflink text (panel3)
     std::string fflink_username = g_game_config.fflink_username.value();
     std::string fflink_label_text1 = "";
     std::string fflink_label_text2 = "";
@@ -1181,13 +1181,13 @@ void alpine_options_panel_init() {
         fflink_label_text3 = "";
     }
 
-    ao_fflink_label1.create(&alpine_options_panel, 125, 304, fflink_label_text1.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label1.create(&alpine_options_panel3, 125, 304, fflink_label_text1.c_str(), rf::ui::medium_font_0);
     ao_fflink_label1.enabled = true;
     alpine_options_panel_labels.push_back(&ao_fflink_label1);
-    ao_fflink_label2.create(&alpine_options_panel, 125, 319, fflink_label_text2.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label2.create(&alpine_options_panel3, 125, 319, fflink_label_text2.c_str(), rf::ui::medium_font_0);
     ao_fflink_label2.enabled = true;
     alpine_options_panel_labels.push_back(&ao_fflink_label2);
-    ao_fflink_label3.create(&alpine_options_panel, 125, 334, fflink_label_text3.c_str(), rf::ui::medium_font_0);
+    ao_fflink_label3.create(&alpine_options_panel3, 125, 334, fflink_label_text3.c_str(), rf::ui::medium_font_0);
     ao_fflink_label3.enabled = true;
     alpine_options_panel_labels.push_back(&ao_fflink_label3);
 }
