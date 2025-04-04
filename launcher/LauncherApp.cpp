@@ -14,6 +14,8 @@
 #define new DEBUG_NEW
 #endif
 
+static bool fflink_token_is_invalid = false;
+
 // LauncherApp initialization
 int LauncherApp::Run()
 {
@@ -28,13 +30,35 @@ int LauncherApp::Run()
 
     if (m_cmd_line_info.GetAFLinkArg().has_value()) {
         std::string fflink_token = m_cmd_line_info.GetAFLinkArg().value();
-        ValidateAFLinkToken(fflink_token); // Validate and update if necessary
+        bool fflink_successful = ValidateAFLinkToken(fflink_token); // Validate and update if necessary
+        if (fflink_successful) {
+            Message(nullptr,
+                    "Alpine Faction has successfully been linked to your FactionFiles account!\n\n"
+                    "Features that depend on FF account linking (like achievements) are now available.",
+                    "Success! FactionFiles Account Linked", MB_OK | MB_ICONINFORMATION);
+        }
+        else {
+            Message(nullptr,
+                    "Alpine Faction was unable to establish a link to your FactionFiles account. "
+                    "You can still play the game, but features that depend on FF account linking will be unavailable.\n\n"
+                    "Visit https://alpinefaction.com/help for help resources to assist with resolving this issue.\n",
+                    "FactionFiles Account Link Failed", MB_OK | MB_ICONINFORMATION);
+        }
+
     }
     else {
         // Validate stored token on every launch
         GameConfig game_config;
+        bool fflink_successful = false;
         if (game_config.load() && !game_config.fflink_token.value().empty()) {
-            ValidateAFLinkToken(game_config.fflink_token.value());
+            fflink_successful = ValidateAFLinkToken(game_config.fflink_token.value());
+        }
+        if (!fflink_successful && fflink_token_is_invalid) {
+            Message(nullptr,
+                    "Alpine Faction was unable to validate your FF account linking token. "
+                    "Features that depend on FF account linking will be unavailable.\n\n"
+                    "Visit https://alpinefaction.com/link for instructions on how to restore the link.\n",
+                    "FactionFiles Link Token Invalid", MB_OK | MB_ICONINFORMATION);
         }
     }
 
@@ -156,9 +180,9 @@ int LauncherApp::Run()
 	return 0;
 }
 
-void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
+bool LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
 {
-    xlog::info("Validating FactionFiles link token: {}", fflink_token);
+    xlog::info("Attempting to validate FactionFiles token: {}...", fflink_token);
 
     std::string verify_url = "https://link.factionfiles.com/aflauncher/v1/link_check.php?token=" + fflink_token;
     //xlog::info("AFLink validity check URL: {}", verify_url);
@@ -189,12 +213,15 @@ void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
 
         if (response.empty()) {
             xlog::warn("FactionFiles link check failed: No response received.");
+            return 0;
         }
         else if (response == "notfound") {
             xlog::warn("Invalid FactionFiles link token detected.");
             game_config.fflink_token = "";
             game_config.fflink_username = "";
             game_config.save();
+            fflink_token_is_invalid = true;
+            return 0;
         }
         else if (response.rfind("found", 0) == 0) {
             std::string username = response.substr(6); // Extract username
@@ -202,13 +229,16 @@ void LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
             game_config.fflink_token = fflink_token;
             game_config.fflink_username = username;
             game_config.save();
+            return 1;
         }
         else {
             xlog::warn("Unexpected response from FactionFiles link check: {}.", response);
+            return 0;
         }
     }
     catch (const std::exception& e) {
         xlog::warn("FactionFiles link check failed: {}.", e.what());
+        return 0;
     }
 }
 

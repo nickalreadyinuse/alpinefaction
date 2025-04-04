@@ -17,7 +17,7 @@ public:
     bool LaunchEditor(HWND hwnd, const char* mod_name = nullptr);
 
 private:
-    static void ValidateAFLinkToken(const std::string& fflink_token);
+    static bool ValidateAFLinkToken(const std::string& fflink_token);
     static void HandleAFLink();
     static void MigrateConfig();
     int Message(HWND hwnd, const char *text, const char *title, int flags);

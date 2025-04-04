@@ -114,6 +114,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `r_monitorscale` console command to set monitor resolution scale
 - Add environmental sounds slider to audio options panel
 - Add in-game panel to recommend FF account linking
+- Add launcher notifications for fflink status - link success, link failure, validation failure
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
