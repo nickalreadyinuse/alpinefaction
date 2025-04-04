@@ -65,6 +65,7 @@ CallHook<void()> rf_init_hook{
     []() {
         auto start_ticks = GetTickCount();
         xlog::info("Initializing game...");
+        initialize_alpine_core_config();
         rf_init_hook.call_target();
         vpackfile_disable_overriding();
         xlog::info("Game initialized ({} ms).", GetTickCount() - start_ticks);

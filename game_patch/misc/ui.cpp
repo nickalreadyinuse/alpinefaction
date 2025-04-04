@@ -160,6 +160,10 @@ static rf::ui::Checkbox ao_togglecrouch_cbox;
 static rf::ui::Label ao_togglecrouch_label;
 static rf::ui::Checkbox ao_joinbeep_cbox;
 static rf::ui::Label ao_joinbeep_label;
+static rf::ui::Checkbox ao_vsync_cbox;
+static rf::ui::Label ao_vsync_label;
+static rf::ui::Checkbox ao_unclamplights_cbox;
+static rf::ui::Label ao_unclamplights_label;
 
 // levelsounds audio options slider
 std::vector<rf::ui::Gadget*> alpine_audio_panel_settings;
@@ -752,6 +756,21 @@ void ao_joinbeep_cbox_on_click(int x, int y)
     ao_play_button_snd(g_alpine_game_config.player_join_beep);
 }
 
+void ao_vsync_cbox_on_click(int x, int y)
+{
+    g_alpine_game_config.vsync = !g_alpine_game_config.vsync;
+    ao_vsync_cbox.checked = g_alpine_game_config.vsync;
+    ao_play_button_snd(g_alpine_game_config.vsync);
+    gr_d3d_update_vsync();
+}
+
+void ao_unclamplights_cbox_on_click(int x, int y)
+{
+    g_alpine_game_config.full_range_lighting = !g_alpine_game_config.full_range_lighting;
+    ao_unclamplights_cbox.checked = g_alpine_game_config.full_range_lighting;
+    ao_play_button_snd(g_alpine_game_config.full_range_lighting);
+}
+
 void ao_globalrad_cbox_on_click(int x, int y) {
     g_alpine_game_config.play_global_rad_msg_sounds = !g_alpine_game_config.play_global_rad_msg_sounds;
     ao_globalrad_cbox.checked = g_alpine_game_config.play_global_rad_msg_sounds;
@@ -1077,7 +1096,8 @@ void alpine_options_panel_init() {
         &ao_simdist_cbox, &ao_simdist_label, &ao_simdist_butlabel, &alpine_options_panel0, ao_simdist_cbox_on_click, 112, 234, "Simulation dist");
     alpine_options_panel_inputbox_init(
         &ao_loddist_cbox, &ao_loddist_label, &ao_loddist_butlabel, &alpine_options_panel0, ao_loddist_cbox_on_click, 112, 262, "LOD scale");
-    
+    alpine_options_panel_checkbox_init(
+        &ao_unclamplights_cbox, &ao_unclamplights_label, &alpine_options_panel0, ao_unclamplights_cbox_on_click, g_alpine_game_config.full_range_lighting, 112, 292, "Full light range");
 
     alpine_options_panel_checkbox_init(
         &ao_camshake_cbox, &ao_camshake_label, &alpine_options_panel0, ao_camshake_cbox_on_click, !g_alpine_game_config.screen_shake_force_off, 280, 54, "View shake (SP)");
@@ -1095,6 +1115,8 @@ void alpine_options_panel_init() {
         &ao_firelights_cbox, &ao_firelights_label, &alpine_options_panel0, ao_firelights_cbox_on_click, !g_alpine_game_config.try_disable_muzzle_flash_lights, 280, 234, "Muzzle lights");
     alpine_options_panel_checkbox_init(
         &ao_mpcharlod_cbox, &ao_mpcharlod_label, &alpine_options_panel0, ao_mpcharlod_cbox_on_click, !g_alpine_game_config.multi_no_character_lod, 280, 262, "Entity LOD (MP)");
+    alpine_options_panel_checkbox_init(
+        &ao_vsync_cbox, &ao_vsync_label, &alpine_options_panel0, ao_vsync_cbox_on_click, g_alpine_game_config.vsync, 280, 292, "Vertical sync");
 
     // panel 1
     alpine_options_panel_checkbox_init(

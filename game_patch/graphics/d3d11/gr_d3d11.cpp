@@ -7,6 +7,7 @@
 #include "../../rf/os/os.h"
 #include "../../bmpman/bmpman.h"
 #include "../../main/main.h"
+#include "../../misc/alpine_settings.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_context.h"
 #include "gr_d3d11_shader.h"
@@ -322,7 +323,7 @@ namespace df::gr::d3d11
             context_->ResolveSubresource(back_buffer_, 0, msaa_render_target_, 0, swap_chain_format);
         }
         xlog::trace("Presenting frame {}", rf::frame_count);
-        UINT sync_interval = g_game_config.vsync ? 1 : 0;
+        UINT sync_interval = g_alpine_game_config.vsync ? 1 : 0;
         DF_GR_D3D11_CHECK_HR(
             swap_chain_->Present(sync_interval, 0)
         );

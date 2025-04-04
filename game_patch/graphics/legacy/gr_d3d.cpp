@@ -318,18 +318,27 @@ CodeInjection switch_d3d_mode_patch{
     },
 };
 
+void gr_d3d_update_vsync()
+{
+    if (rf::gr::screen.window_mode == rf::gr::FULLSCREEN) {
+        rf::gr::d3d::pp.FullScreen_PresentationInterval =
+            g_alpine_game_config.vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
+    }
+    else {
+        rf::gr::d3d::pp.FullScreen_PresentationInterval = 0;
+    }
+    g_reset_device_req = true;
+}
+
 void gr_d3d_update_window_mode()
 {
     if (rf::gr::screen.window_mode == rf::gr::FULLSCREEN) {
         rf::gr::d3d::pp.Windowed = false;
-        rf::gr::d3d::pp.FullScreen_PresentationInterval =
-            g_game_config.vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
     }
     else {
         rf::gr::d3d::pp.Windowed = true;
-        rf::gr::d3d::pp.FullScreen_PresentationInterval = 0;
     }
-    g_reset_device_req = true;
+    gr_d3d_update_vsync();
 }
 
 ConsoleCommand2 antialiasing_cmd{

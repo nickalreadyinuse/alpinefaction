@@ -155,9 +155,14 @@ struct AlpineGameSettings
     {
         server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
     }
+
+    // system config
+    bool vsync = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;
+void initialize_alpine_core_config();
+void alpine_core_config_save();
 void set_big_hud(bool is_big);
 void update_scope_sensitivity();
 void update_scanner_sensitivity();
@@ -168,3 +173,4 @@ void build_time_left_string_format();
 void gr_update_texture_filtering();
 void set_play_sound_events_volume_scale();
 void apply_entity_sim_distance();
+void gr_d3d_update_vsync();
