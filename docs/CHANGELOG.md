@@ -95,7 +95,8 @@ Version 1.1.0 (Tamarack): Not yet released
   - DirectInput, autosave, scoreboard animations, level sound modifier
   - High monitor resolution, Alpine branding, multiplayer tracker, fast animations
   - Max FPS, max server FPS, server netfps
-  - Simulation distance, lod distance scale, disable MP character LOD, join beep
+  - Simulation distance, lod distance scale, disable MP character LOD
+  - Join beep, lighting colour range
 - Add `SkipCutsceneBindAlias` setting to `alpine_settings.ini`
 - Deprecate `IgnoreSwapAssaultRifleControls` and `IgnoreSwapGrenadeControls` in `af_game.tbl` (no longer needed)
 - Add `dbg_consolehistory` command to toggle whether console history persists between game launches
@@ -115,6 +116,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add environmental sounds slider to audio options panel
 - Add in-game panel to recommend FF account linking
 - Add launcher notifications for fflink status - link success, link failure, validation failure
+- Add `r_fullrangelighting` and `r_clampofficiallightmaps` commands
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
