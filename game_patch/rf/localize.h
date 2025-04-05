@@ -34,5 +34,17 @@ namespace rf
         static const auto &deathmatch = array[974];
         static const auto &capture_the_flag = array[975];
         static const auto &team_deathmatch = array[976];
+
+        // control lookups
+        static const auto &fire = array[807];
+        static const auto &alt_fire = array[808];
+        static const auto &use = array[147];
+        static const auto &jump = array[148];
+        static const auto &crouch = array[149];
+        static const auto &holster = array[809];
+        static const auto &reload = array[151];
+        static const auto &next_weapon = array[152];
+        static const auto &prev_weapon = array[810];
+        static const auto &message_log = array[156];
     }
 }

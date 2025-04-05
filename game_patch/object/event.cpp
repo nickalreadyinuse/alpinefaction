@@ -53,6 +53,24 @@ namespace rf
         return type == static_cast<EventType>(event->event_type);
     }
 
+    // used by HUD Messages, including HUD_Message events
+    std::optional<int> get_named_goal_value(std::string_view goal_name)
+    {
+        rf::String rf_goal_name(goal_name.data());
+
+        // Try normal goal
+        if (auto* named_event = rf::event_find_named_event(&rf_goal_name)) {
+            int* current_value_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]);
+            return *current_value_ptr;
+        }
+
+        // Try persistent goal
+        if (auto* persistent = rf::event_lookup_persistent_goal_event(rf_goal_name)) {
+            return persistent->count;
+        }
+
+        return std::nullopt;
+    }
 } // namespace rf
 
 CodeInjection switch_model_event_custom_mesh_patch{
@@ -546,10 +564,91 @@ CodeInjection level_read_events_patch {
     }
 };
 
+FunHook<char*(char*)> hud_translate_special_character_token_hook{
+    0x004385C0,
+    [](char* token) {
+        std::string token_str{token};
+        std::string replacement;
+
+        // Safely retrieve a string for the key/mouse binding for a given action name
+        const auto get_binding_or_unbound = [](const char* action_name) -> std::string {
+            if (!rf::local_player)
+                return "UNBOUND";
+
+            int action_index = rf::control_config_find_action_by_name(&rf::local_player->settings, action_name);
+            if (action_index < 0)
+                return "UNBOUND";
+
+            const auto& binding = rf::local_player->settings.controls.bindings[action_index];
+            std::string result;
+
+            if (binding.scan_codes[0] >= 0) {
+                rf::String key_name;
+                rf::control_config_get_key_name(&key_name, binding.scan_codes[0]);
+                result = std::string(key_name.c_str());
+            }
+
+            if (binding.mouse_btn_id >= 0) {
+                rf::String mouse_name;
+                rf::control_config_get_mouse_button_name(&mouse_name, binding.mouse_btn_id);
+                if (!result.empty())
+                    result += ", ";
+                result += std::string(mouse_name.c_str());
+            }
+
+            return result.empty() ? "UNBOUND" : result;
+        };
+
+        // Match known HUD tokens
+        if (string_equals_ignore_case(token_str, "FIRE"))
+            replacement = get_binding_or_unbound(rf::strings::fire);
+        else if (string_equals_ignore_case(token_str, "ALT_FIRE"))
+            replacement = get_binding_or_unbound(rf::strings::alt_fire);
+        else if (string_equals_ignore_case(token_str, "USE"))
+            replacement = get_binding_or_unbound(rf::strings::use);
+        else if (string_equals_ignore_case(token_str, "JUMP"))
+            replacement = get_binding_or_unbound(rf::strings::jump);
+        else if (string_equals_ignore_case(token_str, "CROUCH"))
+            replacement = get_binding_or_unbound(rf::strings::crouch);
+        else if (string_equals_ignore_case(token_str, "HOLSTER"))
+            replacement = get_binding_or_unbound(rf::strings::holster);
+        else if (string_equals_ignore_case(token_str, "RELOAD"))
+            replacement = get_binding_or_unbound(rf::strings::reload);
+        else if (string_equals_ignore_case(token_str, "NEXT_WEAPON"))
+            replacement = get_binding_or_unbound(rf::strings::next_weapon);
+        else if (string_equals_ignore_case(token_str, "PREV_WEAPON"))
+            replacement = get_binding_or_unbound(rf::strings::prev_weapon);
+        else if (string_equals_ignore_case(token_str, "MESSAGE_LOG"))
+            replacement = get_binding_or_unbound(rf::strings::message_log);
+        else if (string_starts_with_ignore_case(token_str, "goal_")) {
+            std::string goal_name = token_str.substr(5);
+            if (auto goal_val = rf::get_named_goal_value(goal_name)) {
+                replacement = std::to_string(*goal_val);
+            } else {
+                replacement = "UNKNOWN GOAL";
+            }
+        } else {
+            // Unrecognized token, just echo it
+            replacement = token_str;
+        }
+
+        // Append trailing $ and copy into provided buffer
+        replacement += "$";
+        size_t copy_len = std::min(replacement.size(), size_t(255));
+        std::memcpy(token, replacement.data(), copy_len);
+        token[copy_len] = '\0';
+
+        return token;
+    },
+};
+
 void apply_event_patches()
 {
     // allow custom directional events
     level_read_events_patch.install();
+
+    // HUD Message magic word handling
+    hud_translate_special_character_token_hook.install();
 
     // fix some events not working if delay value is specified (alpine levels only)
     EventUnhide__process_patch.install();
