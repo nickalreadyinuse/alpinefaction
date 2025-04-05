@@ -323,7 +323,7 @@ namespace df::gr::d3d11
             context_->ResolveSubresource(back_buffer_, 0, msaa_render_target_, 0, swap_chain_format);
         }
         xlog::trace("Presenting frame {}", rf::frame_count);
-        UINT sync_interval = g_alpine_game_config.vsync ? 1 : 0;
+        UINT sync_interval = g_alpine_system_config.vsync ? 1 : 0;
         DF_GR_D3D11_CHECK_HR(
             swap_chain_->Present(sync_interval, 0)
         );

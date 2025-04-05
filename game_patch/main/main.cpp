@@ -49,6 +49,7 @@
 #endif
 
 GameConfig g_game_config;
+AlpineCoreConfig g_alpine_system_config;
 HMODULE g_hmodule;
 
 std::mt19937 g_rng;

@@ -758,9 +758,10 @@ void ao_joinbeep_cbox_on_click(int x, int y)
 
 void ao_vsync_cbox_on_click(int x, int y)
 {
-    g_alpine_game_config.vsync = !g_alpine_game_config.vsync;
-    ao_vsync_cbox.checked = g_alpine_game_config.vsync;
-    ao_play_button_snd(g_alpine_game_config.vsync);
+    g_alpine_system_config.vsync = !g_alpine_system_config.vsync;
+    g_alpine_system_config.save();
+    ao_vsync_cbox.checked = g_alpine_system_config.vsync;
+    ao_play_button_snd(g_alpine_system_config.vsync);
     gr_d3d_update_vsync();
 }
 
@@ -1116,7 +1117,7 @@ void alpine_options_panel_init() {
     alpine_options_panel_checkbox_init(
         &ao_mpcharlod_cbox, &ao_mpcharlod_label, &alpine_options_panel0, ao_mpcharlod_cbox_on_click, !g_alpine_game_config.multi_no_character_lod, 280, 262, "Entity LOD (MP)");
     alpine_options_panel_checkbox_init(
-        &ao_vsync_cbox, &ao_vsync_label, &alpine_options_panel0, ao_vsync_cbox_on_click, g_alpine_game_config.vsync, 280, 292, "Vertical sync");
+        &ao_vsync_cbox, &ao_vsync_label, &alpine_options_panel0, ao_vsync_cbox_on_click, g_alpine_system_config.vsync, 280, 292, "Vertical sync");
 
     // panel 1
     alpine_options_panel_checkbox_init(

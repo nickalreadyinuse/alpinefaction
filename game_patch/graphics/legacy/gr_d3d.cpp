@@ -321,8 +321,7 @@ CodeInjection switch_d3d_mode_patch{
 void gr_d3d_update_vsync()
 {
     if (rf::gr::screen.window_mode == rf::gr::FULLSCREEN) {
-        rf::gr::d3d::pp.FullScreen_PresentationInterval =
-            g_alpine_game_config.vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
+        rf::gr::d3d::pp.FullScreen_PresentationInterval = g_alpine_system_config.vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
     }
     else {
         rf::gr::d3d::pp.FullScreen_PresentationInterval = 0;

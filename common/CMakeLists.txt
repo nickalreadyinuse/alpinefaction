@@ -5,6 +5,7 @@ set(SRCS
     include/common/config/BuildConfig.h
     include/common/config/CfgVar.h
     include/common/config/GameConfig.h
+    include/common/config/AlpineCoreConfig.h
     include/common/config/RegKey.h
     include/common/error/error-utils.h
     include/common/error/Exception.h
@@ -20,6 +21,7 @@ set(SRCS
     include/common/version/version.h
     src/HttpRequest.cpp
     src/config/GameConfig.cpp
+    src/config/AlpineCoreConfig.cpp
     src/error/d3d-error.cpp
     src/utils/os-utils.cpp
 )

@@ -155,9 +155,6 @@ struct AlpineGameSettings
     {
         server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
     }
-
-    // system config
-    bool vsync = false;
 };
 
 extern AlpineGameSettings g_alpine_game_config;
