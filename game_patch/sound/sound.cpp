@@ -9,6 +9,7 @@
 #include "../rf/sound/sound.h"
 #include "../rf/sound/sound_ds.h"
 #include "../rf/entity.h"
+#include "../rf/multi.h"
 #include "../rf/os/frametime.h"
 #include "../misc/alpine_settings.h"
 #include "../main/main.h"
@@ -589,7 +590,9 @@ void gamesound_parse_custom_sounds()
 CodeInjection gamesound_parse_sounds_table_patch{
     0x00434708,
     []() {
-        gamesound_parse_custom_sounds();
+        if (!rf::is_dedicated_server) {
+            gamesound_parse_custom_sounds();
+        }
     },
 };
 
