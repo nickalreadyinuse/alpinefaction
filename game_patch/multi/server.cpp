@@ -796,7 +796,7 @@ static void send_private_message_with_stats(rf::Player* player)
 static void notify_for_upcoming_level_version_incompatible(rf::Player* player)
 {
     auto client_msg = std::format(
-        "\xA6 Your client is not able to load the upcoming level. To continue playing, upgrade to the latest version of Alpine Faction. Learn more at alpinefaction.com");
+        "\xA6 Your client is not able to load the next level. To continue playing, upgrade to the latest version of Alpine Faction by visiting alpinefaction.com");
     send_chat_line_packet(client_msg.c_str(), player);
 
     auto server_msg = std::format("{} cannot load the upcoming level. The maximum RFL version they are able to load is {}.",
@@ -1061,7 +1061,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             !rf::is_multi &&
             damaged_ep &&
             damaged_ep->life <= 0.0f) {
-            achievement_player_killed_entity(damaged_ep, real_damage, damage_type, damaged_ep->killer_handle);
+            achievement_player_killed_entity(damaged_ep, damage_type, damaged_ep->killer_handle);
         }
 
         return real_damage;
@@ -1352,7 +1352,9 @@ void add_ready_player(rf::Player* player)
         return;
     }
 
-    if (team_ready_list.size() >= g_match_info.team_size) {
+    const auto match_team_size = static_cast<size_t>(g_match_info.team_size);
+
+    if (team_ready_list.size() >= match_team_size) {
         send_chat_line_packet("\xA6 Your team is full.", player);
         return;
     }
@@ -1365,24 +1367,22 @@ void add_ready_player(rf::Player* player)
 
     const auto ready_red = g_match_info.ready_players_red.size();
     const auto ready_blue = g_match_info.ready_players_blue.size();
-    const auto required_players = g_match_info.team_size;
 
-    if (ready_red >= required_players && ready_blue >= required_players) {
+    if (ready_red >= match_team_size && ready_blue >= match_team_size) {
         send_chat_line_packet("\xA6 All players are ready. Match starting!", nullptr);
         g_match_info.everyone_ready = true;
         start_match(); // Start the match
     }
     else {
-        auto waiting_msg = std::format("\xA6 Still waiting for players - RED: {}, BLUE: {}.", required_players - ready_red,
-                                       required_players - ready_blue);
+        auto waiting_msg = std::format("\xA6 Still waiting for players - RED: {}, BLUE: {}.", match_team_size - ready_red, match_team_size - ready_blue);
         send_chat_line_packet(waiting_msg.c_str(), nullptr);
     }
 }
 
 void remove_ready_player_silent(rf::Player* player)
 {
-    g_match_info.ready_players_red.erase(player) > 0;
-    g_match_info.ready_players_blue.erase(player) > 0;
+    g_match_info.ready_players_red.erase(player);
+    g_match_info.ready_players_blue.erase(player);
 }
 
 void remove_ready_player(rf::Player* player)
@@ -2218,7 +2218,7 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
 
             // make best guess at the center of the map
             int item_priority = get_item_priority(name);
-            if (item_priority < possible_central_item_names.size()) {
+            if (item_priority < static_cast<int>(possible_central_item_names.size())) {
                 if (!likely_position_of_central_item || item_priority < current_center_item_priority) {
                     likely_position_of_central_item = *pos;
                     current_center_item_priority = item_priority;
@@ -2480,7 +2480,7 @@ void server_on_limbo_state_enter()
     server_vote_on_limbo_state_enter();
 
     auto player_list = SinglyLinkedList{rf::player_list};
-    int upcoming_rfl_version = get_level_file_version(rf::level_filename_to_load);
+    auto upcoming_rfl_version = static_cast<uint32_t>(get_level_file_version(rf::level_filename_to_load));
 
     // Clear save data for all players
     for (auto& player : player_list) {

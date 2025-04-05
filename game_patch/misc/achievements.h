@@ -205,7 +205,7 @@ void achievement_check_event(rf::Event* event);
 void achievement_check_entity_death(rf::Entity* entity);
 void achievement_check_clutter_death(rf::Clutter* clutter);
 void achievement_check_item_picked_up(rf::Item* item);
-void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type, int killer_handle);
+void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage_type, int killer_handle);
 
 void achievement_system_do_frame();
 void clear_achievement_notification();

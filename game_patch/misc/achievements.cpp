@@ -1119,7 +1119,7 @@ bool entity_is_player_or_vehicle_or_turret(rf::Entity* ep) {
     return false;
 }
 
-void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage, int lethal_damage_type, int killer_handle) {
+void achievement_player_killed_entity(rf::Entity* entity, int lethal_damage_type, int killer_handle) {
     if (!entity) {
         return;
     }
@@ -1393,7 +1393,7 @@ CodeInjection entity_crush_entity_achievement_patch{
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
 
             if (is_achievement_system_initialized()) {
-                achievement_player_killed_entity(hit_entity, 1000000, 9, entity->handle);
+                achievement_player_killed_entity(hit_entity, 9, entity->handle);
             }
         }
     },
@@ -1409,7 +1409,7 @@ CodeInjection entity_crush_entity_achievement_patch2{
             grant_achievement_sp(AchievementName::RunOver); // 200 vehicle crushing deaths
 
             if (is_achievement_system_initialized()) {
-                achievement_player_killed_entity(hit_entity, 1000000, 9, entity->handle);
+                achievement_player_killed_entity(hit_entity, 9, entity->handle);
             }
         }
     },
