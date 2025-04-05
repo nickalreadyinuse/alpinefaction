@@ -34,7 +34,7 @@ int LauncherApp::Run()
         if (fflink_successful) {
             Message(nullptr,
                     "Alpine Faction has successfully been linked to your FactionFiles account!\n\n"
-                    "Features that depend on FF account linking (like achievements) are now available.",
+                    "Features that depend on FF account linking such as achievements and map ranking are now available.",
                     "Success! FactionFiles Account Linked", MB_OK | MB_ICONINFORMATION);
         }
         else {
@@ -55,8 +55,9 @@ int LauncherApp::Run()
         }
         if (!fflink_successful && fflink_token_is_invalid) {
             Message(nullptr,
-                    "Alpine Faction was unable to validate your FF account linking token. "
-                    "Features that depend on FF account linking will be unavailable.\n\n"
+                    "Your FactionFiles account link was reset. "
+                    "Features such as achievement tracking and map ranking will be unavailable"
+                    " until you re-link your account from the FactionFiles website.\n\n"
                     "Visit https://alpinefaction.com/link for instructions on how to restore the link.\n",
                     "FactionFiles Link Token Invalid", MB_OK | MB_ICONINFORMATION);
         }
