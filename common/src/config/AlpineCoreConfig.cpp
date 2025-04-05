@@ -45,7 +45,7 @@ bool AlpineCoreConfig::load(const std::string& filename)
         }
     }
 
-    xlog::warn("Loaded Alpine core config from {}", filename);
+    xlog::info("Loaded Alpine core config from {}", filename);
     return true;
 }
 
