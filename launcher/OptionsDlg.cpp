@@ -7,13 +7,9 @@
 
 OptionsDlg::OptionsDlg() :
     CDialog(IDD_OPTIONS),
-    m_display_dlg(m_conf, m_graphics_dlg),
-    m_graphics_dlg(m_conf),
+    m_display_dlg(m_conf),
     m_misc_dlg(m_conf),
-    m_audio_dlg(m_conf),
-    m_multiplayer_dlg(m_conf),
-    m_input_dlg(m_conf),
-    m_iface_dlg(m_conf)
+    m_multiplayer_dlg(m_conf)
 {
 }
 
@@ -30,12 +26,8 @@ BOOL OptionsDlg::OnInitDialog()
 
     // Init nested dialogs
     InitNestedDialog(m_display_dlg, IDC_DISPLAY_OPTIONS_BOX);
-    InitNestedDialog(m_graphics_dlg, IDC_GRAPHICS_OPTIONS_BOX);
     InitNestedDialog(m_misc_dlg, IDC_MISC_OPTIONS_BOX);
-    InitNestedDialog(m_audio_dlg, IDC_AUDIO_OPTIONS_BOX);
     InitNestedDialog(m_multiplayer_dlg, IDC_MULTIPLAYER_OPTIONS_BOX);
-    InitNestedDialog(m_input_dlg, IDC_INPUT_OPTIONS_BOX);
-    InitNestedDialog(m_iface_dlg, IDC_INTERFACE_OPTIONS_BOX);
 
     InitToolTip();
 
@@ -77,11 +69,7 @@ void OptionsDlg::OnBnClickedOk()
     
     // Nested dialogs
     m_display_dlg.OnSave();
-    m_graphics_dlg.OnSave();
-    m_audio_dlg.OnSave();
     m_multiplayer_dlg.OnSave();
-    m_input_dlg.OnSave();
-    m_iface_dlg.OnSave();
     m_misc_dlg.OnSave();
 
     try {

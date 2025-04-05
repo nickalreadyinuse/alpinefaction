@@ -21,18 +21,10 @@ set(SRCS
     OptionsDlg.h
     OptionsDisplayDlg.cpp
     OptionsDisplayDlg.h
-    OptionsGraphicsDlg.cpp
-    OptionsGraphicsDlg.h
     OptionsMiscDlg.cpp
     OptionsMiscDlg.h
-    OptionsAudioDlg.cpp
-    OptionsAudioDlg.h
     OptionsMultiplayerDlg.cpp
     OptionsMultiplayerDlg.h
-    OptionsInputDlg.cpp
-    OptionsInputDlg.h
-    OptionsInterfaceDlg.cpp
-    OptionsInterfaceDlg.h
     res
     resource.h
     stdafx.cpp

@@ -17,6 +17,7 @@ protected:
 private:
     GameConfig& m_conf;
     CToolTip m_tool_tip;
+    CComboBox m_lang_combo;
 
     void InitToolTip();
 };
