@@ -620,8 +620,14 @@ FunHook<char*(char*)> hud_translate_special_character_token_hook{
             replacement = get_binding_or_unbound(rf::strings::prev_weapon);
         else if (string_equals_ignore_case(token_str, "MESSAGE_LOG"))
             replacement = get_binding_or_unbound(rf::strings::message_log);
+        else if (string_equals_ignore_case(token_str, "QUICK_SAVE"))
+            replacement = get_binding_or_unbound(rf::strings::quick_save);
+        else if (string_equals_ignore_case(token_str, "QUICK_LOAD"))
+            replacement = get_binding_or_unbound(rf::strings::quick_load);
         else if (string_equals_ignore_case(token_str, "HEADLAMP"))
             replacement = get_binding_or_unbound("Toggle headlamp");
+        else if (string_equals_ignore_case(token_str, "SKIP_CUTSCENE"))
+            replacement = get_binding_or_unbound("Skip cutscene");
         else if (string_starts_with_ignore_case(token_str, "goal_")) {
             std::string goal_name = token_str.substr(5);
             if (auto goal_val = rf::get_named_goal_value(goal_name)) {

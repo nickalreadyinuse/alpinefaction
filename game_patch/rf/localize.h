@@ -46,5 +46,7 @@ namespace rf
         static const auto &next_weapon = array[152];
         static const auto &prev_weapon = array[810];
         static const auto &message_log = array[156];
+        static const auto& quick_save = array[820];
+        static const auto& quick_load = array[821];
     }
 }

@@ -118,7 +118,11 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add launcher notifications for fflink status - link success, link failure, validation failure
 - Add `r_fullrangelighting` and `r_clampofficiallightmaps` commands
 - Allow goal value output in hud messages via `$goal_GOALNAME$` magic word
-- Add control magic word resolution for `Toggle headlamp` (`$HEADLAMP$`)
+- Add control magic word resolution in hud messages:
+    - `Toggle headlamp` (`$HEADLAMP$`)
+    - `Skip cutscene` (`SKIP_CUTSCENE`)
+    - `Quick save` (`QUICK_SAVE`)
+    - `Quick load` (`QUICK_LOAD`)
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
