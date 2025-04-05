@@ -18,13 +18,13 @@
 #define VERSION_MAJOR          1
 #define VERSION_MINOR          1
 #define VERSION_PATCH          0
-#define VERSION_TYPE           VERSION_TYPE_BETA
+#define VERSION_TYPE           VERSION_TYPE_RC
 #define VERSION_TYPE_REVISION  1
 #define VERSION_CODE           "Tamarack"
 
-// Version used for alpine_settings.ini settings files
-#define AFS_VERSION            "1"
-#define AFCC_VERSION            "1"
+// Version used for Alpine settings files
+#define AFS_VERSION            "2"      // alpine_settings.ini
+#define AFCC_VERSION            "1"     // alpine_system.ini
 
 // Increment only when absolutely necessary! Will break level compatibility for older clients.
 // Stock RF1 uses versions 156 - 200. RF2 uses version 295
