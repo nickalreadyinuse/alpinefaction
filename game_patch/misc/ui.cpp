@@ -712,8 +712,7 @@ void ao_simdist_cbox_on_click(int x, int y)
     // ao_play_tab_snd();
 }
 
-void ao_mpcharlod_cbox_on_click(int x, int y)
-{
+void ao_mpcharlod_cbox_on_click(int x, int y) {
     g_alpine_game_config.multi_no_character_lod = !g_alpine_game_config.multi_no_character_lod;
     ao_mpcharlod_cbox.checked = !g_alpine_game_config.multi_no_character_lod;
     ao_play_button_snd(!g_alpine_game_config.multi_no_character_lod);
@@ -749,15 +748,13 @@ void ao_togglecrouch_cbox_on_click(int x, int y) {
     ao_play_button_snd(rf::local_player->settings.toggle_crouch);
 }
 
-void ao_joinbeep_cbox_on_click(int x, int y)
-{
+void ao_joinbeep_cbox_on_click(int x, int y) {
     g_alpine_game_config.player_join_beep = !g_alpine_game_config.player_join_beep;
     ao_joinbeep_cbox.checked = g_alpine_game_config.player_join_beep;
     ao_play_button_snd(g_alpine_game_config.player_join_beep);
 }
 
-void ao_vsync_cbox_on_click(int x, int y)
-{
+void ao_vsync_cbox_on_click(int x, int y) {
     g_alpine_system_config.vsync = !g_alpine_system_config.vsync;
     g_alpine_system_config.save();
     ao_vsync_cbox.checked = g_alpine_system_config.vsync;
@@ -765,8 +762,7 @@ void ao_vsync_cbox_on_click(int x, int y)
     gr_d3d_update_vsync();
 }
 
-void ao_unclamplights_cbox_on_click(int x, int y)
-{
+void ao_unclamplights_cbox_on_click(int x, int y) {
     g_alpine_game_config.full_range_lighting = !g_alpine_game_config.full_range_lighting;
     ao_unclamplights_cbox.checked = g_alpine_game_config.full_range_lighting;
     ao_play_button_snd(g_alpine_game_config.full_range_lighting);
