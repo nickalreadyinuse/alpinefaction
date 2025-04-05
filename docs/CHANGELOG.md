@@ -117,6 +117,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add in-game panel to recommend FF account linking
 - Add launcher notifications for fflink status - link success, link failure, validation failure
 - Add `r_fullrangelighting` and `r_clampofficiallightmaps` commands
+- Allow goal value output in hud messages via `$goal_GOALNAME$` magic word
+- Add control magic word resolution for `Toggle headlamp` (`$HEADLAMP$`)
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
@@ -146,6 +148,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Fix level editor not handling new events with orient values from loaded groups (bump version field for rfg files)
 - Fix `Play (multi)` button in level editor not launching levels with spaces in filename
 - Fix crash when a `Music_Start` event is called with a sound file that has already been played (upstream issue)
+- Fix magic word resolution in hud message output being wrong for unbound controls
 
 Version 1.0.0 (Maple): Released Jan-25-2025
 --------------------------------
