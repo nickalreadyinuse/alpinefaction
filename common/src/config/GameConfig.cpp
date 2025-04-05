@@ -6,7 +6,7 @@
 #include <common/version/version.h>
 
 const char rf_key_name[] = R"(SOFTWARE\Volition\Red Faction)";
-const char df_subkey_name[] = "Alpine Faction";
+const char af_subkey_name[] = "Alpine Faction";
 
 const char fallback_executable_path[] = R"(C:\games\RedFaction\rf.exe)";
 
@@ -149,25 +149,25 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(red_faction_key, "EAX", eax_sound);
     result &= visitor(red_faction_key, "ForcePort", force_port);
 
-    RegKey dash_faction_key(red_faction_key, df_subkey_name, is_save ? KEY_WRITE : KEY_READ, is_save);
-    result &= dash_faction_key.is_open();
-    result &= visitor(dash_faction_key, "Window Mode", wnd_mode);
-    result &= visitor(dash_faction_key, "Anisotropic Filtering", anisotropic_filtering);
-    result &= visitor(dash_faction_key, "MSAA", msaa);
-    result &= visitor(dash_faction_key, "High Scanner Resolution", high_scanner_res);
-    result &= visitor(dash_faction_key, "True Color Textures", true_color_textures);
-    result &= visitor(dash_faction_key, "Renderer", renderer);
-    result &= visitor(dash_faction_key, "Executable Path", game_executable_path);
-    result &= visitor(dash_faction_key, "Fast Start", fast_start);
-    result &= visitor(dash_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
-    result &= visitor(dash_faction_key, "Version", alpine_faction_version);
-    result &= visitor(dash_faction_key, "Keep Launcher Open", keep_launcher_open);
-    result &= visitor(dash_faction_key, "Language", language);
-    result &= visitor(dash_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
-    result &= visitor(dash_faction_key, "FFLink Token", fflink_token);
-    result &= visitor(dash_faction_key, "FFLink Username", fflink_username);
-    result &= visitor(dash_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);
-    result &= visitor(dash_faction_key, "Already Saw FF Link Prompt", suppress_ff_link_prompt);
+    RegKey alpine_faction_key(red_faction_key, af_subkey_name, is_save ? KEY_WRITE : KEY_READ, is_save);
+    result &= alpine_faction_key.is_open();
+    result &= visitor(alpine_faction_key, "Window Mode", wnd_mode);
+    result &= visitor(alpine_faction_key, "Anisotropic Filtering", anisotropic_filtering);
+    result &= visitor(alpine_faction_key, "MSAA", msaa);
+    result &= visitor(alpine_faction_key, "High Scanner Resolution", high_scanner_res);
+    result &= visitor(alpine_faction_key, "True Color Textures", true_color_textures);
+    result &= visitor(alpine_faction_key, "Renderer", renderer);
+    result &= visitor(alpine_faction_key, "Executable Path", game_executable_path);
+    result &= visitor(alpine_faction_key, "Fast Start", fast_start);
+    result &= visitor(alpine_faction_key, "Allow Overwriting Game Files", allow_overwrite_game_files);
+    result &= visitor(alpine_faction_key, "Version", alpine_faction_version);
+    result &= visitor(alpine_faction_key, "Keep Launcher Open", keep_launcher_open);
+    result &= visitor(alpine_faction_key, "Language", language);
+    result &= visitor(alpine_faction_key, "Reduced Speed In Background", reduced_speed_in_background);
+    result &= visitor(alpine_faction_key, "FFLink Token", fflink_token);
+    result &= visitor(alpine_faction_key, "FFLink Username", fflink_username);
+    result &= visitor(alpine_faction_key, "Already Saw First Launch Window", suppress_first_launch_window);
+    result &= visitor(alpine_faction_key, "Already Saw FF Link Prompt", suppress_ff_link_prompt);
 
     return result;
 }
