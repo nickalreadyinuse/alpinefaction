@@ -356,6 +356,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.autosave = std::stoi(settings["Autosave"]);
         processed_keys.insert("Autosave");
     }
+    if (settings.count("StaticBombCode")) {
+        g_alpine_game_config.static_bomb_code = std::stoi(settings["StaticBombCode"]);
+        processed_keys.insert("StaticBombCode");
+    }
 
     // Load multiplayer settings
     if (settings.count("MultiplayerCharacter")) {
@@ -696,6 +700,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "GaussianSpread=" << g_alpine_game_config.gaussian_spread << "\n";
     file << "DisableAllCameraShake=" << g_alpine_game_config.screen_shake_force_off << "\n";
     file << "Autosave=" << g_alpine_game_config.autosave << "\n";
+    file << "StaticBombCode=" << g_alpine_game_config.static_bomb_code << "\n";
 
     // Multiplayer
     file << "\n[MultiplayerSettings]\n";

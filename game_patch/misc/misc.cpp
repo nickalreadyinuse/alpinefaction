@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <sstream>
 #include "alpine_options.h"
+#include "alpine_settings.h"
 #include "misc.h"
 #include "../sound/sound.h"
 #include "../os/console.h"
@@ -478,8 +479,38 @@ CodeInjection level_read_geometry_header_patch{
     }
 };
 
+CodeInjection static_bomb_code_patch{
+    0x0043B4C7,
+    [](auto& regs) {
+        if (g_alpine_game_config.static_bomb_code) {
+            // Set bomb_defuse_code1 (4-digit code)
+            auto& code1 = addr_as_ref<std::array<int32_t, 4>>(0x0063914C);
+            code1 = {1, 2, 3, 0};
+
+            // Set bomb_defuse_code2 (7-digit code)
+            auto& code2 = addr_as_ref<std::array<int32_t, 7>>(0x006390D8);
+            code2 = {3, 2, 1, 0, 0, 2, 1};
+
+            regs.eip = 0x0043B632; // skip RNG bomb calculation
+        }
+    },
+};
+
+ConsoleCommand2 static_bomb_code_cmd{
+    "sp_staticbombcode",
+    []() {
+        g_alpine_game_config.static_bomb_code = !g_alpine_game_config.static_bomb_code;
+        rf::console::print("Static bomb code is {}", g_alpine_game_config.static_bomb_code ? "enabled" : "disabled");
+    },
+    "Toggle bomb code between randomized (default) and static.",
+};
+
 void misc_init()
 {
+    // Static bomb code
+    static_bomb_code_patch.install();
+    static_bomb_code_cmd.register_cmd();
+
     //gr_set_far_clip_hook.install();
     //AsmWriter{0x0051806F}.jmp(0x00518083); // stops far clip from derendering geometry covered by fog, buggy
 

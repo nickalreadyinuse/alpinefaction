@@ -120,6 +120,7 @@ struct AlpineGameSettings
     bool player_join_beep = false;
     bool full_range_lighting = true;
     bool always_clamp_official_lightmaps = false;
+    bool static_bomb_code = false;
 
     std::string multiplayer_tracker = "rfgt.factionfiles.com";
     static constexpr size_t max_tracker_hostname_length = 200;

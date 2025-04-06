@@ -20,6 +20,7 @@
 #include "../os/console.h"
 #include "../sound/sound.h"
 #include "achievements.h"
+#include "alpine_settings.h"
 #include "misc.h"
 
 bool achievement_system_initialized = false;
@@ -1439,7 +1440,8 @@ CodeInjection bomb_defuse_achievement_patch{
                 break;
         }
 
-        if (fast_bomb_achievement) {
+        // do not award achievement if static bomb code is on
+        if (fast_bomb_achievement && !g_alpine_game_config.static_bomb_code) {
             grant_achievement_sp(AchievementName::FastBomb); // defuse bomb within 20 seconds
         }
     },

@@ -164,6 +164,8 @@ static rf::ui::Checkbox ao_vsync_cbox;
 static rf::ui::Label ao_vsync_label;
 static rf::ui::Checkbox ao_unclamplights_cbox;
 static rf::ui::Label ao_unclamplights_label;
+static rf::ui::Checkbox ao_bombrng_cbox;
+static rf::ui::Label ao_bombrng_label;
 
 // levelsounds audio options slider
 std::vector<rf::ui::Gadget*> alpine_audio_panel_settings;
@@ -742,6 +744,12 @@ void ao_teamrad_cbox_on_click(int x, int y) {
     ao_play_button_snd(g_alpine_game_config.play_team_rad_msg_sounds);
 }
 
+void ao_bombrng_cbox_on_click(int x, int y) {
+    g_alpine_game_config.static_bomb_code = !g_alpine_game_config.static_bomb_code;
+    ao_bombrng_cbox.checked = !g_alpine_game_config.static_bomb_code;
+    ao_play_button_snd(!g_alpine_game_config.static_bomb_code);
+}
+
 void ao_togglecrouch_cbox_on_click(int x, int y) {
     rf::local_player->settings.toggle_crouch = !rf::local_player->settings.toggle_crouch;
     ao_togglecrouch_cbox.checked = rf::local_player->settings.toggle_crouch;
@@ -1183,6 +1191,8 @@ void alpine_options_panel_init() {
         &ao_globalrad_cbox, &ao_globalrad_label, &alpine_options_panel3, ao_globalrad_cbox_on_click, g_alpine_game_config.play_global_rad_msg_sounds, 280, 84, "Global radio msgs");
     alpine_options_panel_checkbox_init(
         &ao_gaussian_cbox, &ao_gaussian_label, &alpine_options_panel3, ao_gaussian_cbox_on_click, g_alpine_game_config.gaussian_spread, 280, 114, "Gaussian spread");
+    alpine_options_panel_checkbox_init(
+        &ao_bombrng_cbox, &ao_bombrng_label, &alpine_options_panel3, ao_bombrng_cbox_on_click, !g_alpine_game_config.static_bomb_code, 280, 144, "Randomize bomb");
 
     // fflink text (panel3)
     std::string fflink_username = g_game_config.fflink_username.value();
