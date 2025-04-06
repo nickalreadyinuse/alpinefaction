@@ -37,6 +37,10 @@ natalie <webmistress@natalie.ee>:
 
 HeyItsDuke:
 * Rocket launcher lock on reticle for Big HUD
+* Assistance evaluating levels for `pow2tex` fix
+
+Hiro:
+* Assistance evaluating levels for `pow2tex` fix
 
 Beta testers:
 * nick
