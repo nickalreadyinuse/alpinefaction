@@ -763,7 +763,10 @@ std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_variable(
 std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_af_signature(std::byte* data, size_t len)
 {
     // Allows for 64 characters (63 + terminator). Actual filename will never be greater than 60 characters
-    std::string filename_copy = rf::level.filename.substr(0, 63);
+    std::string filename_copy = "";
+    if (rf::level.flags & rf::LEVEL_LOADED) { // prevent crash if called before level is loaded (usually on listen servers)
+        filename_copy = rf::level.filename.substr(0, 63).c_str();
+    }
     std::string_view filename = filename_copy;
 
     // Calculate filename length
