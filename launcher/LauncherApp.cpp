@@ -188,7 +188,7 @@ bool LauncherApp::ValidateAFLinkToken(const std::string& fflink_token)
     std::string verify_url = "https://link.factionfiles.com/aflauncher/v1/link_check.php?token=" + fflink_token;
     //xlog::info("AFLink validity check URL: {}", verify_url);
 
-    HttpSession session("Alpine Faction v1.0.0 Link");
+    HttpSession session("Alpine Faction v1.1.0 Link");
 
     try {
         session.set_connect_timeout(3000);
