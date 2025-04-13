@@ -40,8 +40,8 @@ FunHook<void(int, int)> send_trigger_activate_packet_to_all_players_hook{
 FunHook<void(rf::Trigger*, int32_t, bool)> trigger_activate_hook{
     0x004C0220,
     [](rf::Trigger* trigger, int32_t h_entity, bool skip_movers) {
-        // Check if this trigger activation should unlock an achievement
-        if (is_achievement_system_initialized()) {
+        // Check if this trigger activation should unlock an achievement in SP
+        if (!rf::is_multi && is_achievement_system_initialized()) {
             achievement_check_trigger(trigger);
         }
 
