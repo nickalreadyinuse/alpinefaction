@@ -1874,7 +1874,7 @@ namespace rf
         void turn_on() override
         {
             auto apply_healing = [&](Entity* ep) {
-                if (ep) {
+                if (ep && (!rf::is_multi || rf::is_dedicated_server || rf::is_server)) {
                     if (apply_to_armor) {
                         ep->armor = std::clamp(ep->armor + amount, 0.0f, super ? 200.0f : 100.0f);
                     }
