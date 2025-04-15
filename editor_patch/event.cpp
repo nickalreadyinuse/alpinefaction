@@ -34,7 +34,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 37; // must be 1 higher than actual count
+constexpr int new_event_count = 38; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -76,6 +76,7 @@ const char* additional_event_names[new_event_count] = {
     "Anchor_Marker_Orient",
     "Light_State",
     "World_HUD_Sprite",
+    "Set_Light_Color",
     "_dummy"
 };
 
@@ -556,11 +557,11 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
     {AlpineDedEventID::World_HUD_Sprite, {
         {FIELD_BOOL1, FIELD_INT1, FIELD_FLOAT1, FIELD_STR1, FIELD_STR2},
         {
-            {FIELD_BOOL1, "Start enabled (bool1):"},
-            {FIELD_INT1, "Render mode (int1):"},
-            {FIELD_FLOAT1, "Render scale (float1):"},
-            {FIELD_STR1, "Sprite filename (str1):"},
-            {FIELD_STR2, "Sprite filename blue (str2):"}
+            {FIELD_BOOL1, "Start enabled:"},
+            {FIELD_INT1, "Render mode:"},
+            {FIELD_FLOAT1, "Render scale:"},
+            {FIELD_STR1, "Sprite filename:"},
+            {FIELD_STR2, "Sprite filename blue:"}
         },
         {
             {FIELD_INT1,
@@ -570,6 +571,13 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         },
         {
             {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Set_Light_Color, {
+        {FIELD_STR1, FIELD_BOOL1},
+        {
+            {FIELD_STR1, "Light color (str1):"},
+            {FIELD_BOOL1, "Random color instead (bool1):"}
         }
     }},
 };

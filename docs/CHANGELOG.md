@@ -125,6 +125,7 @@ Version 1.1.0 (Tamarack): Not yet released
     - `Quick load` (`QUICK_LOAD`)
 - Add static bomb code option (combination provided by `eckozero`)
 - Add `sp_staticbombcode` console command to toggle static bomb code option
+- Add `Set_Light_Color` event
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

@@ -325,7 +325,8 @@ namespace rf
         AF_Heal,
         Anchor_Marker_Orient,
         Light_State,
-        World_HUD_Sprite
+        World_HUD_Sprite,
+        Set_Light_Color
     };
 
     // int to EventType

@@ -2025,5 +2025,56 @@ namespace rf
         }
     };
 
+    // id 136
+    struct EventSetLightColor : Event
+    {
+        std::string light_color = "";
+        bool randomize = false;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetLightColor*>(event);
+                this_event->light_color = value;
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetLightColor*>(event);
+                this_event->randomize = (value == "true");
+            };
+        }
+
+        void turn_on() override
+        {
+            try {
+                Color color;
+
+                if (randomize) {
+                    std::uniform_int_distribution<int> dist(0, 255);
+                    color.red = static_cast<ubyte>(dist(g_rng));
+                    color.green = static_cast<ubyte>(dist(g_rng));
+                    color.blue = static_cast<ubyte>(dist(g_rng));
+                }
+                else {
+                    color = Color::from_rgb_string(light_color);
+                }
+
+                for (const auto& linked_uid : this->links) {
+                    if (auto* light = static_cast<rf::gr::Light*>(rf::gr::light_get_from_handle(rf::gr::level_get_light_handle_from_uid(linked_uid)))) {
+                        light->r = static_cast<float>(color.red) / 255.0f;
+                        light->g = static_cast<float>(color.green) / 255.0f;
+                        light->b = static_cast<float>(color.blue) / 255.0f;
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                xlog::error("Set_Light_Color ({}) failed to set light color: {}", this->uid, e.what());
+            }
+        }
+    };
+
 } // namespace rf
 
