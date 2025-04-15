@@ -223,6 +223,10 @@ bool alpine_player_settings_load(rf::Player* player)
         set_play_sound_events_volume_scale();
         processed_keys.insert("LevelSoundVolume");
     }
+    if (settings.count("EntityPainSounds")) {
+        g_alpine_game_config.entity_pain_sounds = std::stoi(settings["EntityPainSounds"]);
+        processed_keys.insert("EntityPainSounds");
+    }
 
     // Load video settings
     if (settings.count("Gamma")) {
@@ -663,6 +667,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "MusicVolume=" << rf::snd_get_group_volume(1) << "\n";
     file << "MessagesVolume=" << rf::snd_get_group_volume(2) << "\n";
     file << "LevelSoundVolume=" << g_alpine_game_config.level_sound_volume << "\n";
+    file << "EntityPainSounds=" << g_alpine_game_config.entity_pain_sounds << "\n";
 
     // Video
     file << "\n[VideoSettings]\n";

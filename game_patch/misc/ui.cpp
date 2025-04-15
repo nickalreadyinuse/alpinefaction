@@ -166,6 +166,8 @@ static rf::ui::Checkbox ao_unclamplights_cbox;
 static rf::ui::Label ao_unclamplights_label;
 static rf::ui::Checkbox ao_bombrng_cbox;
 static rf::ui::Label ao_bombrng_label;
+static rf::ui::Checkbox ao_painsounds_cbox;
+static rf::ui::Label ao_painsounds_label;
 
 // levelsounds audio options slider
 std::vector<rf::ui::Gadget*> alpine_audio_panel_settings;
@@ -750,6 +752,12 @@ void ao_bombrng_cbox_on_click(int x, int y) {
     ao_play_button_snd(!g_alpine_game_config.static_bomb_code);
 }
 
+void ao_painsounds_cbox_on_click(int x, int y) {
+    g_alpine_game_config.entity_pain_sounds = !g_alpine_game_config.entity_pain_sounds;
+    ao_painsounds_cbox.checked = g_alpine_game_config.entity_pain_sounds;
+    ao_play_button_snd(g_alpine_game_config.entity_pain_sounds);
+}
+
 void ao_togglecrouch_cbox_on_click(int x, int y) {
     rf::local_player->settings.toggle_crouch = !rf::local_player->settings.toggle_crouch;
     ao_togglecrouch_cbox.checked = rf::local_player->settings.toggle_crouch;
@@ -1184,6 +1192,8 @@ void alpine_options_panel_init() {
         &ao_autosave_cbox, &ao_autosave_label, &alpine_options_panel3, ao_autosave_cbox_on_click, g_alpine_game_config.autosave, 112, 114, "Autosave");
     alpine_options_panel_checkbox_init(
         &ao_joinbeep_cbox, &ao_joinbeep_label, &alpine_options_panel3, ao_joinbeep_cbox_on_click, g_alpine_game_config.player_join_beep, 112, 144, "Join beep");
+    alpine_options_panel_checkbox_init(
+        &ao_painsounds_cbox, &ao_painsounds_label, &alpine_options_panel3, ao_painsounds_cbox_on_click, g_alpine_game_config.entity_pain_sounds, 112, 174, "Pain sounds");
 
     alpine_options_panel_checkbox_init(
         &ao_teamrad_cbox, &ao_teamrad_label, &alpine_options_panel3, ao_teamrad_cbox_on_click, g_alpine_game_config.play_team_rad_msg_sounds, 280, 54, "Team radio msgs");

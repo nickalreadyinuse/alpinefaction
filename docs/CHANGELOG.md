@@ -126,6 +126,8 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add static bomb code option (combination provided by `eckozero`)
 - Add `sp_staticbombcode` console command to toggle static bomb code option
 - Add `Set_Light_Color` event
+- Add entity pain sounds option to in-game options panel and settings ini file
+- Add `cl_painsounds` console command to toggle pain sounds
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file

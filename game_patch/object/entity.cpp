@@ -370,9 +370,29 @@ void apply_entity_sim_distance() {
     rf::entity_sim_distance = g_alpine_game_config.entity_sim_distance;
 }
 
+FunHook<void(rf::Entity*, float)> entity_maybe_play_pain_sound_hook{
+    0x004196F0, [](rf::Entity* ep, float percent_damage) {
+        if (g_alpine_game_config.entity_pain_sounds) {
+            entity_maybe_play_pain_sound_hook.call_target(ep, percent_damage);
+        }
+    }
+};
+
+ConsoleCommand2 cl_painsounds_cmd{
+    "cl_painsounds",
+    []() {
+        g_alpine_game_config.entity_pain_sounds = !g_alpine_game_config.entity_pain_sounds;
+        rf::console::print("Entity pain sounds are {}", g_alpine_game_config.entity_pain_sounds ? "enabled" : "disabled");
+    },
+    "Toggle pain sounds",
+};
+
 void entity_do_patch()
 {
     //player_create_entity_patch.install(); // force team skin experiment
+
+    // Handle toggle for pain sounds
+    entity_maybe_play_pain_sound_hook.install();
 
     // Fix player being stuck to ground when jumping, especially when FPS is greater than 200
     stuck_to_ground_when_jumping_fix.install();
@@ -425,4 +445,5 @@ void entity_do_patch()
 
     // Commands
     cl_gorelevel_cmd.register_cmd();
+    cl_painsounds_cmd.register_cmd();
 }
