@@ -166,12 +166,12 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
 
         // If this is an update, validate the key
         if (!is_initial_sync && key_received != expected_key) {
-            xlog::info("Response received but key mismatch, ignoring.");
+            xlog::debug("Response received but key mismatch, ignoring.");
             return;
         }
 
         if (is_initial_sync && synced_with_ff) {
-            xlog::info("Initial sync response received but already synced, ignoring.");
+            xlog::debug("Initial sync response received but already synced, ignoring.");
             return;
         }
 
@@ -204,7 +204,7 @@ void AchievementManager::process_ff_response(const std::string& response, int ex
             rf::console::printf("Successfully initialized Alpine Faction achievements for FactionFiles account %s", username.c_str());
         }
         else {
-            xlog::info("Successfully processed FF update [{}].", expected_key);
+            xlog::debug("Successfully processed FF update [{}].", expected_key);
             achievement_async_ff_string.clear();
             achievement_async_ff_key = 0; // Reset key
         }
@@ -251,7 +251,7 @@ void AchievementManager::sync_with_ff()
 void AchievementManager::send_update_to_ff()
 {
     if (achievement_async_ff_string.empty()) {
-        xlog::info("No pending achievement updates to send.");
+        xlog::debug("No pending achievement updates to send.");
         return;
     }
 
@@ -262,7 +262,7 @@ void AchievementManager::send_update_to_ff()
     }
 
     std::thread([token]() {
-        xlog::info("Sending achievement updates to FF [{}]...", achievement_async_ff_key);
+        xlog::debug("Sending achievement updates to FF [{}]...", achievement_async_ff_key);
 
         std::string url =
             "https://link.factionfiles.com/afachievement/v1/update/" + encode_uri_component(token);
@@ -275,7 +275,7 @@ void AchievementManager::send_update_to_ff()
 
             std::string post_string =
                 "key=" + std::to_string(achievement_async_ff_key) + "," + achievement_async_ff_string;
-            xlog::info("sending post string {}", post_string);
+            xlog::debug("sending post string {}", post_string);
             request.send(post_string);
 
             char buffer[4096];
@@ -296,7 +296,7 @@ void AchievementManager::send_update_to_ff()
 void AchievementManager::add_key_to_ff_update_map()
 {
     if (!achievement_async_ff_string.empty()) {
-        xlog::info("Skipping new update generation: Previous update still awaiting FF acknowledgment.");
+        xlog::debug("Skipping new update generation: Previous update still awaiting FF acknowledgment.");
         return;
     }
 
