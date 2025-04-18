@@ -1530,7 +1530,7 @@ CodeInjection options_audio_init_patch{
         levelsound_opt_button.enabled = true;
         alpine_audio_panel_settings_buttons.push_back(&levelsound_opt_button);
 
-        levelsound_opt_label.create(&rf::ui::audio_options_panel, 285, 178, "Environment Sounds Volume", rf::ui::medium_font_1);
+        levelsound_opt_label.create(&rf::ui::audio_options_panel, 285, 178, "Environment Sounds Multiplier", rf::ui::medium_font_1);
         levelsound_opt_label.enabled = true;
     },
 };
