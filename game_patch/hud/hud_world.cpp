@@ -330,7 +330,7 @@ void build_ephemeral_world_hud_strings() {
 }
 
 void hud_world_do_frame() {
-    if (g_alpine_game_config.world_hud_ctf_icons && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
+    if (rf::is_multi && g_alpine_game_config.world_hud_ctf_icons && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
     }
     if (g_pre_match_active || (draw_mp_spawn_world_hud && (!rf::is_multi || rf::is_server))) {
@@ -348,9 +348,8 @@ void hud_world_do_frame() {
     if (rf::is_multi &&
     ((multi_spectate_is_spectating() && g_alpine_game_config.world_hud_spectate_player_labels) ||
     (!multi_spectate_is_spectating() && g_alpine_game_config.world_hud_team_player_labels && rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_DM))) {
-    build_player_labels();
-}
-
+        build_player_labels();
+    }
 }
 
 void populate_world_hud_sprite_events()
