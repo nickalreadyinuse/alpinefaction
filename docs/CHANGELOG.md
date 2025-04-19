@@ -15,6 +15,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add "World HUD" sprite rendering for objective and player labels
 - Implement saving/loading of settings using readable `alpine_settings.ini`, remove reliance on legacy encoded `players.cfg`
 - Make servers report basic config information to tracker (visible on https://rfsb.factionfiles.com/)
+- Resolve texture alignment problems affecting many older community levels
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -128,6 +129,7 @@ Version 1.1.0 (Tamarack): Not yet released
 - Add `Set_Light_Color` event
 - Add entity pain sounds option to in-game options panel and settings ini file
 - Add `cl_painsounds` console command to toggle pain sounds
+- Add `dbg_pow2tex` command for power of 2 texture enforcement debugging
 
 [@natarii](https://github.com/natarii)
 - Add new damage notification hit sound file
