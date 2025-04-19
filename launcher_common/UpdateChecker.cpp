@@ -3,7 +3,7 @@
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
-#define BUILDNUM "2" // build number
+#define BUILDNUM "3" // build number
 
 void UpdateChecker::CheckForUpdates()
 {

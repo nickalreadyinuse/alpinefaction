@@ -1,7 +1,7 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.1.0 (Tamarack): Not yet released
+Version 1.1.0 (Tamarack): Released Apr-19-2025
 --------------------------------
 ### Major features
 [@GooberRF](https://github.com/GooberRF)
