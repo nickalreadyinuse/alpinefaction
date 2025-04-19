@@ -206,28 +206,28 @@ CodeInjection control_config_init_patch{
 
         alpine_control_config_add_item( // F
             ccp, "Toggle headlamp", 0, 0x21, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_FLASHLIGHT);
+        alpine_control_config_add_item( // L
+            ccp, "Skip cutscene", 0, 0x26, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
         alpine_control_config_add_item( // K
-            ccp, "Skip cutscene", 0, 0x25, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SKIP_CUTSCENE);
-        alpine_control_config_add_item(
-            ccp, "Respawn", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
+            ccp, "Respawn", 0, 0x25, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SELF_KILL);
         alpine_control_config_add_item( // F1
             ccp, "Vote yes", 0, 0x3B, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
         alpine_control_config_add_item( // F2
             ccp, "Vote no", 0, 0x3C, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
         alpine_control_config_add_item( // F3
             ccp, "Ready for match", 0, 0x3D, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_READY);
-        alpine_control_config_add_item(
-            ccp, "Drop flag", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
+        alpine_control_config_add_item( // G
+            ccp, "Drop flag", 0, 0x22, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_DROP_FLAG);
         alpine_control_config_add_item( // V
             ccp, "Radio message menu", 0, 0x2F, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_CHAT_MENU);
-        alpine_control_config_add_item(
+        alpine_control_config_add_item( // B
             ccp, "Taunt menu", 0, 0x30, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_TAUNT_MENU);
-        alpine_control_config_add_item(
+        alpine_control_config_add_item( // N
             ccp, "Command menu", 0, 0x31, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_COMMAND_MENU);
-        alpine_control_config_add_item(
-            ccp, "Ping location", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
-        alpine_control_config_add_item(
-            ccp, "Spectate mode menu", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU);
+        alpine_control_config_add_item( // Mouse 3
+            ccp, "Ping location", 0, -1, -1, 2, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
+        alpine_control_config_add_item( // ,
+            ccp, "Spectate mode menu", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU);
     },
 };
 
