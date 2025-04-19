@@ -34,6 +34,7 @@ natalie <webmistress@natalie.ee>:
 * FactionFiles API work to support integration with AF features
 * Hit sound
 * Code contributions
+* Assistance evaluating levels for `pow2tex` fix
 
 HeyItsDuke:
 * Rocket launcher lock on reticle for Big HUD
@@ -48,12 +49,15 @@ Beta testers:
 * Intharth
 * Haze202
 * HeyItsDuke
+* Hiro
 * Vel
 * BATEMAN
 * MysticaL-AceR
 * liq
 * EasyOnMe
 * space9h0st
+* ED BUNGHOLE
+* icesolate
 * DVL_IAC
 * Everyone who tried a test build and provided feedback
 
