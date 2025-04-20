@@ -16,11 +16,11 @@
 // Variables to be modified during the release process
 #define PRODUCT_NAME           "Alpine Faction"
 #define VERSION_MAJOR          1
-#define VERSION_MINOR          1
+#define VERSION_MINOR          2
 #define VERSION_PATCH          0
-#define VERSION_TYPE           VERSION_TYPE_RELEASE
+#define VERSION_TYPE           VERSION_TYPE_DEV
 #define VERSION_TYPE_REVISION  0
-#define VERSION_CODE           "Tamarack"
+#define VERSION_CODE           "Willow"
 
 // Version used for Alpine settings files
 #define AFS_VERSION            "5"      // alpine_settings.ini

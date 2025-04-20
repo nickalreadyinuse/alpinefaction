@@ -3,7 +3,11 @@
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
-#define BUILDNUM "3" // build number
+#define BUILDNUM "3" // build number - tick up during release process
+// 1 = dev/beta builds
+// 2 = 1.0.0 (Maple)
+// 3 = 1.1.0 (Tamarack)
+// 4 = 1.2.0 (Willow)
 
 void UpdateChecker::CheckForUpdates()
 {
@@ -12,7 +16,7 @@ void UpdateChecker::CheckForUpdates()
     xlog::info("Checking for updates...");
 
     // Create an HttpSession
-    HttpSession session("Alpine Faction v1.1.0 Update");
+    HttpSession session("Alpine Faction v1.2.0 Update");
 
     try {
         HttpRequest req(update_url, "GET", session);

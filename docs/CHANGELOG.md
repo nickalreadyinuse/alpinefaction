@@ -1,6 +1,14 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
+Version 1.2.0 (Willow): Not yet released
+--------------------------------
+### Major features
+
+### Minor features, changes, and enhancements
+
+### Bug fixes
+
 Version 1.1.0 (Tamarack): Released Apr-19-2025
 --------------------------------
 ### Major features
