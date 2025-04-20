@@ -129,9 +129,9 @@ Version 1.1.0 (Tamarack): Released Apr-19-2025
 - Allow goal value output in hud messages via `$goal_GOALNAME$` magic word
 - Add control magic word resolution in hud messages:
     - `Toggle headlamp` (`$HEADLAMP$`)
-    - `Skip cutscene` (`SKIP_CUTSCENE`)
-    - `Quick save` (`QUICK_SAVE`)
-    - `Quick load` (`QUICK_LOAD`)
+    - `Skip cutscene` (`$SKIP_CUTSCENE$`)
+    - `Quick save` (`$QUICK_SAVE$`)
+    - `Quick load` (`$QUICK_LOAD$`)
 - Add static bomb code option (combination provided by `eckozero`)
 - Add `sp_staticbombcode` console command to toggle static bomb code option
 - Add `Set_Light_Color` event
