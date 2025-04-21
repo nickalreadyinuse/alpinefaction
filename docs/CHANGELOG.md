@@ -6,6 +6,8 @@ Version 1.2.0 (Willow): Not yet released
 ### Major features
 
 ### Minor features, changes, and enhancements
+[@rafalh](https://github.com/rafalh)
+- Add new Dash Level Properties chunk and full lightmap depth setting (imported from Dash Faction 1.9.0)
 
 ### Bug fixes
 
@@ -321,7 +323,9 @@ Version 1.0.0 (Maple): Released Jan-25-2025
 Dash Faction (Upstream) Changelog
 =================================
 
-Version 1.9.0 (Unreleased)
+NOTE: Alpine Faction was forked from the Dash Faction main branch in late Jan 2025 and has merged only a subset of commits made since then.
+
+Version 1.9.0 (released 2025-04-06)
 --------------------------------
 [@rafalh](https://github.com/rafalh)
 - Added experimental D3D11 renderer
@@ -363,6 +367,7 @@ Version 1.9.0 (Unreleased)
 - Disable adding faces to fix PS2 tiling in editor
 - Disable red background in log window if geometry limits are crossed in editor
 - Update geometry limits in editor so they show static pools size (crossing it can have tiny performance impact)
+- Add level property which enables full lightmaps depth (enabled by default in new maps)
 
 [@GooberRF](https://github.com/GooberRF)
 - Fix crash when `verify_level` command is run without a level being loaded
