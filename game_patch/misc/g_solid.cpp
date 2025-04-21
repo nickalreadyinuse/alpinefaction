@@ -266,10 +266,9 @@ CodeInjection level_load_lightmaps_color_conv_patch{
         }
 
         // If no per-level floor clamp, consider using legacy clamping for non-Alpine levels
-        if (!floor_clamp_defined && rf::level.version < 300 && !DashLevelProps::instance().lightmaps_full_depth) {
-
-            // If not full range OR official + forced clamping
-            if (!g_alpine_game_config.full_range_lighting || (g_alpine_game_config.always_clamp_official_lightmaps && rf::level.version < 200)) {
+        if (!floor_clamp_defined && rf::level.version < 300) {
+            if ((g_alpine_game_config.always_clamp_official_lightmaps && rf::level.version < 200) ||
+                (!DashLevelProps::instance().lightmaps_full_depth && !g_alpine_game_config.full_range_lighting)) {
                 should_clamp = true;
 
                 if (!floor_clamp_defined) {
@@ -277,6 +276,11 @@ CodeInjection level_load_lightmaps_color_conv_patch{
                 }
             }
         }
+
+        // Clamp lightmaps only if:
+        // - mapname_info.tbl says to (takes priority over all other config)
+        // - Is an official Volition map AND "Always clamp official lightmaps" is turned on
+        // - Is a version 200 map, AF "Full range lights" is turned off, AND DF "Lightmaps full depth" is turned off (or not set)
 
         // Apply clamping
         if (should_clamp) {
