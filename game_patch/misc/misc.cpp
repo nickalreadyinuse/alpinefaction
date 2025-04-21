@@ -44,6 +44,7 @@ void camera_do_patch();
 void ui_apply_patch();
 void game_apply_patch();
 void character_apply_patch();
+void level_apply_patch();
 void alpine_settings_apply_patch();
 
 struct JoinMpGameData
@@ -606,4 +607,5 @@ void misc_init()
     ui_apply_patch();
     game_apply_patch();
     character_apply_patch();
+    level_apply_patch();
 }
