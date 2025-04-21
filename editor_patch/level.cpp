@@ -132,17 +132,19 @@ void ApplyLevelPatches()
     CLevelDialog_OnInitDialog_inj.install();
     CLevelDialog_OnOK_inj.install();
 
-    // Disable lightmap clamping
-    write_mem<std::uint8_t>(0x004A2ED2 + 1, 0);
-    write_mem<std::uint8_t>(0x004A2EE0 + 1, 0);
-    write_mem<std::uint8_t>(0x004A2EEA + 1, 0);
+    // Avoid clamping lightmaps when loading rfl files
+    AsmWriter{0x004A5D6A}.jmp(0x004A5D6E);
 
-    // Increase default ambient color because lightmaps are no longer clamped
-    constexpr std::uint8_t default_ambient_light = 64;
+    // Default level ambient light and fog color to flat black
+    constexpr std::uint8_t default_ambient_light = 0;
+    constexpr std::uint8_t default_fog = 0;
     write_mem<std::uint8_t>(0x0041CABD + 1, default_ambient_light);
     write_mem<std::uint8_t>(0x0041CABF + 1, default_ambient_light);
     write_mem<std::uint8_t>(0x0041CAC1 + 1, default_ambient_light);
     write_mem<std::uint8_t>(0x0041CAD3 + 1, default_ambient_light);
     write_mem<std::uint8_t>(0x0041CAD5 + 1, default_ambient_light);
     write_mem<std::uint8_t>(0x0041CAD7 + 1, default_ambient_light);
+    write_mem<std::uint8_t>(0x0041CB07 + 1, default_fog);
+    write_mem<std::uint8_t>(0x0041CB09 + 1, default_fog);
+    write_mem<std::uint8_t>(0x0041CB0B + 1, default_fog);
 }

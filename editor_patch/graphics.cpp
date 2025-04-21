@@ -275,9 +275,6 @@ void ApplyGraphicsPatches()
     write_mem<u32>(0x004EBC77 + 1, D3DUSAGE_DYNAMIC|D3DUSAGE_DONOTCLIP|D3DUSAGE_WRITEONLY);
 #endif
 
-    // Avoid clamping lightmaps when loading rfl files
-    AsmWriter{0x004A5D6A}.jmp(0x004A5D6E);
-
     // Avoid flushing D3D buffers in GrSetColorRgba
     AsmWriter(0x004B976D).nop(5);
 
