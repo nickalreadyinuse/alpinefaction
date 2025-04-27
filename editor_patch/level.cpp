@@ -7,6 +7,9 @@
 #include "mfc_types.h"
 #include "resources.h"
 
+// Code to support saving/loading new dash props chunk currently unneeded
+// Level editor saves RFL v300, which always support full range lights
+/*
 constexpr std::size_t level_dash_props_offset = 0x608;
 constexpr std::size_t level_dialog_offset = 0x270;
 constexpr int dash_level_props_chunk_id = 0xDA58FA00;
@@ -120,17 +123,19 @@ CodeInjection CLevelDialog_OnOK_inj{
         dash_level_props.lightmaps_full_depth = IsDlgButtonChecked(hdlg, IDC_LEVEL_LIGHTMAPS_FULL_DEPTH) == BST_CHECKED;
     },
 };
+*/
 
 void ApplyLevelPatches()
 {
     // Save/load additional level properties
-    write_mem<std::uint32_t>(0x0041C906 + 1, 0x668 + sizeof(LevelDashProps));
+    /* write_mem<std::uint32_t>(0x0041C906 + 1, 0x668 + sizeof(LevelDashProps));
     CRedLevel_ct_inj.install();
     CRedLevel_LoadLevel_inj0.install();
     CRedLevel_LoadLevel_inj1.install();
     CRedLevel_SaveLevel_inj.install();
     CLevelDialog_OnInitDialog_inj.install();
     CLevelDialog_OnOK_inj.install();
+    */
 
     // Avoid clamping lightmaps when loading rfl files
     AsmWriter{0x004A5D6A}.jmp(0x004A5D6E);
