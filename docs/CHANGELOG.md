@@ -6,10 +6,12 @@ Version 1.2.0 (Willow): Not yet released
 ### Major features
 
 ### Minor features, changes, and enhancements
-[@rafalh](https://github.com/rafalh)
-- Add new Dash Level Properties chunk and full lightmap depth setting (imported from Dash Faction 1.9.0)
 
 ### Bug fixes
+
+### Imports from other repos
+[Dash Faction 1.9.0](https://github.com/rafalh/dashfaction)
+- Add support for Dash Level Properties chunk and full lightmap depth setting (commit f90f81a)
 
 Version 1.1.0 (Tamarack): Released Apr-19-2025
 --------------------------------
