@@ -88,6 +88,7 @@ struct AlpineGameSettings
     bool try_disable_textures = false;
     bool try_disable_muzzle_flash_lights = false;
     bool world_hud_ctf_icons = true;
+    bool world_hud_alt_damage_indicators = false;
     bool world_hud_overdraw = true;
     bool world_hud_big_text = true;
     bool world_hud_damage_numbers = true;

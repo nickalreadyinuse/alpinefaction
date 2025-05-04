@@ -394,15 +394,18 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_
 
     std::uniform_real_distribution<float> wind_offset_dist(0.0f, 3.14f * 2);
 
-    // Search for an existing entry with the same player_id
-    auto it = std::find_if(
-        ephemeral_world_hud_strings.begin(), ephemeral_world_hud_strings.end(),
-        [damaged_player_id](const EphemeralWorldHUDString& es) { return es.player_id == damaged_player_id; });
+    // Use cumulative damage values for the same player_id unless disabled
+    if (!g_alpine_game_config.world_hud_alt_damage_indicators) {
+        // Search for an existing entry with the same player_id
+        auto it = std::find_if(
+            ephemeral_world_hud_strings.begin(), ephemeral_world_hud_strings.end(),
+            [damaged_player_id](const EphemeralWorldHUDString& es) { return es.player_id == damaged_player_id; });
 
-    if (it != ephemeral_world_hud_strings.end()) {
-        // If found, sum the damage values and remove the old entry
-        damage += it->damage;
-        ephemeral_world_hud_strings.erase(it);
+        if (it != ephemeral_world_hud_strings.end()) {
+            // If found, sum the damage values and remove the old entry
+            damage += it->damage;
+            ephemeral_world_hud_strings.erase(it);
+        }
     }
 
     EphemeralWorldHUDString es;
@@ -416,6 +419,16 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_
 
     ephemeral_world_hud_strings.push_back(es);
 }
+
+ConsoleCommand2 worldhudaltdmgindicators_cmd{
+    "cl_wh_altdmgindicators",
+    []() {
+        g_alpine_game_config.world_hud_alt_damage_indicators = !g_alpine_game_config.world_hud_alt_damage_indicators;
+        rf::console::print("Individual world HUD damage indicators are {}", g_alpine_game_config.world_hud_alt_damage_indicators ? "enabled" : "disabled");
+    },
+    "Toggle individual vs. cumulative (default) world HUD damage indicator strings",
+    "cl_wh_altdmgindicators",
+};
 
 ConsoleCommand2 worldhudctf_cmd{
     "cl_wh_ctf",
@@ -495,6 +508,7 @@ ConsoleCommand2 worldhudmpspawns_cmd{
 void hud_world_apply_patch()
 {
     // register commands
+    worldhudaltdmgindicators_cmd.register_cmd();
     worldhudctf_cmd.register_cmd();
     worldhudoverdraw_cmd.register_cmd();
     worldhudbigtext_cmd.register_cmd();

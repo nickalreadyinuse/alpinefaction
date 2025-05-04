@@ -9,6 +9,7 @@ Version 1.2.0 (Willow): Not yet released
 - Raise maximum confgurable pixels/m apply map texture setting in level editor to 8192
 - Default level ambient light and fog color to flat black (0, 0, 0) instead of stock game default (40, 40, 40)
 - Update Level Properties window strings to be more descriptive
+- Add `cl_wh_altdmgindicators` command to toggle cumulative world HUD damage indicators
 
 ### Bug fixes
 

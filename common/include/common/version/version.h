@@ -23,7 +23,7 @@
 #define VERSION_CODE           "Willow"
 
 // Version used for Alpine settings files
-#define AFS_VERSION            "5"      // alpine_settings.ini
+#define AFS_VERSION            "6"      // alpine_settings.ini
 #define AFCC_VERSION           "1"     // alpine_system.ini
 
 // Increment only when absolutely necessary! Will break level compatibility for older clients.
