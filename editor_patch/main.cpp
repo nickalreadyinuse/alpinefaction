@@ -632,6 +632,9 @@ void apply_af_level_editor_changes()
     LoadSaveLevel_patch2.install();
     disable_splash_screen_on_load_level.install();
 
+    // Raise maximum apply map pixels/m value to 8192 (default 256)
+    AsmWriter(0x00476FCD).push(0x2000);
+
     // Write version 300 to saved group files, instead of 200 (default)
     // Fixes issue loading events with orientation values (in event.cpp DedEvent__exchange_patch)
     // Note: Doesn't need to be updated when MAXIMUM_RFL_VERSION is incremented
