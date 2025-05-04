@@ -6,11 +6,13 @@ Version 1.2.0 (Willow): Not yet released
 ### Major features
 
 ### Minor features, changes, and enhancements
+- Raise maximum confgurable pixels/m apply map texture setting in level editor to 8192
+- Default level ambient light and fog color to flat black (0, 0, 0) instead of stock game default (40, 40, 40)
 
 ### Bug fixes
 
 ### Imports from other repos
-[Dash Faction 1.9.0](https://github.com/rafalh/dashfaction)
+[Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
 - Add support for Dash Level Properties chunk and full lightmap depth setting (commit f90f81a)
 
 Version 1.1.0 (Tamarack): Released Apr-19-2025
