@@ -138,7 +138,9 @@ CodeInjection CDialog_DoModal_injection{
         auto lpszTemplateName = addr_as_ref<LPCSTR>(regs.esp);
         // Customize:
         // - 148: trigger properties dialog
-        if (lpszTemplateName == MAKEINTRESOURCE(IDD_TRIGGER_PROPERTIES)) {
+        if (lpszTemplateName == MAKEINTRESOURCE(IDD_TRIGGER_PROPERTIES) ||
+            lpszTemplateName == MAKEINTRESOURCE(IDD_LEVEL_PROPERTIES)
+        ) {
             hCurrentResourceHandle = reinterpret_cast<int>(g_module);
         }
     },
@@ -448,6 +450,7 @@ void InitCrashHandler()
 
 void ApplyGraphicsPatches();
 void ApplyTriggerPatches();
+void ApplyLevelPatches();
 void ApplyEventsPatches();
 void ApplyTexturesPatches();
 
@@ -629,6 +632,9 @@ void apply_af_level_editor_changes()
     LoadSaveLevel_patch2.install();
     disable_splash_screen_on_load_level.install();
 
+    // Raise maximum apply map pixels/m value to 8192 (default 256)
+    AsmWriter(0x00476FCD).push(0x2000);
+
     // Write version 300 to saved group files, instead of 200 (default)
     // Fixes issue loading events with orientation values (in event.cpp DedEvent__exchange_patch)
     // Note: Doesn't need to be updated when MAXIMUM_RFL_VERSION is incremented
@@ -712,6 +718,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Apply patches defined in other files
     ApplyGraphicsPatches();
     ApplyTriggerPatches();
+    ApplyLevelPatches();
     ApplyEventsPatches();
     ApplyTexturesPatches();
 

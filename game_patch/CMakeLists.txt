@@ -178,6 +178,7 @@ set(SRCS
     misc/camera.cpp
     misc/ui.cpp
     misc/game.cpp
+    misc/level.cpp
     misc/alpine_options.h
     misc/alpine_options.cpp
     misc/alpine_settings.h
