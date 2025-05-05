@@ -6,7 +6,9 @@
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/localize.h"
+#include "../misc/alpine_settings.h"
 #include <patch_common/FunHook.h>
+#include <patch_common/CodeInjection.h>
 #include <patch_common/MemUtils.h>
 #include <algorithm>
 
@@ -82,7 +84,7 @@ FunHook<void(rf::Player*)> hud_status_render_hook{
             auto health_value_w = hud_scale_coords(rf::hud_coords[rf::hud_health_value_width_and_height], scale).x;
             rf::gr::string(health_value_x + (health_value_w - text_w) / 2, health_value_y, health_str.c_str(), font_id);
             rf::gr::set_color(rf::hud_mid_color);
-            auto armor_str = std::to_string(static_cast<int>(entity->armor));
+            auto armor_str = std::to_string(static_cast<int>(std::lround(entity->armor * (g_alpine_game_config.straight_armor_values ? 2.0f : 1.0f))));
             rf::gr::get_string_size(&text_w, &text_h, armor_str.c_str(), -1, font_id);
             auto [envirosuit_value_x, envirosuit_value_y] = hud_scale_coords(rf::hud_coords[rf::hud_envirosuit_value_ul_corner], scale);
             auto envirosuit_value_w = hud_scale_coords(rf::hud_coords[rf::hud_envirosuit_value_width_and_height], scale).x;
@@ -110,8 +112,27 @@ FunHook<void(rf::Player*)> hud_status_render_hook{
     },
 };
 
+CodeInjection hud_print_armor_patch{
+    0x0043A09E,
+    [](auto& regs) {
+        if (g_alpine_game_config.straight_armor_values) {
+            rf::Entity* entity = regs.esi;
+            if (entity) {
+                regs.eax = static_cast<int>(std::lround(entity->armor * 2.0f));
+                regs.esp += 0x38;
+                regs.eip = 0x0043A0A9;
+            }
+        }
+    },
+};
+
 void hud_status_apply_patches()
 {
+    // Support straight 1:1 armor:effective health display
+    // Only applies to non-Big HUD. Big HUD uses logic in hud_status_render_hook
+    hud_print_armor_patch.install();
+
+    // Support BigHUD
     hud_status_render_hook.install();
 }
 

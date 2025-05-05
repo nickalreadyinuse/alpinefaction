@@ -10,8 +10,10 @@ Version 1.2.0 (Willow): Not yet released
 - Default level ambient light and fog color to flat black (0, 0, 0) instead of stock game default (40, 40, 40)
 - Update Level Properties window strings to be more descriptive
 - Add `cl_wh_altdmgindicators` command to toggle cumulative world HUD damage indicators
+- Add `ui_straightarmor` command to toggle straight armor display on HUD (1:1 with health instead of the 2:1 default)
 
 ### Bug fixes
+- Fix very niche case where armor values were displayed differently when Big HUD was enabled
 
 ### Imports from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
