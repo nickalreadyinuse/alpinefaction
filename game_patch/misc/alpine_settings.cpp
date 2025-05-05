@@ -187,9 +187,9 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.af_branding = std::stoi(settings["AlpineBranding"]);
         processed_keys.insert("AlpineBranding");
     }
-    if (settings.count("StraightArmorValues")) {
-        g_alpine_game_config.straight_armor_values = std::stoi(settings["StraightArmorValues"]);
-        processed_keys.insert("StraightArmorValues");
+    if (settings.count("RealArmorValues")) {
+        g_alpine_game_config.real_armor_values = std::stoi(settings["RealArmorValues"]);
+        processed_keys.insert("RealArmorValues");
     }
 
     // Load weapon autoswitch priority
@@ -653,7 +653,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShowFPS=" << g_alpine_game_config.fps_counter << "\n";
     file << "SaveConsoleHistory=" << g_alpine_game_config.save_console_history << "\n";
     file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
-    file << "StraightArmorValues=" << g_alpine_game_config.straight_armor_values << "\n";
+    file << "RealArmorValues=" << g_alpine_game_config.real_armor_values << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";

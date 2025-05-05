@@ -168,14 +168,14 @@ ConsoleCommand2 bighud_cmd{
     "bighud",
 };
 
-ConsoleCommand2 ui_straightarmor_cmd{
-    "ui_straightarmor",
+ConsoleCommand2 ui_realarmor_cmd{
+    "ui_realarmor",
     []() {
-        g_alpine_game_config.straight_armor_values = !g_alpine_game_config.straight_armor_values;
-        rf::console::print("Straight armor values are {}", g_alpine_game_config.straight_armor_values ? "enabled" : "disabled");
+        g_alpine_game_config.real_armor_values = !g_alpine_game_config.real_armor_values;
+        rf::console::print("Real armor value display is {}", g_alpine_game_config.real_armor_values ? "enabled" : "disabled");
     },
-    "Toggle whether armor is displayed on HUD using straight values (1:1 armor to effective health) or classic (2:1 - default).",
-    "ui_straightarmor",
+    "Toggle whether armor is displayed on HUD using real values (1:1 armor to effective health) or classic (2:1 - default).",
+    "ui_realarmor",
 };
 
 #ifndef NDEBUG
@@ -423,7 +423,7 @@ void hud_apply_patches()
 
     // Other commands
     bighud_cmd.register_cmd();
-    ui_straightarmor_cmd.register_cmd();
+    ui_realarmor_cmd.register_cmd();
 #ifndef NDEBUG
     hud_coords_cmd.register_cmd();
 #endif
