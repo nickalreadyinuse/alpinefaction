@@ -11,6 +11,7 @@ Version 1.2.0 (Willow): Not yet released
 - Update Level Properties window strings to be more descriptive
 - Add `cl_wh_altdmgindicators` command to toggle cumulative world HUD damage indicators
 - Add `ui_realarmor` command to toggle real armor display on HUD (1:1 with health instead of the 2:1 default)
+- Add `-afs FILENAME` command line argument to specify a settings file when launching
 
 ### Bug fixes
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled

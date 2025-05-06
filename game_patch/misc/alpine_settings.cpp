@@ -37,8 +37,32 @@ std::vector<std::string> orphaned_lines;
 std::vector<std::string> orphaned_lines_core_config;
 int loaded_afs_version = -1;
 int loaded_afcc_version = -1;
+std::optional<std::string> afs_cmd_line_filename;
 
 AlpineGameSettings g_alpine_game_config;
+
+static rf::CmdLineParam& get_afs_cmd_line_param()
+{
+    xlog::warn("checking -afs param");
+    static rf::CmdLineParam afs_param{"-afs", "", true};
+    return afs_param;
+}
+
+void handle_afs_param()
+{
+    xlog::warn("checking -afs");
+    // do nothing unless -afs is specified
+    if (!get_afs_cmd_line_param().found()) {
+        xlog::warn("returning -afs");
+        return;
+    }    
+
+    std::string afs_filename = get_afs_cmd_line_param().get_arg();
+    xlog::warn("checking -afs found {}", afs_filename);
+
+    rf::console::print("afs filename forced {}", afs_filename);
+    afs_cmd_line_filename = afs_filename;
+}
 
 void resolve_scan_code_conflicts(rf::ControlConfig& config)
 {
@@ -87,17 +111,26 @@ void resolve_mouse_button_conflicts(rf::ControlConfig& config)
 
 std::string alpine_get_settings_filename()
 {
+    // -afs switch
+    if (afs_cmd_line_filename.has_value()) {
+        return afs_cmd_line_filename.value();
+    }
+
+    // tc mod
     if (rf::mod_param.found() &&
         !(g_alpine_options_config.is_option_loaded(AlpineOptionID::UseStockPlayersConfig) &&
         std::get<bool>(g_alpine_options_config.options[AlpineOptionID::UseStockPlayersConfig]))) {
         std::string mod_name = rf::mod_param.get_arg();
         return "alpine_settings_" + mod_name + ".ini";
     }
+
+    // normal
     return "alpine_settings.ini";
 }
 
 bool alpine_player_settings_load(rf::Player* player)
 {
+    handle_afs_param();
     std::string filename = alpine_get_settings_filename();
     std::ifstream file(filename);
 
@@ -925,4 +958,7 @@ void alpine_settings_apply_patch()
     // Register commands
     load_settings_cmd.register_cmd();
     save_settings_cmd.register_cmd();
+
+    // Init cmd line
+    get_afs_cmd_line_param();
 }
