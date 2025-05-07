@@ -6,6 +6,7 @@ Version 1.2.0 (Willow): Not yet released
 ### Major features
 
 ### Minor features, changes, and enhancements
+[@GooberRF](https://github.com/GooberRF)
 - Raise maximum confgurable pixels/m apply map texture setting in level editor to 8192
 - Default level ambient light and fog color to flat black (0, 0, 0) instead of stock game default (40, 40, 40)
 - Update Level Properties window strings to be more descriptive
@@ -14,6 +15,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `-afs FILENAME` command line argument to specify a settings file when launching
 
 ### Bug fixes
+[@GooberRF](https://github.com/GooberRF)
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled
 
 ### Imports from other repos

@@ -43,22 +43,18 @@ AlpineGameSettings g_alpine_game_config;
 
 static rf::CmdLineParam& get_afs_cmd_line_param()
 {
-    xlog::warn("checking -afs param");
     static rf::CmdLineParam afs_param{"-afs", "", true};
     return afs_param;
 }
 
 void handle_afs_param()
 {
-    xlog::warn("checking -afs");
     // do nothing unless -afs is specified
     if (!get_afs_cmd_line_param().found()) {
-        xlog::warn("returning -afs");
         return;
     }    
 
     std::string afs_filename = get_afs_cmd_line_param().get_arg();
-    xlog::warn("checking -afs found {}", afs_filename);
 
     rf::console::print("afs filename forced {}", afs_filename);
     afs_cmd_line_filename = afs_filename;
