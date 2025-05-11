@@ -524,6 +524,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.skip_cutscene_bind_alias = std::stoi(settings["SkipCutsceneBindAlias"]);
         processed_keys.insert("SkipCutsceneBindAlias");
     }
+    if (settings.count("SuppressAutoswitchBindAlias")) {
+        g_alpine_game_config.suppress_autoswitch_alias = std::stoi(settings["SuppressAutoswitchBindAlias"]);
+        processed_keys.insert("SuppressAutoswitchBindAlias");
+    }
     if (settings.count("StaticScopeSensitivity")) {
         g_alpine_game_config.scope_static_sensitivity = std::stoi(settings["StaticScopeSensitivity"]);
         processed_keys.insert("StaticScopeSensitivity");
@@ -605,6 +609,7 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "SwapGNBinds=" << g_alpine_game_config.swap_gn_controls << "\n";
     file << "SwapSGBinds=" << g_alpine_game_config.swap_sg_controls << "\n";
     file << "SkipCutsceneBindAlias=" << g_alpine_game_config.skip_cutscene_bind_alias << "\n";
+    file << "SuppressAutoswitchBindAlias=" << g_alpine_game_config.suppress_autoswitch_alias << "\n";
     file << "StaticScopeSensitivity=" << g_alpine_game_config.scope_static_sensitivity << "\n";
     file << "ScopeSensitivityModifier=" << g_alpine_game_config.scope_sensitivity_modifier << "\n";
     file << "ScannerSensitivityModifier=" << g_alpine_game_config.scanner_sensitivity_modifier << "\n";

@@ -7,6 +7,7 @@
 #include "../hud/hud.h"
 #include "../misc/player.h"
 #include "../misc/achievements.h"
+#include "../misc/alpine_settings.h"
 #include "../multi/multi.h"
 #include "../multi/endgame_votes.h"
 #include "../rf/input.h"
@@ -380,8 +381,21 @@ CodeInjection item_touch_weapon_autoswitch_patch{
     0x0045AA50,
     [](auto& regs) {
         rf::Player* player = regs.edi;
-        // Suppress autoswitch if key is held
+        bool should_suppress_autoswitch = false;
+
+        // check dedicated bind
         if (rf::control_is_control_down(&player->settings.controls, get_af_control(rf::AlpineControlConfigAction::AF_ACTION_NO_AUTOSWITCH))) {
+            should_suppress_autoswitch = true;
+        }
+
+        // check alias
+        if (!should_suppress_autoswitch && g_alpine_game_config.suppress_autoswitch_alias >= 0 &&
+            rf::control_is_control_down(&player->settings.controls, static_cast<rf::ControlConfigAction>(g_alpine_game_config.suppress_autoswitch_alias))) {
+            should_suppress_autoswitch = true;
+        }
+
+        // Suppress autoswitch if applicable
+        if (should_suppress_autoswitch) {
             regs.eip = 0x0045AA9B;
         }
     }

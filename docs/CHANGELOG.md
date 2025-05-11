@@ -14,6 +14,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `ui_realarmor` command to toggle real armor display on HUD (1:1 with health instead of the 2:1 default)
 - Add `-afs FILENAME` command line argument to specify a settings file when launching
 - Add `Suppress autoswitch` control bind (if held while picking up a weapon, autoswitch is suppressed)
+- Add `SuppressAutoswitchBindAlias` setting to `alpine_settings.ini`
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
