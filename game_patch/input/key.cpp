@@ -228,6 +228,8 @@ CodeInjection control_config_init_patch{
             ccp, "Ping location", 0, -1, -1, 2, rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION);
         alpine_control_config_add_item( // ,
             ccp, "Spectate mode menu", 0, 0x33, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU);
+        alpine_control_config_add_item(
+            ccp, "Suppress autoswitch", 0, -1, -1, -1, rf::AlpineControlConfigAction::AF_ACTION_NO_AUTOSWITCH);
     },
 };
 
@@ -352,7 +354,7 @@ CodeInjection controls_process_patch{
 
         // C++ doesn't have a way to dynamically get the last enum index, so just update this when adding new controls
         if (index >= starting_alpine_control_index &&
-            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_SPECTATE_MENU)) {
+            index <= static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_NO_AUTOSWITCH)) {
             //xlog::warn("passing control {}", index);
             regs.eip = 0x00430E24;
         }
@@ -372,6 +374,17 @@ CodeInjection controls_process_chat_menu_patch{
             }
         }
     },
+};
+
+CodeInjection item_touch_weapon_autoswitch_patch{
+    0x0045AA50,
+    [](auto& regs) {
+        rf::Player* player = regs.edi;
+        // Suppress autoswitch if key is held
+        if (rf::control_is_control_down(&player->settings.controls, get_af_control(rf::AlpineControlConfigAction::AF_ACTION_NO_AUTOSWITCH))) {
+            regs.eip = 0x0045AA9B;
+        }
+    }
 };
 
 void key_apply_patch()
@@ -396,4 +409,7 @@ void key_apply_patch()
 
     // win32 console support and addition of os_poll
     key_get_hook.install();
+
+    // Support suppress autoswitch bind
+    item_touch_weapon_autoswitch_patch.install();
 }

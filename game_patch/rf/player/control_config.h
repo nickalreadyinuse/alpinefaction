@@ -49,7 +49,8 @@ namespace rf
         AF_ACTION_TAUNT_MENU = 0x8,
         AF_ACTION_COMMAND_MENU = 0x9,
         AF_ACTION_PING_LOCATION = 0xA,
-        AF_ACTION_SPECTATE_MENU = 0xB
+        AF_ACTION_SPECTATE_MENU = 0xB,
+        AF_ACTION_NO_AUTOSWITCH = 0xC
     };
 
     struct ControlConfigItem
@@ -87,6 +88,8 @@ namespace rf
 
     static auto& control_config_check_pressed =
         addr_as_ref<bool(ControlConfig *cc, ControlConfigAction action, bool *just_pressed)>(0x0043D4F0);
+    static auto& control_is_control_down =
+        addr_as_ref<bool(ControlConfig* ccp, ControlConfigAction action)>(0x00430F40);
     static auto& control_config_get_key_name = addr_as_ref<int(String *out, int key)>(0x0043D930);
     static auto& control_config_add_item = addr_as_ref<void(ControlConfig* ccp, const char* name,
         int is_repeat, int16_t key1, int16_t key2, int16_t mouse_button)>(0x0043CFD0);
