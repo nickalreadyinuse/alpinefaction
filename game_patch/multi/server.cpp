@@ -316,6 +316,7 @@ void parse_miscellaneous_options(rf::Parser& parser) {
     parse_boolean_option(parser, "$Send Player Stats Message:", g_additional_server_config.stats_message_enabled, "Send Player Stats Message");
     parse_boolean_option(parser, "$Drop Amps On Death:", g_additional_server_config.drop_amps, "Drop Amps On Death");
     parse_boolean_option(parser, "$Flag Dropping:", g_additional_server_config.flag_dropping, "Flag Dropping");
+    parse_boolean_option(parser, "$Flag Captures While Stolen:", g_additional_server_config.flag_captures_while_stolen, "Flag Captures While Stolen");
     parse_boolean_option(parser, "$Saving Enabled:", g_additional_server_config.saving_enabled, "Saving Enabled");
     parse_boolean_option(parser, "$Allow Fullbright Meshes:", g_additional_server_config.allow_fullbright_meshes, "Allow Fullbright Meshes");
     parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_additional_server_config.allow_lightmaps_only, "Allow Lightmaps Only Mode");
@@ -2370,6 +2371,24 @@ CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int
     }
 };
 
+CodeInjection allow_red_cap_when_stolen_patch{
+    0x00473C0A,
+    [](auto& regs) {
+        if (g_additional_server_config.flag_captures_while_stolen) {
+            regs.eip = 0x00473C2C;
+        }
+    },
+};
+
+CodeInjection allow_blue_cap_when_stolen_patch{
+    0x00473CB9,
+    [](auto& regs) {
+        if (g_additional_server_config.flag_captures_while_stolen) {
+            regs.eip = 0x00473CD3;
+        }
+    },
+};
+
 void server_init()
 {
     // Update the message when a dedicated server launches with some wrong options
@@ -2384,6 +2403,10 @@ void server_init()
     // Handle dropping amps on death
     entity_maybe_die_patch.install();
     item_get_oldest_dynamic_patch.install();
+
+    // Allow players to capture CTF flag even if their own flag is stolen
+    allow_red_cap_when_stolen_patch.install();
+    allow_blue_cap_when_stolen_patch.install();
 
     // Override rcon command whitelist
     write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);

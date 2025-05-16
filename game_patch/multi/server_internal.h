@@ -163,6 +163,7 @@ struct ServerAdditionalConfig
     float player_damage_modifier = 1.0f;
     bool saving_enabled = false;
     bool flag_dropping = true;
+    bool flag_captures_while_stolen = false;
     bool no_player_collide = false;
     bool location_pinging = true;
     bool upnp_enabled = false;
