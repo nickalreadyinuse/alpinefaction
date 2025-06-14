@@ -175,6 +175,18 @@ struct AlpineGameSettings
     {
         server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
     }
+
+    // HUD element offset positions
+    struct HudOffset {
+        int x = -1;  // -1 means no offset (use default position)
+        int y = -1;
+    };
+    
+    HudOffset health_hud_offset;
+    HudOffset ammo_hud_offset;
+    HudOffset timer_hud_offset;
+    HudOffset fps_hud_offset;
+    HudOffset ping_hud_offset;
 };
 
 extern AlpineGameSettings g_alpine_game_config;
