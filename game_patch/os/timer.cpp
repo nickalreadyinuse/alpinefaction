@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <mmsystem.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
 #include "../rf/os/timer.h"
@@ -28,6 +29,9 @@ FunHook<int(int)> timer_get_hook{
 
 void timer_apply_patch()
 {
+    // Request 1ms timing resolution for better performance
+    timeBeginPeriod(1);
+    
     // Remove Sleep calls in timer_init
     AsmWriter(0x00504A67, 0x00504A82).nop();
 
