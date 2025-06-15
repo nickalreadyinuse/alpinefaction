@@ -101,7 +101,7 @@ static FunHook<void(const char*, const rf::Color*)> console_output_hook{
         if (win32_console_is_enabled()) {
             win32_console_output(text, color);
         }
-        else {
+        else if (!headless_mode_is_enabled()) {
             console_output_hook.call_target(text, color);
         }
     },
@@ -113,7 +113,7 @@ static FunHook<void()> console_draw_server_hook{
         if (win32_console_is_enabled()) {
             win32_console_update();
         }
-        else {
+        else if (!headless_mode_is_enabled()) {
             console_draw_server_hook.call_target();
         }
     },
@@ -122,6 +122,11 @@ static FunHook<void()> console_draw_server_hook{
 static FunHook<void()> console_draw_client_hook{
     0x0050ABE0,
     []() {
+        // In headless mode, don't draw the console
+        if (headless_mode_is_enabled()) {
+            return;
+        }
+        
         // Make sure clip window is reset before drawing
         // Fixes console rendering in endgame state
         rf::gr::reset_clip();

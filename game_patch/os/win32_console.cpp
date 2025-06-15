@@ -19,10 +19,16 @@ static HANDLE win32_console_input_handle;
 static HANDLE win32_console_output_handle;
 static bool win32_console_is_output_redirected = false;
 static bool win32_console_is_input_redirected = false;
+static bool headless_mode_enabled = false;
 
 bool win32_console_is_enabled()
 {
     return win32_console_enabled;
+}
+
+bool headless_mode_is_enabled()
+{
+    return headless_mode_enabled;
 }
 
 static void reset_console_cursor_column(bool clear)
@@ -81,16 +87,30 @@ static rf::CmdLineParam& get_win32_console_cmd_line_param()
     return win32_console_param;
 }
 
+static rf::CmdLineParam& get_headless_cmd_line_param()
+{
+    static rf::CmdLineParam headless_param{"-headless", "", false};
+    return headless_param;
+}
+
 void win32_console_pre_init()
 {
-    // register cmdline param
+    // register cmdline params
     get_win32_console_cmd_line_param();
+    get_headless_cmd_line_param();
 }
 
 void win32_console_init()
 {
     win32_console_enabled = get_win32_console_cmd_line_param().found();
-    if (!win32_console_enabled) {
+    headless_mode_enabled = get_headless_cmd_line_param().found();
+    
+    if (!win32_console_enabled && !headless_mode_enabled) {
+        return;
+    }
+
+    // In headless mode, we don't need to allocate a console
+    if (headless_mode_enabled) {
         return;
     }
 

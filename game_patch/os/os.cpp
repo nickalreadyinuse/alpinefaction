@@ -84,6 +84,10 @@ LRESULT WINAPI wnd_proc(HWND wnd_handle, UINT msg, WPARAM w_param, LPARAM l_para
 static FunHook<void(const char *, const char *, bool, bool)> os_init_window_server_hook{
     0x00524B70,
     [](const char *wclass, const char *title, bool hooks, bool server_console) {
+        if (headless_mode_is_enabled()) {
+            FreeConsole(); // Detach from any console, just in case
+            return;        // Do NOT create any window
+        }
         if (server_console) {
             win32_console_init();
         }
