@@ -5,6 +5,7 @@
 #include <patch_common/AsmWriter.h>
 #include <xlog/xlog.h>
 #include "../os/console.h"
+#include "../os/win32_console.h"
 #include "../rf/input.h"
 #include "../rf/os/os.h"
 #include "../rf/gr/gr.h"
@@ -21,6 +22,12 @@ static float applied_dynamic_sensitivity_value = 1.0f; // value written by AsmWr
 
 bool set_direct_input_enabled(bool enabled)
 {
+    // Skip DirectInput entirely in headless mode
+    if (headless_mode_is_enabled()) {
+        rf::direct_input_disabled = true;
+        return true;
+    }
+    
     auto direct_input_initialized = addr_as_ref<bool>(0x01885460);
     auto mouse_di_init = addr_as_ref<int()>(0x0051E070);
     rf::direct_input_disabled = !enabled;
@@ -43,6 +50,11 @@ bool set_direct_input_enabled(bool enabled)
 FunHook<void()> mouse_eval_deltas_hook{
     0x0051DC70,
     []() {
+        // Skip mouse processing entirely in headless mode
+        if (headless_mode_is_enabled()) {
+            return;
+        }
+        
         // disable mouse when window is not active
         if (rf::os_foreground()) {
             mouse_eval_deltas_hook.call_target();
@@ -53,6 +65,11 @@ FunHook<void()> mouse_eval_deltas_hook{
 FunHook<void()> mouse_eval_deltas_di_hook{
     0x0051DEB0,
     []() {
+        // Skip DirectInput mouse processing in headless mode
+        if (headless_mode_is_enabled()) {
+            return;
+        }
+        
         mouse_eval_deltas_di_hook.call_target();
 
         // center cursor if in game

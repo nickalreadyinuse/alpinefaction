@@ -10,6 +10,7 @@
 #include "../misc/alpine_settings.h"
 #include "../multi/multi.h"
 #include "../multi/endgame_votes.h"
+#include "../os/win32_console.h"
 #include "../rf/input.h"
 #include "../rf/entity.h"
 #include "../rf/multi.h"
@@ -154,6 +155,11 @@ CodeInjection key_name_in_options_patch{
 CodeInjection key_get_hook{
     0x0051F000,
     []() {
+        // Skip message processing in headless mode to reduce CPU overhead
+        if (headless_mode_is_enabled()) {
+            return;
+        }
+        
         // Process messages here because when watching videos main loop is not running
         rf::os_poll();
     },

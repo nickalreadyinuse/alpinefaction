@@ -15,6 +15,21 @@ const char* get_win_msg_name(UINT msg);
 FunHook<void()> os_poll_hook{
     0x00524B60,
     []() {
+        if (headless_mode_is_enabled()) {
+            // In headless mode, only process essential messages for shutdown
+            MSG msg;
+            while (PeekMessageA(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                // Only process essential messages for proper shutdown
+                if (msg.message == WM_QUIT || msg.message == WM_CLOSE || msg.message == WM_DESTROY) {
+                    TranslateMessage(&msg);
+                    DispatchMessageA(&msg);
+                }
+                // Skip all other messages to reduce CPU overhead
+            }
+            return;
+        }
+        
+        // Original message processing for non-headless mode
         // Note: When using dedicated server we get WM_PAINT messages all the time
         MSG msg;
         constexpr int limit = 4;
@@ -84,14 +99,10 @@ LRESULT WINAPI wnd_proc(HWND wnd_handle, UINT msg, WPARAM w_param, LPARAM l_para
 static FunHook<void(const char *, const char *, bool, bool)> os_init_window_server_hook{
     0x00524B70,
     [](const char *wclass, const char *title, bool hooks, bool server_console) {
-        if (headless_mode_is_enabled()) {
-            FreeConsole(); // Detach from any console, just in case
-            return;        // Do NOT create any window
-        }
         if (server_console) {
             win32_console_init();
         }
-        if (!win32_console_is_enabled()) {
+        if (!win32_console_is_enabled() && !headless_mode_is_enabled()) {
             os_init_window_server_hook.call_target(wclass, title, hooks, server_console);
         }
     },

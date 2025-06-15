@@ -17,6 +17,7 @@
 #include "main.h"
 #include "../os/console.h"
 #include "../os/os.h"
+#include "../os/win32_console.h"
 #include "../bmpman/bmpman.h"
 #include "../debug/debug.h"
 #include "../graphics/gr.h"
@@ -119,11 +120,7 @@ FunHook<int()> rf_do_frame_hook{
     0x004B2D90,
     []() {
         debug_do_frame_pre();
-        rf::os_poll();
-        high_fps_update();
-        server_do_frame();
         int result = rf_do_frame_hook.call_target();
-        maybe_autosave();
         debug_do_frame_post();
         multi_level_download_update();
         return result;
