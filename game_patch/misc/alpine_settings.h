@@ -114,7 +114,8 @@ struct AlpineGameSettings
     bool display_target_player_names = true;
     bool verbose_time_left_display = true;
     bool nearest_texture_filtering = false;
-    bool direct_input = true;
+    bool direct_input = true; // Legacy flag for backward compatibility
+    int mouse_input_mode = 0; // 0=Win32, 1=DirectInput, 2=Raw Input
     bool scoreboard_anim = true;
     bool autosave = true;
     bool af_branding = true;

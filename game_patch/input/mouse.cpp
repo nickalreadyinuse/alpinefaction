@@ -13,11 +13,27 @@
 #include "../rf/entity.h"
 #include "../misc/alpine_settings.h"
 #include "../main/main.h"
+#include "input.h"
+
+// Raw Input support
+#ifndef HID_USAGE_PAGE_GENERIC
+#define HID_USAGE_PAGE_GENERIC          ((USHORT) 0x01)
+#endif
+#ifndef HID_USAGE_GENERIC_MOUSE
+#define HID_USAGE_GENERIC_MOUSE         ((USHORT) 0x02)
+#endif
 
 static float scope_sensitivity_value = 0.25f;
 static float scanner_sensitivity_value = 0.25f;
 static float applied_static_sensitivity_value = 0.25f; // value written by AsmWriter
 static float applied_dynamic_sensitivity_value = 1.0f; // value written by AsmWriter
+
+// Raw Input state
+static MouseInputMode g_mouse_input_mode = MOUSE_INPUT_WIN32;
+static bool g_raw_input_registered = false;
+static int g_raw_mouse_delta_x = 0;
+static int g_raw_mouse_delta_y = 0;
+static bool g_raw_input_available = false;
 
 bool set_direct_input_enabled(bool enabled)
 {
@@ -40,6 +56,234 @@ bool set_direct_input_enabled(bool enabled)
     return true;
 }
 
+void enumerate_raw_input_devices()
+{
+    UINT numDevices = 0;
+    
+    // Get number of devices
+    if (GetRawInputDeviceList(nullptr, &numDevices, sizeof(RAWINPUTDEVICELIST)) != 0) {
+        xlog::warn("Failed to get Raw Input device count: {}", GetLastError());
+        return;
+    }
+    
+    if (numDevices == 0) {
+        xlog::info("No Raw Input devices found");
+        return;
+    }
+    
+    // Get device list
+    auto deviceList = std::make_unique<RAWINPUTDEVICELIST[]>(numDevices);
+    if (GetRawInputDeviceList(deviceList.get(), &numDevices, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1)) {
+        xlog::warn("Failed to enumerate Raw Input devices: {}", GetLastError());
+        return;
+    }
+    
+    xlog::info("Found {} Raw Input device(s):", numDevices);
+    
+    int mouseCount = 0;
+    for (UINT i = 0; i < numDevices; i++) {
+        if (deviceList[i].dwType == RIM_TYPEMOUSE) {
+            mouseCount++;
+            
+            // Get device name
+            UINT nameSize = 0;
+            if (GetRawInputDeviceInfoA(deviceList[i].hDevice, RIDI_DEVICENAME, nullptr, &nameSize) != 0) {
+                continue;
+            }
+            
+            auto deviceName = std::make_unique<char[]>(nameSize + 1);
+            if (GetRawInputDeviceInfoA(deviceList[i].hDevice, RIDI_DEVICENAME, deviceName.get(), &nameSize) == static_cast<UINT>(-1)) {
+                continue;
+            }
+            
+            // Get device info
+            UINT infoSize = sizeof(RID_DEVICE_INFO);
+            RID_DEVICE_INFO deviceInfo;
+            deviceInfo.cbSize = sizeof(RID_DEVICE_INFO);
+            if (GetRawInputDeviceInfoA(deviceList[i].hDevice, RIDI_DEVICEINFO, &deviceInfo, &infoSize) == static_cast<UINT>(-1)) {
+                xlog::info("  Mouse #{}: {} (info unavailable)", mouseCount, deviceName.get());
+                continue;
+            }
+            
+            if (deviceInfo.dwType == RIM_TYPEMOUSE) {
+                xlog::info("  Mouse #{}: {} (ID: {}, {} buttons, sample rate: {}, horizontal wheel: {})", 
+                          mouseCount, 
+                          deviceName.get(),
+                          deviceInfo.mouse.dwId,
+                          deviceInfo.mouse.dwNumberOfButtons,
+                          deviceInfo.mouse.dwSampleRate,
+                          deviceInfo.mouse.fHasHorizontalWheel ? "yes" : "no");
+            }
+        }
+    }
+    
+    if (mouseCount == 0) {
+        xlog::warn("No mouse devices found in Raw Input device list");
+    } else {
+        xlog::info("Total mouse devices available for Raw Input: {}", mouseCount);
+    }
+}
+
+bool register_raw_input()
+{
+    if (g_raw_input_registered) {
+        return true;
+    }
+    
+    // First, enumerate available devices
+    enumerate_raw_input_devices();
+    
+    RAWINPUTDEVICE rid;
+    rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid.usUsage = HID_USAGE_GENERIC_MOUSE;
+    rid.dwFlags = RIDEV_INPUTSINK; // Receive input even when not in foreground
+    rid.hwndTarget = rf::main_wnd;
+    
+    if (RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
+        g_raw_input_registered = true;
+        xlog::info("Raw Input registered successfully for all mouse devices (Usage Page: 0x{:02X}, Usage: 0x{:02X})", 
+                  HID_USAGE_PAGE_GENERIC, HID_USAGE_GENERIC_MOUSE);
+        return true;
+    } else {
+        xlog::error("Failed to register Raw Input: {}", GetLastError());
+        return false;
+    }
+}
+
+void unregister_raw_input()
+{
+    if (!g_raw_input_registered) {
+        return;
+    }
+    
+    RAWINPUTDEVICE rid;
+    rid.usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid.usUsage = HID_USAGE_GENERIC_MOUSE;
+    rid.dwFlags = RIDEV_REMOVE;
+    rid.hwndTarget = nullptr;
+    
+    if (RegisterRawInputDevices(&rid, 1, sizeof(rid))) {
+        g_raw_input_registered = false;
+        xlog::info("Raw Input unregistered successfully");
+    } else {
+        xlog::error("Failed to unregister Raw Input: {}", GetLastError());
+    }
+}
+
+void process_raw_input_message(UINT message, WPARAM wParam, LPARAM lParam)
+{
+    if (message != WM_INPUT || g_mouse_input_mode != MOUSE_INPUT_RAW) {
+        return;
+    }
+    
+    // Only process mouse input when the game is in the foreground and mouse is centered
+    if (!rf::os_foreground() || !rf::keep_mouse_centered) {
+        return;
+    }
+    
+    UINT dwSize = 0;
+    GetRawInputData((HRAWINPUT)lParam, RID_INPUT, nullptr, &dwSize, sizeof(RAWINPUTHEADER));
+    
+    if (dwSize == 0) {
+        return;
+    }
+    
+    auto lpb = std::make_unique<BYTE[]>(dwSize);
+    if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb.get(), &dwSize, sizeof(RAWINPUTHEADER)) != dwSize) {
+        xlog::error("GetRawInputData does not return correct size");
+        return;
+    }
+    
+    RAWINPUT* raw = (RAWINPUT*)lpb.get();
+    if (raw->header.dwType == RIM_TYPEMOUSE) {
+        if (raw->data.mouse.usFlags == MOUSE_MOVE_RELATIVE) {
+            g_raw_mouse_delta_x += raw->data.mouse.lLastX;
+            g_raw_mouse_delta_y += raw->data.mouse.lLastY;
+        }
+    }
+}
+
+bool set_mouse_input_mode(MouseInputMode mode)
+{
+    if (mode == g_mouse_input_mode) {
+        return true;
+    }
+    
+    // Clean up current mode
+    switch (g_mouse_input_mode) {
+        case MOUSE_INPUT_DIRECTINPUT:
+            set_direct_input_enabled(false);
+            break;
+        case MOUSE_INPUT_RAW:
+            unregister_raw_input();
+            break;
+        case MOUSE_INPUT_WIN32:
+        default:
+            break;
+    }
+    
+    // Set up new mode
+    bool success = true;
+    switch (mode) {
+        case MOUSE_INPUT_DIRECTINPUT:
+            success = set_direct_input_enabled(true);
+            break;
+        case MOUSE_INPUT_RAW:
+            success = register_raw_input();
+            if (success) {
+                g_raw_input_available = true;
+            }
+            break;
+        case MOUSE_INPUT_WIN32:
+        default:
+            // Win32 mode doesn't need setup
+            break;
+    }
+    
+    if (success) {
+        g_mouse_input_mode = mode;
+        // Update configuration settings
+        g_alpine_game_config.mouse_input_mode = static_cast<int>(mode);
+        g_alpine_game_config.direct_input = (mode == MOUSE_INPUT_DIRECTINPUT); // Legacy compatibility
+    }
+    
+    return success;
+}
+
+const char* get_mouse_input_mode_name(MouseInputMode mode)
+{
+    switch (mode) {
+        case MOUSE_INPUT_WIN32: return "Win32";
+        case MOUSE_INPUT_DIRECTINPUT: return "DirectInput";
+        case MOUSE_INPUT_RAW: return "Raw Input";
+        default: return "Unknown";
+    }
+}
+
+MouseInputMode get_current_mouse_input_mode()
+{
+    return g_mouse_input_mode;
+}
+
+// Hook for Raw Input mouse delta retrieval
+FunHook<void(int& dx, int& dy, int& dz)> mouse_get_delta_raw_hook{
+    0x0051E630, // Original mouse_get_delta function
+    [](int& dx, int& dy, int& dz) {
+        if (g_mouse_input_mode == MOUSE_INPUT_RAW && rf::keep_mouse_centered) {
+            dx = g_raw_mouse_delta_x;
+            dy = g_raw_mouse_delta_y;
+            dz = 0; // Raw Input doesn't provide scroll wheel in this context
+            
+            // Reset deltas after reading
+            g_raw_mouse_delta_x = 0;
+            g_raw_mouse_delta_y = 0;
+        } else {
+            // Fall back to original implementation
+            mouse_get_delta_raw_hook.call_target(dx, dy, dz);
+        }
+    },
+};
+
 FunHook<void()> mouse_eval_deltas_hook{
     0x0051DC70,
     []() {
@@ -50,12 +294,16 @@ FunHook<void()> mouse_eval_deltas_hook{
     },
 };
 
+// Enhanced DirectInput hook that handles Raw Input centering
 FunHook<void()> mouse_eval_deltas_di_hook{
     0x0051DEB0,
     []() {
-        mouse_eval_deltas_di_hook.call_target();
+        if (g_mouse_input_mode == MOUSE_INPUT_DIRECTINPUT) {
+            mouse_eval_deltas_di_hook.call_target();
+        }
+        // For Raw Input, we don't call the DirectInput function
 
-        // center cursor if in game
+        // center cursor if in game (for all modes when mouse is centered)
         if (rf::keep_mouse_centered) {
             POINT pt{rf::gr::screen_width() / 2, rf::gr::screen_height() / 2};
             ClientToScreen(rf::main_wnd, &pt);
@@ -67,8 +315,14 @@ FunHook<void()> mouse_eval_deltas_di_hook{
 FunHook<void()> mouse_keep_centered_enable_hook{
     0x0051E690,
     []() {
-        if (!rf::keep_mouse_centered && !rf::is_dedicated_server)
-            set_direct_input_enabled(g_alpine_game_config.direct_input);
+        if (!rf::keep_mouse_centered && !rf::is_dedicated_server) {
+            // Initialize the appropriate input mode
+            if (g_mouse_input_mode == MOUSE_INPUT_DIRECTINPUT) {
+                set_direct_input_enabled(g_alpine_game_config.direct_input);
+            } else if (g_mouse_input_mode == MOUSE_INPUT_RAW) {
+                register_raw_input();
+            }
+        }
         mouse_keep_centered_enable_hook.call_target();
     },
 };
@@ -76,31 +330,57 @@ FunHook<void()> mouse_keep_centered_enable_hook{
 FunHook<void()> mouse_keep_centered_disable_hook{
     0x0051E6A0,
     []() {
-        if (rf::keep_mouse_centered)
-            set_direct_input_enabled(false);
+        if (rf::keep_mouse_centered) {
+            if (g_mouse_input_mode == MOUSE_INPUT_DIRECTINPUT) {
+                set_direct_input_enabled(false);
+            }
+            // Raw Input stays registered even when mouse isn't centered
+        }
         mouse_keep_centered_disable_hook.call_target();
     },
 };
 
 ConsoleCommand2 input_mode_cmd{
     "inputmode",
-    []() {
-        g_alpine_game_config.direct_input = !g_alpine_game_config.direct_input;
-
-        if (g_alpine_game_config.direct_input) {
-            if (!set_direct_input_enabled(g_alpine_game_config.direct_input)) {
-                rf::console::print("Failed to initialize DirectInput");
+    [](std::optional<int> mode_opt) {
+        if (mode_opt) {
+            int requested_mode = mode_opt.value();
+            if (requested_mode < 0 || requested_mode > 2) {
+                rf::console::print("Invalid input mode. Valid modes: 0 (Win32), 1 (DirectInput), 2 (Raw Input)");
+                return;
             }
-            else {
-                set_direct_input_enabled(rf::keep_mouse_centered);
-                rf::console::print("DirectInput is enabled");
+            
+            MouseInputMode new_mode = static_cast<MouseInputMode>(requested_mode);
+            if (set_mouse_input_mode(new_mode)) {
+                rf::console::print("Input mode set to: {} ({})", requested_mode, get_mouse_input_mode_name(new_mode));
+            } else {
+                rf::console::print("Failed to set input mode to: {} ({})", requested_mode, get_mouse_input_mode_name(new_mode));
             }
-        }
-        else {
-            rf::console::print("DirectInput is disabled");
+        } else {
+            // Cycle through modes (legacy behavior)
+            MouseInputMode next_mode;
+            switch (g_mouse_input_mode) {
+                case MOUSE_INPUT_WIN32:
+                    next_mode = MOUSE_INPUT_DIRECTINPUT;
+                    break;
+                case MOUSE_INPUT_DIRECTINPUT:
+                    next_mode = MOUSE_INPUT_RAW;
+                    break;
+                case MOUSE_INPUT_RAW:
+                default:
+                    next_mode = MOUSE_INPUT_WIN32;
+                    break;
+            }
+            
+            if (set_mouse_input_mode(next_mode)) {
+                rf::console::print("Input mode: {} ({})", static_cast<int>(next_mode), get_mouse_input_mode_name(next_mode));
+            } else {
+                rf::console::print("Failed to change input mode");
+            }
         }
     },
-    "Toggles input mode",
+    "Cycles input modes or sets specific mode (0=Win32, 1=DirectInput, 2=Raw Input)",
+    "inputmode [mode]",
 };
 
 ConsoleCommand2 ms_cmd{
@@ -336,10 +616,17 @@ void mouse_apply_patch()
     // Disable mouse when window is not active
     mouse_eval_deltas_hook.install();
 
-    // Add DirectInput mouse support
+    // Add enhanced mouse input support (DirectInput + Raw Input)
     mouse_eval_deltas_di_hook.install();
     mouse_keep_centered_enable_hook.install();
     mouse_keep_centered_disable_hook.install();
+    mouse_get_delta_raw_hook.install();
+
+    // Register Raw Input message handler
+    rf::os_add_msg_handler(process_raw_input_message);
+
+    // Initialize with saved mouse input mode
+    set_mouse_input_mode(static_cast<MouseInputMode>(g_alpine_game_config.mouse_input_mode));
 
     // Do not limit the cursor to the game window if in menu (Win32 mouse)
     AsmWriter(0x0051DD7C).jmp(0x0051DD8E);
