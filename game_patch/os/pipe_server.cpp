@@ -114,9 +114,10 @@ void named_pipe_server_init()
     fflush(stdout);
 
     if (!rf::is_dedicated_server) {
-        xlog::warn("Named pipe server started on non-dedicated server");
-        printf("[PIPE] WARNING: Started on non-dedicated server\n");
+        xlog::info("Named pipe server disabled - only available on dedicated servers");
+        printf("[PIPE] Pipe server disabled - only available on dedicated servers\n");
         fflush(stdout);
+        return;
     }
 
     g_pipe_name = get_pipe_cmd_line_param().get_arg();
