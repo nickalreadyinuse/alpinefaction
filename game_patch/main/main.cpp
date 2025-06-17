@@ -43,6 +43,8 @@
 #include "../rf/os/os.h"
 #include "../rf/save_restore.h"
 #include "../rf/gameseq.h"
+#include "../hud/hud_internal.h"
+#include "../os/pipe_server.h"
 
 #ifdef HAS_EXPERIMENTAL
 #include "../experimental/experimental.h"
@@ -84,6 +86,9 @@ CodeInjection after_full_game_init_hook{
         multi_after_full_game_init();
         debug_init();
         load_world_hud_assets();
+
+        // Initialize named pipe server after command line parsing is complete
+        named_pipe_server_init();
 
         xlog::info("Game fully initialized");
         xlog::LoggerConfig::get().flush_appenders();

@@ -17,19 +17,36 @@ int main(int argc, char* argv[])
         cmd += argv[i];
     }
 
-    if (!WaitNamedPipeA(pipe_name.c_str(), 5000)) {
-        printf("Pipe %s not available (err %lu)\n", pipe_name.c_str(), GetLastError());
-        return 1;
+    // Try multiple times with shorter waits to handle timing issues
+    const int max_retries = 3;
+    HANDLE pipe = INVALID_HANDLE_VALUE;
+    
+    for (int retry = 0; retry < max_retries; ++retry) {
+        if (WaitNamedPipeA(pipe_name.c_str(), 2000)) {
+            pipe = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
+            if (pipe != INVALID_HANDLE_VALUE) {
+                break; // Success!
+            }
+        }
+        
+        if (retry < max_retries - 1) {
+            Sleep(500); // Wait 500ms before retry
+        }
     }
 
-    HANDLE pipe = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
     if (pipe == INVALID_HANDLE_VALUE) {
-        printf("Failed to open pipe %s (err %lu)\n", pipe_name.c_str(), GetLastError());
+        printf("Pipe %s not available after retries (err %lu)\n", pipe_name.c_str(), GetLastError());
         return 1;
     }
 
     DWORD written = 0;
-    WriteFile(pipe, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, nullptr);
+    if (!WriteFile(pipe, cmd.c_str(), static_cast<DWORD>(cmd.size()), &written, nullptr)) {
+        printf("Failed to write to pipe (err %lu)\n", GetLastError());
+        CloseHandle(pipe);
+        return 1;
+    }
+    
     CloseHandle(pipe);
+    printf("Command sent successfully\n");
     return 0;
 }

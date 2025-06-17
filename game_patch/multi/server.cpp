@@ -2257,8 +2257,8 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
             packet.header.size = sizeof(packet) - sizeof(packet.header);
             packet.entity_handle = entity->handle;
             packet.weapon = weapon_type;
-            packet.ammo = entity->ai.clip_ammo[weapon_type]; // could be zeroed
-            packet.clip_ammo = entity->ai.ammo[winfo.ammo_type];
+            packet.clip_ammo = entity->ai.clip_ammo[weapon_type]; // could be zeroed
+            packet.ammo = entity->ai.ammo[winfo.ammo_type];
             rf::multi_io_send_reliable(player, reinterpret_cast<uint8_t*>(&packet), sizeof(packet), 0);
         }
     }
@@ -2489,7 +2489,7 @@ void server_init()
     // Check if round is finished or if overtime should begin
     multi_check_for_round_end_hook.install();
 
-    named_pipe_server_init();
+    // Named pipe server will be initialized later in after_full_game_init_hook
 }
 
 void server_do_frame()

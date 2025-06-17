@@ -106,6 +106,10 @@ static FunHook<void()> os_close_hook{
 static FunHook<void(char*, bool)> os_parse_params_hook{
     0x00523320,
     [](char *cmdline, bool skip_first) {
+        printf("[DEBUG] os_parse_params_hook called with cmdline: '%s', skip_first: %d\n", cmdline, skip_first);
+        fflush(stdout);
+        xlog::debug("os_parse_params_hook called with cmdline: '{}', skip_first: {}", cmdline, skip_first);
+        
         std::string buf;
         bool quote = false;
         while (true) {
@@ -120,6 +124,9 @@ static FunHook<void(char*, bool)> os_parse_params_hook{
                     cmd_arg.arg = static_cast<char*>(rf::operator_new(buf.size() + 1));
                     std::strcpy(cmd_arg.arg, buf.c_str());
                     cmd_arg.is_done = false;
+                    printf("[DEBUG] Parsed argument %d: '%s'\n", rf::cmdline_num_args - 1, cmd_arg.arg);
+                    fflush(stdout);
+                    xlog::debug("Parsed argument {}: '{}'", rf::cmdline_num_args - 1, cmd_arg.arg);
                 }
                 buf.clear();
                 if (!c) {
@@ -151,6 +158,10 @@ void os_apply_patch()
     os_init_window_server_hook.install();
     os_close_hook.install();
 
+    // Register command line parameters BEFORE parsing happens
+    win32_console_pre_init();
+    named_pipe_server_pre_init();
+
     // Fix quotes support in cmdline parsing
     os_parse_params_hook.install();
 
@@ -159,7 +170,4 @@ void os_apply_patch()
     void timer_apply_patch();
     frametime_apply_patch();
     timer_apply_patch();
-
-    win32_console_pre_init();
-    named_pipe_server_pre_init();
 }
