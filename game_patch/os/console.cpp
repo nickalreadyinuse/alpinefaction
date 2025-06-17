@@ -14,6 +14,8 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/ShortTypes.h>
+#include <fstream>
+#include <cstring>
 #include <algorithm>
 #include <cassert>
 #include <xlog/xlog.h>
@@ -22,6 +24,14 @@
 constexpr int max_cmd_line_len = 200 - 2 - 1;
 
 rf::console::Command* g_commands_buffer[CMD_LIMIT];
+
+static std::ofstream g_console_log_file;
+
+static rf::CmdLineParam& get_console_log_cmd_line_param()
+{
+    static rf::CmdLineParam log_param{"-log", "", true};
+    return log_param;
+}
 
 rf::Player* find_best_matching_player(const char* name)
 {
@@ -98,6 +108,13 @@ void console_register_command(rf::console::Command* cmd)
 static FunHook<void(const char*, const rf::Color*)> console_output_hook{
     &rf::console::output,
     [](const char* text, const rf::Color* color) {
+        if (g_console_log_file.is_open()) {
+            g_console_log_file << text;
+            if (std::strlen(text) == 0 || text[std::strlen(text) - 1] != '\n')
+                g_console_log_file << '\n';
+            g_console_log_file.flush();
+        }
+
         if (win32_console_is_enabled()) {
             win32_console_output(text, color);
         }
@@ -195,6 +212,8 @@ void console_commands_init();
 
 void console_apply_patches()
 {
+    // Register command line parameter
+    get_console_log_cmd_line_param();
     // Console init string
     write_mem_ptr(0x004B2534, "-- " PRODUCT_NAME " Initializing --\n");
 
@@ -251,9 +270,25 @@ void console_apply_patches()
     console_auto_complete_apply_patches();
 }
 
+static void handle_console_log_param()
+{
+    if (!rf::is_dedicated_server)
+        return;
+    if (!get_console_log_cmd_line_param().found())
+        return;
+    const char* filename = get_console_log_cmd_line_param().get_arg();
+    g_console_log_file.open(filename, std::ios::out | std::ios::trunc);
+    if (!g_console_log_file.is_open()) {
+        xlog::warn("Failed to open console log file {}", filename);
+    } else {
+        xlog::info("Writing console output to {}", filename);
+    }
+}
+
 void console_init()
 {
     console_commands_init();
+    handle_console_log_param();
     print_fflink_info();
     initialize_achievement_manager();
 
