@@ -55,8 +55,12 @@ void named_pipe_server_pre_init()
 
 void named_pipe_server_init()
 {
-    if (!(rf::is_dedicated_server && get_pipe_cmd_line_param().found()))
+    if (!get_pipe_cmd_line_param().found())
         return;
+
+    if (!rf::is_dedicated_server) {
+        xlog::warn("Named pipe server started on non-dedicated server");
+    }
 
     g_pipe_name = get_pipe_cmd_line_param().get_arg();
     if (g_pipe_name.empty())
