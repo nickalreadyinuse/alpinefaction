@@ -98,7 +98,11 @@ void console_register_command(rf::console::Command* cmd)
 static FunHook<void(const char*, const rf::Color*)> console_output_hook{
     &rf::console::output,
     [](const char* text, const rf::Color* color) {
-        if (win32_console_is_enabled()) {
+        if (headless_mode_is_enabled()) {
+            // In headless mode, suppress all console output completely
+            return;
+        }
+        else if (win32_console_is_enabled()) {
             win32_console_output(text, color);
         }
         else {
@@ -110,7 +114,11 @@ static FunHook<void(const char*, const rf::Color*)> console_output_hook{
 static FunHook<void()> console_draw_server_hook{
     0x0050A770,
     []() {
-        if (win32_console_is_enabled()) {
+        if (headless_mode_is_enabled()) {
+            // In headless mode, suppress console drawing completely
+            return;
+        }
+        else if (win32_console_is_enabled()) {
             win32_console_update();
         }
         else {
@@ -134,7 +142,11 @@ static FunHook<void()> console_draw_client_hook{
 static CallHook<void(char)> console_put_char_new_line_hook{
     0x0050A081,
     [](char c) {
-        if (win32_console_is_enabled()) {
+        if (headless_mode_is_enabled()) {
+            // In headless mode, suppress console newlines completely
+            return;
+        }
+        else if (win32_console_is_enabled()) {
             win32_console_new_line();
         }
         else {

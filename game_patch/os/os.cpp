@@ -26,7 +26,7 @@ FunHook<void()> os_poll_hook{
             // xlog::info("msg {}\n", msg.message);
         }
 
-        if (win32_console_is_enabled()) {
+        if (win32_console_is_enabled() && !headless_mode_is_enabled()) {
             win32_console_poll_input();
         }
     },
@@ -87,7 +87,7 @@ static FunHook<void(const char *, const char *, bool, bool)> os_init_window_serv
         if (server_console) {
             win32_console_init();
         }
-        if (!win32_console_is_enabled()) {
+        if (!win32_console_is_enabled() && !headless_mode_is_enabled()) {
             os_init_window_server_hook.call_target(wclass, title, hooks, server_console);
         }
     },

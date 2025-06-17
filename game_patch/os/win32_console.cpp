@@ -14,6 +14,7 @@
 #include "../rf/os/os.h"
 
 static bool win32_console_enabled = false;
+static bool headless_mode_enabled = false;
 static bool win32_console_input_line_printed = false;
 static HANDLE win32_console_input_handle;
 static HANDLE win32_console_output_handle;
@@ -23,6 +24,11 @@ static bool win32_console_is_input_redirected = false;
 bool win32_console_is_enabled()
 {
     return win32_console_enabled;
+}
+
+bool headless_mode_is_enabled()
+{
+    return headless_mode_enabled;
 }
 
 static void reset_console_cursor_column(bool clear)
@@ -81,15 +87,30 @@ static rf::CmdLineParam& get_win32_console_cmd_line_param()
     return win32_console_param;
 }
 
+static rf::CmdLineParam& get_headless_cmd_line_param()
+{
+    static rf::CmdLineParam headless_param{"-headless", "", false};
+    return headless_param;
+}
+
 void win32_console_pre_init()
 {
-    // register cmdline param
+    // register cmdline params
     get_win32_console_cmd_line_param();
+    get_headless_cmd_line_param();
 }
 
 void win32_console_init()
 {
     win32_console_enabled = get_win32_console_cmd_line_param().found();
+    headless_mode_enabled = get_headless_cmd_line_param().found();
+    
+    if (headless_mode_enabled) {
+        // In headless mode, we don't want any console window at all
+        // but we still want to suppress the default server console window
+        return;
+    }
+    
     if (!win32_console_enabled) {
         return;
     }
