@@ -62,6 +62,7 @@ Multiplayer:
 * First person and free camera spectate
 * Cheating prevention
 * Many server fixes, performance improvements, and customizable features
+* Remote administration via a named pipe server (`-pipe` argument)
 * `rf://` protocol handler for joining servers
 
 Level/mod development:

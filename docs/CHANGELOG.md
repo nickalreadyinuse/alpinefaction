@@ -16,6 +16,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Suppress autoswitch` control bind (if held while picking up a weapon, autoswitch is suppressed)
 - Add `SuppressAutoswitchBindAlias` setting to `alpine_settings.ini`
 - Add `$Flag Captures While Stolen` dedicated server config option
+- Add `-pipe NAME` command line argument for remote console control via named pipe
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

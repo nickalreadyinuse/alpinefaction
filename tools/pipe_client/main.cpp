@@ -17,6 +17,11 @@ int main(int argc, char* argv[])
         cmd += argv[i];
     }
 
+    if (!WaitNamedPipeA(pipe_name.c_str(), 5000)) {
+        printf("Pipe %s not available (err %lu)\n", pipe_name.c_str(), GetLastError());
+        return 1;
+    }
+
     HANDLE pipe = CreateFileA(pipe_name.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
     if (pipe == INVALID_HANDLE_VALUE) {
         printf("Failed to open pipe %s (err %lu)\n", pipe_name.c_str(), GetLastError());

@@ -1,6 +1,7 @@
 #include "pipe_server.h"
 #include "../rf/os/os.h"
 #include "../rf/os/console.h"
+#include "../rf/multi.h"
 #include <windows.h>
 #include <xlog/xlog.h>
 #include <string>
