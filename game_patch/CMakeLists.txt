@@ -144,6 +144,7 @@ set(SRCS
     os/frametime.cpp
     os/timer.cpp
     os/win32_console.cpp
+    os/pipe_server.cpp
     os/os.cpp
     os/os.h
     object/object.h

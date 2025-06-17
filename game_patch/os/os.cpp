@@ -8,6 +8,7 @@
 #include "../rf/crt.h"
 #include "../main/main.h"
 #include "win32_console.h"
+#include "pipe_server.h"
 #include <xlog/xlog.h>
 
 const char* get_win_msg_name(UINT msg);
@@ -98,6 +99,7 @@ static FunHook<void()> os_close_hook{
     []() {
         os_close_hook.call_target();
         win32_console_close();
+        named_pipe_server_shutdown();
     },
 };
 
@@ -159,4 +161,5 @@ void os_apply_patch()
     timer_apply_patch();
 
     win32_console_pre_init();
+    named_pipe_server_pre_init();
 }

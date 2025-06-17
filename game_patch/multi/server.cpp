@@ -22,6 +22,7 @@
 #include "alpine_packets.h"
 #include "multi.h"
 #include "../os/console.h"
+#include "../os/pipe_server.h"
 #include "../misc/player.h"
 #include "../main/main.h"
 #include "../misc/achievements.h"
@@ -2487,6 +2488,8 @@ void server_init()
 
     // Check if round is finished or if overtime should begin
     multi_check_for_round_end_hook.install();
+
+    named_pipe_server_init();
 }
 
 void server_do_frame()

@@ -1,1 +1,2 @@
 add_subdirectory(shader_compiler)
+add_subdirectory(pipe_client)
