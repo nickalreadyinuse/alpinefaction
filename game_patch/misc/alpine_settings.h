@@ -29,18 +29,31 @@ struct AlpineGameSettings
         fpgun_fov_scale = std::clamp(scale, min_fpgun_fov_scale, max_fpgun_fov_scale);
     }
 
-    // fpgun position offsets
+    // fpgun position offsets (stored as actual float values for fine control)
     static constexpr float min_fpgun_pos_offset = -50.0f;
     static constexpr float max_fpgun_pos_offset = 50.0f;
+    static constexpr float fpgun_pos_scale_factor = 0.001f; // 1 user unit = 0.001 world units
     float fpgun_x_offset = 0.0f;
     float fpgun_y_offset = 0.0f;
     float fpgun_z_offset = 0.0f;
+    void set_fpgun_pos_offsets_from_user_input(int x, int y, int z)
+    {
+        float scaled_x = x * fpgun_pos_scale_factor;
+        float scaled_y = y * fpgun_pos_scale_factor;
+        float scaled_z = z * fpgun_pos_scale_factor;
+        fpgun_x_offset = std::clamp(scaled_x, min_fpgun_pos_offset, max_fpgun_pos_offset);
+        fpgun_y_offset = std::clamp(scaled_y, min_fpgun_pos_offset, max_fpgun_pos_offset);
+        fpgun_z_offset = std::clamp(scaled_z, min_fpgun_pos_offset, max_fpgun_pos_offset);
+    }
     void set_fpgun_pos_offsets(float x, float y, float z)
     {
         fpgun_x_offset = std::clamp(x, min_fpgun_pos_offset, max_fpgun_pos_offset);
         fpgun_y_offset = std::clamp(y, min_fpgun_pos_offset, max_fpgun_pos_offset);
         fpgun_z_offset = std::clamp(z, min_fpgun_pos_offset, max_fpgun_pos_offset);
     }
+    int get_fpgun_x_offset_user_units() const { return static_cast<int>(fpgun_x_offset / fpgun_pos_scale_factor); }
+    int get_fpgun_y_offset_user_units() const { return static_cast<int>(fpgun_y_offset / fpgun_pos_scale_factor); }
+    int get_fpgun_z_offset_user_units() const { return static_cast<int>(fpgun_z_offset / fpgun_pos_scale_factor); }
 
     // scope and scanner sens modifiers
     static constexpr float min_sens_mod = 0.01f;
