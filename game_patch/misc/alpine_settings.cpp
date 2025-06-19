@@ -302,6 +302,21 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_fpgun_fov_scale(std::stof(settings["FPGunFOVScale"]));
         processed_keys.insert("FPGunFOVScale");
     }
+    if (settings.count("FPGunXOffset")) {
+        g_alpine_game_config.fpgun_x_offset = std::clamp(std::stof(settings["FPGunXOffset"]), 
+            AlpineGameSettings::min_fpgun_pos_offset, AlpineGameSettings::max_fpgun_pos_offset);
+        processed_keys.insert("FPGunXOffset");
+    }
+    if (settings.count("FPGunYOffset")) {
+        g_alpine_game_config.fpgun_y_offset = std::clamp(std::stof(settings["FPGunYOffset"]), 
+            AlpineGameSettings::min_fpgun_pos_offset, AlpineGameSettings::max_fpgun_pos_offset);
+        processed_keys.insert("FPGunYOffset");
+    }
+    if (settings.count("FPGunZOffset")) {
+        g_alpine_game_config.fpgun_z_offset = std::clamp(std::stof(settings["FPGunZOffset"]), 
+            AlpineGameSettings::min_fpgun_pos_offset, AlpineGameSettings::max_fpgun_pos_offset);
+        processed_keys.insert("FPGunZOffset");
+    }
     if (settings.count("BigHUD")) {
         g_alpine_game_config.big_hud = std::stoi(settings["BigHUD"]);
         set_big_hud(g_alpine_game_config.big_hud);
@@ -724,6 +739,9 @@ void alpine_player_settings_save(rf::Player* player)
     file << "TextureDetailLevel=" << player->settings.textures_resolution_level << "\n";
     file << "HorizontalFOV=" << g_alpine_game_config.horz_fov << "\n";
     file << "FPGunFOVScale=" << g_alpine_game_config.fpgun_fov_scale << "\n";
+    file << "FPGunXOffset=" << g_alpine_game_config.fpgun_x_offset << "\n";
+    file << "FPGunYOffset=" << g_alpine_game_config.fpgun_y_offset << "\n";
+    file << "FPGunZOffset=" << g_alpine_game_config.fpgun_z_offset << "\n";
     file << "BigHUD=" << g_alpine_game_config.big_hud << "\n";
     file << "DisableWeaponShake=" << g_alpine_game_config.try_disable_weapon_shake << "\n";
     file << "FullbrightCharacters=" << g_alpine_game_config.try_fullbright_characters << "\n";

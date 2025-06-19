@@ -29,6 +29,19 @@ struct AlpineGameSettings
         fpgun_fov_scale = std::clamp(scale, min_fpgun_fov_scale, max_fpgun_fov_scale);
     }
 
+    // fpgun position offsets
+    static constexpr float min_fpgun_pos_offset = -50.0f;
+    static constexpr float max_fpgun_pos_offset = 50.0f;
+    float fpgun_x_offset = 0.0f;
+    float fpgun_y_offset = 0.0f;
+    float fpgun_z_offset = 0.0f;
+    void set_fpgun_pos_offsets(float x, float y, float z)
+    {
+        fpgun_x_offset = std::clamp(x, min_fpgun_pos_offset, max_fpgun_pos_offset);
+        fpgun_y_offset = std::clamp(y, min_fpgun_pos_offset, max_fpgun_pos_offset);
+        fpgun_z_offset = std::clamp(z, min_fpgun_pos_offset, max_fpgun_pos_offset);
+    }
+
     // scope and scanner sens modifiers
     static constexpr float min_sens_mod = 0.01f;
     static constexpr float max_sens_mod = 10.0f;

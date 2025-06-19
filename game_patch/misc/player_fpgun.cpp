@@ -155,6 +155,20 @@ CallHook<void(rf::Matrix3&, rf::Vector3&, float, bool, bool)> player_fpgun_rende
     [](rf::Matrix3& viewer_orient, rf::Vector3& viewer_pos, float horizontal_fov, bool zbuffer_flag, bool z_scale) {
         horizontal_fov *= g_alpine_game_config.fpgun_fov_scale;
         horizontal_fov = gr_scale_fov_hor_plus(horizontal_fov);
+        
+        // Apply position offsets
+        if (g_alpine_game_config.fpgun_x_offset != 0.0f || 
+            g_alpine_game_config.fpgun_y_offset != 0.0f || 
+            g_alpine_game_config.fpgun_z_offset != 0.0f) {
+            // Build offsets in camera space
+            // Convention in RF.exe:  viewer_orient.rvec = right
+            //                        viewer_orient.uvec = up
+            //                        viewer_orient.fvec = forward
+            viewer_pos += viewer_orient.rvec * g_alpine_game_config.fpgun_x_offset;
+            viewer_pos += viewer_orient.uvec * g_alpine_game_config.fpgun_y_offset;
+            viewer_pos += viewer_orient.fvec * g_alpine_game_config.fpgun_z_offset;
+        }
+        
         player_fpgun_render_gr_setup_3d_hook
             .call_target(viewer_orient, viewer_pos, horizontal_fov, zbuffer_flag, z_scale);
     },
@@ -170,6 +184,21 @@ ConsoleCommand2 fpgun_fov_scale_cmd{
     },
     "Set scale value applied to FOV setting for first person weapon models.",
     "r_fpgunfov [scale]",
+};
+
+ConsoleCommand2 fpgun_pos_cmd{
+    "r_fpgunpos",
+    [](std::optional<float> x_opt, std::optional<float> y_opt, std::optional<float> z_opt) {
+        if (x_opt && y_opt && z_opt) {
+            g_alpine_game_config.set_fpgun_pos_offsets(x_opt.value(), y_opt.value(), z_opt.value());
+        }
+        rf::console::print("Fpgun position offsets: X={:.2f} Y={:.2f} Z={:.2f}", 
+                           g_alpine_game_config.fpgun_x_offset,
+                           g_alpine_game_config.fpgun_y_offset,
+                           g_alpine_game_config.fpgun_z_offset);
+    },
+    "Set X, Y, Z position offsets for first person weapon models.",
+    "r_fpgunpos [x y z]",
 };
 
 CodeInjection player_fpgun_render_main_player_entity_injection{
@@ -255,6 +284,9 @@ void player_fpgun_do_patch()
     // Allow customizing fpgun fov
     player_fpgun_render_gr_setup_3d_hook.install();
     fpgun_fov_scale_cmd.register_cmd();
+    
+    // Allow customizing fpgun position
+    fpgun_pos_cmd.register_cmd();
 
 #ifndef NDEBUG
     reload_fpgun_cmd.register_cmd();
