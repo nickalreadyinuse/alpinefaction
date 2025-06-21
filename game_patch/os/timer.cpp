@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <mmsystem.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
 #include "../rf/os/timer.h"
@@ -30,6 +31,9 @@ void timer_apply_patch()
 {
     // Remove Sleep calls in timer_init
     AsmWriter(0x00504A67, 0x00504A82).nop();
+
+    // Call 1ms timing resolution
+    timeBeginPeriod(1);
 
     // Fix timer_get handling of frequency greater than 2MHz (sign bit is set in 32 bit dword)
     QueryPerformanceFrequency(&g_qpc_frequency);
