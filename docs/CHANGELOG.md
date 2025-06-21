@@ -17,6 +17,9 @@ Version 1.2.0 (Willow): Not yet released
 - Add `SuppressAutoswitchBindAlias` setting to `alpine_settings.ini`
 - Add `$Flag Captures While Stolen` dedicated server config option
 
+[@nickalreadyinuse](https://github.com/nickalreadyinuse)
+- Improve dedicated server framerate consistency
+
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled
