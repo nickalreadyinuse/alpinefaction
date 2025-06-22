@@ -160,6 +160,12 @@ struct AlpineGameSettings
     {
         server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
     }
+
+    int desired_handicap = 0;
+    void set_desired_handicap(int value)
+    {
+        desired_handicap = std::clamp(value, 0, 99);
+    }
 };
 
 extern AlpineGameSettings g_alpine_game_config;

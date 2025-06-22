@@ -490,6 +490,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.world_hud_alt_damage_indicators = std::stoi(settings["WorldHUDAltDamageIndicators"]);
         processed_keys.insert("WorldHUDAltDamageIndicators");
     }
+    if (settings.count("DesiredHandicap")) {
+        g_alpine_game_config.set_desired_handicap(std::stoi(settings["DesiredHandicap"]));
+        processed_keys.insert("DesiredHandicap");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -774,6 +778,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableMultiCharacterLOD=" << g_alpine_game_config.multi_no_character_lod << "\n";
     file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
     file << "WorldHUDAltDamageIndicators=" << g_alpine_game_config.world_hud_alt_damage_indicators << "\n";
+    file << "DesiredHandicap=" << g_alpine_game_config.desired_handicap << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

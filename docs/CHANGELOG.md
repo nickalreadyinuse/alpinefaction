@@ -16,6 +16,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Suppress autoswitch` control bind (if held while picking up a weapon, autoswitch is suppressed)
 - Add `SuppressAutoswitchBindAlias` setting to `alpine_settings.ini`
 - Add `$Flag Captures While Stolen` dedicated server config option
+- Add damage reduction handicap feature
+- Add `mp_handicap` command to configure your damage reduction handicap (0 - 99%)
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
