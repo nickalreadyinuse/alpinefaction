@@ -18,6 +18,9 @@ Version 1.2.0 (Willow): Not yet released
 - Add `$Flag Captures While Stolen` dedicated server config option
 - Add damage reduction handicap feature
 - Add `mp_handicap` command to configure your damage reduction handicap (0 - 99%)
+- Add `DesiredHandicap` setting to `alpine_settings.ini`
+- Add `cl_autoswitchfirewait` command to suppress autoswitch during and immediately after weapon fire
+- Add `AutoswitchFireWait` setting to `alpine_settings.ini`
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
