@@ -152,6 +152,12 @@ struct AlpineGameSettings
     bool real_armor_values = false;
     int suppress_autoswitch_alias = -1;
 
+    int suppress_autoswitch_fire_wait = 0;
+    void set_suppress_autoswitch_fire_wait(int value)
+    {
+        suppress_autoswitch_fire_wait = std::clamp(value, 0, 10000);
+    }
+
     std::string multiplayer_tracker = "rfgt.factionfiles.com";
     static constexpr size_t max_tracker_hostname_length = 200;
     void set_multiplayer_tracker(const std::string& tracker_hostname)
@@ -185,6 +191,12 @@ struct AlpineGameSettings
     void set_server_netfps(unsigned netfps_value)
     {
         server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
+    }
+
+    int desired_handicap = 0;
+    void set_desired_handicap(int value)
+    {
+        desired_handicap = std::clamp(value, 0, 99);
     }
 };
 

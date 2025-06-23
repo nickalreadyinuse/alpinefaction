@@ -220,6 +220,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.real_armor_values = std::stoi(settings["RealArmorValues"]);
         processed_keys.insert("RealArmorValues");
     }
+    if (settings.count("AutoswitchFireWait")) {
+        g_alpine_game_config.suppress_autoswitch_fire_wait = std::stoi(settings["AutoswitchFireWait"]);
+        processed_keys.insert("AutoswitchFireWait");
+    }
 
     // Load weapon autoswitch priority
     if (settings.count("WeaponAutoswitchPriority")) {
@@ -505,6 +509,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.world_hud_alt_damage_indicators = std::stoi(settings["WorldHUDAltDamageIndicators"]);
         processed_keys.insert("WorldHUDAltDamageIndicators");
     }
+    if (settings.count("DesiredHandicap")) {
+        g_alpine_game_config.set_desired_handicap(std::stoi(settings["DesiredHandicap"]));
+        processed_keys.insert("DesiredHandicap");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -703,6 +711,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "SaveConsoleHistory=" << g_alpine_game_config.save_console_history << "\n";
     file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
     file << "RealArmorValues=" << g_alpine_game_config.real_armor_values << "\n";
+    file << "AutoswitchFireWait=" << g_alpine_game_config.suppress_autoswitch_fire_wait << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";
@@ -792,6 +801,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableMultiCharacterLOD=" << g_alpine_game_config.multi_no_character_lod << "\n";
     file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
     file << "WorldHUDAltDamageIndicators=" << g_alpine_game_config.world_hud_alt_damage_indicators << "\n";
+    file << "DesiredHandicap=" << g_alpine_game_config.desired_handicap << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

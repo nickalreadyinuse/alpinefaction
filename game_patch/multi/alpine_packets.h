@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
 #include <common/rfproto.h>
 #include "../rf/multi.h"
 
@@ -22,6 +23,7 @@ enum class af_packet_type : uint8_t
     af_ping_location = 0x51,            // Alpine 1.1
     af_damage_notify = 0x52,            // Alpine 1.1
     af_obj_update = 0x53,               // Alpine 1.1
+    af_client_req = 0x55,               // Alpine 1.2
 };
 
 struct af_ping_location_req_packet
@@ -60,6 +62,25 @@ struct af_obj_update_packet
     af_obj_update objects[];
 };
 
+enum class af_client_req_type : uint8_t
+{
+    af_req_handicap = 0x00,
+};
+
+struct HandicapPayload
+{
+    uint8_t amount = 0;
+};
+
+using af_client_payload = std::variant<HandicapPayload>;
+
+struct af_client_req_packet
+{
+    RF_GamePacketHeader header;
+    af_client_req_type req_type;
+    af_client_payload payload;
+};
+
 #pragma pack(pop)
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
@@ -73,3 +94,8 @@ void af_send_damage_notify_packet(uint8_t player_id, float damage, bool died, rf
 static void af_process_damage_notify_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_obj_update_packet(rf::Player* player);
 static void af_process_obj_update_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_client_req_packet(const af_client_req_packet& packet);
+static void af_process_client_req_packet(const void* data, size_t len, const rf::NetAddr& addr);
+
+// client requests
+void af_send_handicap_request(uint8_t amount);

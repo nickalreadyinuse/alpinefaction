@@ -239,6 +239,7 @@ extern MatchInfo g_match_info;
 
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);
+void handle_player_set_handicap(rf::Player* player, uint8_t amount);
 std::vector<rf::Player*> get_current_player_list(bool include_browsers);
 std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_input);
 bool is_player_in_match(rf::Player* player);
