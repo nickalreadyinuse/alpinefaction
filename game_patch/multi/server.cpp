@@ -670,6 +670,15 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
     }
 }
 
+void handle_player_set_handicap(rf::Player* player, uint8_t amount)
+{
+    auto& pdata = get_player_additional_data(player);
+    pdata.damage_handicap = amount;
+    rf::console::print("At their request, {} has been given a {}% damage reduction handicap.", player->name, amount);
+    auto msg = std::format("At your request, you have been given a {}% damage reduction handicap.", amount);
+    send_chat_line_packet(msg.c_str(), player);
+}
+
 std::string get_ready_player_names(bool is_blue_team)
 {
     const auto& team_players = is_blue_team ? g_match_info.ready_players_blue : g_match_info.ready_players_red;
@@ -977,6 +986,14 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                 return 0.0f;
             }
 
+            // handle handicap
+            auto& pdata = get_player_additional_data(killer_player);
+            if (pdata.damage_handicap > 0) {
+                float reduction = 1.0f - (pdata.damage_handicap / 100.0f);
+                damage *= reduction;
+                //xlog::debug("Applying handicap {}% ({}x multiplier) to damage, new damage: {}", pdata.damage_handicap, reduction, damage);
+            }
+
             // Check if this is a crit
             if (g_additional_server_config.critical_hits.enabled) {
                 float base_chance = g_additional_server_config.critical_hits.base_chance;
@@ -991,7 +1008,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                 }
 
                 float critical_hit_chance = base_chance + bonus_chance;
-                xlog::debug("Critical hit chance: {:.2f}", critical_hit_chance);
+                //xlog::debug("Critical hit chance: {:.2f}", critical_hit_chance);
 
                 std::uniform_real_distribution<float> dist_crit(0.0f, 1.0f);
                 float random_value = dist_crit(g_rng);
