@@ -194,7 +194,8 @@ enum packet_type : uint8_t {
     af_ping_location_req   = 0x50,
     af_ping_location       = 0x51,
     af_damage_notify       = 0x52,
-    af_obj_update          = 0x53
+    af_obj_update          = 0x53,
+    af_client_req          = 0x55
 };
 
 // client -> server
@@ -220,6 +221,7 @@ std::array g_server_side_packet_whitelist{
     rcon_request,
     rcon,
     af_ping_location_req,
+    af_client_req
 };
 
 // server -> client
