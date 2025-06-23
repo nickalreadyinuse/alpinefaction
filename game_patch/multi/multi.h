@@ -111,3 +111,4 @@ void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
 void start_level_in_multi(std::string filename);
 std::optional<std::string> multi_ban_unban_last();
 int get_semi_auto_fire_wait_override();
+void mp_send_handicap_request(bool force);

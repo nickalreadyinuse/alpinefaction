@@ -39,6 +39,7 @@ struct PlayerAdditionalData
     uint8_t alpine_version_minor = 0;
     uint8_t alpine_version_type = 0;
     uint32_t max_rfl_version = 200;
+    uint8_t damage_handicap = 0; // percentile
 };
 
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer);

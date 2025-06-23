@@ -62,6 +62,9 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         case af_packet_type::af_obj_update:
             af_process_obj_update_packet(data, len, addr);
             break;
+        case af_packet_type::af_client_req:
+            af_process_client_req_packet(data, len, addr);
+            break;
         default:
             return false; // ignore if unrecognized
     }
@@ -397,5 +400,95 @@ static void af_process_obj_update_packet(const void* data, size_t len, const rf:
         } else {
             //xlog::warn("Did not update player {} because packet weapon {}, their weapon {}", entity->name, obj_update.current_primary_weapon, entity->ai.current_primary_weapon);
         }
+    }
+}
+
+// client requests
+
+// send handicap request
+void af_send_handicap_request(uint8_t amount)
+{
+    if (rf::is_server || rf::is_dedicated_server || !rf::local_player) {
+        return; // Only clients should send this
+    }
+
+    af_client_req_packet packet{};
+    packet.header.type = static_cast<uint8_t>(af_packet_type::af_client_req);
+    packet.header.size = sizeof(uint8_t) + sizeof(uint8_t); // req_type + payload (amount)
+    packet.req_type = af_client_req_type::af_req_handicap;
+    packet.payload = HandicapPayload{amount};
+
+    af_send_client_req_packet(packet);
+}
+
+void serialize_payload(const HandicapPayload& payload, std::byte* buf, size_t& offset)
+{
+    buf[offset++] = static_cast<std::byte>(payload.amount);
+}
+
+// send client request packet
+void af_send_client_req_packet(const af_client_req_packet& packet)
+{
+    // Send: client -> server
+    if (rf::is_server || rf::is_dedicated_server) {
+        return;
+    }
+
+    std::byte buf[rf::max_packet_size];
+    size_t offset = 0;
+
+    // Write header
+    std::memcpy(buf + offset, &packet.header, sizeof(packet.header));
+    offset += sizeof(packet.header);
+
+    // Write req_type
+    buf[offset++] = static_cast<std::byte>(packet.req_type);
+
+    // Write payload based on type
+    std::visit([&](const auto& payload) { serialize_payload(payload, buf, offset); }, packet.payload);
+
+    int total_len = static_cast<int>(offset);
+    af_send_packet(rf::local_player, buf, total_len, false);
+}
+
+// process client request packet
+static void af_process_client_req_packet(const void* data, size_t len, const rf::NetAddr& addr)
+{
+    // Receive: server <- client
+    if (!rf::is_dedicated_server) {
+        return;
+    }
+
+    if (len < sizeof(RF_GamePacketHeader) + sizeof(uint8_t)) {
+        xlog::warn("af_process_client_req_packet: packet too short");
+        return;
+    }
+
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
+    size_t offset = sizeof(RF_GamePacketHeader); // skip header
+
+    rf::Player* player = rf::multi_find_player_by_addr(addr);
+
+    af_client_req_type req_type = static_cast<af_client_req_type>(bytes[offset++]);
+    af_client_req_packet packet;
+    std::memcpy(&packet.header, data, sizeof(RF_GamePacketHeader));
+    packet.req_type = req_type;
+
+    switch (req_type) {
+        case af_client_req_type::af_req_handicap: {
+            if (offset + 1 > len) {
+                xlog::warn("af_process_client_req_packet: Handicap payload too short");
+                return;
+            }
+            uint8_t amount = bytes[offset];
+            packet.payload = HandicapPayload{amount};
+
+            handle_player_set_handicap(player, amount);
+            break;
+        }
+
+        default:
+            xlog::warn("af_process_client_req_packet: Unknown req_type {}", static_cast<int>(req_type));
+            return;
     }
 }

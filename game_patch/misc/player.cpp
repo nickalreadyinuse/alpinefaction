@@ -375,6 +375,17 @@ ConsoleCommand2 localhitsound_cmd{
     "cl_hitsounds",
 };
 
+ConsoleCommand2 set_autoswitch_fire_wait_cmd{
+    "cl_autoswitchfirewait",
+    [](std::optional<int> new_fire_wait) {
+        if (new_fire_wait) {
+            g_alpine_game_config.set_suppress_autoswitch_fire_wait(new_fire_wait.value());
+        }
+        rf::console::print("Your suppress autoswitch fire wait is {}.", g_alpine_game_config.suppress_autoswitch_fire_wait);
+    },
+    "Set a minimum delay after firing a weapon before autoswitch can trigger",
+};
+
 void ping_looked_at_location() {
     if (!rf::is_multi) {
         return;
@@ -628,4 +639,5 @@ void player_do_patch()
     play_join_beep_cmd.register_cmd();
     localhitsound_cmd.register_cmd();
     tauntsound_cmd.register_cmd();
+    set_autoswitch_fire_wait_cmd.register_cmd();
 }
