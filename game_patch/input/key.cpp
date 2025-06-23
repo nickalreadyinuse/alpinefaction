@@ -394,6 +394,15 @@ CodeInjection item_touch_weapon_autoswitch_patch{
             should_suppress_autoswitch = true;
         }
 
+        // check fire wait autoswitch suppression
+        if (!should_suppress_autoswitch && g_alpine_game_config.suppress_autoswitch_fire_wait > 0) {
+            if (rf::Entity* entity = rf::entity_from_handle(player->entity_handle)) {
+                if (entity->last_fired_timestamp.time_since() < g_alpine_game_config.suppress_autoswitch_fire_wait) {
+                    should_suppress_autoswitch = true;
+                }
+            }
+        }
+
         // Suppress autoswitch if applicable
         if (should_suppress_autoswitch) {
             regs.eip = 0x0045AA9B;
