@@ -6,8 +6,10 @@
 #include "../os/console.h"
 #include "../misc/misc.h"
 #include "../misc/alpine_settings.h"
+#include "../misc/alpine_options.h"
 #include "../multi/multi.h"
 #include "../rf/player/player.h"
+#include "../rf/player/camera.h"
 #include "../rf/os/frametime.h"
 
 constexpr auto screen_shake_fps = 150.0f;
@@ -67,6 +69,25 @@ void evaluate_restrict_disable_ss()
     }
 }
 
+CallHook<void(rf::Camera*)> camera_enter_first_person_level_post{
+    {
+        0x0040D727,
+        0x004A43AB
+    },
+    [](rf::Camera* camera) {
+        const bool default_third_person =
+            g_alpine_options_config.is_option_loaded(AlpineOptionID::DefaultThirdPerson) &&
+            std::get<bool>(g_alpine_options_config.options.at(AlpineOptionID::DefaultThirdPerson));
+
+        if ((!rf::is_multi && camera->mode == rf::CameraMode::CAMERA_THIRD_PERSON) || default_third_person) {
+            rf::camera_enter_third_person(camera);
+        }
+        else {
+            rf::camera_enter_first_person(camera);
+        }
+    }
+};
+
 ConsoleCommand2 disable_weaphake_cmd{
     "cl_weapshake",
     []() {
@@ -99,6 +120,9 @@ void camera_do_patch()
 {
     // Fix crash when executing camera2 command in main menu
     AsmWriter(0x0040DCFC).nop(5);
+
+    // Maintain third person camera mode if set
+    camera_enter_first_person_level_post.install();
 
     // Fix screen shake caused by some weapons (eg. Assault Rifle)
     write_mem_ptr(0x0040DBCC + 2, &g_camera_shake_factor);

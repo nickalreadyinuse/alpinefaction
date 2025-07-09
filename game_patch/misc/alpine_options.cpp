@@ -712,11 +712,6 @@ void apply_af_options_patches()
         AsmWriter(0x004A0A82).fcomp<float>(AsmRegMem(reinterpret_cast<uintptr_t>(&walkable_slope_threshold)));
     }
 
-    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::DefaultThirdPerson) &&
-        std::get<bool>(g_alpine_options_config.options[AlpineOptionID::DefaultThirdPerson])) {
-        AsmWriter{0x0040D727}.call(rf::camera_enter_third_person); 
-    }
-
     // ===========================
     // af_ui.tbl
     // ===========================
