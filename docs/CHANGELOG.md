@@ -27,6 +27,7 @@ Version 1.2.0 (Willow): Not yet released
 [@GooberRF](https://github.com/GooberRF)
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled
 - Fix DX11 renderer not properly rendering detail brushes in skyboxes
+- Fix super powerups applying in SP in non-Alpine levels
 
 ### Imports from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
