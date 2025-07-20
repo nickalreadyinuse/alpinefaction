@@ -125,6 +125,7 @@ struct AlpineGameSettings
     bool entity_pain_sounds = true;
     bool real_armor_values = false;
     int suppress_autoswitch_alias = -1;
+    bool always_autoswitch_empty = true;
 
     int suppress_autoswitch_fire_wait = 0;
     void set_suppress_autoswitch_fire_wait(int value)

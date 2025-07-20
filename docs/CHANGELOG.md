@@ -22,6 +22,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `cl_autoswitchfirewait` command to suppress autoswitch during and immediately after weapon fire
 - Add `AutoswitchFireWait` setting to `alpine_settings.ini`
 - Maintain third person camera view between level loads after `camera3` command entered
+- Add `cl_autoswitchempty` command to always autoswitch empty weapons even if autoswitch is turned off
+- Add `AlwaysAutoswitchEmpty` setting to `alpine_settings.ini`
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

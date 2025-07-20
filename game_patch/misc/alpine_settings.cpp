@@ -224,6 +224,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.suppress_autoswitch_fire_wait = std::stoi(settings["AutoswitchFireWait"]);
         processed_keys.insert("AutoswitchFireWait");
     }
+    if (settings.count("AlwaysAutoswitchEmpty")) {
+        g_alpine_game_config.always_autoswitch_empty = std::stoi(settings["AlwaysAutoswitchEmpty"]);
+        processed_keys.insert("AlwaysAutoswitchEmpty");
+    }
 
     // Load weapon autoswitch priority
     if (settings.count("WeaponAutoswitchPriority")) {
@@ -697,6 +701,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
     file << "RealArmorValues=" << g_alpine_game_config.real_armor_values << "\n";
     file << "AutoswitchFireWait=" << g_alpine_game_config.suppress_autoswitch_fire_wait << "\n";
+    file << "AlwaysAutoswitchEmpty=" << g_alpine_game_config.always_autoswitch_empty << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";
