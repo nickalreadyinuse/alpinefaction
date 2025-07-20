@@ -24,12 +24,16 @@ Version 1.2.0 (Willow): Not yet released
 - Maintain third person camera view between level loads after `camera3` command entered
 - Add `cl_autoswitchempty` command to always autoswitch empty weapons even if autoswitch is turned off
 - Add `AlwaysAutoswitchEmpty` setting to `alpine_settings.ini`
+- Bump RFL version to 302
+- Add support for custom AlpineLevelProperties chunk in rfl files
+- Add handling for `Legacy Cyclic_Timers` option in level files in editor and game
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled
 - Fix DX11 renderer not properly rendering detail brushes in skyboxes
 - Fix super powerups applying in SP in non-Alpine levels
+- Fix `Cyclic_Timer` event activating twice on initial activation (unless `Legacy Cyclic_Timers` is on)
 
 ### Imports from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

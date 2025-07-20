@@ -9,6 +9,7 @@
 #include "event_alpine.h"
 #include "../hud/hud_world.h"
 #include "../misc/misc.h"
+#include "../misc/level.h"
 #include "../misc/achievements.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
@@ -260,11 +261,16 @@ CodeInjection event_type_forwards_messages_patch{
         if (af_rfl_version(rf::level.version)) {
             auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
 
-            // stock events handled by original code
-            if (is_forward_exempt(event_type)) {
+            // handle Alpine events that shouldn't forward messages
+            // also do not forward for Cyclic_Timer unless legacy cyclic timers are disabled
+            if (is_forward_exempt(event_type) ||
+                (event_type == rf::EventType::Cyclic_Timer && !AlpineLevelProperties::instance().legacy_cyclic_timers)
+                ) {
                 regs.al = false;
                 regs.eip = 0x004B8C5D;
             }
+
+            // stock events are handled by original code
         }
     }
 };
