@@ -34,6 +34,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix DX11 renderer not properly rendering detail brushes in skyboxes
 - Fix super powerups applying in SP in non-Alpine levels
 - Fix `Cyclic_Timer` event activating twice on initial activation (unless `Legacy Cyclic_Timers` is on)
+- Fix broken rendering of particle emitter 23616 on community level `dm-birthday.rfl`
 
 ### Imports from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
