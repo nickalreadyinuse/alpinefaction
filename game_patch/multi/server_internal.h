@@ -60,13 +60,35 @@ struct InactivityConfig
     int allowed_inactive_ms = 30000;
     int warning_duration_ms = 10000;
     std::string kick_message = "You have been marked as idle due to inactivity! You will be kicked from the game unless you respawn in the next 10 seconds.";
+
+    // =============================================
+    
+    void set_new_player_grace(float in_time)
+    {
+        new_player_grace_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+    }
+    void set_allowed_inactive(float in_time)
+    {
+        allowed_inactive_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+    }
+    void set_warning_duration(float in_time)
+    {
+        warning_duration_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+    }
 };
 
 struct VoteConfig
 {
     bool enabled = false;
-    bool require_no_votes = false; // not imp
+    bool ignore_nonvoters = false; // not imp
     int time_limit_seconds = 60;
+
+    // =============================================
+    
+    void set_time_limit_seconds(float in_time)
+    {
+        time_limit_seconds = static_cast<int>(std::max(in_time, 1.0f) + 0.5f);
+    }
 };
 
 struct GunGameConfig
@@ -136,7 +158,7 @@ struct NewSpawnLogicConfig // defaults match stock game
     std::map<std::string, std::optional<int>> allowed_respawn_items;
 };
 
-struct AlpineRestrictConfig // not imp
+struct AlpineRestrictConfig
 {
     bool clients_require_alpine = false;
     bool reject_non_alpine_clients = false;
@@ -144,6 +166,9 @@ struct AlpineRestrictConfig // not imp
     bool alpine_require_release_build = false;
     bool only_welcome_alpine = false;
     bool advertise_alpine = false;
+    bool no_player_collide = false;
+    bool location_pinging = true;
+    VoteConfig vote_match;
 };
 
 struct AlpineServerConfigRules
@@ -207,6 +232,16 @@ struct AlpineServerConfig
     bool allow_disable_screenshake = true;
     bool allow_disable_muzzle_flash = true;
     bool allow_unlimited_fps = false;
+    AlpineRestrictConfig alpine_restricted_config;
+    InactivityConfig inactivity_config;
+    VoteConfig vote_kick;
+    VoteConfig vote_level;
+    VoteConfig vote_extend;
+    VoteConfig vote_restart;
+    VoteConfig vote_next;
+    VoteConfig vote_rand;
+    VoteConfig vote_previous;
+
 
     AlpineServerConfigRules base_rules;
     std::vector<AlpineServerConfigLevelEntry> levels;
