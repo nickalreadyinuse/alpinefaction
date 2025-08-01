@@ -48,6 +48,7 @@
 bool g_dedicated_launched_from_ads = false; // was the server launched from an ads file?
 std::string g_ads_config_name = "";
 bool g_ads_minimal_server_info = false; // print only minimal server info when launching
+int g_ads_loaded_version = ADS_VERSION;
 
 rf::CmdLineParam& get_ads_cmd_line_param()
 {
@@ -152,6 +153,64 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, bool base)
     return o;
 }
 
+static VoteConfig parse_vote_config(const toml::table& t)
+{
+    VoteConfig v;
+    if (auto x = t["enabled"].value<bool>())
+        v.enabled = *x;
+    if (auto x = t["ignore_nonvoters"].value<bool>())
+        v.ignore_nonvoters = *x;
+    if (auto x = t["time"].value<float>())
+        v.set_time_limit_seconds(*x);
+    return v;
+}
+
+static InactivityConfig parse_inactivity_config(const toml::table &t)
+{
+    InactivityConfig o;
+    if (auto v = t["enabled"].value<bool>())
+        o.enabled = *v;
+
+    if (o.enabled) {
+        if (auto v = t["new_player_grace"].value<float>())
+            o.set_new_player_grace(*v);
+        if (auto v = t["allowed_inactive"].value<float>())
+            o.set_allowed_inactive(*v);
+        if (auto v = t["warning_duration"].value<float>())
+            o.set_warning_duration(*v);
+        if (auto v = t["kick_message"].value<std::string>())
+            o.kick_message = *v;
+    }
+    return o;
+}
+
+static AlpineRestrictConfig parse_alpine_restrict_config(const toml::table &t)
+{
+    AlpineRestrictConfig o;
+    if (auto v = t["advertise_alpine"].value<bool>())
+        o.advertise_alpine = *v;
+    if (auto v = t["clients_require_alpine"].value<bool>())
+        o.clients_require_alpine = *v;
+
+    if (o.clients_require_alpine) {
+        if (auto v = t["reject_non_alpine_clients"].value<bool>())
+            o.reject_non_alpine_clients = *v;
+        if (auto v = t["alpine_server_version_enforce_min"].value<bool>())
+            o.alpine_server_version_enforce_min = *v;
+        if (auto v = t["alpine_require_release_build"].value<bool>())
+            o.alpine_require_release_build = *v;
+        if (auto v = t["only_welcome_alpine"].value<bool>())
+            o.only_welcome_alpine = *v;
+        if (auto v = t["no_player_collide"].value<bool>())
+            o.no_player_collide = *v;
+        if (auto v = t["location_pinging"].value<bool>())
+            o.location_pinging = *v;
+        if (auto sub = t["vote_match"].as_table())
+            o.vote_match = parse_vote_config(*sub);
+    }
+    return o;
+}
+
 void load_ads_server_config(std::string ads_config_name)
 {
     rf::console::print("Loading and applying server configuration from {}...\n\n", ads_config_name);
@@ -171,13 +230,16 @@ void load_ads_server_config(std::string ads_config_name)
 
     // core config
 
+    if (auto v = tbl["ads_version"].value<int>())
+        g_ads_loaded_version = *v;
+
     if (auto v = tbl["server_name"].value<std::string>())
         cfg.server_name = *v;
 
     if (auto v = tbl["game_type"].value<std::string>())
         cfg.game_type = parse_game_type(*v);
 
-    if (auto v = tbl["max_players"].value<int64_t>())
+    if (auto v = tbl["max_players"].value<int>())
         cfg.set_max_players((int)*v);
 
     if (auto v = tbl["password"].value<std::string>())
@@ -215,6 +277,27 @@ void load_ads_server_config(std::string ads_config_name)
 
     if (auto v = tbl["allow_unlimited_fps"].value<bool>())
         cfg.allow_unlimited_fps = *v;
+
+    if (auto tblInact = tbl["inactivity"].as_table())
+        cfg.inactivity_config = parse_inactivity_config(*tblInact);
+
+    if (auto tblRestr = tbl["alpine_restrict"].as_table())
+        cfg.alpine_restricted_config = parse_alpine_restrict_config(*tblRestr);
+
+    if (auto t = tbl["vote_kick"].as_table())
+        cfg.vote_kick = parse_vote_config(*t);
+    if (auto t = tbl["vote_level"].as_table())
+        cfg.vote_level = parse_vote_config(*t);
+    if (auto t = tbl["vote_extend"].as_table())
+        cfg.vote_extend = parse_vote_config(*t);
+    if (auto t = tbl["vote_restart"].as_table())
+        cfg.vote_restart = parse_vote_config(*t);
+    if (auto t = tbl["vote_next"].as_table())
+        cfg.vote_next = parse_vote_config(*t);
+    if (auto t = tbl["vote_rand"].as_table())
+        cfg.vote_rand = parse_vote_config(*t);
+    if (auto t = tbl["vote_previous"].as_table())
+        cfg.vote_previous = parse_vote_config(*t);
 
     // base rules
     if (auto base = tbl["base_rules"].as_table())
@@ -341,6 +424,52 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     rf::console::print("  Allow lightmap only mode:              {}\n", cfg.allow_lightmaps_only);
     rf::console::print("  Allow disable muzzle flash:            {}\n", cfg.allow_disable_muzzle_flash);
     rf::console::print("  Allow disable 240 FPS cap:             {}\n", cfg.allow_unlimited_fps);
+
+    rf::console::print("\n---- Player inactivity settings ----\n");
+    rf::console::print("  Kick inactive players:                 {}\n", cfg.inactivity_config.enabled);
+    if (cfg.inactivity_config.enabled) {
+        rf::console::print("    New player grace period:             {} sec\n", cfg.inactivity_config.new_player_grace_ms / 1000);
+        rf::console::print("    Allowed inactivity time:             {} sec\n", cfg.inactivity_config.allowed_inactive_ms / 1000);
+        rf::console::print("    Warning duration:                    {} sec\n", cfg.inactivity_config.warning_duration_ms / 1000);
+        rf::console::print("    Kick message:                        {}\n", cfg.inactivity_config.kick_message);
+    }
+
+    rf::console::print("\n---- Alpine restriction settings ----\n");
+    rf::console::print("  Advertise Alpine:                      {}\n", cfg.alpine_restricted_config.advertise_alpine);
+    rf::console::print("  Clients require Alpine:                {}\n", cfg.alpine_restricted_config.clients_require_alpine);
+    if (cfg.alpine_restricted_config.clients_require_alpine) {
+        rf::console::print("    Reject non-Alpine clients:           {}\n", cfg.alpine_restricted_config.reject_non_alpine_clients);
+        rf::console::print("    Enforce min server version:          {}\n", cfg.alpine_restricted_config.alpine_server_version_enforce_min);
+        rf::console::print("    Require release build:               {}\n", cfg.alpine_restricted_config.alpine_require_release_build);
+        rf::console::print("    Only welcome Alpine players:         {}\n", cfg.alpine_restricted_config.only_welcome_alpine);
+        rf::console::print("    No player collide:                   {}\n", cfg.alpine_restricted_config.no_player_collide);
+        rf::console::print("    Location pinging:                    {}\n", cfg.alpine_restricted_config.location_pinging);
+        rf::console::print("\n    -- Match mode --\n");
+        auto& vm = cfg.alpine_restricted_config.vote_match;
+        rf::console::print("      Enabled:                           {}\n", vm.enabled);
+        if (vm.enabled) {
+            rf::console::print("      Vote ignores nonvoters:            {}\n", vm.ignore_nonvoters);
+            rf::console::print("      Vote time limit:                   {} sec\n", vm.time_limit_seconds);
+        }
+    }
+
+    rf::console::print("\n---- Voting settings ----\n");
+
+    auto print_vote = [&](std::string name, const VoteConfig& v) {
+        rf::console::print("  {}                 {}\n", name, v.enabled);
+        if (v.enabled) {
+            rf::console::print("    Ignore nonvoters:                    {}\n", v.ignore_nonvoters);
+            rf::console::print("    Time limit:                          {} sec\n", v.time_limit_seconds);
+        }
+    };
+
+    print_vote("Vote kick enabled:    ", cfg.vote_kick);
+    print_vote("Vote level enabled:   ", cfg.vote_level);
+    print_vote("Vote extend enabled:  ", cfg.vote_extend);
+    print_vote("Vote restart enabled: ", cfg.vote_restart);
+    print_vote("Vote next enabled:    ", cfg.vote_next);
+    print_vote("Vote random enabled:  ", cfg.vote_rand);
+    print_vote("Vote previous enabled:", cfg.vote_previous);
 
     rf::console::print("\n---- Base rules ----\n");
     print_rules(cfg.base_rules);
