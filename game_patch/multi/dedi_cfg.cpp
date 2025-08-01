@@ -85,9 +85,10 @@ static const AlpineServerConfigRules default_alpine_config_rules = [] {
 
 static rf::NetGameType parse_game_type(const std::string& s)
 {
-    if (s == "TDM") return rf::NetGameType::NG_TYPE_TEAMDM;
-    if (s == "CTF") return rf::NetGameType::NG_TYPE_CTF;
-    // fallback to DM
+    if (s == "TDM")
+        return rf::NetGameType::NG_TYPE_TEAMDM;
+    if (s == "CTF")
+        return rf::NetGameType::NG_TYPE_CTF;
     return rf::NetGameType::NG_TYPE_DM;
 }
 
@@ -168,7 +169,7 @@ void load_ads_server_config(std::string ads_config_name)
 
     AlpineServerConfig cfg;
 
-    // ─── core settings ───────────────────────────────────────────────────────
+    // core config
 
     if (auto v = tbl["server_name"].value<std::string>())
         cfg.server_name = *v;
@@ -215,13 +216,11 @@ void load_ads_server_config(std::string ads_config_name)
     if (auto v = tbl["allow_unlimited_fps"].value<bool>())
         cfg.allow_unlimited_fps = *v;
 
-    // ─── base_rules ─────────────────────────────────────────────────────────
-
+    // base rules
     if (auto base = tbl["base_rules"].as_table())
         cfg.base_rules = parse_server_rules(*base, true);
 
-    // ─── levels & overrides ──────────────────────────────────────────────────
-
+    // levels
     if (auto lv = tbl["levels"]; lv && lv.is_array())
     {
         auto* arr = lv.as_array();
@@ -233,7 +232,6 @@ void load_ads_server_config(std::string ads_config_name)
             auto& lvl_tbl = *elem.as_table();
 
             AlpineServerConfigLevelEntry entry;
-            //entry.level_filename = lvl_tbl["filename"].value_or<std::string>("");
 
             auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
 
@@ -254,11 +252,7 @@ void load_ads_server_config(std::string ads_config_name)
 
             cfg.levels.push_back(std::move(entry));
         }
-
-        //rf::console::print("\n");
     }
-
-    // ─── commit ────────────────────────────────────────────────────────────────
 
     g_alpine_server_config = std::move(cfg);
 }
