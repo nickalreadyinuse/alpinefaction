@@ -35,6 +35,9 @@ namespace rf
         static const auto &capture_the_flag = array[975];
         static const auto &team_deathmatch = array[976];
 
+        // dedi config lookups
+        static const auto& dedi_header = array[855];
+
         // control lookups
         static const auto &fire = array[807];
         static const auto &alt_fire = array[808];
@@ -46,7 +49,7 @@ namespace rf
         static const auto &next_weapon = array[152];
         static const auto &prev_weapon = array[810];
         static const auto &message_log = array[156];
-        static const auto& quick_save = array[820];
-        static const auto& quick_load = array[821];
+        static const auto &quick_save = array[820];
+        static const auto &quick_load = array[821];
     }
 }

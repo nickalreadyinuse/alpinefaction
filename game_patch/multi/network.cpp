@@ -1178,7 +1178,7 @@ FunHook<void()> tracker_do_broadcast_server_hook{
     0x00483130,
     []() {
         tracker_do_broadcast_server_hook.call_target();
-        if (g_additional_server_config.upnp_enabled) {
+        if (g_alpine_server_config.upnp_enabled) {
             // Auto forward server port using UPnP (in background thread)
             std::thread upnp_thread{try_to_auto_forward_port, rf::net_port};
             upnp_thread.detach();

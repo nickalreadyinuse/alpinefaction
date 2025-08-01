@@ -9,6 +9,9 @@
 #include "../rf/math/vector.h"
 #include "../rf/math/matrix.h"
 #include "../rf/os/string.h"
+#include "../rf/parse.h"
+#include "../rf/os/console.h"
+#include "../rf/multi.h"
 
 // Forward declarations
 namespace rf
@@ -62,6 +65,7 @@ struct InactivityConfig
 struct VoteConfig
 {
     bool enabled = false;
+    bool require_no_votes = false; // not imp
     int time_limit_seconds = 60;
 };
 
@@ -132,6 +136,101 @@ struct NewSpawnLogicConfig // defaults match stock game
     std::map<std::string, std::optional<int>> allowed_respawn_items;
 };
 
+struct AlpineRestrictConfig // not imp
+{
+    bool clients_require_alpine = false;
+    bool reject_non_alpine_clients = false;
+    bool alpine_server_version_enforce_min = false;
+    bool alpine_require_release_build = false;
+    bool only_welcome_alpine = false;
+    bool advertise_alpine = false;
+};
+
+struct AlpineServerConfigRules
+{
+    // stock game rules
+    std::optional<float> time_limit;
+    std::optional<int> individual_kill_limit;
+    std::optional<int> team_kill_limit;
+    std::optional<int> cap_limit;
+    std::optional<int> geo_limit;
+    std::optional<bool> team_damage;
+    std::optional<bool> fall_damage;
+    std::optional<bool> weapons_stay;
+    std::optional<bool> force_respawn;
+    std::optional<bool> balance_teams;
+
+    // =============================================
+    
+    void set_time_limit(float count)
+    {
+        time_limit = std::max(count, 10.0f);
+    }
+    void set_individual_kill_limit(int count)
+    {
+        individual_kill_limit = std::clamp(count, 1, 65535);
+    }
+    void set_team_kill_limit(int count)
+    {
+        team_kill_limit = std::clamp(count, 1, 65535);
+    }
+    void set_cap_limit(int count)
+    {
+        cap_limit = std::clamp(count, 1, 65535);
+    }
+    void set_geo_limit(int count)
+    {
+        geo_limit = std::clamp(count, 0, 128);
+    }
+};
+
+struct AlpineServerConfigLevelEntry
+{
+    std::string level_filename;
+    AlpineServerConfigRules rule_overrides;
+};
+
+struct AlpineServerConfig
+{
+    std::string server_name = "Alpine Faction Server";
+    rf::NetGameType game_type = rf::NetGameType::NG_TYPE_DM;
+    int max_players = 8;
+    std::string password = "";
+    std::string rcon_password = "";
+    bool upnp_enabled = false;
+    bool require_client_mod = true;
+    bool dynamic_rotation = false;
+    bool gaussian_spread = true;
+    bool stats_message_enabled = true;
+    bool allow_fullbright_meshes = true;
+    bool allow_lightmaps_only = true;
+    bool allow_disable_screenshake = true;
+    bool allow_disable_muzzle_flash = true;
+    bool allow_unlimited_fps = false;
+
+    AlpineServerConfigRules base_rules;
+    std::vector<AlpineServerConfigLevelEntry> levels;
+
+    // =============================================
+
+    void set_max_players(int count)
+    {
+        max_players = std::clamp(count, 1, 32);
+    }
+    void set_password(std::string_view new_password)
+    {
+        bool was_trimmed = new_password.size() > 16;
+        std::string_view to_use = was_trimmed ? new_password.substr(0, 16) : new_password;
+        password.assign(to_use);
+    }
+    void set_rcon_password(std::string_view new_password)
+    {
+        bool was_trimmed = new_password.size() > 15;
+        std::string_view to_use = was_trimmed ? new_password.substr(0, 15) : new_password;
+        rcon_password.assign(to_use);
+    }
+};
+
 struct ServerAdditionalConfig
 {
     VoteConfig vote_kick;
@@ -159,27 +258,27 @@ struct ServerAdditionalConfig
     std::map<std::string, int> item_respawn_time_overrides;
     std::string default_player_weapon;
     std::optional<int> default_player_weapon_ammo;
-    bool require_client_mod = true;
+    //bool require_client_mod = true;
     float player_damage_modifier = 1.0f;
     bool saving_enabled = false;
     bool flag_dropping = true;
     bool flag_captures_while_stolen = false;
     bool no_player_collide = false;
     bool location_pinging = true;
-    bool upnp_enabled = false;
+    //bool upnp_enabled = false;
     std::optional<int> force_player_character;
     std::optional<float> max_fov;
-    bool allow_fullbright_meshes = true;
-    bool allow_lightmaps_only = true;
-    bool allow_disable_screenshake = true;
-    bool allow_disable_muzzle_flash = true;
+    //bool allow_fullbright_meshes = true;
+    //bool allow_lightmaps_only = true;
+    //bool allow_disable_screenshake = true;
+    //bool allow_disable_muzzle_flash = true;
     bool apply_click_limiter = true;
-    bool allow_unlimited_fps = false;
+    //bool allow_unlimited_fps = false;
     std::optional<int> semi_auto_cooldown = 90;
     int anticheat_level = 0;
-    bool stats_message_enabled = true;
+    //bool stats_message_enabled = true;
     bool drop_amps = false;
-    bool dynamic_rotation = false;
+    //bool dynamic_rotation = false;
     std::string welcome_message;
     bool weapon_items_give_full_ammo = false;
     bool weapon_infinite_magazines = false;
@@ -195,7 +294,7 @@ struct ServerAdditionalConfig
     bool only_welcome_alpine = false;
     bool advertise_alpine = false;
     InactivityConfig inactivity;
-    bool gaussian_spread = false;
+    //bool gaussian_spread = false;
 };
 
 struct MatchInfo
@@ -233,6 +332,9 @@ struct MatchInfo
 };
 
 extern ServerAdditionalConfig g_additional_server_config;
+extern AlpineServerConfig g_alpine_server_config;
+extern bool g_dedicated_launched_from_ads;
+extern std::string g_ads_config_name;
 extern AFGameInfoFlags g_game_info_server_flags;
 extern std::string g_prev_level;
 extern MatchInfo g_match_info;
@@ -264,6 +366,13 @@ void server_vote_on_limbo_state_enter();
 void process_delayed_kicks();
 void kick_player_delayed(rf::Player* player);
 bool ends_with(const rf::String& str, const std::string& suffix);
+const AlpineServerConfig& server_get_alpine_config();
+rf::CmdLineParam& get_ads_cmd_line_param();
+rf::CmdLineParam& get_min_cmd_line_param();
+void handle_min_param();
 const ServerAdditionalConfig& server_get_df_config();
 const AFGameInfoFlags& server_get_game_info_flags();
 void initialize_game_info_server_flags();
+void load_ads_server_config();
+void launch_alpine_dedicated_server();
+void load_additional_server_config(rf::Parser& parser);
