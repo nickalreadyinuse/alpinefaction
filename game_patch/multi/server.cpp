@@ -76,6 +76,7 @@ int current_center_item_priority = possible_central_item_names.size();
 
 ServerAdditionalConfig g_additional_server_config;
 AlpineServerConfig g_alpine_server_config;
+AlpineServerConfigRules g_alpine_server_config_active_rules;
 AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
@@ -570,15 +571,15 @@ bool check_server_chat_command(const char* msg, rf::Player* sender)
 CodeInjection spawn_protection_duration_patch{
     0x0048089A,
     [](auto& regs) {
-        if (g_additional_server_config.spawn_protection.enabled) {
-            if (g_additional_server_config.spawn_protection.use_powerup) {
+        if (g_alpine_server_config_active_rules.spawn_protection.enabled) {
+            if (g_alpine_server_config_active_rules.spawn_protection.use_powerup) {
                 rf::Player* pp = regs.esi;
-                rf::multi_powerup_add(pp, 0, g_additional_server_config.spawn_protection.duration);
+                rf::multi_powerup_add(pp, 0, g_alpine_server_config_active_rules.spawn_protection.duration);
                 return;
             }
         }
-        *static_cast<int*>(regs.esp) = g_additional_server_config.spawn_protection.enabled
-			? g_additional_server_config.spawn_protection.duration
+        *static_cast<int*>(regs.esp) = g_alpine_server_config_active_rules.spawn_protection.enabled
+			? g_alpine_server_config_active_rules.spawn_protection.duration
 			: 0;
     },
 };
@@ -1340,11 +1341,11 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
         if (ep) {
-            if (g_additional_server_config.spawn_life > -1.0f) {
-                ep->life = g_additional_server_config.spawn_life;
+            if (g_alpine_server_config_active_rules.spawn_life.enabled) {
+                ep->life = g_alpine_server_config_active_rules.spawn_life.value;
             }
-            if (g_additional_server_config.spawn_armor > -1.0f) {
-                ep->armor = g_additional_server_config.spawn_armor;
+            if (g_alpine_server_config_active_rules.spawn_armour.enabled) {
+                ep->armor = g_alpine_server_config_active_rules.spawn_armour.value;
             }
         }
 

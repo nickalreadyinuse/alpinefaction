@@ -51,6 +51,13 @@ struct SpawnProtectionConfig
     bool enabled = true;
     int duration = 1500;
     bool use_powerup = false;
+
+    // =============================================
+
+    void set_duration(float in_time)
+    {
+        duration = static_cast<int>(std::clamp(in_time * 1000.0f, 0.0f, 3600000.0f) + 0.5f);
+    }
 };
 
 struct InactivityConfig
@@ -171,19 +178,35 @@ struct AlpineRestrictConfig
     VoteConfig vote_match;
 };
 
+struct SpawnLifeConfig
+{
+    bool enabled = false;
+    float value = 100.0f;
+
+    // =============================================
+
+    void set_value(float in_value)
+    {
+        value = std::clamp(in_value, 1.0f, 255.0f);
+    }
+};
+
 struct AlpineServerConfigRules
 {
     // stock game rules
-    std::optional<float> time_limit;
-    std::optional<int> individual_kill_limit;
-    std::optional<int> team_kill_limit;
-    std::optional<int> cap_limit;
-    std::optional<int> geo_limit;
-    std::optional<bool> team_damage;
-    std::optional<bool> fall_damage;
-    std::optional<bool> weapons_stay;
-    std::optional<bool> force_respawn;
-    std::optional<bool> balance_teams;
+    float time_limit = 600.0f;
+    int individual_kill_limit = 30;
+    int team_kill_limit = 100;
+    int cap_limit = 5;
+    int geo_limit = 64;
+    bool team_damage = false;
+    bool fall_damage = false;
+    bool weapons_stay = false;
+    bool force_respawn = false;
+    bool balance_teams = false;
+    SpawnLifeConfig spawn_life;
+    SpawnLifeConfig spawn_armour;
+    SpawnProtectionConfig spawn_protection;
 
     // =============================================
     
@@ -276,12 +299,12 @@ struct ServerAdditionalConfig
     //VoteConfig vote_rand;
     //VoteConfig vote_previous;
     //VoteConfig vote_match;
-    SpawnProtectionConfig spawn_protection;
+    //SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
     int desired_player_count = 32;
-    float spawn_life = -1.0f;
+    //float spawn_life = -1.0f;
     bool use_sp_damage_calculation = false;
-    float spawn_armor= -1.0f;
+    //float spawn_armor= -1.0f;
     int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
     BagmanConfig bagman;
@@ -368,6 +391,7 @@ struct MatchInfo
 
 extern ServerAdditionalConfig g_additional_server_config;
 extern AlpineServerConfig g_alpine_server_config;
+extern AlpineServerConfigRules g_alpine_server_config_active_rules;
 extern bool g_dedicated_launched_from_ads;
 extern std::string g_ads_config_name;
 extern AFGameInfoFlags g_game_info_server_flags;

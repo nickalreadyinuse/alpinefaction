@@ -101,12 +101,12 @@ void parse_vote_config(const char* vote_name, VoteConfig& config, rf::Parser& pa
 void parse_spawn_protection(rf::Parser& parser)
 {
     if (parser.parse_optional("$Spawn Protection Enabled:")) {
-        g_additional_server_config.spawn_protection.enabled = parser.parse_bool();
+        g_alpine_server_config.base_rules.spawn_protection.enabled = parser.parse_bool();
         rf::console::print("Spawn Protection: {}",
-                           g_additional_server_config.spawn_protection.enabled ? "true" : "false");
+                           g_alpine_server_config.base_rules.spawn_protection.enabled ? "true" : "false");
 
-        parse_uint_option(parser, "+Duration:", g_additional_server_config.spawn_protection.duration, "+Duration");
-        parse_boolean_option(parser, "+Use Powerup:", g_additional_server_config.spawn_protection.use_powerup,
+        parse_uint_option(parser, "+Duration:", g_alpine_server_config.base_rules.spawn_protection.duration, "+Duration");
+        parse_boolean_option(parser, "+Use Powerup:", g_alpine_server_config.base_rules.spawn_protection.use_powerup,
                              "+Use Powerup");
     }
 }
@@ -334,8 +334,8 @@ void parse_miscellaneous_options(rf::Parser& parser)
 {
     parse_int_option(parser, "$Desired Player Count:", g_additional_server_config.desired_player_count,
                      "Desired Player Count");
-    parse_float_option(parser, "$Spawn Health:", g_additional_server_config.spawn_life, "Spawn Health");
-    parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
+    //parse_float_option(parser, "$Spawn Health:", g_additional_server_config.spawn_life, "Spawn Health");
+    //parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
     parse_boolean_option(parser, "$Use SP Damage Calculation:", g_additional_server_config.use_sp_damage_calculation,
                          "Use SP Damage Calculation");
     parse_int_option(parser, "$CTF Flag Return Time:", g_additional_server_config.ctf_flag_return_time_ms,

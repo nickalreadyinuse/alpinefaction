@@ -69,21 +69,6 @@ void handle_min_param()
     //rf::console::print("checking min switch... {}", g_ads_minimal_server_info);
 }
 
-static const AlpineServerConfigRules default_alpine_config_rules = [] {
-    AlpineServerConfigRules d;
-    d.time_limit = 600.0f;
-    d.individual_kill_limit = 30;
-    d.team_kill_limit = 100;
-    d.cap_limit = 5;
-    d.geo_limit = 64;
-    d.team_damage = false;
-    d.fall_damage = false;
-    d.weapons_stay = false;
-    d.force_respawn = false;
-    d.balance_teams = false;
-    return d;
-}();
-
 static rf::NetGameType parse_game_type(const std::string& s)
 {
     if (s == "TDM")
@@ -93,62 +78,65 @@ static rf::NetGameType parse_game_type(const std::string& s)
     return rf::NetGameType::NG_TYPE_DM;
 }
 
+static SpawnLifeConfig parse_spawn_life_config(const toml::table& t, SpawnLifeConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["value"].value<float>())
+            c.set_value(*v);
+    }
+
+    return c;
+}
+
+static SpawnProtectionConfig parse_spawn_protection_config(const toml::table& t, SpawnProtectionConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["duration"].value<float>())
+            c.set_duration(*v);
+        if (auto v = t["use_powerup"].value<bool>())
+            c.use_powerup = *v;
+    }
+
+    return c;
+}
+
 // parse toml rules
-// for base rules, populate if specified or use default
-// for level-specific rules, only populate if specified
+// for base rules, load all speciifed. For not specified, defaults are in struct
+// for level-specific rules, start with base rules and load anything specified beyond that
 AlpineServerConfigRules parse_server_rules(const toml::table& t, bool base)
 {
     AlpineServerConfigRules o;
 
-    if (auto v = t["time_limit"].value<float>())
-        o.set_time_limit(*v);
-    else if (base)
-        o.time_limit = default_alpine_config_rules.time_limit;
+    if (!base) {
+        o = g_alpine_server_config.base_rules; // start with base
+    }
 
-    if (auto v = t["individual_kill_limit"].value<int>())
-        o.set_individual_kill_limit(*v);
-    else if (base)
-        o.individual_kill_limit = default_alpine_config_rules.individual_kill_limit;
+    if (auto v = t["time_limit"].value<float>())            o.set_time_limit(*v);
+    if (auto v = t["individual_kill_limit"].value<int>())   o.set_individual_kill_limit(*v);
+    if (auto v = t["team_kill_limit"].value<int>())         o.set_team_kill_limit(*v);
+    if (auto v = t["cap_limit"].value<int>())               o.set_cap_limit(*v);
+    if (auto v = t["geo_limit"].value<int>())               o.set_geo_limit(*v);
 
-    if (auto v = t["team_kill_limit"].value<int>())
-        o.set_team_kill_limit(*v);
-    else if (base)
-        o.team_kill_limit = default_alpine_config_rules.team_kill_limit;
+    if (auto v = t["team_damage"].value<bool>())            o.team_damage   = *v;
+    if (auto v = t["fall_damage"].value<bool>())            o.fall_damage   = *v;
+    if (auto v = t["weapons_stay"].value<bool>())           o.weapons_stay  = *v;
+    if (auto v = t["force_respawn"].value<bool>())          o.force_respawn = *v;
+    if (auto v = t["balance_teams"].value<bool>())          o.balance_teams = *v;
 
-    if (auto v = t["cap_limit"].value<int>())
-        o.set_cap_limit(*v);
-    else if (base)
-        o.cap_limit = default_alpine_config_rules.cap_limit;
+    if (auto sub = t["spawn_life"].as_table())
+        o.spawn_life  = parse_spawn_life_config(*sub, o.spawn_life);
+    if (auto sub = t["spawn_armour"].as_table())
+        o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
+    if (auto sub = t["spawn_protection"].as_table())
+        o.spawn_protection = parse_spawn_protection_config(*sub, o.spawn_protection);
 
-    if (auto v = t["geo_limit"].value<int>())
-        o.set_geo_limit(*v);
-    else if (base)
-        o.geo_limit = default_alpine_config_rules.geo_limit;
 
-    if (auto v = t["team_damage"].value<bool>())
-        o.team_damage = *v;
-    else if (base)
-        o.team_damage = default_alpine_config_rules.team_damage;
-
-    if (auto v = t["fall_damage"].value<bool>())
-        o.fall_damage = *v;
-    else if (base)
-        o.fall_damage = default_alpine_config_rules.fall_damage;
-
-    if (auto v = t["weapons_stay"].value<bool>())
-        o.weapons_stay = *v;
-    else if (base)
-        o.weapons_stay = default_alpine_config_rules.weapons_stay;
-
-    if (auto v = t["force_respawn"].value<bool>())
-        o.force_respawn = *v;
-    else if (base)
-        o.force_respawn = default_alpine_config_rules.force_respawn;
-
-    if (auto v = t["balance_teams"].value<bool>())
-        o.balance_teams = *v;
-    else if (base)
-        o.balance_teams = default_alpine_config_rules.balance_teams;
 
     return o;
 }
@@ -158,10 +146,13 @@ static VoteConfig parse_vote_config(const toml::table& t)
     VoteConfig v;
     if (auto x = t["enabled"].value<bool>())
         v.enabled = *x;
-    if (auto x = t["ignore_nonvoters"].value<bool>())
-        v.ignore_nonvoters = *x;
-    if (auto x = t["time"].value<float>())
-        v.set_time_limit_seconds(*x);
+
+    if (v.enabled) {
+        if (auto x = t["ignore_nonvoters"].value<bool>())
+            v.ignore_nonvoters = *x;
+        if (auto x = t["time"].value<float>())
+            v.set_time_limit_seconds(*x);
+    }
     return v;
 }
 
@@ -356,40 +347,71 @@ std::string get_game_type_string(rf::NetGameType game_type) {
     return out_string;
 }
 
-void print_rules(const AlpineServerConfigRules &o) {
+void print_rules(const AlpineServerConfigRules& rules, bool base = true)
+{
+    const auto& b = g_alpine_server_config.base_rules;
 
-    if (o.time_limit)
-        rf::console::print("  Time limit:                            {} min\n", *o.time_limit / 60.0f);
+    // time limit
+    if (base || rules.time_limit != b.time_limit)
+        rf::console::print("  Time limit:                            {} min\n", rules.time_limit / 60.0f);
 
+    // score/cap limit
     switch (rf::netgame.type) {
-        case rf::NetGameType::NG_TYPE_TEAMDM: {
-            if (o.team_kill_limit)
-                rf::console::print("  Team score limit:                      {}\n", *o.team_kill_limit);
-            break;
-        }
-        case rf::NetGameType::NG_TYPE_CTF: {
-            if (o.cap_limit)
-                rf::console::print("  Flag capture limit:                    {}\n", *o.cap_limit);
-            break;
-        }
-        default: { // dm
-            if (o.individual_kill_limit)
-                rf::console::print("  Player score limit:                    {}\n", *o.individual_kill_limit);
-            break;
+    case rf::NetGameType::NG_TYPE_TEAMDM:
+        if (base || rules.team_kill_limit != b.team_kill_limit)
+            rf::console::print("  Team score limit:                      {}\n", rules.team_kill_limit);
+        break;
+    case rf::NetGameType::NG_TYPE_CTF:
+        if (base || rules.cap_limit != b.cap_limit)
+            rf::console::print("  Flag capture limit:                    {}\n", rules.cap_limit);
+        break;
+    default:
+        if (base || rules.individual_kill_limit != b.individual_kill_limit)
+            rf::console::print("  Player score limit:                    {}\n", rules.individual_kill_limit);
+        break;
+    }
+
+    // common limits & flags
+    if (base || rules.geo_limit != b.geo_limit)
+        rf::console::print("  Geomod crater limit:                   {}\n", rules.geo_limit);
+    if (base || rules.team_damage != b.team_damage)
+        rf::console::print("  Team damage:                           {}\n", rules.team_damage);
+    if (base || rules.fall_damage != b.fall_damage)
+        rf::console::print("  Fall damage:                           {}\n", rules.fall_damage);
+    if (base || rules.weapons_stay != b.weapons_stay)
+        rf::console::print("  Weapon stay:                           {}\n", rules.weapons_stay);
+    if (base || rules.force_respawn != b.force_respawn)
+        rf::console::print("  Force respawn:                         {}\n", rules.force_respawn);
+    if (base || rules.balance_teams != b.balance_teams)
+        rf::console::print("  Balance teams:                         {}\n", rules.balance_teams);
+
+    // spawn life
+    if (base || rules.spawn_life.enabled != b.spawn_life.enabled ||
+        (rules.spawn_life.enabled && rules.spawn_life.value != b.spawn_life.value)) {
+        rf::console::print("  Custom spawn health:                   {}\n", rules.spawn_life.enabled);
+        if (rules.spawn_life.enabled) {
+            rf::console::print("    Value:                               {}\n", rules.spawn_life.value);
         }
     }
-    if (o.geo_limit)
-        rf::console::print("  Geomod crater limit:                   {}\n", *o.geo_limit);
-    if (o.team_damage)
-        rf::console::print("  Team damage:                           {}\n", *o.team_damage);
-    if (o.fall_damage)
-        rf::console::print("  Fall damage:                           {}\n", *o.fall_damage);
-    if (o.weapons_stay)
-        rf::console::print("  Weapon stay:                           {}\n", *o.weapons_stay);
-    if (o.force_respawn)
-        rf::console::print("  Force respawn:                         {}\n", *o.force_respawn);
-    if (o.balance_teams)
-        rf::console::print("  Balance teams:                         {}\n", *o.balance_teams);
+
+    // spawn armour
+    if (base || rules.spawn_armour.enabled != b.spawn_armour.enabled ||
+        (rules.spawn_armour.enabled && rules.spawn_armour.value != b.spawn_armour.value)) {
+        rf::console::print("  Custom spawn armor:                    {}\n", rules.spawn_armour.enabled);
+        if (rules.spawn_armour.enabled) {
+            rf::console::print("    Value:                               {}\n", rules.spawn_armour.value);
+        }
+    }
+     // spawn protection
+    if (base || rules.spawn_protection.enabled != b.spawn_protection.enabled ||
+        (rules.spawn_protection.enabled && (rules.spawn_protection.duration != b.spawn_protection.duration ||
+                                            rules.spawn_protection.use_powerup != b.spawn_protection.use_powerup))) {
+        rf::console::print("  Spawn protection:                      {}\n", rules.spawn_protection.enabled);
+        if (rules.spawn_protection.enabled) {
+            rf::console::print("    Duration:                            {} sec\n", rules.spawn_protection.duration / 1000.0f);
+            rf::console::print("    Use powerup:                         {}\n", rules.spawn_protection.use_powerup);
+        }
+    }
 }
 
 void print_alpine_dedicated_server_config_info(bool verbose) {
@@ -428,9 +450,9 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     rf::console::print("\n---- Player inactivity settings ----\n");
     rf::console::print("  Kick inactive players:                 {}\n", cfg.inactivity_config.enabled);
     if (cfg.inactivity_config.enabled) {
-        rf::console::print("    New player grace period:             {} sec\n", cfg.inactivity_config.new_player_grace_ms / 1000);
-        rf::console::print("    Allowed inactivity time:             {} sec\n", cfg.inactivity_config.allowed_inactive_ms / 1000);
-        rf::console::print("    Warning duration:                    {} sec\n", cfg.inactivity_config.warning_duration_ms / 1000);
+        rf::console::print("    New player grace period:             {} sec\n", cfg.inactivity_config.new_player_grace_ms / 1000.0f);
+        rf::console::print("    Allowed inactivity time:             {} sec\n", cfg.inactivity_config.allowed_inactive_ms / 1000.0f);
+        rf::console::print("    Warning duration:                    {} sec\n", cfg.inactivity_config.warning_duration_ms / 1000.0f);
         rf::console::print("    Kick message:                        {}\n", cfg.inactivity_config.kick_message);
     }
 
@@ -478,7 +500,7 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     for (auto const& lvl : cfg.levels) {
         //rf::console::print("Level: {}\n", lvl.level_filename);
         rf::console::print("{}\n", lvl.level_filename);
-        print_rules(lvl.rule_overrides);
+        print_rules(lvl.rule_overrides, false);
         //rf::console::print("\n");
     }
     rf::console::print("\n");
@@ -507,70 +529,34 @@ void initialize_core_alpine_dedicated_server_settings(rf::NetGameInfo& netgame, 
     // other core settings are referenced directly in the structure and do not need to be initialized here
 }
 
-void apply_alpine_dedicated_server_rules(rf::NetGameInfo& netgame, const AlpineServerConfigRules& cfg, const AlpineServerConfigRules& base_cfg)
+void apply_alpine_dedicated_server_rules(rf::NetGameInfo& netgame, const AlpineServerConfigRules& r)
 {
-    if (cfg.time_limit.has_value())
-        netgame.max_time_seconds = cfg.time_limit.value();
-    else
-        netgame.max_time_seconds = base_cfg.time_limit.value();
-
-    int ind_kill = cfg.individual_kill_limit.has_value() ? cfg.individual_kill_limit.value() : base_cfg.individual_kill_limit.value();
-    int team_kill = cfg.team_kill_limit.has_value() ? cfg.team_kill_limit.value() : base_cfg.team_kill_limit.value();
-    int cap = cfg.cap_limit.has_value() ? cfg.cap_limit.value() : base_cfg.cap_limit.value();
-
+    netgame.max_time_seconds = r.time_limit;
     switch (netgame.type) {
         case rf::NetGameType::NG_TYPE_TEAMDM:
-            netgame.max_kills = team_kill;
+            netgame.max_kills = r.team_kill_limit;
             break;
         case rf::NetGameType::NG_TYPE_CTF:
-            netgame.max_captures = cap;
+            netgame.max_captures = r.cap_limit;
             break;
-        default: // DM
-            netgame.max_kills = ind_kill;
+        default:
+            netgame.max_kills = r.individual_kill_limit;
             break;
     }
 
-     if (cfg.geo_limit.has_value())
-        netgame.geomod_limit = cfg.geo_limit.value();
-    else
-        netgame.geomod_limit = base_cfg.geo_limit.value();
+    netgame.geomod_limit = r.geo_limit;
 
+    netgame.flags &= ~(rf::NG_FLAG_TEAM_DAMAGE
+                     | rf::NG_FLAG_FALL_DAMAGE
+                     | rf::NG_FLAG_WEAPON_STAY
+                     | rf::NG_FLAG_FORCE_RESPAWN
+                     | rf::NG_FLAG_BALANCE_TEAMS);
 
-    netgame.flags &= ~( rf::NG_FLAG_TEAM_DAMAGE
-                      | rf::NG_FLAG_FALL_DAMAGE
-                      | rf::NG_FLAG_WEAPON_STAY
-                      | rf::NG_FLAG_FORCE_RESPAWN
-                      | rf::NG_FLAG_BALANCE_TEAMS );
-
-    auto apply_flag = [&](bool override_val, bool base_val, int flag){
-        if (override_val) netgame.flags |= flag;
-        else if (!override_val && !base_val && false) {}
-    };
-
-    bool td = cfg.team_damage.has_value()
-                ? cfg.team_damage.value()
-                : base_cfg.team_damage.value();
-    if (td) netgame.flags |= rf::NG_FLAG_TEAM_DAMAGE;
-
-    bool fd = cfg.fall_damage.has_value()
-                ? cfg.fall_damage.value()
-                : base_cfg.fall_damage.value();
-    if (fd) netgame.flags |= rf::NG_FLAG_FALL_DAMAGE;
-
-    bool ws = cfg.weapons_stay.has_value()
-                ? cfg.weapons_stay.value()
-                : base_cfg.weapons_stay.value();
-    if (ws) netgame.flags |= rf::NG_FLAG_WEAPON_STAY;
-
-    bool fr = cfg.force_respawn.has_value()
-                ? cfg.force_respawn.value()
-                : base_cfg.force_respawn.value();
-    if (fr) netgame.flags |= rf::NG_FLAG_FORCE_RESPAWN;
-
-    bool bt = cfg.balance_teams.has_value()
-                ? cfg.balance_teams.value()
-                : base_cfg.balance_teams.value();
-    if (bt) netgame.flags |= rf::NG_FLAG_BALANCE_TEAMS;
+    if (r.team_damage)   netgame.flags |= rf::NG_FLAG_TEAM_DAMAGE;
+    if (r.fall_damage)   netgame.flags |= rf::NG_FLAG_FALL_DAMAGE;
+    if (r.weapons_stay)  netgame.flags |= rf::NG_FLAG_WEAPON_STAY;
+    if (r.force_respawn) netgame.flags |= rf::NG_FLAG_FORCE_RESPAWN;
+    if (r.balance_teams) netgame.flags |= rf::NG_FLAG_BALANCE_TEAMS;
 }
 
 void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, bool on_launch) {
@@ -584,7 +570,7 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
 
     initialize_core_alpine_dedicated_server_settings(netgame, cfg, on_launch);
 
-    apply_alpine_dedicated_server_rules(netgame, cfg.base_rules, cfg.base_rules); // base rules
+    apply_alpine_dedicated_server_rules(netgame, cfg.base_rules); // base rules
 
     print_alpine_dedicated_server_config_info(!g_ads_minimal_server_info);
 
@@ -600,6 +586,8 @@ void apply_rules_for_current_level()
     auto &netgame = rf::netgame;
     auto &cfg     = g_alpine_server_config;
 
+    //g_alpine_server_config_active_rules = level
+
     // prevent a crash
     if (cfg.levels.size() < 1) {
         return;
@@ -608,6 +596,7 @@ void apply_rules_for_current_level()
     int idx = netgame.current_level_index;
 
     if (!g_ads_minimal_server_info && rf::level_filename_to_load != cfg.levels[idx].level_filename.c_str()) {
+        g_alpine_server_config_active_rules = cfg.base_rules;
         rf::console::print("Applying base rules for manually loaded level {}...\n", rf::level_filename_to_load, cfg.levels[idx].level_filename.c_str());
         return;
     }
@@ -620,10 +609,11 @@ void apply_rules_for_current_level()
     if (!g_ads_minimal_server_info)
         rf::console::print("Applying level-specific rules for server rotation index {} ({})...\n", idx, cfg.levels[idx].level_filename);
 
+    g_alpine_server_config_active_rules = override_rules;
+
     apply_alpine_dedicated_server_rules(
         netgame,
-        override_rules,
-        cfg.base_rules
+        override_rules
     );
 }
 
@@ -660,6 +650,7 @@ void launch_alpine_dedicated_server() {
         netgame.levels.add("glass_house.rfl");
     }
 
+    g_alpine_server_config_active_rules = cfg.base_rules; // initialize rules with base in case it is checked before first level loads
     netgame.current_level_index = 0;
     rf::multi_level_switch_queued = -1;
 }
@@ -676,6 +667,60 @@ ConsoleCommand2 print_server_config_cmd{
     },
     "Print the current server configuration. Only available for ADS dedicated servers.",
 };
+
+ConsoleCommand2 print_level_rules_cmd{
+    "sv_printrules",
+    [](std::optional<std::string> maybe_filename) {
+        if (!g_dedicated_launched_from_ads) {
+            rf::console::print("This command is only available for Alpine Faction dedicated servers launched with -ads.\n");
+            return;
+        }
+
+        const auto& cfg = g_alpine_server_config;
+        std::vector<int> matches;
+
+        if (maybe_filename) {
+            // find all occurrences
+            for (int i = 0; i < (int)cfg.levels.size(); ++i) {
+                if (cfg.levels[i].level_filename == *maybe_filename)
+                    matches.push_back(i);
+            }
+            if (matches.empty()) {
+                rf::console::print("Level {} not found in rotation. If manually loaded, base rules would be used.\n", *maybe_filename);
+                return;
+            }
+        } else {
+            // use current index
+            int idx = rf::netgame.current_level_index;
+            if (idx < 0 || idx >= (int)cfg.levels.size()) {
+                return;
+            }
+            matches.push_back(idx);
+        }
+
+        for (int idx : matches) {
+            const auto& entry = cfg.levels[idx];
+
+            bool manual_load = false;
+            if (!maybe_filename) {
+                // check if the current level was manually loaded
+                manual_load = (rf::level_filename_to_load != entry.level_filename.c_str());
+            }
+
+            if (manual_load) {
+                rf::console::print("\n---- Rules for level {} ----\n", rf::level_filename_to_load, idx);
+                rf::console::print("  (manually loaded {} is using base rules)\n\n", rf::level_filename_to_load);
+                print_rules(cfg.base_rules);
+            }
+            else {
+                rf::console::print("\n---- Rules for level {} (index {}) ----\n", entry.level_filename, idx);
+                print_rules(entry.rule_overrides);
+            }
+        }
+    },
+    "Print the rules for a level by filename, or the active rules for the current level if no filename specified"
+};
+
 
 ConsoleCommand2 load_server_config_cmd{
     "sv_loadconfig",
@@ -696,5 +741,6 @@ ConsoleCommand2 load_server_config_cmd{
 void dedi_cfg_init() {
     // register console commands
     print_server_config_cmd.register_cmd();
+    print_level_rules_cmd.register_cmd();
     load_server_config_cmd.register_cmd();
 }
