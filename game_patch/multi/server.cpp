@@ -76,7 +76,7 @@ int current_center_item_priority = possible_central_item_names.size();
 
 ServerAdditionalConfig g_additional_server_config;
 AlpineServerConfig g_alpine_server_config;
-AlpineServerConfigRules g_alpine_server_config_active_rules;
+AlpineServerConfigRules g_alpine_server_config_active_rules; // currently active rules which are applied
 AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;

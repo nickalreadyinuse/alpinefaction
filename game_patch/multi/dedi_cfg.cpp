@@ -109,13 +109,9 @@ static SpawnProtectionConfig parse_spawn_protection_config(const toml::table& t,
 // parse toml rules
 // for base rules, load all speciifed. For not specified, defaults are in struct
 // for level-specific rules, start with base rules and load anything specified beyond that
-AlpineServerConfigRules parse_server_rules(const toml::table& t, bool base)
+AlpineServerConfigRules parse_server_rules(const toml::table& t)
 {
     AlpineServerConfigRules o;
-
-    if (!base) {
-        o = g_alpine_server_config.base_rules; // start with base
-    }
 
     if (auto v = t["time_limit"].value<float>())            o.set_time_limit(*v);
     if (auto v = t["individual_kill_limit"].value<int>())   o.set_individual_kill_limit(*v);
@@ -292,7 +288,7 @@ void load_ads_server_config(std::string ads_config_name)
 
     // base rules
     if (auto base = tbl["base_rules"].as_table())
-        cfg.base_rules = parse_server_rules(*base, true);
+        cfg.base_rules = parse_server_rules(*base);
 
     // levels
     if (auto lv = tbl["levels"]; lv && lv.is_array())
@@ -318,10 +314,11 @@ void load_ads_server_config(std::string ads_config_name)
             }
 
             entry.level_filename = tmp_filename;
+            entry.rule_overrides = cfg.base_rules;
 
             // per-level rule override
             if (auto* over = lvl_tbl["rules"].as_table()) {
-                entry.rule_overrides = parse_server_rules(*over, false);
+                entry.rule_overrides = parse_server_rules(*over);
             }
 
             cfg.levels.push_back(std::move(entry));
