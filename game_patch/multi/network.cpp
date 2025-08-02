@@ -996,7 +996,7 @@ CodeInjection process_join_req_injection{
 CodeInjection process_join_req_injection2 {
     0x0047ADAB,
     [](auto& regs) {
-        if (!g_joining_player_is_alpine && g_additional_server_config.reject_non_alpine_clients) {
+        if (!g_joining_player_is_alpine && g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients) {
             regs.eax = 8; // uses string 874 as join rejection message
         }
     },

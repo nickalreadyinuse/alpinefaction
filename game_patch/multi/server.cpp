@@ -1160,7 +1160,7 @@ bool get_ready_status(const rf::Player* player)
 
 void match_do_frame()
 {
-    if (!g_additional_server_config.vote_match.enabled) {
+    if (!g_alpine_server_config.alpine_restricted_config.vote_match.enabled) {
         return;
     }
 
@@ -1232,10 +1232,10 @@ int count_spawned_players()
 
 void update_player_active_status(rf::Player* player)
 {
-    if (rf::is_dedicated_server && g_additional_server_config.inactivity.enabled) {
+    if (rf::is_dedicated_server && g_alpine_server_config.inactivity_config.enabled) {
         auto& additional_data = get_player_additional_data(player);
         additional_data.idle_kick_timestamp.invalidate();
-        additional_data.idle_check_timestamp.set(g_additional_server_config.inactivity.allowed_inactive_ms);    
+        additional_data.idle_check_timestamp.set(g_alpine_server_config.inactivity_config.allowed_inactive_ms);    
         //xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
     }
 }
@@ -1255,7 +1255,7 @@ bool is_player_idle(rf::Player* player)
 void player_idle_check(rf::Player* player)
 {
     const auto& additional_data = get_player_additional_data(player);
-    if (!g_additional_server_config.inactivity.enabled) {
+    if (!g_alpine_server_config.inactivity_config.enabled) {
         return; // don't continue if inactivity monitoring is disabled
     }
 
@@ -1274,18 +1274,18 @@ void player_idle_check(rf::Player* player)
         return; // don't mark players as idle during a match or pre-match
     }
 
-    if (player->net_data->join_time_ms > (rf::timer_get_milliseconds() - g_additional_server_config.inactivity.new_player_grace_ms)) {
+    if (player->net_data->join_time_ms > (rf::timer_get_milliseconds() - g_alpine_server_config.inactivity_config.new_player_grace_ms)) {
         return; // don't mark new players as idle
     }
 
     if (is_player_idle(player)) {
         rf::console::print("{} is idle and will be kicked if they don't spawn within 10 seconds.", player->name);
-        std::string msg = std::format("\xA6 {}", g_additional_server_config.inactivity.kick_message);
+        std::string msg = std::format("\xA6 {}", g_alpine_server_config.inactivity_config.kick_message);
         send_chat_line_packet(msg.c_str(), player);
 
         // set timer to kick them after 10 seconds
         if (!additional_data.idle_kick_timestamp.valid()) {
-            get_player_additional_data(player).idle_kick_timestamp.set(g_additional_server_config.inactivity.warning_duration_ms);
+            get_player_additional_data(player).idle_kick_timestamp.set(g_alpine_server_config.inactivity_config.warning_duration_ms);
         }
     }
 }
@@ -1298,17 +1298,17 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (g_additional_server_config.force_player_character) {
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }
-        if (g_additional_server_config.clients_require_alpine) {
+        if (g_alpine_server_config.alpine_restricted_config.clients_require_alpine) {
             if (!get_player_additional_data(player).is_alpine) {
                 send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
                 return;
             }
-            else if (g_additional_server_config.alpine_require_release_build &&
+            else if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
                 get_player_additional_data(player).alpine_version_type != VERSION_TYPE_RELEASE) {
                 send_chat_line_packet("\xA6 This server requires you to use an official build of Alpine Faction. Download the latest official build at alpinefaction.com", player);
                 return;
             }
-            else if (g_additional_server_config.alpine_server_version_enforce_min &&
+            else if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min &&
                      (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR ||
                       get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
                 send_chat_line_packet("\xA6 This server requires you to use a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
@@ -1421,7 +1421,7 @@ void server_reliable_socket_ready(rf::Player* player)
 {
     // welcome players, restricting to only welcoming alpine clients if configured
     if (!g_additional_server_config.welcome_message.empty()) {
-        if (!g_additional_server_config.only_welcome_alpine || get_player_additional_data(player).is_alpine) {
+        if (!g_alpine_server_config.alpine_restricted_config.only_welcome_alpine || get_player_additional_data(player).is_alpine) {
             auto msg = string_replace(g_additional_server_config.welcome_message, "$PLAYER", player->name.c_str());
             send_chat_line_packet(msg.c_str(), player);
         }
@@ -1436,7 +1436,7 @@ void server_reliable_socket_ready(rf::Player* player)
     }
 
     // advertise AF to non-alpine clients if configured
-    if (g_additional_server_config.advertise_alpine) {
+    if (g_alpine_server_config.alpine_restricted_config.advertise_alpine) {
         if (!get_player_additional_data(player).is_alpine) {
             auto msg = std::format(
                 "\xA6 Have you heard of Alpine Faction? It's a new patch with lots of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
@@ -2231,12 +2231,12 @@ bool server_allow_disable_screenshake()
 
 bool server_no_player_collide()
 {
-    return g_additional_server_config.no_player_collide;
+    return g_alpine_server_config.alpine_restricted_config.no_player_collide;
 }
 
 bool server_location_pinging()
 {
-    return g_additional_server_config.clients_require_alpine && g_additional_server_config.location_pinging;
+    return g_alpine_server_config.alpine_restricted_config.clients_require_alpine && g_alpine_server_config.alpine_restricted_config.location_pinging;
 }
 
 bool server_allow_disable_muzzle_flash()
@@ -2281,17 +2281,17 @@ bool server_is_modded()
 
 bool server_is_match_mode_enabled()
 {
-    return g_additional_server_config.vote_match.enabled;
+    return g_alpine_server_config.alpine_restricted_config.vote_match.enabled;
 }
 
 bool server_is_alpine_only_enabled()
 {
-    return g_additional_server_config.clients_require_alpine;
+    return g_alpine_server_config.alpine_restricted_config.clients_require_alpine;
 }
 
 bool server_rejects_legacy_clients()
 {
-    return g_additional_server_config.reject_non_alpine_clients;
+    return g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients;
 }
 
 bool server_enforces_click_limiter()
@@ -2301,7 +2301,7 @@ bool server_enforces_click_limiter()
 
 bool server_enforces_no_player_collide()
 {
-    return g_additional_server_config.no_player_collide;
+    return g_alpine_server_config.alpine_restricted_config.no_player_collide;
 }
 
 bool server_has_damage_notifications()

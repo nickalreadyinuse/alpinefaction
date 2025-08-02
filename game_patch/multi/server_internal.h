@@ -275,7 +275,7 @@ struct ServerAdditionalConfig
     VoteConfig vote_next;
     VoteConfig vote_rand;
     VoteConfig vote_previous;
-    VoteConfig vote_match;
+    //VoteConfig vote_match;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
     int desired_player_count = 32;
@@ -298,8 +298,8 @@ struct ServerAdditionalConfig
     bool saving_enabled = false;
     bool flag_dropping = true;
     bool flag_captures_while_stolen = false;
-    bool no_player_collide = false;
-    bool location_pinging = true;
+    //bool no_player_collide = false;
+    //bool location_pinging = true;
     //bool upnp_enabled = false;
     std::optional<int> force_player_character;
     std::optional<float> max_fov;
@@ -322,13 +322,13 @@ struct ServerAdditionalConfig
     float kill_reward_effective_health = 0.0f;
     bool kill_reward_health_super = false;
     bool kill_reward_armor_super = false;
-    bool clients_require_alpine = false;
-    bool reject_non_alpine_clients = false;
-    bool alpine_server_version_enforce_min = false;
-    bool alpine_require_release_build = false;
-    bool only_welcome_alpine = false;
-    bool advertise_alpine = false;
-    InactivityConfig inactivity;
+    //bool clients_require_alpine = false;
+    //bool reject_non_alpine_clients = false;
+    //bool alpine_server_version_enforce_min = false;
+    //bool alpine_require_release_build = false;
+    //bool only_welcome_alpine = false;
+    //bool advertise_alpine = false;
+    //InactivityConfig inactivity;
     //bool gaussian_spread = false;
 };
 

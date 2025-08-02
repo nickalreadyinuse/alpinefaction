@@ -370,56 +370,59 @@ void parse_miscellaneous_options(rf::Parser& parser)
         parser.parse_string(&welcome_message);
         g_additional_server_config.welcome_message = welcome_message.c_str();
         rf::console::print("Welcome Message Set: {}", g_additional_server_config.welcome_message);
-        parse_boolean_option(parser,
-                             "+Only Welcome Alpine Faction Clients:", g_additional_server_config.only_welcome_alpine,
+        parse_boolean_option(parser, "+Only Welcome Alpine Faction Clients:",
+                             g_alpine_server_config.alpine_restricted_config.only_welcome_alpine,
                              "+Only Welcome Alpine Faction Clients");
     }
 }
 
 void parse_alpine_locking(rf::Parser& parser)
 {
-    parse_boolean_option(parser, "$Advertise Alpine Faction:", g_additional_server_config.advertise_alpine,
+    parse_boolean_option(parser, "$Advertise Alpine Faction:", g_alpine_server_config.alpine_restricted_config.advertise_alpine,
                          "Advertise Alpine Faction");
     if (parser.parse_optional("$Clients Require Alpine Faction:")) {
-        g_additional_server_config.clients_require_alpine = parser.parse_bool();
+        g_alpine_server_config.alpine_restricted_config.clients_require_alpine = parser.parse_bool();
         rf::console::print("Clients Require Alpine Faction: {}",
-                           g_additional_server_config.clients_require_alpine ? "true" : "false");
+                           g_alpine_server_config.alpine_restricted_config.clients_require_alpine ? "true" : "false");
 
-        parse_boolean_option(parser,
-                             "+Require Official Build:", g_additional_server_config.alpine_require_release_build,
+        parse_boolean_option(parser, "+Require Official Build:",
+                             g_alpine_server_config.alpine_restricted_config.alpine_require_release_build,
                              "+Require Official Build");
-        parse_boolean_option(
-            parser, "+Enforce Server Version Minimum:", g_additional_server_config.alpine_server_version_enforce_min,
+        parse_boolean_option(parser, "+Enforce Server Version Minimum:",
+                             g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min,
             "+Enforce Server Version Minimum");
-        parse_boolean_option(parser, "+Reject Legacy Clients:", g_additional_server_config.reject_non_alpine_clients,
+        parse_boolean_option(parser, "+Reject Legacy Clients:",
+                             g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients,
                              "+Reject Legacy Clients");
-        parse_boolean_option(parser, "+No Player Collide:", g_additional_server_config.no_player_collide,
+        parse_boolean_option(parser,
+                             "+No Player Collide:", g_alpine_server_config.alpine_restricted_config.no_player_collide,
                              "+No Player Collide");
-        parse_boolean_option(parser, "+Location Pinging:", g_additional_server_config.location_pinging,
+        parse_boolean_option(parser,
+                             "+Location Pinging:", g_alpine_server_config.alpine_restricted_config.location_pinging,
                              "+Location Pinging");
-        parse_vote_config("+Match Mode", g_additional_server_config.vote_match, parser);
+        parse_vote_config("+Match Mode", g_alpine_server_config.alpine_restricted_config.vote_match, parser);
     }
 }
 
 void parse_inactivity_settings(rf::Parser& parser)
 {
     if (parser.parse_optional("$Kick Inactive Players:")) {
-        g_additional_server_config.inactivity.enabled = parser.parse_bool();
+        g_alpine_server_config.inactivity_config.enabled = parser.parse_bool();
         rf::console::print("Kick Inactive Players: {}",
-                           g_additional_server_config.inactivity.enabled ? "true" : "false");
+                           g_alpine_server_config.inactivity_config.enabled ? "true" : "false");
 
-        parse_uint_option(parser, "+Grace Period:", g_additional_server_config.inactivity.new_player_grace_ms,
+        parse_uint_option(parser, "+Grace Period:", g_alpine_server_config.inactivity_config.new_player_grace_ms,
                           "+Grace Period");
-        parse_uint_option(parser, "+Maximum Idle Time:", g_additional_server_config.inactivity.allowed_inactive_ms,
+        parse_uint_option(parser, "+Maximum Idle Time:", g_alpine_server_config.inactivity_config.allowed_inactive_ms,
                           "+Maximum Idle Time");
-        parse_uint_option(parser, "+Warning Period:", g_additional_server_config.inactivity.warning_duration_ms,
+        parse_uint_option(parser, "+Warning Period:", g_alpine_server_config.inactivity_config.warning_duration_ms,
                           "+Warning Period");
 
         if (parser.parse_optional("+Idle Warning Message:")) {
             rf::String kick_message;
             parser.parse_string(&kick_message);
-            g_additional_server_config.inactivity.kick_message = kick_message.c_str();
-            rf::console::print("+Idle Warning Message: {}", g_additional_server_config.inactivity.kick_message);
+            g_alpine_server_config.inactivity_config.kick_message = kick_message.c_str();
+            rf::console::print("+Idle Warning Message: {}", g_alpine_server_config.inactivity_config.kick_message);
         }
     }
 }
