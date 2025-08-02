@@ -418,7 +418,7 @@ struct VoteKick : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_kick;
+        return g_alpine_server_config.vote_kick;
     }
 };
 
@@ -449,7 +449,7 @@ struct VoteExtend : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_extend;
+        return g_alpine_server_config.vote_extend;
     }
 };
 
@@ -495,7 +495,7 @@ struct VoteLevel : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_level;
+        return g_alpine_server_config.vote_level;
     }
 };
 
@@ -525,7 +525,7 @@ struct VoteRestart : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_restart;
+        return g_alpine_server_config.vote_restart;
     }
 };
 
@@ -554,7 +554,7 @@ struct VoteNext : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_next;
+        return g_alpine_server_config.vote_next;
     }
 };
 
@@ -585,7 +585,7 @@ struct VoteRandom : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_rand;
+        return g_alpine_server_config.vote_rand;
     }
 };
 
@@ -614,7 +614,7 @@ struct VotePrevious : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_previous;
+        return g_alpine_server_config.vote_previous;
     }
 };
 

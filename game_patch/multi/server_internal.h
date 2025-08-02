@@ -268,13 +268,13 @@ struct AlpineServerConfig
 
 struct ServerAdditionalConfig
 {
-    VoteConfig vote_kick;
-    VoteConfig vote_level;
-    VoteConfig vote_extend;
-    VoteConfig vote_restart;
-    VoteConfig vote_next;
-    VoteConfig vote_rand;
-    VoteConfig vote_previous;
+    //VoteConfig vote_kick;
+    //VoteConfig vote_level;
+    //VoteConfig vote_extend;
+    //VoteConfig vote_restart;
+    //VoteConfig vote_next;
+    //VoteConfig vote_rand;
+    //VoteConfig vote_previous;
     //VoteConfig vote_match;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig new_spawn_logic;
