@@ -1712,7 +1712,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         const int team = player->team;
         const int last_index = pdata.last_spawn_point_index.value_or(-1);
         const bool is_team_game = multi_is_team_game_type();
-        const auto& config = g_additional_server_config.new_spawn_logic;
+        const auto& config = g_alpine_server_config_active_rules.spawn_logic;
 
         //xlog::debug("Spawn point requested! Player: {}, Team: {}, Last Spawn Index: {}", player->name, team, last_index);
 
@@ -1858,9 +1858,11 @@ void adjust_yaw_to_face_center(rf::Matrix3& orient, const rf::Vector3& pos, cons
 }
 
 void process_queued_spawn_points_from_items()
-{    
-    if (g_additional_server_config.new_spawn_logic.allowed_respawn_items.empty()) {
-        return; // early return if no spawn points are to be generated
+{
+    const auto& logic = g_alpine_server_config_active_rules.spawn_logic;
+
+    if (!rf::is_dedicated_server || !logic.dynamic_respawns || logic.dynamic_respawn_items.empty()) {
+        return;
     }
 
     auto map_center = likely_position_of_central_item;
@@ -1892,17 +1894,21 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
             respawn_time = it->second;
         }
 
-        if (rf::is_dedicated_server && !g_additional_server_config.new_spawn_logic.allowed_respawn_items.empty()) {
-            const auto& allowed_items = g_additional_server_config.new_spawn_logic.allowed_respawn_items;
+        const auto& logic = g_alpine_server_config_active_rules.spawn_logic;
+        if (rf::is_dedicated_server && logic.dynamic_respawns) {
+            // look up this item in the vector
+            auto itcfg = std::find_if(logic.dynamic_respawn_items.begin(), logic.dynamic_respawn_items.end(),
+                                      [&](auto const& cfg) { return cfg.item_name == name; });
 
-            auto it = allowed_items.find(name);
-            if (it != allowed_items.end() &&
-                (!it->second || it->second == 0 || *it->second > static_cast<int>(g_new_multi_respawn_points.size()))) {
-
-                queued_item_spawn_points.emplace_back(std::string(name), *pos, *orient);                
+            if (itcfg != logic.dynamic_respawn_items.end()) {
+                int threshold = itcfg->min_respawn_points;
+                // queue if no threshold or we're under it
+                if (threshold == 0 || threshold > static_cast<int>(g_new_multi_respawn_points.size())) {
+                    queued_item_spawn_points.emplace_back(std::string(name), *pos, *orient);
+                }
             }
 
-            // make best guess at the center of the map
+            // attempt to isolate the center of the map based on items likely located there
             int item_priority = get_item_priority(name);
             if (item_priority < static_cast<int>(possible_central_item_names.size())) {
                 if (!likely_position_of_central_item || item_priority < current_center_item_priority) {

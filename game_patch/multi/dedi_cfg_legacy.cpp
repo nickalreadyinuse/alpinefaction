@@ -117,22 +117,23 @@ void parse_respawn_logic(rf::Parser& parser)
         rf::console::print("Parsing Player Respawn Logic...");
 
         parse_boolean_option(parser,
-                             "+Respect Team Spawns:", g_additional_server_config.new_spawn_logic.respect_team_spawns,
+                             "+Respect Team Spawns:", g_alpine_server_config_active_rules.spawn_logic.respect_team_spawns,
                              "+Respect Team Spawns");
         parse_boolean_option(parser,
-                             "+Prefer Avoid Players:", g_additional_server_config.new_spawn_logic.try_avoid_players,
+                             "+Prefer Avoid Players:", g_alpine_server_config_active_rules.spawn_logic.try_avoid_players,
                              "+Prefer Avoid Players");
         parse_boolean_option(parser,
-                             "+Always Avoid Last:", g_additional_server_config.new_spawn_logic.always_avoid_last,
+                             "+Always Avoid Last:", g_alpine_server_config_active_rules.spawn_logic.always_avoid_last,
                              "+Always Avoid Last");
         parse_boolean_option(parser,
-                             "+Always Use Furthest:", g_additional_server_config.new_spawn_logic.always_use_furthest,
+                             "+Always Use Furthest:", g_alpine_server_config_active_rules.spawn_logic.always_use_furthest,
                              "+Always Use Furthest");
         parse_boolean_option(parser,
-                             "+Only Avoid Enemies:", g_additional_server_config.new_spawn_logic.only_avoid_enemies,
+                             "+Only Avoid Enemies:", g_alpine_server_config_active_rules.spawn_logic.only_avoid_enemies,
                              "+Only Avoid Enemies");
 
-        while (parser.parse_optional("+Use Item As Spawn Point:")) {
+        // not compatible with new approach
+        /* while (parser.parse_optional("+Use Item As Spawn Point:")) {
             rf::String item_name;
             if (parser.parse_string(&item_name)) {
                 std::optional<int> threshold = parser.parse_int();
@@ -140,7 +141,7 @@ void parse_respawn_logic(rf::Parser& parser)
                 rf::console::print("Item {} will be used for dynamic spawn points with threshold: {}",
                                    item_name.c_str(), threshold.value_or(-1));
             }
-        }
+        }*/
     }
 }
 

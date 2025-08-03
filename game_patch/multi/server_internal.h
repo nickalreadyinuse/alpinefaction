@@ -155,6 +155,12 @@ struct OvertimeConfig
     bool tie_if_flag_stolen = true;
 };
 
+struct NewSpawnLogicRespawnItemConfig
+{
+    std::string item_name;
+    int min_respawn_points;
+};
+
 struct NewSpawnLogicConfig // defaults match stock game
 {
     bool respect_team_spawns = true;    
@@ -162,7 +168,8 @@ struct NewSpawnLogicConfig // defaults match stock game
     bool always_avoid_last = false;
     bool always_use_furthest = false;
     bool only_avoid_enemies = false;
-    std::map<std::string, std::optional<int>> allowed_respawn_items;
+    bool dynamic_respawns = false;
+    std::vector<NewSpawnLogicRespawnItemConfig> dynamic_respawn_items;
 };
 
 struct AlpineRestrictConfig
@@ -207,6 +214,7 @@ struct AlpineServerConfigRules
     SpawnLifeConfig spawn_life;
     SpawnLifeConfig spawn_armour;
     SpawnProtectionConfig spawn_protection;
+    NewSpawnLogicConfig spawn_logic;
 
     // =============================================
     
@@ -300,7 +308,7 @@ struct ServerAdditionalConfig
     //VoteConfig vote_previous;
     //VoteConfig vote_match;
     //SpawnProtectionConfig spawn_protection;
-    NewSpawnLogicConfig new_spawn_logic;
+    //NewSpawnLogicConfig new_spawn_logic;
     int desired_player_count = 32;
     //float spawn_life = -1.0f;
     bool use_sp_damage_calculation = false;

@@ -106,12 +106,46 @@ static SpawnProtectionConfig parse_spawn_protection_config(const toml::table& t,
     return c;
 }
 
+static NewSpawnLogicConfig parse_spawn_logic_config(const toml::table& t, NewSpawnLogicConfig c)
+{
+    if (auto x = t["respect_team_spawns"].value<bool>())
+        c.respect_team_spawns = *x;
+    if (auto x = t["try_avoid_players"].value<bool>())
+        c.try_avoid_players = *x;
+    if (auto x = t["always_avoid_last"].value<bool>())
+        c.always_avoid_last = *x;
+    if (auto x = t["always_use_furthest"].value<bool>())
+        c.always_use_furthest = *x;
+    if (auto x = t["only_avoid_enemies"].value<bool>())
+        c.only_avoid_enemies = *x;
+    if (auto x = t["dynamic_respawns"].value<bool>())
+        c.dynamic_respawns = *x;
+
+    if (c.dynamic_respawns) {
+        c.dynamic_respawn_items.clear();
+        if (auto arr = t["dynamic_respawn_items"].as_array()) {
+            for (auto& elem : *arr) {
+                if (auto sub = elem.as_table()) {
+                    NewSpawnLogicRespawnItemConfig entry;
+                    if (auto name = (*sub)["item_name"].value<std::string>())
+                        entry.item_name = *name;
+                    if (auto pts = (*sub)["min_respawn_points"].value<int>())
+                        entry.min_respawn_points = *pts;
+                    c.dynamic_respawn_items.push_back(std::move(entry));
+                }
+            }
+        }
+    }
+
+    return c;
+}
+
 // parse toml rules
 // for base rules, load all speciifed. For not specified, defaults are in struct
 // for level-specific rules, start with base rules and load anything specified beyond that
-AlpineServerConfigRules parse_server_rules(const toml::table& t)
+AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineServerConfigRules& base_rules)
 {
-    AlpineServerConfigRules o;
+    AlpineServerConfigRules o = base_rules;
 
     if (auto v = t["time_limit"].value<float>())            o.set_time_limit(*v);
     if (auto v = t["individual_kill_limit"].value<int>())   o.set_individual_kill_limit(*v);
@@ -127,12 +161,12 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t)
 
     if (auto sub = t["spawn_life"].as_table())
         o.spawn_life  = parse_spawn_life_config(*sub, o.spawn_life);
-    if (auto sub = t["spawn_armour"].as_table())
+    if (auto sub = t["spawn_armor"].as_table())
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
     if (auto sub = t["spawn_protection"].as_table())
         o.spawn_protection = parse_spawn_protection_config(*sub, o.spawn_protection);
-
-
+    if (auto sub = t["spawn_selection"].as_table())
+        o.spawn_logic = parse_spawn_logic_config(*sub, o.spawn_logic);
 
     return o;
 }
@@ -287,8 +321,11 @@ void load_ads_server_config(std::string ads_config_name)
         cfg.vote_previous = parse_vote_config(*t);
 
     // base rules
-    if (auto base = tbl["base_rules"].as_table())
-        cfg.base_rules = parse_server_rules(*base);
+    if (auto base = tbl["base"].as_table()) {
+        if (auto rules = (*base)["rules"].as_table()) {
+            cfg.base_rules = parse_server_rules(*rules, cfg.base_rules);
+        }
+    }
 
     // levels
     if (auto lv = tbl["levels"]; lv && lv.is_array())
@@ -314,11 +351,11 @@ void load_ads_server_config(std::string ads_config_name)
             }
 
             entry.level_filename = tmp_filename;
-            entry.rule_overrides = cfg.base_rules;
+            entry.rule_overrides = cfg.base_rules; // handle base rules for levels without any specific rules
 
             // per-level rule override
             if (auto* over = lvl_tbl["rules"].as_table()) {
-                entry.rule_overrides = parse_server_rules(*over);
+                entry.rule_overrides = parse_server_rules(*over, cfg.base_rules);
             }
 
             cfg.levels.push_back(std::move(entry));
@@ -407,6 +444,31 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         if (rules.spawn_protection.enabled) {
             rf::console::print("    Duration:                            {} sec\n", rules.spawn_protection.duration / 1000.0f);
             rf::console::print("    Use powerup:                         {}\n", rules.spawn_protection.use_powerup);
+        }
+    }
+
+    // spawn logic
+    bool logicDiff = rules.spawn_logic.respect_team_spawns != b.spawn_logic.respect_team_spawns ||
+                     rules.spawn_logic.try_avoid_players != b.spawn_logic.try_avoid_players ||
+                     rules.spawn_logic.always_avoid_last != b.spawn_logic.always_avoid_last ||
+                     rules.spawn_logic.always_use_furthest != b.spawn_logic.always_use_furthest ||
+                     rules.spawn_logic.only_avoid_enemies != b.spawn_logic.only_avoid_enemies ||
+                     rules.spawn_logic.dynamic_respawns != b.spawn_logic.dynamic_respawns ||
+                     rules.spawn_logic.dynamic_respawn_items.size() != b.spawn_logic.dynamic_respawn_items.size();
+
+    if (base || logicDiff) {
+        rf::console::print("  Spawn logic:\n");
+        rf::console::print("    Respect team spawns:                 {}\n", rules.spawn_logic.respect_team_spawns);
+        rf::console::print("    Try avoid players:                   {}\n", rules.spawn_logic.try_avoid_players);
+        rf::console::print("    Always avoid last:                   {}\n", rules.spawn_logic.always_avoid_last);
+        rf::console::print("    Always use furthest:                 {}\n", rules.spawn_logic.always_use_furthest);
+        rf::console::print("    Only avoid enemies:                  {}\n", rules.spawn_logic.only_avoid_enemies);
+        rf::console::print("    Create item dynamic respawns:        {}\n", rules.spawn_logic.dynamic_respawns);
+
+        if (rules.spawn_logic.dynamic_respawns) {
+            for (auto& item : rules.spawn_logic.dynamic_respawn_items) {
+                rf::console::print("      Dynamic respawn item:              {} (threshold: {})\n", item.item_name, item.min_respawn_points);
+            }
         }
     }
 }
