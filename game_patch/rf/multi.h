@@ -191,6 +191,8 @@ namespace rf
     static auto& multi_ctf_is_blue_flag_in_base = addr_as_ref<bool()>(0x00474EA0);
     static auto& multi_ctf_get_blue_flag_pos = addr_as_ref<Vector3*(Vector3*)>(0x00474F40);
     static auto& multi_ctf_get_red_flag_pos = addr_as_ref<Vector3*(Vector3*)>(0x00474EC0);
+    static auto& multi_ctf_flag_blue_stolen_timestamp = addr_as_ref<Timestamp>(0x006C7544);
+    static auto& multi_ctf_flag_red_stolen_timestamp = addr_as_ref<Timestamp>(0x006C754C);
     static auto& ctf_red_flag_item = addr_as_ref<Object*>(0x006C7560);
     static auto& ctf_blue_flag_item = addr_as_ref<Object*>(0x006C7564);
     static auto& ctf_red_flag_pos = addr_as_ref<Vector3>(0x006C7500);

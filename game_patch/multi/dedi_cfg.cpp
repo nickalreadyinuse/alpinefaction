@@ -147,17 +147,39 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 {
     AlpineServerConfigRules o = base_rules;
 
-    if (auto v = t["time_limit"].value<float>())            o.set_time_limit(*v);
-    if (auto v = t["individual_kill_limit"].value<int>())   o.set_individual_kill_limit(*v);
-    if (auto v = t["team_kill_limit"].value<int>())         o.set_team_kill_limit(*v);
-    if (auto v = t["cap_limit"].value<int>())               o.set_cap_limit(*v);
-    if (auto v = t["geo_limit"].value<int>())               o.set_geo_limit(*v);
+    if (auto v = t["time_limit"].value<float>())
+        o.set_time_limit(*v);
+    if (auto v = t["individual_kill_limit"].value<int>())
+        o.set_individual_kill_limit(*v);
+    if (auto v = t["team_kill_limit"].value<int>())
+        o.set_team_kill_limit(*v);
+    if (auto v = t["cap_limit"].value<int>())
+        o.set_cap_limit(*v);
+    if (auto v = t["geo_limit"].value<int>())
+        o.set_geo_limit(*v);
 
-    if (auto v = t["team_damage"].value<bool>())            o.team_damage   = *v;
-    if (auto v = t["fall_damage"].value<bool>())            o.fall_damage   = *v;
-    if (auto v = t["weapons_stay"].value<bool>())           o.weapons_stay  = *v;
-    if (auto v = t["force_respawn"].value<bool>())          o.force_respawn = *v;
-    if (auto v = t["balance_teams"].value<bool>())          o.balance_teams = *v;
+    if (auto v = t["team_damage"].value<bool>())
+        o.team_damage   = *v;
+    if (auto v = t["fall_damage"].value<bool>())
+        o.fall_damage   = *v;
+    if (auto v = t["weapons_stay"].value<bool>())
+        o.weapons_stay  = *v;
+    if (auto v = t["force_respawn"].value<bool>())
+        o.force_respawn = *v;
+    if (auto v = t["balance_teams"].value<bool>())
+        o.balance_teams = *v;
+    if (auto v = t["ideal_player_count"].value<int>())
+        o.set_ideal_player_count(*v);
+    if (auto v = t["saving_enabled"].value<bool>())
+        o.saving_enabled = *v;
+    if (auto v = t["flag_dropping"].value<bool>())
+        o.flag_dropping = *v;
+    if (auto v = t["flag_captures_while_stolen"].value<bool>())
+        o.flag_captures_while_stolen = *v;
+    if (auto v = t["flag_return_time"].value<int>())
+        o.set_flag_return_time(*v);
+    if (auto v = t["drop_amps"].value<bool>())
+        o.drop_amps = *v;
 
     if (auto sub = t["spawn_life"].as_table())
         o.spawn_life  = parse_spawn_life_config(*sub, o.spawn_life);
@@ -299,6 +321,9 @@ void load_ads_server_config(std::string ads_config_name)
     if (auto v = tbl["allow_unlimited_fps"].value<bool>())
         cfg.allow_unlimited_fps = *v;
 
+    if (auto v = tbl["use_sp_damage_calculation"].value<bool>())
+        cfg.use_sp_damage_calculation = *v;
+
     if (auto tblInact = tbl["inactivity"].as_table())
         cfg.inactivity_config = parse_inactivity_config(*tblInact);
 
@@ -418,6 +443,23 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("  Force respawn:                         {}\n", rules.force_respawn);
     if (base || rules.balance_teams != b.balance_teams)
         rf::console::print("  Balance teams:                         {}\n", rules.balance_teams);
+    if (base || rules.ideal_player_count != b.ideal_player_count)
+        rf::console::print("  Ideal player count:                    {}\n", rules.ideal_player_count);
+    if (base || rules.saving_enabled != b.saving_enabled)
+        rf::console::print("  Position saving:                       {}\n", rules.saving_enabled);
+
+    if (rf::netgame.type = rf::NetGameType::NG_TYPE_CTF) {
+        if (base || rules.flag_dropping != b.flag_dropping)
+            rf::console::print("  Flag dropping:                         {}\n", rules.flag_dropping);
+        if (base || rules.flag_captures_while_stolen != b.flag_captures_while_stolen)
+            rf::console::print("  Flag captures while stolen:            {}\n", rules.flag_captures_while_stolen);
+        if (base || rules.ctf_flag_return_time_ms != b.ctf_flag_return_time_ms)
+            rf::console::print("  Flag return time:                      {} sec\n", rules.ctf_flag_return_time_ms / 1000.0f); // fix, needs codeinjection for runtime change
+        // does sv_loadconfig apply rules to levels? not sure if it replicates
+    }
+
+    if (base || rules.drop_amps != b.drop_amps)
+        rf::console::print("  Drop amps:                             {}\n", rules.drop_amps);
 
     // spawn life
     if (base || rules.spawn_life.enabled != b.spawn_life.enabled ||
@@ -505,6 +547,7 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     rf::console::print("  Allow lightmap only mode:              {}\n", cfg.allow_lightmaps_only);
     rf::console::print("  Allow disable muzzle flash:            {}\n", cfg.allow_disable_muzzle_flash);
     rf::console::print("  Allow disable 240 FPS cap:             {}\n", cfg.allow_unlimited_fps);
+    rf::console::print("  SP-style damage calculation:           {}\n", cfg.use_sp_damage_calculation);
 
     rf::console::print("\n---- Player inactivity settings ----\n");
     rf::console::print("  Kick inactive players:                 {}\n", cfg.inactivity_config.enabled);

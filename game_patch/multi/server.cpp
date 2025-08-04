@@ -212,11 +212,6 @@ CodeInjection dedicated_server_load_post_map_patch{
         if (g_additional_server_config.gungame.enabled || g_additional_server_config.weapon_infinite_magazines) {
             AsmWriter{0x00425506}.nop(2);
         }
-
-        // apply SP damage calculation
-        if (g_additional_server_config.use_sp_damage_calculation) {
-            AsmWriter(0x0041A37A).jmp(0x0041A3C1);
-        }
     },
 };
 
@@ -303,7 +298,7 @@ void handle_save_command(rf::Player* player, std::string_view save_name)
 {
     auto& pdata = get_player_additional_data(player);
     rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-    if (entity && g_additional_server_config.saving_enabled) {
+    if (entity && g_alpine_server_config_active_rules.saving_enabled) {
         PlayerNetGameSaveData save_data;
         save_data.pos = entity->pos;
         save_data.orient = entity->orient;
@@ -316,7 +311,7 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
 {
     auto& pdata = get_player_additional_data(player);
     rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-    if (entity && g_additional_server_config.saving_enabled && !rf::entity_is_dying(entity)) {
+    if (entity && g_alpine_server_config_active_rules.saving_enabled && !rf::entity_is_dying(entity)) {
         auto it = pdata.saves.find(std::string{save_name});
         if (it != pdata.saves.end()) {
             auto& save_data = it->second;
@@ -420,7 +415,7 @@ static void handle_drop_flag_request(rf::Player* player)
         return; // can't drop flags unless in CTF
     }
 
-    if (!g_additional_server_config.flag_dropping) {
+    if (!g_alpine_server_config_active_rules.flag_dropping) {
         send_chat_line_packet("\xA6 This server has disabled flag dropping.", player);
         return;
     }
@@ -1323,9 +1318,9 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             send_chat_line_packet("\xA6 You cannot spawn because a match is in progress. Please feel free to spectate.", player);
             return;
         }
-        if (g_additional_server_config.desired_player_count < 32 &&
+        if (g_alpine_server_config_active_rules.ideal_player_count < 32 &&
             ends_with(player->name, " (Bot)") &&
-            count_spawned_players() >= g_additional_server_config.desired_player_count) {
+            count_spawned_players() >= g_alpine_server_config_active_rules.ideal_player_count) {
             std::string msg = std::format("\xA6 You're a bot and you can't spawn right now.");
 
             send_chat_line_packet(msg.c_str(), player);
@@ -1990,7 +1985,7 @@ CodeInjection entity_maybe_die_patch{
     0x00420600,
     [](auto& regs) {
         if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) &&
-            (g_additional_server_config.drop_amps || g_additional_server_config.bagman.enabled)) {
+            (g_alpine_server_config_active_rules.drop_amps || g_additional_server_config.bagman.enabled)) {
 
             rf::Entity* ep = regs.esi;
 
@@ -2015,7 +2010,7 @@ CodeInjection entity_maybe_die_patch{
                     }
                 }
 
-                if (g_additional_server_config.drop_amps && rf::multi_powerup_has_player(player, 0)) {
+                if (g_alpine_server_config_active_rules.drop_amps && rf::multi_powerup_has_player(player, 0)) {
                     int invuln_count = 0;
                     int time_left = rf::multi_powerup_get_time_until(player, 0);
                     invuln_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
@@ -2065,7 +2060,7 @@ CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int
 CodeInjection allow_red_cap_when_stolen_patch{
     0x00473C0A,
     [](auto& regs) {
-        if (g_additional_server_config.flag_captures_while_stolen) {
+        if (g_alpine_server_config_active_rules.flag_captures_while_stolen) {
             regs.eip = 0x00473C2C;
         }
     },
@@ -2074,8 +2069,33 @@ CodeInjection allow_red_cap_when_stolen_patch{
 CodeInjection allow_blue_cap_when_stolen_patch{
     0x00473CB9,
     [](auto& regs) {
-        if (g_additional_server_config.flag_captures_while_stolen) {
+        if (g_alpine_server_config_active_rules.flag_captures_while_stolen) {
             regs.eip = 0x00473CD3;
+        }
+    },
+};
+
+CodeInjection dropped_blue_flag_return_time_patch{
+    0x00473B88,
+    [](auto& regs) {
+        rf::multi_ctf_flag_blue_stolen_timestamp.set(g_alpine_server_config_active_rules.ctf_flag_return_time_ms);
+        regs.eip = 0x00473B97; // skip stock timestamp set call
+    },
+};
+
+CodeInjection dropped_red_flag_return_time_patch{
+    0x00473B28,
+    [](auto& regs) {
+        rf::multi_ctf_flag_red_stolen_timestamp.set(g_alpine_server_config_active_rules.ctf_flag_return_time_ms);
+        regs.eip = 0x00473B37; // skip stock timestamp set call
+    },
+};
+
+CodeInjection sp_damage_calculation_patch{
+    0x0041A373,
+    [](auto& regs) {
+        if (g_alpine_server_config.use_sp_damage_calculation) {
+            regs.eip = 0x0041A3C1;
         }
     },
 };
@@ -2098,6 +2118,13 @@ void server_init()
     // Allow players to capture CTF flag even if their own flag is stolen
     allow_red_cap_when_stolen_patch.install();
     allow_blue_cap_when_stolen_patch.install();
+
+    // Set CTF flag return time
+    dropped_blue_flag_return_time_patch.install();
+    dropped_red_flag_return_time_patch.install();
+
+    // SP-style damage calculations (ie. armour doesnt fully protect health)
+    sp_damage_calculation_patch.install();
 
     // Override rcon command whitelist
     write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);
@@ -2218,7 +2245,7 @@ void server_on_limbo_state_enter()
 
 bool server_is_saving_enabled()
 {
-    return g_additional_server_config.saving_enabled;
+    return g_alpine_server_config_active_rules.saving_enabled;
 }
 
 bool server_allow_fullbright_meshes()

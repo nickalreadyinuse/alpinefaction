@@ -211,6 +211,12 @@ struct AlpineServerConfigRules
     bool weapons_stay = false;
     bool force_respawn = false;
     bool balance_teams = false;
+    int ideal_player_count = 32;
+    bool saving_enabled = false;
+    bool flag_dropping = true;
+    bool flag_captures_while_stolen = false;
+    bool drop_amps = false;
+    int ctf_flag_return_time_ms = 25000;
     SpawnLifeConfig spawn_life;
     SpawnLifeConfig spawn_armour;
     SpawnProtectionConfig spawn_protection;
@@ -238,6 +244,14 @@ struct AlpineServerConfigRules
     {
         geo_limit = std::clamp(count, 0, 128);
     }
+    void set_ideal_player_count(int count)
+    {
+        ideal_player_count = std::clamp(count, 1, 32);
+    }
+    void set_flag_return_time(float in_time)
+    {
+        ctf_flag_return_time_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+    }
 };
 
 struct AlpineServerConfigLevelEntry
@@ -263,6 +277,7 @@ struct AlpineServerConfig
     bool allow_disable_screenshake = true;
     bool allow_disable_muzzle_flash = true;
     bool allow_unlimited_fps = false;
+    bool use_sp_damage_calculation = false;
     AlpineRestrictConfig alpine_restricted_config;
     InactivityConfig inactivity_config;
     VoteConfig vote_kick;
@@ -309,11 +324,11 @@ struct ServerAdditionalConfig
     //VoteConfig vote_match;
     //SpawnProtectionConfig spawn_protection;
     //NewSpawnLogicConfig new_spawn_logic;
-    int desired_player_count = 32;
+    //int desired_player_count = 32;
     //float spawn_life = -1.0f;
-    bool use_sp_damage_calculation = false;
+    //bool use_sp_damage_calculation = false;
     //float spawn_armor= -1.0f;
-    int ctf_flag_return_time_ms = 25000;
+    //int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
     BagmanConfig bagman;
     DamageNotificationConfig damage_notifications;
@@ -326,9 +341,9 @@ struct ServerAdditionalConfig
     std::optional<int> default_player_weapon_ammo;
     //bool require_client_mod = true;
     float player_damage_modifier = 1.0f;
-    bool saving_enabled = false;
-    bool flag_dropping = true;
-    bool flag_captures_while_stolen = false;
+    //bool saving_enabled = false;
+    //bool flag_dropping = true;
+    //bool flag_captures_while_stolen = false;
     //bool no_player_collide = false;
     //bool location_pinging = true;
     //bool upnp_enabled = false;
@@ -343,7 +358,7 @@ struct ServerAdditionalConfig
     std::optional<int> semi_auto_cooldown = 90;
     int anticheat_level = 0;
     //bool stats_message_enabled = true;
-    bool drop_amps = false;
+    //bool drop_amps = false;
     //bool dynamic_rotation = false;
     std::string welcome_message;
     bool weapon_items_give_full_ammo = false;

@@ -333,13 +333,13 @@ void parse_kill_rewards(rf::Parser& parser)
 
 void parse_miscellaneous_options(rf::Parser& parser)
 {
-    parse_int_option(parser, "$Desired Player Count:", g_additional_server_config.desired_player_count,
+    parse_int_option(parser, "$Desired Player Count:", g_alpine_server_config_active_rules.ideal_player_count,
                      "Desired Player Count");
     //parse_float_option(parser, "$Spawn Health:", g_additional_server_config.spawn_life, "Spawn Health");
     //parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
-    parse_boolean_option(parser, "$Use SP Damage Calculation:", g_additional_server_config.use_sp_damage_calculation,
+    parse_boolean_option(parser, "$Use SP Damage Calculation:", g_alpine_server_config.use_sp_damage_calculation,
                          "Use SP Damage Calculation");
-    parse_int_option(parser, "$CTF Flag Return Time:", g_additional_server_config.ctf_flag_return_time_ms,
+    parse_int_option(parser, "$CTF Flag Return Time:", g_alpine_server_config_active_rules.ctf_flag_return_time_ms,
                      "CTF Flag Return Time");
     parse_boolean_option(parser, "$Dynamic Rotation:", g_alpine_server_config.dynamic_rotation, "Dynamic Rotation");
     parse_boolean_option(parser, "$Require Client Mod:", g_alpine_server_config.require_client_mod,
@@ -349,11 +349,11 @@ void parse_miscellaneous_options(rf::Parser& parser)
     parse_boolean_option(parser, "$UPnP Enabled:", g_alpine_server_config.upnp_enabled, "UPnP Enabled");
     parse_boolean_option(parser, "$Send Player Stats Message:", g_alpine_server_config.stats_message_enabled,
                          "Send Player Stats Message");
-    parse_boolean_option(parser, "$Drop Amps On Death:", g_additional_server_config.drop_amps, "Drop Amps On Death");
-    parse_boolean_option(parser, "$Flag Dropping:", g_additional_server_config.flag_dropping, "Flag Dropping");
-    parse_boolean_option(parser, "$Flag Captures While Stolen:", g_additional_server_config.flag_captures_while_stolen,
+    parse_boolean_option(parser, "$Drop Amps On Death:", g_alpine_server_config_active_rules.drop_amps, "Drop Amps On Death");
+    parse_boolean_option(parser, "$Flag Dropping:", g_alpine_server_config_active_rules.flag_dropping, "Flag Dropping");
+    parse_boolean_option(parser, "$Flag Captures While Stolen:", g_alpine_server_config_active_rules.flag_captures_while_stolen,
                          "Flag Captures While Stolen");
-    parse_boolean_option(parser, "$Saving Enabled:", g_additional_server_config.saving_enabled, "Saving Enabled");
+    parse_boolean_option(parser, "$Saving Enabled:", g_alpine_server_config_active_rules.saving_enabled, "Saving Enabled");
     parse_boolean_option(parser, "$Allow Fullbright Meshes:", g_alpine_server_config.allow_fullbright_meshes,
                          "Allow Fullbright Meshes");
     parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_alpine_server_config.allow_lightmaps_only,
