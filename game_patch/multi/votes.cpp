@@ -203,39 +203,32 @@ protected:
 
     bool check_for_early_vote_finish()
     {
-        const auto current_player_list = get_current_player_list(false);
+        int yes_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
+                { return p.second; });
+        int no_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
+                { return !p.second; });
+        int remaining = std::count_if(get_current_player_list(false).begin(), get_current_player_list(false).end(), [this](rf::Player* p)
+            { return players_who_voted.count(p) == 0; });
 
-        // cancel the vote if the server clears out
-        if (current_player_list.empty()) {
-            return false;
+        const auto& vote_config = get_config();
+        if (!vote_config.ignore_nonvoters) {
+            no_votes += remaining;
+            remaining = 0;
         }
 
-        const int remaining_players_count =
-            std::count_if(current_player_list.begin(), current_player_list.end(), [this](rf::Player* player) {
-                return players_who_voted.find(player) == players_who_voted.end();
-            });
+        const bool can_pass = yes_votes > no_votes + remaining;
+        const bool can_fail = no_votes > yes_votes + remaining;
+        const bool all_have_voted = remaining == 0;
 
-        const int yes_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](const auto& pair) {
-            return pair.second;
-        });
-
-        const int no_votes =
-            players_who_voted.size() - yes_votes;
-
-        // success
-        if (yes_votes > no_votes + remaining_players_count) {
+        if (can_pass) {
             finish_vote(true);
             return false;
         }
-
-        // failure
-        if (no_votes > yes_votes + remaining_players_count) {
+        if (can_fail) {
             finish_vote(false);
             return false;
         }
-
-        // tie (failure)
-        if (remaining_players_count == 0) {
+        if (all_have_voted) {
             finish_vote(yes_votes > no_votes);
             return false;
         }
