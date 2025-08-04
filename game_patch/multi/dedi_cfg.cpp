@@ -829,6 +829,7 @@ ConsoleCommand2 load_server_config_cmd{
     [](std::optional<std::string> new_config) {
         if (g_dedicated_launched_from_ads) {
             load_and_print_alpine_dedicated_server_config(new_config.value_or(g_ads_config_name), false);
+            apply_rules_for_current_level();
             if (g_ads_minimal_server_info) {
                 //rf::console::print("Minimal info displayed because -min switch was used at launch. Enter sv_printconfig to print verbose server config.\n");
             }
