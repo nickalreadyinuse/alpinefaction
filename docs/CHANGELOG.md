@@ -27,6 +27,7 @@ Version 1.2.0 (Willow): Not yet released
 - Bump RFL version to 302
 - Add support for custom AlpineLevelProperties chunk in rfl files
 - Add handling for `Legacy Cyclic_Timers` option in level files in editor and game
+- Add "ignore nonvoters" option to dedicated server vote configs
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
