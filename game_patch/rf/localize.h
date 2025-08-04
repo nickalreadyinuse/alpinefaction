@@ -15,6 +15,7 @@ namespace rf
         static const auto &was_killed_by = array[694];
         static const auto &was_killed_mysteriously = array[695];
         static const auto &has_joined = array[708];
+        static const auto &was_kicked = array[709];
         static const auto &score = array[720];
         static const auto &close_combat = array[779];
         static const auto &semi_auto = array[780];

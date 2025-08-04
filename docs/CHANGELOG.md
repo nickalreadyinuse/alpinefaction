@@ -36,6 +36,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix super powerups applying in SP in non-Alpine levels
 - Fix `Cyclic_Timer` event activating twice on initial activation (unless `Legacy Cyclic_Timers` is on)
 - Fix broken rendering of particle emitter 23616 on community level `dm-birthday.rfl`
+- Fix `NAME has been kicked` not being printed to server console when players kicked due to inactivity
 
 ### Imports from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
