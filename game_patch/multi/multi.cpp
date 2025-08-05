@@ -551,14 +551,6 @@ DcCommandAlias mapm_cmd{
     levelm_cmd,
 };
 
-ConsoleCommand2 connected_clients_cmd{
-    "sv_connectedclients",
-    []() {
-        print_all_player_info();
-    },
-    "Shows client and maximum RFL version information for connected players",
-};
-
 ConsoleCommand2 mapver_cmd{
     "dbg_mapver",
     [](std::string filename) {
@@ -680,7 +672,6 @@ void multi_do_patch()
 
     // console commands
     levelm_cmd.register_cmd();
-    connected_clients_cmd.register_cmd();
     mapver_cmd.register_cmd();
     mapm_cmd.register_cmd();
     set_handicap_cmd.register_cmd();

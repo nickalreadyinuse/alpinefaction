@@ -25,10 +25,12 @@
 #include "../misc/player.h"
 #include "../main/main.h"
 #include "../misc/achievements.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/file/file.h"
 #include "../rf/math/vector.h"
 #include "../rf/math/matrix.h"
 #include "../rf/player/player.h"
+#include "../rf/os/frametime.h"
 #include "../rf/item.h"
 #include "../rf/gameseq.h"
 #include "../rf/misc.h"
@@ -237,12 +239,40 @@ int get_level_file_version(const std::string& file_name)
     return static_cast<int>(version);
 }
 
-void print_all_player_info() {
-    if (!(rf::is_dedicated_server || rf::is_server)) {
-        rf::console::print("This command can only be run on a server!");
+void print_player_info(rf::Player* player, bool new_join) {
+    if (player == rf::local_player) {
+        rf::console::print("- {} (local player)",player->name);
         return;
     }
 
+    auto& pdata = get_player_additional_data(player);
+
+    std::string client_info;
+    if (pdata.is_alpine) {
+        client_info = std::format("Alpine Faction {}.{}-{}", pdata.alpine_version_major, pdata.alpine_version_minor,
+                                  pdata.alpine_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
+    }
+    else if (pdata.is_browser) {
+        client_info = std::format("Server Browser");
+    }
+    else {
+        client_info = std::format("Non-Alpine Client");
+    }
+
+    in_addr addr;
+    auto player_addr = player->net_data->addr;
+    addr.S_un.S_addr = ntohl(player_addr.ip_addr);
+    if (new_join) {
+            rf::console::print("===| {}{} | IP: {}:{} | Client: {} | Max RFL version: {} |===",
+                player->name, rf::strings::has_joined, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version);
+    }
+    else {
+        rf::console::print("- {} | IP: {}:{} | Client: {} | Max RFL version: {} | Ping: {} | Handicap: {}%",
+            player->name, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version, player->net_data->ping, pdata.damage_handicap);
+    }
+}
+
+void print_all_player_info() {
     if (!rf::player_list) {
         rf::console::print("No players are currently connected!");
         return;
@@ -253,18 +283,57 @@ void print_all_player_info() {
     rf::console::print("Connected players:");    
 
     for (auto& player : player_list) {
-        auto& pdata = get_player_additional_data(&player);
-        std::string client_info;
-        if (pdata.is_alpine) {
-            client_info = std::format("Alpine Faction {}.{}-{}", pdata.alpine_version_major, pdata.alpine_version_minor,
-                pdata.alpine_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
-        }
-        else {
-            client_info = std::format("Non-Alpine Client");
-        }
-        rf::console::print("{}: {} | Max RFL version {}", player.name, client_info, pdata.max_rfl_version);
+        print_player_info(&player, false);
     }
 }
+
+FunHook<void ()> dcf_info_hook{
+    0x00486050,
+    []() {
+        int64_t total_sec = static_cast<int64_t>(rf::level.time);
+        int days = int(total_sec / 86'400);
+        int hours = int((total_sec / 3'600) % 24);
+        int minutes = int((total_sec / 60) % 60);
+        int seconds = int(total_sec % 60);
+
+        rf::console::print("====================================================");
+        if (rf::level.flags & rf::LEVEL_LOADED) {
+            rf::console::print("{}: {} by {} ({})\n", rf::strings::level_name, rf::level.name, rf::level.author, rf::level.filename);
+
+            auto time_line = std::format("{}:  {} {}, {}h {}m {}s\n", rf::strings::level_time, days, rf::strings::days, hours, minutes, seconds);
+            rf::console::print("{}", time_line);
+        }
+        else {
+            rf::console::print("No level loaded\n");
+        }
+
+        std::string framerate_line = "";
+        bool is_server = rf::is_multi && (rf::is_server || rf::is_dedicated_server);
+        if (is_server) {
+            framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max) | NetFPS: {}\n",
+                rf::frametime,
+                rf::current_fps,
+                rf::is_dedicated_server ? g_alpine_game_config.server_max_fps : g_alpine_game_config.max_fps,
+                g_alpine_game_config.server_netfps
+            );
+        }
+        else {
+            if (rf::local_player)
+                rf::console::print("Local player name: {}\n", rf::local_player->name);
+
+            framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max)\n",
+                rf::frametime, rf::current_fps, g_alpine_game_config.max_fps);
+        }            
+        rf::console::print("{}", framerate_line);
+
+        rf::console::print("====================================================\n");
+
+        if (rf::is_multi) {
+            rf::console::print("\n");
+            print_all_player_info();
+        }
+    },
+};
 
 std::pair<std::string_view, std::string_view> strip_by_space(std::string_view str)
 {
@@ -868,10 +937,13 @@ CodeInjection send_ping_time_wrap_fix{
 CodeInjection multi_on_new_player_injection{
     0x0047B013,
     [](auto& regs) {
-        rf::Player* player = regs.esi;
-        in_addr addr;
-        addr.S_un.S_addr = ntohl(player->net_data->addr.ip_addr);
-        rf::console::print("{}{} ({})", player->name,  rf::strings::has_joined, inet_ntoa(addr));
+        // ADS version is in handled in process_join_req_packet_hook in network.cpp
+        if (!g_dedicated_launched_from_ads) {
+            rf::Player* player = regs.esi;
+            in_addr addr;
+            addr.S_un.S_addr = ntohl(player->net_data->addr.ip_addr);
+            rf::console::print("{}{} ({})", player->name,  rf::strings::has_joined, inet_ntoa(addr));
+        }
         regs.eip = 0x0047B051;
     },
 };
@@ -2125,6 +2197,9 @@ void server_init()
 
     // SP-style damage calculations (ie. armour doesnt fully protect health)
     sp_damage_calculation_patch.install();
+
+    // new "info" command for ADS servers
+    dcf_info_hook.install();
 
     // Override rcon command whitelist
     write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);

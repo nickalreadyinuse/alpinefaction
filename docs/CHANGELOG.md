@@ -28,6 +28,9 @@ Version 1.2.0 (Willow): Not yet released
 - Add support for custom AlpineLevelProperties chunk in rfl files
 - Add handling for `Legacy Cyclic_Timers` option in level files in editor and game
 - Add "ignore nonvoters" option to dedicated server vote configs
+- Reformatted output of `info` command to contain more useful info
+- Deprecated `sv_connectedclients` command as all info is now in the output of `info`
+- Updated new player joining message printed to ADS server console to include socket, client info, and max RFL version
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
