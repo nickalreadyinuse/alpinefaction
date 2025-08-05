@@ -792,8 +792,8 @@ CallHook<int(const char*)> item_lookup_type_hook{
     [](const char* cls_name) {
         if (rf::is_dedicated_server) {
             // support item replacement mapping
-            auto it = g_additional_server_config.item_replacements.find(cls_name);
-            if (it != g_additional_server_config.item_replacements.end())
+            auto it = g_alpine_server_config_active_rules.item_replacements.find(cls_name);
+            if (it != g_alpine_server_config_active_rules.item_replacements.end())
                 cls_name = it->second.c_str();
         }
         return item_lookup_type_hook.call_target(cls_name);
@@ -1273,7 +1273,7 @@ void update_player_active_status(rf::Player* player)
         auto& additional_data = get_player_additional_data(player);
         additional_data.idle_kick_timestamp.invalidate();
         additional_data.idle_check_timestamp.set(g_alpine_server_config.inactivity_config.allowed_inactive_ms);    
-        //xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
+        xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
     }
 }
 
@@ -1301,6 +1301,10 @@ void player_idle_check(rf::Player* player)
             kick_player_delayed(player);
         }
         return; // don't continue if a kick is already pending
+    }
+
+    if (rf::gameseq_get_state() != rf::GS_GAMEPLAY) {
+        return; // don't mark players as idle unless we're in gameplay
     }
 
     if (additional_data.is_browser || ends_with(player->name, " (Bot)")) {
@@ -1498,6 +1502,12 @@ CodeInjection multi_limbo_init_injection{
         if (!rf::player_list) {
             xlog::trace("Wait between levels shortened because server is empty");
             addr_as_ref<int>(regs.esp) = 100;
+        }
+        else {
+            auto player_list = SinglyLinkedList{rf::player_list};
+            for (auto& player : player_list) {
+                update_player_active_status(&player);
+            }
         }
 
         if (g_match_info.match_active) {
@@ -1930,8 +1940,8 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
        int respawn_time, bool permanent, bool from_packet) {
 
         // when creating it, check if a spawn time override is configured for this item
-        if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
-            it != g_additional_server_config.item_respawn_time_overrides.end()) {
+        if (auto it = g_alpine_server_config_active_rules.item_respawn_time_overrides.find(name);
+            it != g_alpine_server_config_active_rules.item_respawn_time_overrides.end()) {
             respawn_time = it->second;
         }
 

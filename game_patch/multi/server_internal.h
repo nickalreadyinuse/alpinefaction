@@ -221,12 +221,12 @@ struct WeaponStayExemptionConfig
             std::find_if(exemptions.begin(), exemptions.end(), [&](auto const& e) { return e.weapon_name == name; });
 
         if (it != exemptions.end()) {
-            // already present → just update the enabled flag
+            // already present, just update the enabled flag
             it->exemption_enabled = exemption_enabled;
             return false;
         }
 
-        // not found → add a new one
+        // not found, add a new one
         int idx = rf::weapon_lookup_type(name.data());
         if (idx < 0)
             return false;
@@ -291,6 +291,8 @@ struct AlpineServerConfigRules
     bool weapon_infinite_magazines = false;
     KillRewardConfig kill_rewards;
     WeaponStayExemptionConfig weapon_stay_exemptions;
+    std::map<std::string, std::string> item_replacements;
+    std::map<std::string, int> item_respawn_time_overrides;
 
     // =============================================
     
@@ -321,6 +323,26 @@ struct AlpineServerConfigRules
     void set_flag_return_time(float in_time)
     {
         ctf_flag_return_time_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+    }
+    bool add_item_replacement(std::string_view original, std::string_view replacement)
+    {
+        int orig_idx = rf::item_lookup_type(original.data());
+        int repl_idx = rf::item_lookup_type(replacement.data());
+        if (orig_idx < 0 || repl_idx < 0) {
+            // check if either name is invalid
+            return false;
+        }
+        item_replacements[std::string(original)] = std::string(replacement);
+        return true;
+    }
+    bool set_item_respawn_time(std::string_view item_name, int respawn_time_ms)
+    {
+        int idx = rf::item_lookup_type(item_name.data());
+        if (idx < 0) {
+            return false;
+        }
+        item_respawn_time_overrides[std::string(item_name)] = respawn_time_ms;
+        return true;
     }
 };
 
@@ -404,10 +426,10 @@ struct ServerAdditionalConfig
     BagmanConfig bagman;
     //DamageNotificationConfig damage_notifications;
     CriticalHitsConfig critical_hits;
-    WeaponStayExemptionConfigOld weapon_stay_exemptions;
+    //WeaponStayExemptionConfigOld weapon_stay_exemptions;
     OvertimeConfig overtime;
-    std::map<std::string, std::string> item_replacements;
-    std::map<std::string, int> item_respawn_time_overrides;
+    //std::map<std::string, std::string> item_replacements;
+    //std::map<std::string, int> item_respawn_time_overrides;
     std::string default_player_weapon;
     std::optional<int> default_player_weapon_ammo;
     //bool require_client_mod = true;

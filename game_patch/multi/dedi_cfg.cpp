@@ -169,27 +169,6 @@ static KillRewardConfig parse_kill_reward_config(const toml::table& t, KillRewar
     return c;
 }
 
-static WeaponStayExemptionConfig parse_weapon_stay_exemption_config(const toml::table& t, WeaponStayExemptionConfig c)
-{
-    if (auto arr = t["exemptions"].as_array()) {
-        for (auto& node : *arr) {
-            if (auto nameOpt = node.value<std::string>()) {
-                // simple string → default enabled
-                c.add(*nameOpt);
-            }
-            else if (auto tbl = node.as_table()) {
-                if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
-                    bool enabled = (*tbl)["exempt"].value<bool>().value_or(true);
-                    // explicit per-entry flag
-                    c.add(*nameOpt, enabled);
-                }
-            }
-        }
-    }
-
-    return c;
-}
-
 // parse toml rules
 // for base rules, load all speciifed. For not specified, defaults are in struct
 // for level-specific rules, start with base rules and load anything specified beyond that
@@ -248,10 +227,41 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     if (auto sub = t["welcome_message"].as_table())
         o.welcome_message = parse_welcome_message_config(*sub, o.welcome_message);
 
-    o.weapon_stay_exemptions.exemptions.clear(); // need to do this here instead of in the parsing function
-    o.weapon_stay_exemptions.add("shoulder_cannon"); // maintain stock game behaviour
-    if (auto sub = t["weapon_stay_exemptions"].as_table())
-        o.weapon_stay_exemptions = parse_weapon_stay_exemption_config(*sub, o.weapon_stay_exemptions);
+    //o.weapon_stay_exemptions.exemptions.clear();
+    o.weapon_stay_exemptions.add("shoulder_cannon", true); // stock default
+
+    if (auto arr = t["weapon_stay_exemptions"].as_array()) {
+        for (auto& node : *arr) {
+            if (auto tbl = node.as_table()) {
+                if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
+                    bool ex = (*tbl)["exempt"].value<bool>().value_or(true); // default true if not specified
+                    o.weapon_stay_exemptions.add(*nameOpt, ex);
+                }
+            }
+        }
+    }
+
+    if (auto arr = t["item_replacements"].as_array()) {
+        for (auto& node : *arr) {
+            if (auto tbl = node.as_table()) {
+                auto from = (*tbl)["original"].value_or<std::string>("");
+                auto to = (*tbl)["replacement"].value_or<std::string>("");
+                if (!o.add_item_replacement(from, to))
+                    xlog::warn("Invalid replacement {}→{}", from, to);
+            }
+        }
+    }
+
+    if (auto arr = t["item_respawn_time_overrides"].as_array()) {
+        for (auto& node : *arr) {
+            if (auto tbl = node.as_table()) {
+                auto name = (*tbl)["item_name"].value_or<std::string>("");
+                auto ms = (*tbl)["respawn_ms"].value_or<int>(0);
+                if (!o.set_item_respawn_time(name, ms))
+                    xlog::warn("Invalid respawn override for '{}'", name);
+            }
+        }
+    }
 
     return o;
 }
@@ -527,7 +537,7 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     if (base || rules.saving_enabled != b.saving_enabled)
         rf::console::print("  Position saving:                       {}\n", rules.saving_enabled);
 
-    if (rf::netgame.type = rf::NetGameType::NG_TYPE_CTF) {
+    if (rf::netgame.type == rf::NetGameType::NG_TYPE_CTF) {
         if (base || rules.flag_dropping != b.flag_dropping)
             rf::console::print("  Flag dropping:                         {}\n", rules.flag_dropping);
         if (base || rules.flag_captures_while_stolen != b.flag_captures_while_stolen)
@@ -619,7 +629,7 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("    Health is super:                     {}\n", rules.kill_rewards.kill_reward_health_super);
         rf::console::print("    Armor is super:                      {}\n", rules.kill_rewards.kill_reward_armor_super);
     }
-
+    /*
     // weap stay exemptions
     if ( base || rules.weapon_stay_exemptions.exemptions != b.weapon_stay_exemptions.exemptions )
     {
@@ -627,6 +637,105 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         for (auto const& e : rules.weapon_stay_exemptions.exemptions)
         {
             rf::console::print("    {}: {}\n", e.weapon_name, e.exemption_enabled ? "exempt" : "not exempt");
+        }
+    }
+
+    // item replacements
+    if (base || rules.item_replacements != b.item_replacements) {
+        rf::console::print("  Item replacements:\n");
+        for (auto const& [orig, repl] : rules.item_replacements) {
+            rf::console::print("    {} -> {}\n", orig, repl);
+        }
+    }
+
+    // item spawn time overrides
+    if (base || rules.item_respawn_time_overrides != b.item_respawn_time_overrides) {
+        rf::console::print("  Item respawn time overrides:\n");
+        for (auto const& [item, ms] : rules.item_respawn_time_overrides) {
+            rf::console::print("    {}: {} ms\n", item, ms);
+        }
+    }*/
+
+    //
+    // Weapon stay exemptions
+    //
+    // Print the header if we're printing the full base, or if there's
+    // at least one exemption that's different from base
+    bool anyExemptionChanged = std::any_of(
+        rules.weapon_stay_exemptions.exemptions.begin(),
+        rules.weapon_stay_exemptions.exemptions.end(),
+        [&](auto const& e){
+            auto it = std::find_if(
+                b.weapon_stay_exemptions.exemptions.begin(),
+                b.weapon_stay_exemptions.exemptions.end(),
+                [&](auto const& be){ return be.weapon_name == e.weapon_name
+                                       && be.exemption_enabled == e.exemption_enabled; }
+            );
+            return it == b.weapon_stay_exemptions.exemptions.end();
+        }
+    );
+
+    if (base || anyExemptionChanged) {
+        rf::console::print("  Weapon stay exemptions:\n");
+        for (auto const& e : rules.weapon_stay_exemptions.exemptions) {
+            bool unchanged = std::any_of(
+                b.weapon_stay_exemptions.exemptions.begin(),
+                b.weapon_stay_exemptions.exemptions.end(),
+                [&](auto const& be){ return be.weapon_name == e.weapon_name
+                                       && be.exemption_enabled == e.exemption_enabled; }
+            );
+            if (base || !unchanged) {
+                rf::console::print("    {:<20}: {}\n",
+                    e.weapon_name,
+                    e.exemption_enabled ? "exempt" : "not exempt"
+                );
+            }
+        }
+    }
+
+    //
+    // Item replacements
+    //
+    bool anyReplacementChanged = std::any_of(
+        rules.item_replacements.begin(),
+        rules.item_replacements.end(),
+        [&](auto const& kv){
+            auto it = b.item_replacements.find(kv.first);
+            return it == b.item_replacements.end() || it->second != kv.second;
+        }
+    );
+
+    if (base || anyReplacementChanged) {
+        rf::console::print("  Item replacements:\n");
+        for (auto const& [orig, repl] : rules.item_replacements) {
+            auto it = b.item_replacements.find(orig);
+            bool unchanged = (it != b.item_replacements.end() && it->second == repl);
+            if (base || !unchanged) {
+                rf::console::print("    {} -> {}\n", orig, repl);
+            }
+        }
+    }
+
+    //
+    // Item respawn time overrides
+    //
+    bool anyRespawnChanged = std::any_of(
+        rules.item_respawn_time_overrides.begin(),
+        rules.item_respawn_time_overrides.end(),
+        [&](auto const& kv){
+            auto it = b.item_respawn_time_overrides.find(kv.first);
+            return it == b.item_respawn_time_overrides.end() || it->second != kv.second;
+        }
+    );
+
+    if (base || anyRespawnChanged) {
+        rf::console::print("  Item respawn time overrides:\n");
+        for (auto const& [item, ms] : rules.item_respawn_time_overrides) {
+            auto it = b.item_respawn_time_overrides.find(item);
+            bool unchanged = (it != b.item_respawn_time_overrides.end() && it->second == ms);
+            if (base || !unchanged) {
+                rf::console::print("    {}: {} ms\n", item, ms);
+            }
         }
     }
 }

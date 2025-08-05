@@ -434,7 +434,7 @@ void parse_item_respawn_time_override(rf::Parser& parser)
         rf::String item_name;
         parser.parse_string(&item_name);
         auto new_time = parser.parse_uint();
-        g_additional_server_config.item_respawn_time_overrides[item_name.c_str()] = new_time;
+        g_alpine_server_config_active_rules.item_respawn_time_overrides[item_name.c_str()] = new_time;
         rf::console::print("Item Respawn Time Override: {} -> {}ms", item_name.c_str(), new_time);
     }
 }
@@ -445,7 +445,7 @@ void parse_item_replacements(rf::Parser& parser)
         rf::String old_item, new_item;
         parser.parse_string(&old_item);
         parser.parse_string(&new_item);
-        g_additional_server_config.item_replacements[old_item.c_str()] = new_item.c_str();
+        g_alpine_server_config_active_rules.item_replacements[old_item.c_str()] = new_item.c_str();
         rf::console::print("Item Replaced: {} -> {}", old_item.c_str(), new_item.c_str());
     }
 }
