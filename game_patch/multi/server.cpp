@@ -83,35 +83,11 @@ AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
 
-// memory addresses for weapon stay exemption indexes
-constexpr std::pair<bool WeaponStayExemptionConfig::*, uintptr_t> weapon_exemptions[] = {
-    {&WeaponStayExemptionConfig::rocket_launcher, 0x00872458},
-    {&WeaponStayExemptionConfig::heavy_machine_gun, 0x00872460},
-    {&WeaponStayExemptionConfig::sniper_rifle, 0x00872440},
-    {&WeaponStayExemptionConfig::assault_rifle, 0x00872470},
-    {&WeaponStayExemptionConfig::machine_pistol, 0x0085CCD8},
-    {&WeaponStayExemptionConfig::shotgun, 0x00872108},
-    {&WeaponStayExemptionConfig::scope_assault_rifle, 0x0087245C},
-    {&WeaponStayExemptionConfig::grenade, 0x00872118},
-    {&WeaponStayExemptionConfig::remote_charge, 0x0087210C},
-    {&WeaponStayExemptionConfig::handgun, 0x00872114},
-    {&WeaponStayExemptionConfig::flamethrower, 0x0087243C},
-    {&WeaponStayExemptionConfig::riot_stick, 0x00872468},
-    {&WeaponStayExemptionConfig::riot_shield, 0x0085CCE4},
-    {&WeaponStayExemptionConfig::rail_gun, 0x00872124}};
-
-// declare optional vector for weapon stay exemptions
-std::optional<std::vector<uintptr_t>> weapon_stay_exempt_indexes;
-
-// Consolidate weapon stay exemption logic for both injections
 void handle_weapon_stay_exemption(BaseCodeInjection::Regs& regs, uintptr_t jump_address)
 {
-    if (!weapon_stay_exempt_indexes) {
-        return; // no exemptions if the optional vector is not populated
-    }
-    for (const auto& index_addr : *weapon_stay_exempt_indexes) {
-        int weapon_index = *reinterpret_cast<int*>(index_addr);
-        if (regs.eax == weapon_index) {
+    // iterate the configured exemptions in the *active* rules
+    for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
+        if (e.exemption_enabled && regs.eax == e.index) {
             regs.eip = jump_address;
             return;
         }
@@ -120,36 +96,32 @@ void handle_weapon_stay_exemption(BaseCodeInjection::Regs& regs, uintptr_t jump_
 
 // Weapon stay exemption part 1: remove item when it is picked up and start respawn timer
 CodeInjection weapon_stay_remove_instance_injection{
-    0x0045982E, [](BaseCodeInjection::Regs& regs) { handle_weapon_stay_exemption(regs, 0x00459865); }};
+    0x0045982E,
+    [](auto& regs){
+        //handle_weapon_stay_exemption(regs, 0x00459865);
 
-// Weapon stay exemption part 2: allow picking up item by a player who already did (after it respawns)
-CodeInjection weapon_stay_allow_pickup_injection{
-    0x004596B4, [](BaseCodeInjection::Regs& regs) { handle_weapon_stay_exemption(regs, 0x004596CD); }};
-
-void initialize_weapon_stay_exemptions()
-{
-    const auto& config = g_additional_server_config.weapon_stay_exemptions;
-    if (!config.enabled) {
-        xlog::debug("Weapon stay exemptions are not enabled.");
-        return;
-    }
-
-    // Populate weapon stay exemption array
-    weapon_stay_exempt_indexes = std::vector<uintptr_t>{};
-    for (const auto& [config_member, index_addr] : weapon_exemptions) {
-        // Add debug logs to see which weapons are being checked
-        bool is_exempt = config.*config_member;
-        xlog::debug("Checking weapon at address: {}. Is exempt? {}", index_addr, is_exempt);
-
-        if (is_exempt) {
-            weapon_stay_exempt_indexes->push_back(index_addr);
+        for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
+            if (e.exemption_enabled && regs.eax == e.index) {
+                regs.eip = 0x00459865;
+                return;
+            }
         }
     }
+};
 
-    // injections
-    weapon_stay_remove_instance_injection.install();
-    weapon_stay_allow_pickup_injection.install();
-}
+CodeInjection weapon_stay_allow_pickup_injection{
+    0x004596B4,
+    [](auto& regs){
+        //handle_weapon_stay_exemption(regs, 0x004596CD);
+
+        for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
+            if (e.exemption_enabled && regs.eax == e.index) {
+                regs.eip = 0x004596CD;
+                return;
+            }
+        }
+    }
+};
 
 FunHook<void ()> dedicated_server_load_config_hook{
     0x0046D900,
@@ -197,9 +169,6 @@ CodeInjection dedicated_server_load_config_patch{
 CodeInjection dedicated_server_load_post_map_patch{
     0x0046E216,
     [](auto& regs) {
-
-        initialize_weapon_stay_exemptions();
-
         // shuffle maplist
         if (g_alpine_server_config.dynamic_rotation) {
             shuffle_level_array();
@@ -787,7 +756,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             auto* damaged_player_stats = static_cast<PlayerStatsNew*>(damaged_player->stats);
             damaged_player_stats->add_damage_received(real_damage);
 
-            if (g_additional_server_config.damage_notifications.enabled && damaged_player && killer_player) {
+            if (g_alpine_server_config.damage_notification_config.enabled && damaged_player && killer_player) {
                 if (!(!damaged_ep || rf::entity_is_dying(damaged_ep) || rf::player_is_dead(damaged_player))) {
 
                     // use new packet for clients that can process it (Alpine 1.1+)
@@ -799,7 +768,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                             is_dead,
                             killer_player);
                     }
-                    else if (g_additional_server_config.damage_notifications.support_legacy_clients) {
+                    else if (g_alpine_server_config.damage_notification_config.support_legacy_clients) {
                         //xlog::warn("sending legacy notify to {}", killer_player->name);
                         send_hit_sound_packet(killer_player); // fallback for old clients
                     }
@@ -2216,6 +2185,10 @@ void server_init()
     dedicated_server_load_config_patch.install();
     dedicated_server_load_post_map_patch.install();
 
+    // handle weapon stay exemptions
+    weapon_stay_remove_instance_injection.install();
+    weapon_stay_allow_pickup_injection.install();
+
     // Apply customized spawn protection duration
     spawn_protection_duration_patch.install();
 
@@ -2420,7 +2393,7 @@ bool server_enforces_no_player_collide()
 
 bool server_has_damage_notifications()
 {
-    return g_additional_server_config.damage_notifications.enabled;
+    return g_alpine_server_config.damage_notification_config.enabled;
 }
 
 const AFGameInfoFlags& server_get_game_info_flags()

@@ -178,12 +178,12 @@ void parse_gungame(rf::Parser& parser)
 void parse_damage_notifications(rf::Parser& parser)
 {
     if (parser.parse_optional("$Damage Notifications:")) {
-        g_additional_server_config.damage_notifications.enabled = parser.parse_bool();
+        g_alpine_server_config.damage_notification_config.enabled = parser.parse_bool();
         rf::console::print("Damage Notifications Enabled: {}",
-                           g_additional_server_config.damage_notifications.enabled ? "true" : "false");
+                           g_alpine_server_config.damage_notification_config.enabled ? "true" : "false");
 
         parse_boolean_option(parser, "+Legacy Client Compatibility:",
-                             g_additional_server_config.damage_notifications.support_legacy_clients,
+                             g_alpine_server_config.damage_notification_config.support_legacy_clients,
                              "+Legacy Client Compatibility");
     }
 }
@@ -226,7 +226,7 @@ void parse_overtime(rf::Parser& parser)
 
 void parse_weapon_stay_exemptions(rf::Parser& parser)
 {
-    if (parser.parse_optional("$Weapon Stay Exemptions:")) {
+    /* if (parser.parse_optional("$Weapon Stay Exemptions:")) {
         g_additional_server_config.weapon_stay_exemptions.enabled = parser.parse_bool();
         rf::console::print("Weapon Stay Exemptions Enabled: {}",
                            g_additional_server_config.weapon_stay_exemptions.enabled ? "true" : "false");
@@ -263,7 +263,7 @@ void parse_weapon_stay_exemptions(rf::Parser& parser)
         parse_boolean_option(parser,
                              "+Remote Charges:", g_additional_server_config.weapon_stay_exemptions.remote_charge,
                              "+Remote Charges");
-    }
+    }*/
 }
 
 void parse_weapon_ammo_settings(rf::Parser& parser)

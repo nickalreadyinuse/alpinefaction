@@ -169,6 +169,27 @@ static KillRewardConfig parse_kill_reward_config(const toml::table& t, KillRewar
     return c;
 }
 
+static WeaponStayExemptionConfig parse_weapon_stay_exemption_config(const toml::table& t, WeaponStayExemptionConfig c)
+{
+    if (auto arr = t["exemptions"].as_array()) {
+        for (auto& node : *arr) {
+            if (auto nameOpt = node.value<std::string>()) {
+                // simple string → default enabled
+                c.add(*nameOpt);
+            }
+            else if (auto tbl = node.as_table()) {
+                if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
+                    bool enabled = (*tbl)["exempt"].value<bool>().value_or(true);
+                    // explicit per-entry flag
+                    c.add(*nameOpt, enabled);
+                }
+            }
+        }
+    }
+
+    return c;
+}
+
 // parse toml rules
 // for base rules, load all speciifed. For not specified, defaults are in struct
 // for level-specific rules, start with base rules and load anything specified beyond that
@@ -227,6 +248,11 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     if (auto sub = t["welcome_message"].as_table())
         o.welcome_message = parse_welcome_message_config(*sub, o.welcome_message);
 
+    o.weapon_stay_exemptions.exemptions.clear(); // need to do this here instead of in the parsing function
+    o.weapon_stay_exemptions.add("shoulder_cannon"); // maintain stock game behaviour
+    if (auto sub = t["weapon_stay_exemptions"].as_table())
+        o.weapon_stay_exemptions = parse_weapon_stay_exemption_config(*sub, o.weapon_stay_exemptions);
+
     return o;
 }
 
@@ -260,6 +286,19 @@ static InactivityConfig parse_inactivity_config(const toml::table &t)
             o.set_warning_duration(*v);
         if (auto v = t["kick_message"].value<std::string>())
             o.kick_message = *v;
+    }
+    return o;
+}
+
+static DamageNotificationConfig parse_damage_notification_config(const toml::table& t)
+{
+    DamageNotificationConfig o;
+    if (auto v = t["enabled"].value<bool>())
+        o.enabled = *v;
+
+    if (o.enabled) {
+        if (auto v = t["support_legacy"].value<bool>())
+            o.support_legacy_clients = *v;
     }
     return o;
 }
@@ -363,6 +402,9 @@ void load_ads_server_config(std::string ads_config_name)
 
     if (auto tblInact = tbl["inactivity"].as_table())
         cfg.inactivity_config = parse_inactivity_config(*tblInact);
+
+    if (auto tblInact = tbl["damage_notifications"].as_table())
+        cfg.damage_notification_config = parse_damage_notification_config(*tblInact);
 
     if (auto tblRestr = tbl["alpine_restrict"].as_table())
         cfg.alpine_restricted_config = parse_alpine_restrict_config(*tblRestr);
@@ -500,8 +542,6 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("  Weapon pickups give full ammo:         {}\n", rules.weapon_items_give_full_ammo);
     if (base || rules.weapon_infinite_magazines != b.weapon_infinite_magazines)
         rf::console::print("  Infinite reloads:                      {}\n", rules.weapon_infinite_magazines);
-    //if (base || rules.welcome_message != b.welcome_message)
-    //    rf::console::print("  Welcome message:                       {}\n", rules.welcome_message);
 
     if (base || rules.welcome_message.enabled != b.welcome_message.enabled ||
         (rules.welcome_message.enabled && rules.welcome_message.welcome_message != b.welcome_message.welcome_message)) {
@@ -579,6 +619,16 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("    Health is super:                     {}\n", rules.kill_rewards.kill_reward_health_super);
         rf::console::print("    Armor is super:                      {}\n", rules.kill_rewards.kill_reward_armor_super);
     }
+
+    // weap stay exemptions
+    if ( base || rules.weapon_stay_exemptions.exemptions != b.weapon_stay_exemptions.exemptions )
+    {
+        rf::console::print("  Weapon stay exemptions:\n");
+        for (auto const& e : rules.weapon_stay_exemptions.exemptions)
+        {
+            rf::console::print("    {}: {}\n", e.weapon_name, e.exemption_enabled ? "exempt" : "not exempt");
+        }
+    }
 }
 
 void print_alpine_dedicated_server_config_info(bool verbose) {
@@ -622,6 +672,12 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
         rf::console::print("    Allowed inactivity time:             {} sec\n", cfg.inactivity_config.allowed_inactive_ms / 1000.0f);
         rf::console::print("    Warning duration:                    {} sec\n", cfg.inactivity_config.warning_duration_ms / 1000.0f);
         rf::console::print("    Kick message:                        {}\n", cfg.inactivity_config.kick_message);
+    }
+
+    rf::console::print("\n---- Damage notification settings ----\n");
+    rf::console::print("  Damage notifications:                  {}\n", cfg.damage_notification_config.enabled);
+    if (cfg.damage_notification_config.enabled) {
+        rf::console::print("    Legacy client compatibility:         {}\n", cfg.damage_notification_config.support_legacy_clients);
     }
 
     rf::console::print("\n---- Alpine restriction settings ----\n");
@@ -785,6 +841,12 @@ void apply_rules_for_current_level()
     );
 }
 
+void init_alpine_dedicated_server() {
+    // remove stock game weapon stay exemption for fusion
+    AsmWriter(0x00459834).jmp(0x00459836);
+    AsmWriter(0x004596BA).jmp(0x004596BC);
+}
+
 void launch_alpine_dedicated_server() {
     rf::console::print("==================================================================\n");
     rf::console::print("================  Alpine Faction Dedicated Server ================\n");
@@ -819,6 +881,7 @@ void launch_alpine_dedicated_server() {
     }
 
     g_alpine_server_config_active_rules = cfg.base_rules; // initialize rules with base in case it is checked before first level loads
+    init_alpine_dedicated_server();
     netgame.current_level_index = 0;
     rf::multi_level_switch_queued = -1;
 }
@@ -908,6 +971,7 @@ ConsoleCommand2 load_server_config_cmd{
 };
 
 void dedi_cfg_init() {
+
     // register console commands
     print_server_config_cmd.register_cmd();
     print_level_rules_cmd.register_cmd();

@@ -12,6 +12,7 @@
 #include "../rf/parse.h"
 #include "../rf/os/console.h"
 #include "../rf/multi.h"
+#include "../rf/weapon.h"
 
 // Forward declarations
 namespace rf
@@ -129,7 +130,8 @@ struct CriticalHitsConfig
     bool dynamic_scale = true;
     float dynamic_damage_for_max_bonus = 1200.0f;
 };
-struct WeaponStayExemptionConfig
+
+struct WeaponStayExemptionConfigOld
 {
     bool enabled = false;
     bool rocket_launcher = false;
@@ -158,7 +160,7 @@ struct OvertimeConfig
 struct NewSpawnLogicRespawnItemConfig
 {
     std::string item_name;
-    int min_respawn_points;
+    int min_respawn_points = 8;
 };
 
 struct NewSpawnLogicConfig // defaults match stock game
@@ -193,6 +195,44 @@ struct WelcomeMessageConfig
         bool was_trimmed = new_welcome_message.size() > 240;
         std::string_view to_use = was_trimmed ? new_welcome_message.substr(0, 240) : new_welcome_message;
         welcome_message.assign(to_use);
+    }
+};
+
+struct WeaponStayExemptionEntry
+{
+    bool exemption_enabled = true;
+    std::string weapon_name;
+    int index;
+
+    auto operator<=>(const WeaponStayExemptionEntry&) const = default;
+};
+
+struct WeaponStayExemptionConfig
+{
+    std::vector<WeaponStayExemptionEntry> exemptions;
+
+    // =============================================
+
+    // default true unless specified
+    bool add(std::string_view name, bool exemption_enabled = true)
+    {
+        // see if we already have this weapon
+        auto it =
+            std::find_if(exemptions.begin(), exemptions.end(), [&](auto const& e) { return e.weapon_name == name; });
+
+        if (it != exemptions.end()) {
+            // already present → just update the enabled flag
+            it->exemption_enabled = exemption_enabled;
+            return false;
+        }
+
+        // not found → add a new one
+        int idx = rf::weapon_lookup_type(name.data());
+        if (idx < 0)
+            return false;
+
+        exemptions.emplace_back(WeaponStayExemptionEntry{exemption_enabled, std::string{name}, idx});
+        return true;
     }
 };
 
@@ -250,6 +290,7 @@ struct AlpineServerConfigRules
     bool weapon_items_give_full_ammo = false;
     bool weapon_infinite_magazines = false;
     KillRewardConfig kill_rewards;
+    WeaponStayExemptionConfig weapon_stay_exemptions;
 
     // =============================================
     
@@ -309,6 +350,7 @@ struct AlpineServerConfig
     bool use_sp_damage_calculation = false;
     AlpineRestrictConfig alpine_restricted_config;
     InactivityConfig inactivity_config;
+    DamageNotificationConfig damage_notification_config;
     VoteConfig vote_kick;
     VoteConfig vote_level;
     VoteConfig vote_extend;
@@ -360,9 +402,9 @@ struct ServerAdditionalConfig
     //int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
     BagmanConfig bagman;
-    DamageNotificationConfig damage_notifications;
+    //DamageNotificationConfig damage_notifications;
     CriticalHitsConfig critical_hits;
-    WeaponStayExemptionConfig weapon_stay_exemptions;
+    WeaponStayExemptionConfigOld weapon_stay_exemptions;
     OvertimeConfig overtime;
     std::map<std::string, std::string> item_replacements;
     std::map<std::string, int> item_respawn_time_overrides;
