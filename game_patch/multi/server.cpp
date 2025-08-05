@@ -211,7 +211,7 @@ CodeInjection dedicated_server_load_post_map_patch{
         }
 
         // infinite reloads
-        if (g_additional_server_config.gungame.enabled || g_additional_server_config.weapon_infinite_magazines) {
+        if (g_additional_server_config.gungame.enabled || g_alpine_server_config_active_rules.weapon_infinite_magazines) { // todo: codeinjection
             AsmWriter{0x00425506}.nop(2);
         }
     },
@@ -1406,8 +1406,9 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             //multi_update_gungame_weapon(player, true);            
         }
 
-        rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
-        if (ep) {
+        auto ep = rf::entity_from_handle(player->entity_handle);
+
+        if (player && ep) {
             if (g_alpine_server_config_active_rules.spawn_life.enabled) {
                 ep->life = g_alpine_server_config_active_rules.spawn_life.value;
             }
@@ -1487,31 +1488,35 @@ FunHook<void(rf::Entity*, rf::Weapon*)> multi_lag_comp_weapon_fire_hook{
 
 void server_reliable_socket_ready(rf::Player* player)
 {
+    auto& data = get_player_additional_data(player);
+
     // welcome players, restricting to only welcoming alpine clients if configured
-    if (!g_additional_server_config.welcome_message.empty()) {
-        if (!g_alpine_server_config.alpine_restricted_config.only_welcome_alpine || get_player_additional_data(player).is_alpine) {
-            auto msg = string_replace(g_additional_server_config.welcome_message, "$PLAYER", player->name.c_str());
+    if (!g_alpine_server_config_active_rules.welcome_message.enabled) {
+        if (!g_alpine_server_config.alpine_restricted_config.only_welcome_alpine || data.is_alpine) {
+            auto msg = string_replace(g_alpine_server_config_active_rules.welcome_message.welcome_message, "$PLAYER", player->name.c_str());
             send_chat_line_packet(msg.c_str(), player);
         }
     }
 
     // alert alpine clients to the queued match on join
-    if (g_match_info.pre_match_active && get_player_additional_data(player).is_alpine) {    
+    if (g_match_info.pre_match_active && data.is_alpine) {    
         auto msg = std::format("\xA6 Match is queued and waiting for players: {}v{}! Use \"/ready\" to ready up.",
             g_match_info.team_size, g_match_info.team_size);
 
         send_chat_line_packet(msg.c_str(), player);
     }
 
+    int pm = data.alpine_version_major;
+    int pn = data.alpine_version_minor;
+
     // advertise AF to non-alpine clients if configured
     if (g_alpine_server_config.alpine_restricted_config.advertise_alpine) {
-        if (!get_player_additional_data(player).is_alpine) {
+        if (!data.is_alpine) {
             auto msg = std::format(
                 "\xA6 Have you heard of Alpine Faction? It's a new patch with lots of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
             send_chat_line_packet(msg.c_str(), player);
         }
-        else if (VERSION_TYPE == VERSION_TYPE_RELEASE &&
-            (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR || get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
+        else if (VERSION_TYPE == VERSION_TYPE_RELEASE && (pm < VERSION_MAJOR || (pm == VERSION_MAJOR && pn < VERSION_MINOR))) {
             auto msg = std::format("\xA6 A new version of Alpine Faction is available! Learn more at alpinefaction.com");
             send_chat_line_packet(msg.c_str(), player);
         }
@@ -2370,7 +2375,7 @@ bool server_gaussian_spread()
 
 bool server_weapon_items_give_full_ammo()
 {
-    return g_additional_server_config.weapon_items_give_full_ammo;
+    return g_alpine_server_config_active_rules.weapon_items_give_full_ammo;
 }
 
 const ServerAdditionalConfig& server_get_df_config()

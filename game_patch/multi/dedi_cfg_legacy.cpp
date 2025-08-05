@@ -269,11 +269,11 @@ void parse_weapon_stay_exemptions(rf::Parser& parser)
 void parse_weapon_ammo_settings(rf::Parser& parser)
 {
     if (parser.parse_optional("$Weapon Items Give Full Ammo:")) {
-        g_additional_server_config.weapon_items_give_full_ammo = parser.parse_bool();
+        g_alpine_server_config_active_rules.weapon_items_give_full_ammo = parser.parse_bool();
         rf::console::print("Weapon Items Give Full Ammo: {}",
-                           g_additional_server_config.weapon_items_give_full_ammo ? "true" : "false");
+                           g_alpine_server_config_active_rules.weapon_items_give_full_ammo ? "true" : "false");
 
-        parse_boolean_option(parser, "+Infinite Magazines:", g_additional_server_config.weapon_infinite_magazines,
+        parse_boolean_option(parser, "+Infinite Magazines:", g_alpine_server_config_active_rules.weapon_infinite_magazines,
                              "+Infinite Magazines");
     }
 }
@@ -320,13 +320,13 @@ void parse_kill_rewards(rf::Parser& parser)
 {
     if (parser.parse_optional("$Kill Reward")) {
         rf::console::print("Parsing Kill Rewards...");
-        parse_float_option(parser, "+Effective Health:", g_additional_server_config.kill_reward_effective_health,
+        parse_float_option(parser, "+Effective Health:", g_alpine_server_config_active_rules.kill_rewards.kill_reward_effective_health,
                            "Kill Reward: Effective Health");
-        parse_float_option(parser, "+Health:", g_additional_server_config.kill_reward_health, "Kill Reward: Health");
-        parse_float_option(parser, "+Armor:", g_additional_server_config.kill_reward_armor, "Kill Reward: Armor");
-        parse_boolean_option(parser, "+Health Is Super:", g_additional_server_config.kill_reward_health_super,
+        parse_float_option(parser, "+Health:", g_alpine_server_config_active_rules.kill_rewards.kill_reward_health, "Kill Reward: Health");
+        parse_float_option(parser, "+Armor:", g_alpine_server_config_active_rules.kill_rewards.kill_reward_armor, "Kill Reward: Armor");
+        parse_boolean_option(parser, "+Health Is Super:", g_alpine_server_config_active_rules.kill_rewards.kill_reward_health_super,
                              "Kill Reward: Health Is Super");
-        parse_boolean_option(parser, "+Armor Is Super:", g_additional_server_config.kill_reward_armor_super,
+        parse_boolean_option(parser, "+Armor Is Super:", g_alpine_server_config_active_rules.kill_rewards.kill_reward_armor_super,
                              "Kill Reward: Armor Is Super");
     }
 }
@@ -366,15 +366,15 @@ void parse_miscellaneous_options(rf::Parser& parser)
     parse_boolean_option(parser, "$Allow Client Unlimited FPS:", g_alpine_server_config.allow_unlimited_fps,
                          "Allow Client Unlimited FPS");
 
-    if (parser.parse_optional("$Welcome Message:")) {
+    /* if (parser.parse_optional("$Welcome Message:")) {
         rf::String welcome_message;
         parser.parse_string(&welcome_message);
-        g_additional_server_config.welcome_message = welcome_message.c_str();
-        rf::console::print("Welcome Message Set: {}", g_additional_server_config.welcome_message);
+        g_alpine_server_config_active_rules.welcome_message = welcome_message.c_str();
+        rf::console::print("Welcome Message Set: {}", g_alpine_server_config_active_rules.welcome_message);
         parse_boolean_option(parser, "+Only Welcome Alpine Faction Clients:",
                              g_alpine_server_config.alpine_restricted_config.only_welcome_alpine,
                              "+Only Welcome Alpine Faction Clients");
-    }
+    }*/
 }
 
 void parse_alpine_locking(rf::Parser& parser)

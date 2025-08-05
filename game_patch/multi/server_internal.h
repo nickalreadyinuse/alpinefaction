@@ -172,6 +172,30 @@ struct NewSpawnLogicConfig // defaults match stock game
     std::vector<NewSpawnLogicRespawnItemConfig> dynamic_respawn_items;
 };
 
+struct KillRewardConfig
+{
+    float kill_reward_health = 0.0f;
+    float kill_reward_armor = 0.0f;
+    float kill_reward_effective_health = 0.0f;
+    bool kill_reward_health_super = false;
+    bool kill_reward_armor_super = false;
+};
+
+struct WelcomeMessageConfig
+{
+    bool enabled = false;
+    std::string welcome_message = "";
+
+    // =============================================
+
+    void set_welcome_message(std::string_view new_welcome_message)
+    {
+        bool was_trimmed = new_welcome_message.size() > 240;
+        std::string_view to_use = was_trimmed ? new_welcome_message.substr(0, 240) : new_welcome_message;
+        welcome_message.assign(to_use);
+    }
+};
+
 struct AlpineRestrictConfig
 {
     bool clients_require_alpine = false;
@@ -221,6 +245,11 @@ struct AlpineServerConfigRules
     SpawnLifeConfig spawn_armour;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig spawn_logic;
+    //std::string welcome_message;
+    WelcomeMessageConfig welcome_message;
+    bool weapon_items_give_full_ammo = false;
+    bool weapon_infinite_magazines = false;
+    KillRewardConfig kill_rewards;
 
     // =============================================
     
@@ -360,14 +389,14 @@ struct ServerAdditionalConfig
     //bool stats_message_enabled = true;
     //bool drop_amps = false;
     //bool dynamic_rotation = false;
-    std::string welcome_message;
-    bool weapon_items_give_full_ammo = false;
-    bool weapon_infinite_magazines = false;
-    float kill_reward_health = 0.0f;
-    float kill_reward_armor = 0.0f;
-    float kill_reward_effective_health = 0.0f;
-    bool kill_reward_health_super = false;
-    bool kill_reward_armor_super = false;
+    //std::string welcome_message;
+    //bool weapon_items_give_full_ammo = false;
+    //bool weapon_infinite_magazines = false;
+    //float kill_reward_health = 0.0f;
+    //float kill_reward_armor = 0.0f;
+    //float kill_reward_effective_health = 0.0f;
+    //bool kill_reward_health_super = false;
+    //bool kill_reward_armor_super = false;
     //bool clients_require_alpine = false;
     //bool reject_non_alpine_clients = false;
     //bool alpine_server_version_enforce_min = false;

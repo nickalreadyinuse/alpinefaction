@@ -404,7 +404,7 @@ void multi_apply_kill_reward(rf::Player* player)
         return;
     }
 
-    const auto& conf = server_get_df_config();
+    const auto& conf = g_alpine_server_config_active_rules.kill_rewards;
 
     // Ensure that max health/armor limits do not decrease current values
     float max_life_limit = std::max(ep->life, conf.kill_reward_health_super ? 200.0f : ep->info->max_life);

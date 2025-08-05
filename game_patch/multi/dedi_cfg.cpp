@@ -91,6 +91,19 @@ static SpawnLifeConfig parse_spawn_life_config(const toml::table& t, SpawnLifeCo
     return c;
 }
 
+static WelcomeMessageConfig parse_welcome_message_config(const toml::table& t, WelcomeMessageConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["text"].value<std::string>())
+            c.set_welcome_message(*v);
+    }
+
+    return c;
+}
+
 static SpawnProtectionConfig parse_spawn_protection_config(const toml::table& t, SpawnProtectionConfig c)
 {
     if (auto x = t["enabled"].value<bool>())
@@ -140,6 +153,22 @@ static NewSpawnLogicConfig parse_spawn_logic_config(const toml::table& t, NewSpa
     return c;
 }
 
+static KillRewardConfig parse_kill_reward_config(const toml::table& t, KillRewardConfig c)
+{
+    if (auto x = t["health"].value<float>())
+        c.kill_reward_health = *x;
+    if (auto x = t["armor"].value<float>())
+        c.kill_reward_armor = *x;
+    if (auto x = t["effective_health"].value<float>())
+        c.kill_reward_effective_health = *x;
+    if (auto x = t["health_is_super"].value<bool>())
+        c.kill_reward_health_super = *x;
+    if (auto x = t["armor_is_super"].value<bool>())
+        c.kill_reward_armor_super = *x;
+
+    return c;
+}
+
 // parse toml rules
 // for base rules, load all speciifed. For not specified, defaults are in struct
 // for level-specific rules, start with base rules and load anything specified beyond that
@@ -180,6 +209,10 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.set_flag_return_time(*v);
     if (auto v = t["drop_amps"].value<bool>())
         o.drop_amps = *v;
+    if (auto v = t["weapon_pickups_give_full_ammo"].value<bool>())
+        o.weapon_items_give_full_ammo = *v;
+    if (auto v = t["infinite_reloads"].value<bool>())
+        o.weapon_infinite_magazines = *v;
 
     if (auto sub = t["spawn_life"].as_table())
         o.spawn_life  = parse_spawn_life_config(*sub, o.spawn_life);
@@ -189,6 +222,10 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.spawn_protection = parse_spawn_protection_config(*sub, o.spawn_protection);
     if (auto sub = t["spawn_selection"].as_table())
         o.spawn_logic = parse_spawn_logic_config(*sub, o.spawn_logic);
+    if (auto sub = t["kill_rewards"].as_table())
+        o.kill_rewards = parse_kill_reward_config(*sub, o.kill_rewards);
+    if (auto sub = t["welcome_message"].as_table())
+        o.welcome_message = parse_welcome_message_config(*sub, o.welcome_message);
 
     return o;
 }
@@ -454,12 +491,25 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         if (base || rules.flag_captures_while_stolen != b.flag_captures_while_stolen)
             rf::console::print("  Flag captures while stolen:            {}\n", rules.flag_captures_while_stolen);
         if (base || rules.ctf_flag_return_time_ms != b.ctf_flag_return_time_ms)
-            rf::console::print("  Flag return time:                      {} sec\n", rules.ctf_flag_return_time_ms / 1000.0f); // fix, needs codeinjection for runtime change
-        // does sv_loadconfig apply rules to levels? not sure if it replicates
+            rf::console::print("  Flag return time:                      {} sec\n", rules.ctf_flag_return_time_ms / 1000.0f);
     }
 
     if (base || rules.drop_amps != b.drop_amps)
         rf::console::print("  Drop amps:                             {}\n", rules.drop_amps);
+    if (base || rules.weapon_items_give_full_ammo != b.weapon_items_give_full_ammo)
+        rf::console::print("  Weapon pickups give full ammo:         {}\n", rules.weapon_items_give_full_ammo);
+    if (base || rules.weapon_infinite_magazines != b.weapon_infinite_magazines)
+        rf::console::print("  Infinite reloads:                      {}\n", rules.weapon_infinite_magazines);
+    //if (base || rules.welcome_message != b.welcome_message)
+    //    rf::console::print("  Welcome message:                       {}\n", rules.welcome_message);
+
+    if (base || rules.welcome_message.enabled != b.welcome_message.enabled ||
+        (rules.welcome_message.enabled && rules.welcome_message.welcome_message != b.welcome_message.welcome_message)) {
+        rf::console::print("  Welcome message:                       {}\n", rules.welcome_message.enabled);
+        if (rules.welcome_message.enabled) {
+            rf::console::print("    Text:                                {}\n", rules.welcome_message.welcome_message);
+        }
+    }
 
     // spawn life
     if (base || rules.spawn_life.enabled != b.spawn_life.enabled ||
@@ -512,6 +562,22 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
                 rf::console::print("      Dynamic respawn item:              {} (threshold: {})\n", item.item_name, item.min_respawn_points);
             }
         }
+    }
+
+    // kill rewards
+    bool rewardDiff = rules.kill_rewards.kill_reward_health != b.kill_rewards.kill_reward_health ||
+                      rules.kill_rewards.kill_reward_armor != b.kill_rewards.kill_reward_armor ||
+                      rules.kill_rewards.kill_reward_effective_health != b.kill_rewards.kill_reward_effective_health ||
+                      rules.kill_rewards.kill_reward_health_super != b.kill_rewards.kill_reward_health_super ||
+                      rules.kill_rewards.kill_reward_armor_super != b.kill_rewards.kill_reward_armor_super;
+
+    if (base || rewardDiff) {
+        rf::console::print("  Kill rewards:\n");
+        rf::console::print("    Health:                              {}\n", rules.kill_rewards.kill_reward_health);
+        rf::console::print("    Armor:                               {}\n", rules.kill_rewards.kill_reward_armor);
+        rf::console::print("    Effective health:                    {}\n", rules.kill_rewards.kill_reward_effective_health);
+        rf::console::print("    Health is super:                     {}\n", rules.kill_rewards.kill_reward_health_super);
+        rf::console::print("    Armor is super:                      {}\n", rules.kill_rewards.kill_reward_armor_super);
     }
 }
 
