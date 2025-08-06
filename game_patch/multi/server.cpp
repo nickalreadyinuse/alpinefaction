@@ -2343,7 +2343,7 @@ bool server_allow_disable_muzzle_flash()
 
 bool server_apply_click_limiter()
 {
-    return g_additional_server_config.apply_click_limiter;
+    return g_alpine_server_config.click_limiter_config.enabled;
 }
 
 bool server_allow_unlimited_fps()
@@ -2393,7 +2393,7 @@ bool server_rejects_legacy_clients()
 
 bool server_enforces_click_limiter()
 {
-    return g_additional_server_config.apply_click_limiter;
+    return g_alpine_server_config.click_limiter_config.enabled;
 }
 
 bool server_enforces_no_player_collide()

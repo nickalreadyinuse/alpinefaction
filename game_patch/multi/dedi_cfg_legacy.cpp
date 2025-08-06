@@ -491,13 +491,13 @@ void load_additional_server_config(rf::Parser& parser)
     parse_boolean_option(parser, "$Use Gaussian Bullet Spread:", g_alpine_server_config.gaussian_spread,
                          "Use Gaussian Bullet Spread");
     if (parser.parse_optional("$Enforce Semi Auto Fire Rate Limit:")) {
-        g_additional_server_config.apply_click_limiter = parser.parse_bool();
+        g_alpine_server_config.click_limiter_config.enabled = parser.parse_bool();
         rf::console::print("Enforce Semi Auto Fire Rate Limit: {}",
-                           g_additional_server_config.apply_click_limiter ? "true" : "false");
+                           g_alpine_server_config.click_limiter_config.enabled ? "true" : "false");
         if (parser.parse_optional("+Cooldown:")) {
             int fire_wait = parser.parse_int();
-            g_additional_server_config.semi_auto_cooldown = {fire_wait};
-            rf::console::print("+Cooldown: {}", g_additional_server_config.semi_auto_cooldown.value_or(0));
+            g_alpine_server_config.click_limiter_config.cooldown = {fire_wait};
+            rf::console::print("+Cooldown: {}", g_alpine_server_config.click_limiter_config.cooldown);
         }
     }
 

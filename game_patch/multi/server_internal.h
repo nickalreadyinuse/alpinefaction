@@ -262,6 +262,19 @@ struct SpawnLifeConfig
     }
 };
 
+struct ClickLimiterConfig
+{
+    bool enabled = true;
+    int cooldown = 90;
+
+    // =============================================
+
+    void set_cooldown(int new_cooldown)
+    {
+        cooldown = std::clamp(new_cooldown, 0, 5000);
+    }
+};
+
 struct AlpineServerConfigRules
 {
     // stock game rules
@@ -373,6 +386,7 @@ struct AlpineServerConfig
     AlpineRestrictConfig alpine_restricted_config;
     InactivityConfig inactivity_config;
     DamageNotificationConfig damage_notification_config;
+    ClickLimiterConfig click_limiter_config;
     VoteConfig vote_kick;
     VoteConfig vote_level;
     VoteConfig vote_extend;

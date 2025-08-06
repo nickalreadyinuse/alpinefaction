@@ -300,6 +300,19 @@ static InactivityConfig parse_inactivity_config(const toml::table &t)
     return o;
 }
 
+static ClickLimiterConfig parse_click_limiter_config(const toml::table& t)
+{
+    ClickLimiterConfig o;
+    if (auto v = t["enabled"].value<bool>())
+        o.enabled = *v;
+
+    if (o.enabled) {
+        if (auto v = t["cooldown"].value<int>())
+            o.set_cooldown(*v);
+    }
+    return o;
+}
+
 static DamageNotificationConfig parse_damage_notification_config(const toml::table& t)
 {
     DamageNotificationConfig o;
@@ -418,6 +431,9 @@ void load_ads_server_config(std::string ads_config_name)
 
     if (auto tblRestr = tbl["alpine_restrict"].as_table())
         cfg.alpine_restricted_config = parse_alpine_restrict_config(*tblRestr);
+
+    if (auto tblInact = tbl["click_limiter"].as_table())
+        cfg.click_limiter_config = parse_click_limiter_config(*tblInact);
 
     if (auto t = tbl["vote_kick"].as_table())
         cfg.vote_kick = parse_vote_config(*t);
@@ -590,26 +606,43 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     }
 
     // spawn logic
-    bool logicDiff = rules.spawn_logic.respect_team_spawns != b.spawn_logic.respect_team_spawns ||
-                     rules.spawn_logic.try_avoid_players != b.spawn_logic.try_avoid_players ||
-                     rules.spawn_logic.always_avoid_last != b.spawn_logic.always_avoid_last ||
-                     rules.spawn_logic.always_use_furthest != b.spawn_logic.always_use_furthest ||
-                     rules.spawn_logic.only_avoid_enemies != b.spawn_logic.only_avoid_enemies ||
-                     rules.spawn_logic.dynamic_respawns != b.spawn_logic.dynamic_respawns ||
-                     rules.spawn_logic.dynamic_respawn_items.size() != b.spawn_logic.dynamic_respawn_items.size();
+    bool spawnLogicChanged =
+        rules.spawn_logic.respect_team_spawns != b.spawn_logic.respect_team_spawns ||
+        rules.spawn_logic.try_avoid_players != b.spawn_logic.try_avoid_players ||
+        rules.spawn_logic.always_avoid_last != b.spawn_logic.always_avoid_last ||
+        rules.spawn_logic.always_use_furthest != b.spawn_logic.always_use_furthest ||
+        rules.spawn_logic.only_avoid_enemies != b.spawn_logic.only_avoid_enemies ||
+        rules.spawn_logic.dynamic_respawns != b.spawn_logic.dynamic_respawns ||
+        rules.spawn_logic.dynamic_respawn_items.size() != b.spawn_logic.dynamic_respawn_items.size();
 
-    if (base || logicDiff) {
+    if (base || spawnLogicChanged) {
         rf::console::print("  Spawn logic:\n");
-        rf::console::print("    Respect team spawns:                 {}\n", rules.spawn_logic.respect_team_spawns);
-        rf::console::print("    Try avoid players:                   {}\n", rules.spawn_logic.try_avoid_players);
-        rf::console::print("    Always avoid last:                   {}\n", rules.spawn_logic.always_avoid_last);
-        rf::console::print("    Always use furthest:                 {}\n", rules.spawn_logic.always_use_furthest);
-        rf::console::print("    Only avoid enemies:                  {}\n", rules.spawn_logic.only_avoid_enemies);
-        rf::console::print("    Create item dynamic respawns:        {}\n", rules.spawn_logic.dynamic_respawns);
+        if (base || rules.spawn_logic.respect_team_spawns != b.spawn_logic.respect_team_spawns)
+            rf::console::print("    Respect team spawns:                 {}\n", rules.spawn_logic.respect_team_spawns);
+        if (base || rules.spawn_logic.try_avoid_players != b.spawn_logic.try_avoid_players)
+            rf::console::print("    Try avoid players:                   {}\n", rules.spawn_logic.try_avoid_players);
+        if (base || rules.spawn_logic.always_avoid_last != b.spawn_logic.always_avoid_last)
+            rf::console::print("    Always avoid last:                   {}\n", rules.spawn_logic.always_avoid_last);
+        if (base || rules.spawn_logic.always_use_furthest != b.spawn_logic.always_use_furthest)
+            rf::console::print("    Always use furthest:                 {}\n", rules.spawn_logic.always_use_furthest);
+        if (base || rules.spawn_logic.only_avoid_enemies != b.spawn_logic.only_avoid_enemies)
+            rf::console::print("    Only avoid enemies:                  {}\n", rules.spawn_logic.only_avoid_enemies);
+        if (base || rules.spawn_logic.dynamic_respawns != b.spawn_logic.dynamic_respawns)
+            rf::console::print("    Create item dynamic respawns:        {}\n", rules.spawn_logic.dynamic_respawns);
 
-        if (rules.spawn_logic.dynamic_respawns) {
-            for (auto& item : rules.spawn_logic.dynamic_respawn_items) {
-                rf::console::print("      Dynamic respawn item:              {} (threshold: {})\n", item.item_name, item.min_respawn_points);
+        if ((base || (rules.spawn_logic.dynamic_respawns != b.spawn_logic.dynamic_respawns ||
+                      rules.spawn_logic.dynamic_respawn_items.size() != b.spawn_logic.dynamic_respawn_items.size())) &&
+            rules.spawn_logic.dynamic_respawns) {
+            for (auto const& item : rules.spawn_logic.dynamic_respawn_items) {
+                bool unchanged = std::any_of(b.spawn_logic.dynamic_respawn_items.begin(),
+                                             b.spawn_logic.dynamic_respawn_items.end(), [&](auto const& bi) {
+                                                 return bi.item_name == item.item_name &&
+                                                        bi.min_respawn_points == item.min_respawn_points;
+                                             });
+                if (base || !unchanged) {
+                    rf::console::print("      Dynamic respawn item:              {} (threshold: {})\n", item.item_name,
+                                       item.min_respawn_points);
+                }
             }
         }
     }
@@ -629,38 +662,8 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("    Health is super:                     {}\n", rules.kill_rewards.kill_reward_health_super);
         rf::console::print("    Armor is super:                      {}\n", rules.kill_rewards.kill_reward_armor_super);
     }
-    /*
-    // weap stay exemptions
-    if ( base || rules.weapon_stay_exemptions.exemptions != b.weapon_stay_exemptions.exemptions )
-    {
-        rf::console::print("  Weapon stay exemptions:\n");
-        for (auto const& e : rules.weapon_stay_exemptions.exemptions)
-        {
-            rf::console::print("    {}: {}\n", e.weapon_name, e.exemption_enabled ? "exempt" : "not exempt");
-        }
-    }
 
-    // item replacements
-    if (base || rules.item_replacements != b.item_replacements) {
-        rf::console::print("  Item replacements:\n");
-        for (auto const& [orig, repl] : rules.item_replacements) {
-            rf::console::print("    {} -> {}\n", orig, repl);
-        }
-    }
-
-    // item spawn time overrides
-    if (base || rules.item_respawn_time_overrides != b.item_respawn_time_overrides) {
-        rf::console::print("  Item respawn time overrides:\n");
-        for (auto const& [item, ms] : rules.item_respawn_time_overrides) {
-            rf::console::print("    {}: {} ms\n", item, ms);
-        }
-    }*/
-
-    //
     // Weapon stay exemptions
-    //
-    // Print the header if we're printing the full base, or if there's
-    // at least one exemption that's different from base
     bool anyExemptionChanged = std::any_of(
         rules.weapon_stay_exemptions.exemptions.begin(),
         rules.weapon_stay_exemptions.exemptions.end(),
@@ -685,17 +688,14 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
                                        && be.exemption_enabled == e.exemption_enabled; }
             );
             if (base || !unchanged) {
-                rf::console::print("    {:<20}: {}\n",
-                    e.weapon_name,
-                    e.exemption_enabled ? "exempt" : "not exempt"
+                std::string weap_name_string = e.weapon_name + ":";
+                rf::console::print("    {:<20}                 {}\n", weap_name_string, e.exemption_enabled ? "exempt" : "not exempt"
                 );
             }
         }
     }
 
-    //
     // Item replacements
-    //
     bool anyReplacementChanged = std::any_of(
         rules.item_replacements.begin(),
         rules.item_replacements.end(),
@@ -711,14 +711,12 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
             auto it = b.item_replacements.find(orig);
             bool unchanged = (it != b.item_replacements.end() && it->second == repl);
             if (base || !unchanged) {
-                rf::console::print("    {} -> {}\n", orig, repl);
+                rf::console::print("    {:<20}     ->          {}\n", orig, repl);
             }
         }
     }
 
-    //
     // Item respawn time overrides
-    //
     bool anyRespawnChanged = std::any_of(
         rules.item_respawn_time_overrides.begin(),
         rules.item_respawn_time_overrides.end(),
@@ -734,7 +732,8 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
             auto it = b.item_respawn_time_overrides.find(item);
             bool unchanged = (it != b.item_respawn_time_overrides.end() && it->second == ms);
             if (base || !unchanged) {
-                rf::console::print("    {}: {} ms\n", item, ms);
+                std::string item_name_string = item + ":";
+                rf::console::print("    {:<20}                 {} ms\n", item_name_string, ms);
             }
         }
     }
@@ -781,6 +780,12 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
         rf::console::print("    Allowed inactivity time:             {} sec\n", cfg.inactivity_config.allowed_inactive_ms / 1000.0f);
         rf::console::print("    Warning duration:                    {} sec\n", cfg.inactivity_config.warning_duration_ms / 1000.0f);
         rf::console::print("    Kick message:                        {}\n", cfg.inactivity_config.kick_message);
+    }
+
+    rf::console::print("\n---- Semi-auto click limiter settings ----\n");
+    rf::console::print("  Click limiter:                         {}\n", cfg.click_limiter_config.enabled);
+    if (cfg.click_limiter_config.enabled) {
+        rf::console::print("    Cooldown:                            {} ms\n", cfg.click_limiter_config.cooldown);
     }
 
     rf::console::print("\n---- Damage notification settings ----\n");

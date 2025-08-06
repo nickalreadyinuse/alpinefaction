@@ -882,7 +882,7 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         }
         if (server_apply_click_limiter()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::click_limit;
-            ext_data.semi_auto_cooldown = server_get_df_config().semi_auto_cooldown.value();
+            ext_data.semi_auto_cooldown = server_get_alpine_config().click_limiter_config.cooldown;
         }
         if (server_allow_unlimited_fps()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::unlimited_fps;
