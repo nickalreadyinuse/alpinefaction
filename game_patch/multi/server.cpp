@@ -1337,25 +1337,29 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
     0x00480820,
     [](rf::Player* player) {
         update_player_active_status(player); // active pulse on spawn
+        const auto& pad = get_player_additional_data(player);
 
         if (g_additional_server_config.force_player_character) {
             player->settings.multi_character = g_additional_server_config.force_player_character.value();
         }
         if (g_alpine_server_config.alpine_restricted_config.clients_require_alpine) {
-            if (!get_player_additional_data(player).is_alpine) {
+            if (!pad.is_alpine) {
                 send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
                 return;
             }
             else if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
-                get_player_additional_data(player).alpine_version_type != VERSION_TYPE_RELEASE) {
-                send_chat_line_packet("\xA6 This server requires you to use an official build of Alpine Faction. Download the latest official build at alpinefaction.com", player);
+                pad.alpine_version_type != VERSION_TYPE_RELEASE) {
+                send_chat_line_packet("\xA6 This server requires an official Alpine Faction build. Get it at alpinefaction.com", player);
                 return;
             }
-            else if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min &&
-                     (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR ||
-                      get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
-                send_chat_line_packet("\xA6 This server requires you to use a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
-                return;
+            else if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min) {
+                auto needs_update = [](int client_major, int client_minor, int req_major, int req_minor) {
+                    return (client_major < req_major) || (client_major == req_major && client_minor < req_minor);
+                };
+                if (needs_update(pad.alpine_version_major, pad.alpine_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
+                    send_chat_line_packet("\xA6 This server requires a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
+                    return;
+                }
             }
         }
         if (!check_player_ac_status(player)) {
@@ -1381,14 +1385,14 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             //multi_update_gungame_weapon(player, true);            
         }
 
-        auto ep = rf::entity_from_handle(player->entity_handle);
-
-        if (player && ep) {
-            if (g_alpine_server_config_active_rules.spawn_life.enabled) {
-                ep->life = g_alpine_server_config_active_rules.spawn_life.value;
-            }
-            if (g_alpine_server_config_active_rules.spawn_armour.enabled) {
-                ep->armor = g_alpine_server_config_active_rules.spawn_armour.value;
+        if (player) {
+            if (auto* ep = rf::entity_from_handle(player->entity_handle)) {
+                if (g_alpine_server_config_active_rules.spawn_life.enabled) {
+                    ep->life = g_alpine_server_config_active_rules.spawn_life.value;
+                }
+                if (g_alpine_server_config_active_rules.spawn_armour.enabled) {
+                    ep->armor = g_alpine_server_config_active_rules.spawn_armour.value;
+                }
             }
         }
 
