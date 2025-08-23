@@ -83,23 +83,10 @@ AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
 
-void handle_weapon_stay_exemption(BaseCodeInjection::Regs& regs, uintptr_t jump_address)
-{
-    // iterate the configured exemptions in the *active* rules
-    for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
-        if (e.exemption_enabled && regs.eax == e.index) {
-            regs.eip = jump_address;
-            return;
-        }
-    }
-}
-
 // Weapon stay exemption part 1: remove item when it is picked up and start respawn timer
 CodeInjection weapon_stay_remove_instance_injection{
     0x0045982E,
     [](auto& regs){
-        //handle_weapon_stay_exemption(regs, 0x00459865);
-
         for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
             if (e.exemption_enabled && regs.eax == e.index) {
                 regs.eip = 0x00459865;
@@ -112,8 +99,6 @@ CodeInjection weapon_stay_remove_instance_injection{
 CodeInjection weapon_stay_allow_pickup_injection{
     0x004596B4,
     [](auto& regs){
-        //handle_weapon_stay_exemption(regs, 0x004596CD);
-
         for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
             if (e.exemption_enabled && regs.eax == e.index) {
                 regs.eip = 0x004596CD;
@@ -848,13 +833,30 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
     },
 };
 
+// handle spawn loadouts (ADS only)
+CodeInjection player_create_entity_default_weapon_injection {
+    0x004A43F6,
+    [](auto& regs) {
+        if (rf::is_dedicated_server && g_dedicated_launched_from_ads) {
+            rf::Player* player = regs.ebp;
+
+            for (auto const& e : g_alpine_server_config_active_rules.spawn_loadout.red_weapons) {
+                rf::player_add_weapon(player, e.index, e.reserve_ammo);
+                rf::player_set_default_primary(player, e.index);
+            }
+            regs.eip = 0x004A4481;
+        }
+    },
+};
+
 // multi_spawn_player_server_side
 FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
     0x00480820,
     [](rf::Player* player) {
         spawn_player_sync_ammo_hook.call_target(player);
         // if default player weapon has ammo override sync ammo using additional reload packet
-        if (g_additional_server_config.default_player_weapon_ammo && !rf::player_is_dead(player)) {
+        //if (g_additional_server_config.default_player_weapon_ammo && !rf::player_is_dead(player)) {
+        if (!rf::player_is_dead(player)) {
             rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
             RF_ReloadPacket packet;
             packet.header.type = RF_GPT_RELOAD;
@@ -1273,7 +1275,7 @@ void update_player_active_status(rf::Player* player)
         auto& additional_data = get_player_additional_data(player);
         additional_data.idle_kick_timestamp.invalidate();
         additional_data.idle_check_timestamp.set(g_alpine_server_config.inactivity_config.allowed_inactive_ms);    
-        xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
+        //xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
     }
 }
 
@@ -2227,6 +2229,9 @@ void server_init()
 
     // In Multi -> Create game fix level filtering so 'pdm' and 'pctf' is supported
     multi_is_level_matching_game_type_hook.install();
+
+    // Support loadouts in ads
+    player_create_entity_default_weapon_injection.install();
 
     // Allow disabling mod name announcement
     get_mod_name_require_client_mod_hook.install();

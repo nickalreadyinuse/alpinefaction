@@ -218,6 +218,23 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.spawn_life  = parse_spawn_life_config(*sub, o.spawn_life);
     if (auto sub = t["spawn_armor"].as_table())
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
+
+    o.spawn_loadout.add("12mm handgun", 10, false, true);    
+    o.spawn_loadout.add("Riot Stick", 1, false, true);
+    o.spawn_loadout.add("Rocket Launcher", 10, false, true);
+
+    if (auto arr = t["spawn_loadout"].as_array()) {
+        for (auto& node : *arr) {
+            if (auto tbl = node.as_table()) {
+                if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
+                    int ammo = (*tbl)["ammo"].value<int>().value_or(0);
+                    bool enabled = (*tbl)["include"].value<bool>().value_or(true); // default true if not specified
+                    o.spawn_loadout.add(*nameOpt, ammo, false, enabled);
+                }
+            }
+        }
+    }
+
     if (auto sub = t["spawn_protection"].as_table())
         o.spawn_protection = parse_spawn_protection_config(*sub, o.spawn_protection);
     if (auto sub = t["spawn_selection"].as_table())
@@ -594,6 +611,34 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
             rf::console::print("    Value:                               {}\n", rules.spawn_armour.value);
         }
     }
+
+    // spawn loadout
+    bool anySpawnLoadoutChanged = std::any_of(
+        rules.spawn_loadout.red_weapons.begin(), rules.spawn_loadout.red_weapons.end(),
+        [&](auto const& e){
+            auto it = std::find_if(
+                b.spawn_loadout.red_weapons.begin(), b.spawn_loadout.red_weapons.end(), [&](auto const& be) {
+                    return be.weapon_name == e.weapon_name && be.reserve_ammo == e.reserve_ammo && be.enabled == e.enabled; }
+            );
+            return it == b.spawn_loadout.red_weapons.end();
+        }
+    );
+
+    if (base || anySpawnLoadoutChanged) {
+        rf::console::print("  Spawn loadout:\n");
+        for (auto const& e : rules.spawn_loadout.red_weapons) {
+            bool unchanged = std::any_of(
+                b.spawn_loadout.red_weapons.begin(), b.spawn_loadout.red_weapons.end(), [&](auto const& be) {
+                    return be.weapon_name == e.weapon_name && be.reserve_ammo == e.reserve_ammo && be.enabled == e.enabled;
+                }
+            );
+            if (base || !unchanged) {
+                rf::console::print("    {:<20}                 {}\n", e.weapon_name, e.enabled);
+                rf::console::print("      Extra ammo:                        {}\n", e.reserve_ammo);
+            }
+        }
+    }
+
      // spawn protection
     if (base || rules.spawn_protection.enabled != b.spawn_protection.enabled ||
         (rules.spawn_protection.enabled && (rules.spawn_protection.duration != b.spawn_protection.duration ||

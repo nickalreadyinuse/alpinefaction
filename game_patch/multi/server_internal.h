@@ -262,6 +262,45 @@ struct SpawnLifeConfig
     }
 };
 
+struct WeaponLoadoutEntry
+{
+    std::string weapon_name;
+    int index;
+    int reserve_ammo;
+    bool enabled = true;
+
+    auto operator<=>(const WeaponLoadoutEntry&) const = default;
+};
+
+struct WeaponLoadoutConfig
+{
+    std::vector<WeaponLoadoutEntry> red_weapons;
+    std::vector<WeaponLoadoutEntry> blue_weapons;
+
+    // =============================================
+
+    bool add(std::string_view name, int ammo, bool blue_team, bool enabled = true)
+    {
+        auto weapons_array = blue_team ? &blue_weapons : &red_weapons;
+
+        // only add one instance of the weapon
+        auto it = std::find_if(weapons_array->begin(), weapons_array->end(), [&](auto const& e) { return e.weapon_name == name; });
+        if (it != weapons_array->end()) {
+            // already present, just update the enabled flag
+            it->enabled = enabled;
+            return false;
+        }
+
+        // not found, add a new one
+        int idx = rf::weapon_lookup_type(name.data());
+        if (idx < 0)
+            return false;
+
+        weapons_array->emplace_back(WeaponLoadoutEntry{std::string{name}, idx, ammo, enabled});
+        return true;
+    }
+};
+
 struct ClickLimiterConfig
 {
     bool enabled = true;
@@ -296,6 +335,7 @@ struct AlpineServerConfigRules
     int ctf_flag_return_time_ms = 25000;
     SpawnLifeConfig spawn_life;
     SpawnLifeConfig spawn_armour;
+    WeaponLoadoutConfig spawn_loadout;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig spawn_logic;
     //std::string welcome_message;
@@ -455,15 +495,15 @@ struct ServerAdditionalConfig
     //bool location_pinging = true;
     //bool upnp_enabled = false;
     std::optional<int> force_player_character;
-    std::optional<float> max_fov;
+    std::optional<float> max_fov; // na
     //bool allow_fullbright_meshes = true;
     //bool allow_lightmaps_only = true;
     //bool allow_disable_screenshake = true;
     //bool allow_disable_muzzle_flash = true;
-    bool apply_click_limiter = true;
+    //bool apply_click_limiter = true;
     //bool allow_unlimited_fps = false;
-    std::optional<int> semi_auto_cooldown = 90;
-    int anticheat_level = 0;
+    //std::optional<int> semi_auto_cooldown = 90;
+    int anticheat_level = 0; // na
     //bool stats_message_enabled = true;
     //bool drop_amps = false;
     //bool dynamic_rotation = false;
