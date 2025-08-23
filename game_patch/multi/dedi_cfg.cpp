@@ -9,6 +9,7 @@
 #include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
 #include <algorithm>
+#include <filesystem>
 #include <limits>
 #include <format>
 #include <sstream>
@@ -135,16 +136,17 @@ static NewSpawnLogicConfig parse_spawn_logic_config(const toml::table& t, NewSpa
         c.dynamic_respawns = *x;
 
     if (c.dynamic_respawns) {
-        c.dynamic_respawn_items.clear();
+        c.clear_dynamic_respawn_items();
+
         if (auto arr = t["dynamic_respawn_items"].as_array()) {
             for (auto& elem : *arr) {
                 if (auto sub = elem.as_table()) {
-                    NewSpawnLogicRespawnItemConfig entry;
-                    if (auto name = (*sub)["item_name"].value<std::string>())
-                        entry.item_name = *name;
-                    if (auto pts = (*sub)["min_respawn_points"].value<int>())
-                        entry.min_respawn_points = *pts;
-                    c.dynamic_respawn_items.push_back(std::move(entry));
+                    auto name = (*sub)["item_name"].value_or<std::string>("");
+                    int pts = (*sub)["min_respawn_points"].value_or<int>(8);
+
+                    if (!c.add_dynamic_respawn_item(name, pts)) {
+                        xlog::warn("Invalid dynamic_respawn_items entry: item_name='{}'", name);
+                    }
                 }
             }
         }
@@ -223,7 +225,7 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     o.spawn_loadout.add("Riot Stick", 1, false, true);
     o.spawn_loadout.add("Rocket Launcher", 10, false, true);
 
-    if (auto arr = t["spawn_loadout"].as_array()) {
+    if (auto arr = t["spawn_loadout"].as_array()) { // todo: custom packet so clients know this, force alpine if changed from default
         for (auto& node : *arr) {
             if (auto tbl = node.as_table()) {
                 if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
@@ -264,7 +266,7 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
                 auto from = (*tbl)["original"].value_or<std::string>("");
                 auto to = (*tbl)["replacement"].value_or<std::string>("");
                 if (!o.add_item_replacement(from, to))
-                    xlog::warn("Invalid replacement {}→{}", from, to);
+                    xlog::warn("Invalid replacement {} -> {}", from, to);
             }
         }
     }
@@ -370,144 +372,314 @@ static AlpineRestrictConfig parse_alpine_restrict_config(const toml::table &t)
     return o;
 }
 
-void load_ads_server_config(std::string ads_config_name)
+namespace fs = std::filesystem;
+
+static bool is_include_key(std::string_view k) {
+    return k == "include" || k == "includes";
+}
+
+// apply base config single keys (main and includes)
+static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::node& node)
 {
-    rf::console::print("Loading and applying server configuration from {}...\n\n", ads_config_name);
-
-    toml::table tbl;
-    try
-    {
-        tbl = toml::parse_file(ads_config_name);
+    if (key == "ads_version") {
+        if (auto v = node.value<int>())
+            g_ads_loaded_version = *v;
     }
-    catch (const toml::parse_error& err)
-    {
-        rf::console::print("  [ERROR] failed to parse {}: {}\n", ads_config_name, err.description());
-        return;
+    else if (key == "server_name") {
+        if (auto v = node.value<std::string>())
+            cfg.server_name = *v;
     }
+    else if (key == "game_type") {
+        if (auto v = node.value<std::string>())
+            cfg.game_type = parse_game_type(*v);
+    }
+    else if (key == "max_players") {
+        if (auto v = node.value<int>())
+            cfg.set_max_players(*v);
+    }
+    else if (key == "password") {
+        if (auto v = node.value<std::string>())
+            cfg.set_password(*v);
+    }
+    else if (key == "rcon_password") {
+        if (auto v = node.value<std::string>())
+            cfg.set_rcon_password(*v);
+    }
+    else if (key == "upnp") {
+        if (auto v = node.value<bool>())
+            cfg.upnp_enabled = *v;
+    }
+    else if (key == "dynamic_rotation") {
+        if (auto v = node.value<bool>())
+            cfg.dynamic_rotation = *v;
+    }
+    else if (key == "require_client_mod") {
+        if (auto v = node.value<bool>())
+            cfg.require_client_mod = *v;
+    }
+    else if (key == "gaussian_spread") {
+        if (auto v = node.value<bool>())
+            cfg.gaussian_spread = *v;
+    }
+    else if (key == "send_stats_message") {
+        if (auto v = node.value<bool>())
+            cfg.stats_message_enabled = *v;
+    }
+    else if (key == "allow_fullbright_meshes") {
+        if (auto v = node.value<bool>())
+            cfg.allow_fullbright_meshes = *v;
+    }
+    else if (key == "allow_lightmap_mode") {
+        if (auto v = node.value<bool>())
+            cfg.allow_lightmaps_only = *v;
+    }
+    else if (key == "allow_disable_screenshake") {
+        if (auto v = node.value<bool>())
+            cfg.allow_disable_screenshake = *v;
+    }
+    else if (key == "allow_disable_muzzle_flash") {
+        if (auto v = node.value<bool>())
+            cfg.allow_disable_muzzle_flash = *v;
+    }
+    else if (key == "allow_unlimited_fps") {
+        if (auto v = node.value<bool>())
+            cfg.allow_unlimited_fps = *v;
+    }
+    else if (key == "use_sp_damage_calculation") {
+        if (auto v = node.value<bool>())
+            cfg.use_sp_damage_calculation = *v;
+    }
+}
 
-    AlpineServerConfig cfg;
-
-    // core config
-
-    if (auto v = tbl["ads_version"].value<int>())
-        g_ads_loaded_version = *v;
-
-    if (auto v = tbl["server_name"].value<std::string>())
-        cfg.server_name = *v;
-
-    if (auto v = tbl["game_type"].value<std::string>())
-        cfg.game_type = parse_game_type(*v);
-
-    if (auto v = tbl["max_players"].value<int>())
-        cfg.set_max_players((int)*v);
-
-    if (auto v = tbl["password"].value<std::string>())
-        cfg.set_password(*v);
-
-    if (auto v = tbl["rcon_password"].value<std::string>())
-        cfg.set_rcon_password(*v);
-
-    if (auto v = tbl["upnp"].value<bool>())
-        cfg.upnp_enabled = *v;
-
-    if (auto v = tbl["dynamic_rotation"].value<bool>())
-        cfg.dynamic_rotation = *v;
-
-    if (auto v = tbl["require_client_mod"].value<bool>())
-        cfg.require_client_mod = *v;
-
-    if (auto v = tbl["gaussian_spread"].value<bool>())
-        cfg.gaussian_spread = *v;
-
-    if (auto v = tbl["send_stats_message"].value<bool>())
-        cfg.stats_message_enabled = *v;
-
-    if (auto v = tbl["allow_fullbright_meshes"].value<bool>())
-        cfg.allow_fullbright_meshes = *v;
-
-    if (auto v = tbl["allow_lightmap_mode"].value<bool>())
-        cfg.allow_lightmaps_only = *v;
-
-    if (auto v = tbl["allow_disable_screenshake"].value<bool>())
-        cfg.allow_disable_screenshake = *v;
-
-    if (auto v = tbl["allow_disable_muzzle_flash"].value<bool>())
-        cfg.allow_disable_muzzle_flash = *v;
-
-    if (auto v = tbl["allow_unlimited_fps"].value<bool>())
-        cfg.allow_unlimited_fps = *v;
-
-    if (auto v = tbl["use_sp_damage_calculation"].value<bool>())
-        cfg.use_sp_damage_calculation = *v;
-
-    if (auto tblInact = tbl["inactivity"].as_table())
-        cfg.inactivity_config = parse_inactivity_config(*tblInact);
-
-    if (auto tblInact = tbl["damage_notifications"].as_table())
-        cfg.damage_notification_config = parse_damage_notification_config(*tblInact);
-
-    if (auto tblRestr = tbl["alpine_restrict"].as_table())
-        cfg.alpine_restricted_config = parse_alpine_restrict_config(*tblRestr);
-
-    if (auto tblInact = tbl["click_limiter"].as_table())
-        cfg.click_limiter_config = parse_click_limiter_config(*tblInact);
-
-    if (auto t = tbl["vote_kick"].as_table())
-        cfg.vote_kick = parse_vote_config(*t);
-    if (auto t = tbl["vote_level"].as_table())
-        cfg.vote_level = parse_vote_config(*t);
-    if (auto t = tbl["vote_extend"].as_table())
-        cfg.vote_extend = parse_vote_config(*t);
-    if (auto t = tbl["vote_restart"].as_table())
-        cfg.vote_restart = parse_vote_config(*t);
-    if (auto t = tbl["vote_next"].as_table())
-        cfg.vote_next = parse_vote_config(*t);
-    if (auto t = tbl["vote_rand"].as_table())
-        cfg.vote_rand = parse_vote_config(*t);
-    if (auto t = tbl["vote_previous"].as_table())
-        cfg.vote_previous = parse_vote_config(*t);
-
-    // base rules
-    if (auto base = tbl["base"].as_table()) {
-        if (auto rules = (*base)["rules"].as_table()) {
+// apply base config toml tables (main and includes)
+static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::table& tbl)
+{
+    if (key == "inactivity")
+        cfg.inactivity_config = parse_inactivity_config(tbl);
+    else if (key == "damage_notifications")
+        cfg.damage_notification_config = parse_damage_notification_config(tbl);
+    else if (key == "alpine_restrict")
+        cfg.alpine_restricted_config = parse_alpine_restrict_config(tbl);
+    else if (key == "click_limiter")
+        cfg.click_limiter_config = parse_click_limiter_config(tbl);
+    else if (key == "vote_kick")
+        cfg.vote_kick = parse_vote_config(tbl);
+    else if (key == "vote_level")
+        cfg.vote_level = parse_vote_config(tbl);
+    else if (key == "vote_extend")
+        cfg.vote_extend = parse_vote_config(tbl);
+    else if (key == "vote_restart")
+        cfg.vote_restart = parse_vote_config(tbl);
+    else if (key == "vote_next")
+        cfg.vote_next = parse_vote_config(tbl);
+    else if (key == "vote_rand")
+        cfg.vote_rand = parse_vote_config(tbl);
+    else if (key == "vote_previous")
+        cfg.vote_previous = parse_vote_config(tbl);
+    else if (key == "base") {
+        if (auto rules = tbl["rules"].as_table())
             cfg.base_rules = parse_server_rules(*rules, cfg.base_rules);
+    }
+    else if (key == "levels") {
+        if (auto arr = tbl.as_array()) {
+            for (auto& elem : *arr) {
+                if (!elem.is_table())
+                    continue;
+                auto& lvl_tbl = *elem.as_table();
+                AlpineServerConfigLevelEntry entry;
+
+                auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
+                rf::File f;
+                if (!f.find(tmp_filename.c_str())) {
+                    rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
+                    continue;
+                }
+
+                entry.level_filename = tmp_filename;
+                entry.rule_overrides = cfg.base_rules;
+                if (auto* over = lvl_tbl["rules"].as_table())
+                    entry.rule_overrides = parse_server_rules(*over, cfg.base_rules);
+
+                cfg.levels.push_back(std::move(entry));
+            }
         }
     }
+}
 
-    // levels
-    if (auto lv = tbl["levels"]; lv && lv.is_array())
-    {
-        auto* arr = lv.as_array();
-        for (auto& elem : *arr)
-        {
+// apply known array toml nodes (main and includes)
+static void apply_known_array_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::array& arr)
+{
+    if (key == "levels") {
+        for (auto& elem : arr) {
             if (!elem.is_table())
                 continue;
 
             auto& lvl_tbl = *elem.as_table();
 
+            for (auto&& [k, v] : lvl_tbl) {
+                if (k != "filename" && k != "rules") {
+                    xlog::warn("Unknown key '{}' inside a [[levels]] entry; did you intend to put it in [root]?",
+                               std::string(k.str()));
+                }
+            }
+
             AlpineServerConfigLevelEntry entry;
 
             auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
-
-            rf::File file;
-            bool found = file.find(tmp_filename.c_str());
-
-            if (!found) {
+            rf::File f;
+            if (!f.find(tmp_filename.c_str())) {
                 rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
                 continue;
             }
 
             entry.level_filename = tmp_filename;
-            entry.rule_overrides = cfg.base_rules; // handle base rules for levels without any specific rules
+            entry.rule_overrides = cfg.base_rules;
 
-            // per-level rule override
-            if (auto* over = lvl_tbl["rules"].as_table()) {
+            if (auto* over = lvl_tbl["rules"].as_table())
                 entry.rule_overrides = parse_server_rules(*over, cfg.base_rules);
-            }
 
             cfg.levels.push_back(std::move(entry));
         }
     }
+}
+
+// unified parser for main and included config files
+static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::table& tbl, const fs::path& base_dir,
+                                        std::vector<fs::path>& load_stack, int depth, ParsePass pass)
+{
+    if (depth > 16) {
+        rf::console::print("  [ERROR] include depth exceeded under {}\n", base_dir.string());
+        return;
+    }
+
+    struct Entry
+    {
+        std::string key;
+        const toml::node* node;
+        int line = std::numeric_limits<int>::max();
+        int col = std::numeric_limits<int>::max();
+    };
+
+    std::vector<Entry> entries;
+    entries.reserve(tbl.size());
+
+    for (auto&& [k, v] : tbl) {
+        Entry e{std::string(k.str()), &v};
+
+        if (auto src = v.source(); src.path) {
+            e.line = static_cast<int>(src.begin.line);
+            e.col = static_cast<int>(src.begin.column);
+        }
+
+        entries.push_back(std::move(e));
+    }
+
+    // custom sorting so includes are processed in the proper position
+    std::stable_sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
+        if (a.line != b.line)
+            return a.line < b.line;
+        return a.col < b.col;
+    });
+
+    for (const auto& e : entries) {
+        const std::string& key = e.key;
+        const toml::node& v = *e.node;
+
+        if (is_include_key(key)) {
+            auto load_one = [&](const std::string& inc) {
+                fs::path child = fs::weakly_canonical(base_dir / inc);
+                if (std::find(load_stack.begin(), load_stack.end(), child) != load_stack.end()) {
+                    rf::console::print("  [ERROR] include cycle detected at {}\n", child.string());
+                    return;
+                }
+                try {
+                    toml::table child_tbl = toml::parse_file(child.string());
+                    rf::console::print("  Parsing include {} for {} pass\n", child.string(), pass == ParsePass::Core ? "config" : "level");
+                    load_stack.push_back(child);
+                    apply_config_table_in_order(cfg, child_tbl, child.parent_path(), load_stack, depth + 1, pass);
+                    load_stack.pop_back();
+                }
+                catch (const toml::parse_error& err) {
+                    rf::console::print("  [ERROR] failed to parse {}: {}\n", child.string(), err.description());
+                }
+            };
+
+            if (auto arr = v.as_array()) {
+                for (auto& n : *arr)
+                    if (auto s = n.value<std::string>())
+                        load_one(*s);
+            }
+            else if (auto s = v.value<std::string>()) {
+                load_one(*s);
+            }
+            else {
+                rf::console::print("  [WARN] '{}' must be a string or array of strings.\n", key);
+            }
+            continue;
+        }
+
+        // Arrays
+        if (auto* arr = v.as_array()) {
+            if (key == "levels") {
+                if (pass == ParsePass::Levels)
+                    apply_known_array_in_order(cfg, key, *arr);
+            }
+            continue;
+        }
+
+        // Tables
+        if (auto* sub_tbl = v.as_table()) {
+            if (key == "levels") {
+                if (pass == ParsePass::Levels) {
+                    if (auto nested = sub_tbl->as_array())
+                        apply_known_array_in_order(cfg, key, *nested);
+                }
+                continue;
+            }
+
+            // allow root table workaround to allow root config after subsections in parent toml
+            if (key == "root") {
+                apply_config_table_in_order(cfg, *sub_tbl, base_dir, load_stack, depth, pass);
+            }
+            else {
+                apply_known_table_in_order(cfg, key, *sub_tbl);
+            }
+
+            continue;
+        }
+
+        // Single keys
+        if (pass == ParsePass::Core) {
+            apply_known_key_in_order(cfg, key, v);
+        }
+    }
+}
+
+void load_ads_server_config(std::string ads_config_name)
+{
+    rf::console::print("Loading and applying server configuration from {}...\n\n", ads_config_name);
+
+    AlpineServerConfig cfg; // start from defaults
+
+    toml::table root;
+    try {
+        root = toml::parse_file(ads_config_name);
+    }
+    catch (const toml::parse_error& err) {
+        rf::console::print("  [ERROR] failed to parse {}: {}\n", ads_config_name, err.description());
+        return;
+    }
+
+ std::vector<fs::path> load_stack;
+    const fs::path root_path = fs::weakly_canonical(fs::path(ads_config_name));
+    load_stack.push_back(root_path);
+
+    // config pass
+    apply_config_table_in_order(cfg, root, root_path.parent_path(), load_stack, 0, ParsePass::Core);
+    // level pass
+    apply_config_table_in_order(cfg, root, root_path.parent_path(), load_stack, 0, ParsePass::Levels);
+
+    rf::console::print("\n");
 
     g_alpine_server_config = std::move(cfg);
 }
@@ -818,7 +990,7 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     rf::console::print("  Allow disable 240 FPS cap:             {}\n", cfg.allow_unlimited_fps);
     rf::console::print("  SP-style damage calculation:           {}\n", cfg.use_sp_damage_calculation);
 
-    rf::console::print("\n---- Player inactivity settings ----\n");
+    // inactivity
     rf::console::print("  Kick inactive players:                 {}\n", cfg.inactivity_config.enabled);
     if (cfg.inactivity_config.enabled) {
         rf::console::print("    New player grace period:             {} sec\n", cfg.inactivity_config.new_player_grace_ms / 1000.0f);
@@ -827,19 +999,19 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
         rf::console::print("    Kick message:                        {}\n", cfg.inactivity_config.kick_message);
     }
 
-    rf::console::print("\n---- Semi-auto click limiter settings ----\n");
+    // click limiter
     rf::console::print("  Click limiter:                         {}\n", cfg.click_limiter_config.enabled);
     if (cfg.click_limiter_config.enabled) {
         rf::console::print("    Cooldown:                            {} ms\n", cfg.click_limiter_config.cooldown);
     }
 
-    rf::console::print("\n---- Damage notification settings ----\n");
+    // damage notifications
     rf::console::print("  Damage notifications:                  {}\n", cfg.damage_notification_config.enabled);
     if (cfg.damage_notification_config.enabled) {
         rf::console::print("    Legacy client compatibility:         {}\n", cfg.damage_notification_config.support_legacy_clients);
     }
 
-    rf::console::print("\n---- Alpine restriction settings ----\n");
+    // alpine restrict
     rf::console::print("  Advertise Alpine:                      {}\n", cfg.alpine_restricted_config.advertise_alpine);
     rf::console::print("  Clients require Alpine:                {}\n", cfg.alpine_restricted_config.clients_require_alpine);
     if (cfg.alpine_restricted_config.clients_require_alpine) {
@@ -849,17 +1021,17 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
         rf::console::print("    Only welcome Alpine players:         {}\n", cfg.alpine_restricted_config.only_welcome_alpine);
         rf::console::print("    No player collide:                   {}\n", cfg.alpine_restricted_config.no_player_collide);
         rf::console::print("    Location pinging:                    {}\n", cfg.alpine_restricted_config.location_pinging);
-        rf::console::print("\n    -- Match mode --\n");
+
+        // match mode
         auto& vm = cfg.alpine_restricted_config.vote_match;
-        rf::console::print("      Enabled:                           {}\n", vm.enabled);
+        rf::console::print("    Match mode:                          {}\n", vm.enabled);
         if (vm.enabled) {
             rf::console::print("      Vote ignores nonvoters:            {}\n", vm.ignore_nonvoters);
             rf::console::print("      Vote time limit:                   {} sec\n", vm.time_limit_seconds);
         }
     }
 
-    rf::console::print("\n---- Voting settings ----\n");
-
+    // votes
     auto print_vote = [&](std::string name, const VoteConfig& v) {
         rf::console::print("  {}                 {}\n", name, v.enabled);
         if (v.enabled) {
@@ -880,11 +1052,10 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     print_rules(cfg.base_rules);
 
     rf::console::print("\n---- Level rotation ----\n");
-    for (auto const& lvl : cfg.levels) {
-        //rf::console::print("Level: {}\n", lvl.level_filename);
-        rf::console::print("{}\n", lvl.level_filename);
+    for (size_t i = 0; i < cfg.levels.size(); ++i) {
+        const auto& lvl = cfg.levels[i];
+        rf::console::print("{} ({})\n", lvl.level_filename, i);
         print_rules(lvl.rule_overrides, false);
-        //rf::console::print("\n");
     }
     rf::console::print("\n");
 }

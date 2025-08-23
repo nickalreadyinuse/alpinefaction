@@ -47,6 +47,12 @@ struct AFGameInfoFlags
     }
 };
 
+enum class ParsePass
+{
+    Core,
+    Levels
+};
+
 struct SpawnProtectionConfig
 {
     bool enabled = true;
@@ -172,6 +178,36 @@ struct NewSpawnLogicConfig // defaults match stock game
     bool only_avoid_enemies = false;
     bool dynamic_respawns = false;
     std::vector<NewSpawnLogicRespawnItemConfig> dynamic_respawn_items;
+
+    // =============================================
+
+    bool add_dynamic_respawn_item(std::string_view name, int min_pts)
+    {
+        if (name.empty())
+            return false;
+
+        int idx = rf::item_lookup_type(name.data());
+        if (idx < 0)
+            return false;
+
+        if (min_pts < 0)
+            min_pts = 0;
+
+        // update if it already exists
+        auto it = std::find_if(dynamic_respawn_items.begin(), dynamic_respawn_items.end(),
+                               [&](auto const& e) { return e.item_name == name; });
+        if (it != dynamic_respawn_items.end()) {
+            it->min_respawn_points = min_pts;
+            return true;
+        }
+
+        dynamic_respawn_items.push_back(NewSpawnLogicRespawnItemConfig{
+            std::string{name}, min_pts
+        });
+        return true;
+    }
+
+    void clear_dynamic_respawn_items() { dynamic_respawn_items.clear(); }
 };
 
 struct KillRewardConfig
