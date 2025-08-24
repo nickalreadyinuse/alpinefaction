@@ -51,6 +51,8 @@ std::string g_ads_config_name = "";
 bool g_ads_minimal_server_info = false; // print only minimal server info when launching
 int g_ads_loaded_version = ADS_VERSION;
 
+bool loadouts_in_use = false;
+
 rf::CmdLineParam& get_ads_cmd_line_param()
 {
     static rf::CmdLineParam ads_param{"-ads", "", true};
@@ -68,6 +70,30 @@ void handle_min_param()
 {
     g_ads_minimal_server_info = get_min_cmd_line_param().found();
     //rf::console::print("checking min switch... {}", g_ads_minimal_server_info);
+}
+
+// check if we need to force the server to be restricted to Alpine clients
+// prevents legacy clients from connecting to servers that require features they don't support
+void evaluate_mandatory_alpine_restrict() {
+    bool require_alpine = false;
+    bool require_min_version = false;
+
+    // loadouts require min server version
+    if (loadouts_in_use) { // added in 1.2.0
+        rf::console::print("Clients require min AF server version has been turned on because loadouts were configured\n");
+        require_min_version = true;
+    }
+
+    // evaluate if we need to require min server version
+    if (require_min_version) {
+        require_alpine = true;
+        g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
+    }
+
+    // evaluate if we need to turn on base alpine restriction
+    if (require_alpine) {
+        g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
+    }
 }
 
 static rf::NetGameType parse_game_type(const std::string& s)
@@ -341,7 +367,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
                     int ammo = (*tbl)["ammo"].value<int>().value_or(0);
                     bool enabled = (*tbl)["include"].value<bool>().value_or(true); // default true if not specified
                     o.spawn_loadout.add(*nameOpt, ammo, false, enabled);
-                    o.spawn_loadout.loadouts_in_use = true; // if any loadout is specified, we need to restrict to alpine only
+                    loadouts_in_use = true;                         // used to restrict to alpine only
+                    o.spawn_loadout.loadouts_active = true;         // used to decide if loadouts should be used on a specific map
                 }
             }
         }
@@ -1398,6 +1425,8 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
     initialize_core_alpine_dedicated_server_settings(netgame, cfg, on_launch);
 
     apply_alpine_dedicated_server_rules(netgame, cfg.base_rules); // base rules
+
+    evaluate_mandatory_alpine_restrict(); // force alpine restrict on if rules are configured which need it
 
     print_alpine_dedicated_server_config_info(!g_ads_minimal_server_info);
 

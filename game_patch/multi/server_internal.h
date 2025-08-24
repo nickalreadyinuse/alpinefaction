@@ -430,7 +430,7 @@ struct WeaponLoadoutEntry
 
 struct WeaponLoadoutConfig
 {
-    bool loadouts_in_use = false;
+    bool loadouts_active = false;
     std::vector<WeaponLoadoutEntry> red_weapons; // todo: teams
     std::vector<WeaponLoadoutEntry> blue_weapons;
 
@@ -642,72 +642,6 @@ struct AlpineServerConfig
     }
 };
 
-struct ServerAdditionalConfig
-{
-    //VoteConfig vote_kick;
-    //VoteConfig vote_level;
-    //VoteConfig vote_extend;
-    //VoteConfig vote_restart;
-    //VoteConfig vote_next;
-    //VoteConfig vote_rand;
-    //VoteConfig vote_previous;
-    //VoteConfig vote_match;
-    //SpawnProtectionConfig spawn_protection;
-    //NewSpawnLogicConfig new_spawn_logic;
-    //int desired_player_count = 32;
-    //float spawn_life = -1.0f;
-    //bool use_sp_damage_calculation = false;
-    //float spawn_armor= -1.0f;
-    //int ctf_flag_return_time_ms = 25000;
-    //GunGameConfig gungame;
-    //BagmanConfig bagman;
-    //DamageNotificationConfig damage_notifications;
-    //CriticalHitsConfig critical_hits;
-    //WeaponStayExemptionConfigOld weapon_stay_exemptions;
-    //OvertimeConfig overtime;
-    //std::map<std::string, std::string> item_replacements;
-    //std::map<std::string, int> item_respawn_time_overrides;
-    //std::string default_player_weapon;
-    //std::optional<int> default_player_weapon_ammo;
-    //bool require_client_mod = true;
-    //float player_damage_modifier = 1.0f;
-    //bool saving_enabled = false;
-    //bool flag_dropping = true;
-    //bool flag_captures_while_stolen = false;
-    //bool no_player_collide = false;
-    //bool location_pinging = true;
-    //bool upnp_enabled = false;
-    //std::optional<int> force_player_character;
-    //std::optional<float> max_fov; // na
-    //bool allow_fullbright_meshes = true;
-    //bool allow_lightmaps_only = true;
-    //bool allow_disable_screenshake = true;
-    //bool allow_disable_muzzle_flash = true;
-    //bool apply_click_limiter = true;
-    //bool allow_unlimited_fps = false;
-    //std::optional<int> semi_auto_cooldown = 90;
-    //int anticheat_level = 0; // na
-    //bool stats_message_enabled = true;
-    //bool drop_amps = false;
-    //bool dynamic_rotation = false;
-    //std::string welcome_message;
-    //bool weapon_items_give_full_ammo = false;
-    //bool weapon_infinite_magazines = false;
-    //float kill_reward_health = 0.0f;
-    //float kill_reward_armor = 0.0f;
-    //float kill_reward_effective_health = 0.0f;
-    //bool kill_reward_health_super = false;
-    //bool kill_reward_armor_super = false;
-    //bool clients_require_alpine = false;
-    //bool reject_non_alpine_clients = false;
-    //bool alpine_server_version_enforce_min = false;
-    //bool alpine_require_release_build = false;
-    //bool only_welcome_alpine = false;
-    //bool advertise_alpine = false;
-    //InactivityConfig inactivity;
-    //bool gaussian_spread = false;
-};
-
 struct MatchInfo
 {
     std::time_t last_match_reminder_time = 0;
@@ -742,7 +676,6 @@ struct MatchInfo
     }
 };
 
-extern ServerAdditionalConfig g_additional_server_config;
 extern AlpineServerConfig g_alpine_server_config;
 extern AlpineServerConfigRules g_alpine_server_config_active_rules;
 extern bool g_dedicated_launched_from_ads;
@@ -782,7 +715,6 @@ const AlpineServerConfig& server_get_alpine_config();
 rf::CmdLineParam& get_ads_cmd_line_param();
 rf::CmdLineParam& get_min_cmd_line_param();
 void handle_min_param();
-const ServerAdditionalConfig& server_get_df_config();
 const AFGameInfoFlags& server_get_game_info_flags();
 void initialize_game_info_server_flags();
 void load_ads_server_config();

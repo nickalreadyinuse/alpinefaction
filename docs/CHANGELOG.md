@@ -4,6 +4,8 @@
 Version 1.2.0 (Willow): Not yet released
 --------------------------------
 ### Major features
+[@GooberRF](https://github.com/GooberRF)
+- Implement TOML-based `ADS` configuration for dedicated servers
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -33,6 +35,8 @@ Version 1.2.0 (Willow): Not yet released
 - Updated new player joining message printed to ADS server console to include socket, client info, and max RFL version
 - Support weapon stay exemption functionality for any weapons, including stock fusion behaviour and weapons fron TC mods
 - Deprecate `$Max FOV` dedicated server setting
+- Support GunGame configuration using weapon names (from `weapons.tbl`) rather than weapon indices
+- Restrict overtime configuration to match mode
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

@@ -131,48 +131,7 @@ void parse_respawn_logic(rf::Parser& parser)
         parse_boolean_option(parser,
                              "+Only Avoid Enemies:", g_alpine_server_config_active_rules.spawn_logic.only_avoid_enemies,
                              "+Only Avoid Enemies");
-
-        // not compatible with new approach
-        /* while (parser.parse_optional("+Use Item As Spawn Point:")) {
-            rf::String item_name;
-            if (parser.parse_string(&item_name)) {
-                std::optional<int> threshold = parser.parse_int();
-                g_additional_server_config.new_spawn_logic.allowed_respawn_items[item_name.c_str()] = threshold;
-                rf::console::print("Item {} will be used for dynamic spawn points with threshold: {}",
-                                   item_name.c_str(), threshold.value_or(-1));
-            }
-        }*/
     }
-}
-
-void parse_gungame(rf::Parser& parser)
-{
-    /* if (parser.parse_optional("$GunGame:")) {
-        g_additional_server_config.gungame.enabled = parser.parse_bool();
-        rf::console::print("GunGame Enabled: {}", g_additional_server_config.gungame.enabled ? "true" : "false");
-        parse_boolean_option(parser, "+Dynamic Progression:", g_additional_server_config.gungame.dynamic_progression,
-                             "+Dynamic Progression");
-        parse_boolean_option(parser, "+Rampage Rewards:", g_additional_server_config.gungame.rampage_rewards,
-                             "+Rampage Rewards");
-
-        if (parser.parse_optional("+Final Level:")) {
-            int final_kill_level = parser.parse_int();
-            int final_weapon_level = parser.parse_int();
-            g_additional_server_config.gungame.final_level = std::make_pair(final_kill_level, final_weapon_level);
-            rf::console::print("GunGame Final Level: Kill Level {} - Weapon Level {}",
-                               g_additional_server_config.gungame.final_level->first,
-                               g_additional_server_config.gungame.final_level->second);
-        }
-
-        while (parser.parse_optional("+Level:")) {
-            int kill_level = parser.parse_int();
-            int weapon_level = parser.parse_int();
-            g_additional_server_config.gungame.levels.emplace_back(kill_level, weapon_level);
-            rf::console::print("GunGame Level Added: Kill Level {} - Weapon Level {}",
-                               g_additional_server_config.gungame.levels.back().first,
-                               g_additional_server_config.gungame.levels.back().second);
-        }
-    }*/
 }
 
 void parse_damage_notifications(rf::Parser& parser)
@@ -195,9 +154,6 @@ void parse_critical_hits(rf::Parser& parser)
         rf::console::print("Critical Hits Enabled: {}",
                            g_alpine_server_config_active_rules.critical_hits.enabled ? "true" : "false");
 
-        /* parse_uint_option(parser, "+Attacker Sound ID:", g_additional_server_config.critical_hits.sound_id,
-                          "+Sound ID");
-        parse_uint_option(parser, "+Rate Limit:", g_additional_server_config.critical_hits.rate_limit, "+Rate Limit");*/
         parse_uint_option(parser, "+Reward Duration:", g_alpine_server_config_active_rules.critical_hits.reward_duration,
                           "+Reward Duration");
         parse_float_option(parser, "+Base Chance Percent:", g_alpine_server_config_active_rules.critical_hits.base_chance,
@@ -209,61 +165,6 @@ void parse_critical_hits(rf::Parser& parser)
                            g_alpine_server_config_active_rules.critical_hits.dynamic_damage_bonus_ceiling,
                            "+Dynamic Damage Ceiling");
     }
-}
-
-void parse_overtime(rf::Parser& parser)
-{
-    /* if (parser.parse_optional("$Overtime Enabled:")) {
-        g_additional_server_config.overtime.enabled = parser.parse_bool();
-        rf::console::print("Overtime Enabled: {}", g_additional_server_config.overtime.enabled ? "true" : "false");
-
-        parse_uint_option(parser, "+Duration:", g_additional_server_config.overtime.additional_time, "+Duration");
-        parse_boolean_option(parser,
-                             "+Consider Tied If Flag Stolen:", g_additional_server_config.overtime.consider_tie_if_flag_stolen,
-                             "+Tie If Flag Stolen");
-    }*/
-}
-
-void parse_weapon_stay_exemptions(rf::Parser& parser)
-{
-    /* if (parser.parse_optional("$Weapon Stay Exemptions:")) {
-        g_additional_server_config.weapon_stay_exemptions.enabled = parser.parse_bool();
-        rf::console::print("Weapon Stay Exemptions Enabled: {}",
-                           g_additional_server_config.weapon_stay_exemptions.enabled ? "true" : "false");
-
-        parse_boolean_option(parser, "+Flamethrower:", g_additional_server_config.weapon_stay_exemptions.flamethrower,
-                             "+Flamethrower");
-        parse_boolean_option(parser, "+Control Baton:", g_additional_server_config.weapon_stay_exemptions.riot_stick,
-                             "+Control Baton");
-        parse_boolean_option(parser, "+Riot Shield:", g_additional_server_config.weapon_stay_exemptions.riot_shield,
-                             "+Riot Shield");
-        parse_boolean_option(parser, "+Pistol:", g_additional_server_config.weapon_stay_exemptions.handgun, "+Pistol");
-        parse_boolean_option(parser, "+Shotgun:", g_additional_server_config.weapon_stay_exemptions.shotgun,
-                             "+Shotgun");
-        parse_boolean_option(parser,
-                             "+Submachine Gun:", g_additional_server_config.weapon_stay_exemptions.machine_pistol,
-                             "+Submachine Gun");
-        parse_boolean_option(parser, "+Sniper Rifle:", g_additional_server_config.weapon_stay_exemptions.sniper_rifle,
-                             "+Sniper Rifle");
-        parse_boolean_option(parser, "+Assault Rifle:", g_additional_server_config.weapon_stay_exemptions.assault_rifle,
-                             "+Assault Rifle");
-        parse_boolean_option(parser,
-                             "+Heavy Machine Gun:", g_additional_server_config.weapon_stay_exemptions.heavy_machine_gun,
-                             "+Heavy Machine Gun");
-        parse_boolean_option(parser,
-                             "+Precision Rifle:", g_additional_server_config.weapon_stay_exemptions.scope_assault_rifle,
-                             "+Precision Rifle");
-        parse_boolean_option(parser, "+Rail Driver:", g_additional_server_config.weapon_stay_exemptions.rail_gun,
-                             "+Rail Driver");
-        parse_boolean_option(parser,
-                             "+Rocket Launcher:", g_additional_server_config.weapon_stay_exemptions.rocket_launcher,
-                             "+Rocket Launcher");
-        parse_boolean_option(parser, "+Grenade:", g_additional_server_config.weapon_stay_exemptions.grenade,
-                             "+Grenade");
-        parse_boolean_option(parser,
-                             "+Remote Charges:", g_additional_server_config.weapon_stay_exemptions.remote_charge,
-                             "+Remote Charges");
-    }*/
 }
 
 void parse_weapon_ammo_settings(rf::Parser& parser)
@@ -285,19 +186,6 @@ void parse_default_player_weapon(rf::Parser& parser)
         parser.parse_string(&default_weapon);
         g_alpine_server_config_active_rules.default_player_weapon.set_weapon(default_weapon.c_str());
         rf::console::print("Default Player Weapon: {}", g_alpine_server_config_active_rules.default_player_weapon.weapon_name);
-
-        // old method set ammo directly, new (proper) method uses clip count. Keeping old config syntax with new logic would be confusing
-        /*if (parser.parse_optional("+Initial Ammo:")) {
-            auto ammo = parser.parse_uint();
-            g_alpine_server_config_active_rules.default_player_weapon.num_clips = ammo;
-            rf::console::print("+Initial Ammo: {}", ammo);
-
-             auto weapon_type = rf::weapon_lookup_type(g_additional_server_config.default_player_weapon.c_str());
-            if (weapon_type >= 0) {
-                auto& weapon_cls = rf::weapon_types[weapon_type];
-                weapon_cls.max_ammo_multi = std::max<int>(weapon_cls.max_ammo_multi, ammo);
-            }
-        }*/
     }
 }
 
@@ -337,8 +225,6 @@ void parse_miscellaneous_options(rf::Parser& parser)
 {
     parse_int_option(parser, "$Desired Player Count:", g_alpine_server_config_active_rules.ideal_player_count,
                      "Desired Player Count");
-    //parse_float_option(parser, "$Spawn Health:", g_additional_server_config.spawn_life, "Spawn Health");
-    //parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
     parse_boolean_option(parser, "$Use SP Damage Calculation:", g_alpine_server_config.use_sp_damage_calculation,
                          "Use SP Damage Calculation");
     parse_int_option(parser, "$CTF Flag Return Time:", g_alpine_server_config_active_rules.ctf_flag_return_time_ms,
@@ -367,16 +253,6 @@ void parse_miscellaneous_options(rf::Parser& parser)
                          "Allow Disable Muzzle Flash Lights");
     parse_boolean_option(parser, "$Allow Client Unlimited FPS:", g_alpine_server_config.allow_unlimited_fps,
                          "Allow Client Unlimited FPS");
-
-    /* if (parser.parse_optional("$Welcome Message:")) {
-        rf::String welcome_message;
-        parser.parse_string(&welcome_message);
-        g_alpine_server_config_active_rules.welcome_message = welcome_message.c_str();
-        rf::console::print("Welcome Message Set: {}", g_alpine_server_config_active_rules.welcome_message);
-        parse_boolean_option(parser, "+Only Welcome Alpine Faction Clients:",
-                             g_alpine_server_config.alpine_restricted_config.only_welcome_alpine,
-                             "+Only Welcome Alpine Faction Clients");
-    }*/
 }
 
 void parse_alpine_locking(rf::Parser& parser)
@@ -466,11 +342,8 @@ void load_additional_server_config(rf::Parser& parser)
     // Core config
     parse_spawn_protection(parser);
     parse_respawn_logic(parser);
-    parse_gungame(parser);
     parse_damage_notifications(parser);
     parse_critical_hits(parser);
-    parse_overtime(parser);
-    parse_weapon_stay_exemptions(parser);
     parse_weapon_ammo_settings(parser);
     parse_default_player_weapon(parser);
     parse_force_character(parser);
@@ -480,15 +353,6 @@ void load_additional_server_config(rf::Parser& parser)
     parse_miscellaneous_options(parser);
     parse_alpine_locking(parser);
     parse_inactivity_settings(parser);
-
-    // separate for now because they need to use std::optional
-    /* if (parser.parse_optional("$Max FOV:")) {
-        float max_fov = parser.parse_float();
-        if (max_fov > 0.0f) {
-            g_additional_server_config.max_fov = {max_fov};
-            rf::console::print("Max FOV: {}", g_additional_server_config.max_fov.value_or(180));
-        }
-    }*/
 
     parse_boolean_option(parser, "$Use Gaussian Bullet Spread:", g_alpine_server_config.gaussian_spread,
                          "Use Gaussian Bullet Spread");

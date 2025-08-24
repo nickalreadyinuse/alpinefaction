@@ -76,7 +76,6 @@ static const std::vector<std::string> possible_central_item_names = {
 }; // prioritized list of common central items
 int current_center_item_priority = possible_central_item_names.size();
 
-ServerAdditionalConfig g_additional_server_config;
 AlpineServerConfig g_alpine_server_config;
 AlpineServerConfigRules g_alpine_server_config_active_rules; // currently active rules which are applied
 AFGameInfoFlags g_game_info_server_flags;
@@ -784,23 +783,6 @@ CallHook<int(const char*)> item_lookup_type_hook{
     },
 };
 
-/* CallHook<void(int, const char*, int, int, const rf::Vector3*, const rf::Matrix3*, int, bool, bool)>
-    item_create_hook{
-    0x00465175,
-    [](int type, const char* name, int count, int parent_handle, const rf::Vector3* pos,
-        const rf::Matrix3* orient, int respawn_time, bool permanent, bool from_packet) {
-
-        // when creating it, check if a spawn time override is configured for this item
-        if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
-            it != g_additional_server_config.item_respawn_time_overrides.end()) {
-            respawn_time = it->second;
-            //xlog::warn("Overriding respawn time for item '{}' to {} ms", name, respawn_time);
-        }
-
-        return item_create_hook.call_target(type, name, count, parent_handle, pos, orient, respawn_time, permanent, from_packet);
-    }
-};*/
-
 // legacy client compatible
 CallHook<int(const char*)> find_default_weapon_for_entity_hook{
     0x004A43DA,
@@ -817,7 +799,7 @@ CallHook<void(rf::Player*, int, int)> give_default_weapon_ammo_hook{
     0x004A4414,
     [](rf::Player* player, int weapon_type, int ammo) {
         // if not using loadouts, this adjusts spawn weapon reserve ammo to match our clip config
-        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.spawn_loadout.loadouts_in_use) {
+        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.spawn_loadout.loadouts_active) {
             ammo = rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
                    g_alpine_server_config_active_rules.default_player_weapon.num_clips;
         }
@@ -841,7 +823,7 @@ CodeInjection player_create_entity_default_weapon_injection {
     0x004A43F6,
     [](auto& regs) {
         if (rf::is_dedicated_server &&
-            (g_alpine_server_config_active_rules.spawn_loadout.loadouts_in_use ||
+            (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
             !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
             ) {
             rf::Player* player = regs.ebp;
@@ -2375,11 +2357,6 @@ bool server_gaussian_spread()
 bool server_weapon_items_give_full_ammo()
 {
     return g_alpine_server_config_active_rules.weapon_items_give_full_ammo;
-}
-
-const ServerAdditionalConfig& server_get_df_config()
-{
-    return g_additional_server_config;
 }
 
 const AlpineServerConfig& server_get_alpine_config()
