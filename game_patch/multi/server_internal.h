@@ -105,13 +105,85 @@ struct VoteConfig
     }
 };
 
+struct GunGameLevelEntry
+{
+    int kills = -1;             // manual mode
+    int tier = -1;              // dynamic mode
+    std::string weapon_name;    // only used for config print on launch
+    int weapon_index = -1;
+
+    auto operator<=>(const GunGameLevelEntry&) const = default;
+};
+
 struct GunGameConfig
 {
     bool enabled = false;
     bool dynamic_progression = false;
     bool rampage_rewards = false;
-    std::optional<std::pair<int, int>> final_level;
-    std::vector<std::pair<int, int>> levels;
+
+    std::optional<GunGameLevelEntry> final_level;
+    std::vector<GunGameLevelEntry> levels;
+
+    // =============================================
+
+    static int resolve_weapon(std::string_view name)
+    {
+        int idx = rf::weapon_lookup_type(name.data());
+        return idx;
+    }
+
+    bool set_final_level(int kills, std::string_view weapon)
+    {
+        int idx = resolve_weapon(weapon);
+        if (idx < 0)
+            return false;
+        final_level = GunGameLevelEntry{kills, -1, std::string{weapon}, idx};
+        return true;
+    }
+
+    // Manual mode entry
+    bool add_level_by_kills(int kills, std::string_view weapon)
+    {
+        int idx = resolve_weapon(weapon);
+        if (idx < 0)
+            return false;
+        // replace if same kills already present
+        auto it = std::find_if(levels.begin(), levels.end(), [&](auto const& e) { return e.kills == kills; });
+        if (it != levels.end()) {
+            it->weapon_name = weapon;
+            it->weapon_index = idx;
+            it->tier = -1;
+            return false;
+        }
+        levels.push_back(GunGameLevelEntry{kills, -1, std::string{weapon}, idx});
+        return true;
+    }
+
+    // Dynamic mode entry
+    bool add_level_by_tier(int tier, std::string_view weapon)
+    {
+        int idx = resolve_weapon(weapon);
+        if (idx < 0)
+            return false;
+        levels.push_back(GunGameLevelEntry{-1, tier, std::string{weapon}, idx});
+        return true;
+    }
+
+    void normalize_manual()
+    {
+        std::sort(levels.begin(), levels.end(), [](auto const& a, auto const& b) { return a.kills < b.kills; });
+        // dedupe by kills (keep last)
+        std::vector<GunGameLevelEntry> out;
+        for (auto const& e : levels) {
+            if (e.kills < 0)
+                continue; // ignore tier entries in manual
+            if (!out.empty() && out.back().kills == e.kills)
+                out.back() = e;
+            else
+                out.push_back(e);
+        }
+        levels.swap(out);
+    }
 };
 
 struct BagmanConfig
@@ -443,7 +515,6 @@ struct AlpineServerConfigRules
     WeaponLoadoutConfig spawn_loadout;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig spawn_logic;
-    //std::string welcome_message;
     WelcomeMessageConfig welcome_message;
     bool weapon_items_give_full_ammo = false;
     bool weapon_infinite_magazines = false;
@@ -453,6 +524,7 @@ struct AlpineServerConfigRules
     std::map<std::string, int> item_respawn_time_overrides;
     ForceCharacterConfig force_character;
     CriticalHitsConfig critical_hits;
+    GunGameConfig gungame;
 
     // =============================================
     
@@ -587,7 +659,7 @@ struct ServerAdditionalConfig
     //bool use_sp_damage_calculation = false;
     //float spawn_armor= -1.0f;
     //int ctf_flag_return_time_ms = 25000;
-    GunGameConfig gungame;
+    //GunGameConfig gungame;
     //BagmanConfig bagman;
     //DamageNotificationConfig damage_notifications;
     //CriticalHitsConfig critical_hits;

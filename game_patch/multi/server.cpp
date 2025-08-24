@@ -160,12 +160,12 @@ CodeInjection dedicated_server_load_post_map_patch{
         }
 
         // no weapon drops on player death
-        if (g_additional_server_config.gungame.enabled) {
+        if (g_alpine_server_config_active_rules.gungame.enabled) { // todo: codeinjection
             AsmWriter(0x0042B0D3).jmp(0x0042B2BC);
         }
 
         // infinite reloads
-        if (g_additional_server_config.gungame.enabled || g_alpine_server_config_active_rules.weapon_infinite_magazines) { // todo: codeinjection
+        if (g_alpine_server_config_active_rules.gungame.enabled || g_alpine_server_config_active_rules.weapon_infinite_magazines) { // todo: codeinjection
             AsmWriter{0x00425506}.nop(2);
         }
     },
@@ -805,7 +805,7 @@ CallHook<int(const char*)> item_lookup_type_hook{
 CallHook<int(const char*)> find_default_weapon_for_entity_hook{
     0x004A43DA,
     [](const char* weapon_name) {
-        if (rf::is_dedicated_server) {
+        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.gungame.enabled) {
             weapon_name = g_alpine_server_config_active_rules.default_player_weapon.weapon_name.data();
         }
         return find_default_weapon_for_entity_hook.call_target(weapon_name);
@@ -840,7 +840,10 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
 CodeInjection player_create_entity_default_weapon_injection {
     0x004A43F6,
     [](auto& regs) {
-        if (rf::is_dedicated_server && g_alpine_server_config_active_rules.spawn_loadout.loadouts_in_use) {
+        if (rf::is_dedicated_server &&
+            (g_alpine_server_config_active_rules.spawn_loadout.loadouts_in_use ||
+            !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
+            ) {
             rf::Player* player = regs.ebp;
 
             for (auto const& e : g_alpine_server_config_active_rules.spawn_loadout.red_weapons) {
@@ -1384,7 +1387,7 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         multi_spawn_player_server_side_hook.call_target(player);
 
-        if (g_additional_server_config.gungame.enabled && player) {
+        if (g_alpine_server_config_active_rules.gungame.enabled && player) {
             gungame_on_player_spawn(player);
             //multi_update_gungame_weapon(player, true);            
         }
@@ -1989,7 +1992,7 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
     rf::WeaponInfo& winfo = rf::weapon_types[weapon_type];
     int ammo_count = winfo.clip_size;
     if (full_ammo) {
-        if (g_additional_server_config.gungame.enabled && !rf::weapon_uses_clip(weapon_type)) {
+        if (g_alpine_server_config_active_rules.gungame.enabled && !rf::weapon_uses_clip(weapon_type)) {
             // hackfix: in gungame, set max ammo to 999 for non-clip weapons
             winfo.max_ammo = 9999;
         }        

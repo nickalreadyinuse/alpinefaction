@@ -147,7 +147,7 @@ void parse_respawn_logic(rf::Parser& parser)
 
 void parse_gungame(rf::Parser& parser)
 {
-    if (parser.parse_optional("$GunGame:")) {
+    /* if (parser.parse_optional("$GunGame:")) {
         g_additional_server_config.gungame.enabled = parser.parse_bool();
         rf::console::print("GunGame Enabled: {}", g_additional_server_config.gungame.enabled ? "true" : "false");
         parse_boolean_option(parser, "+Dynamic Progression:", g_additional_server_config.gungame.dynamic_progression,
@@ -172,7 +172,7 @@ void parse_gungame(rf::Parser& parser)
                                g_additional_server_config.gungame.levels.back().first,
                                g_additional_server_config.gungame.levels.back().second);
         }
-    }
+    }*/
 }
 
 void parse_damage_notifications(rf::Parser& parser)

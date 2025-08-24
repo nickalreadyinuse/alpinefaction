@@ -178,8 +178,8 @@ FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hoo
             // Nothing to do
             return;
         }
-        if (g_additional_server_config.gungame.enabled && !((ep->ai.current_primary_weapon == 1 && weapon_type == 0) ||
-                                                            (ep->ai.current_primary_weapon == 0 && weapon_type == 1))) {
+        if (g_alpine_server_config_active_rules.gungame.enabled &&
+            !((ep->ai.current_primary_weapon == 1 && weapon_type == 0) || (ep->ai.current_primary_weapon == 0 && weapon_type == 1))) {
             //send_chat_line_packet("Weapon switch denied. In GunGame, you get new weapons by getting frags.", pp);
             return;
         }

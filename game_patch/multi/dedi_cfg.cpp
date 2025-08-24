@@ -138,6 +138,63 @@ static CriticalHitsConfig parse_critical_hits_config(const toml::table& t, Criti
     return c;
 }
 
+static GunGameConfig parse_gungame_config(const toml::table& t, GunGameConfig gg)
+{
+    if (auto v = t["enabled"].value<bool>())
+        gg.enabled = *v;
+    if (auto v = t["dynamic_progression"].value<bool>())
+        gg.dynamic_progression = *v;
+    if (auto v = t["rampage_rewards"].value<bool>())
+        gg.rampage_rewards = *v;
+
+    if (auto ft = t["final"].as_table()) {
+        int kills = (*ft)["kills"].value_or<int>(-1);
+        auto w = (*ft)["weapon"].value_or<std::string>("");
+        if (kills >= 0 && !w.empty())
+            gg.set_final_level(kills, w);
+        else
+            xlog::warn("GunGame: [final] requires kills>=0 and weapon");
+    }
+
+    if (auto arr = t["levels"].as_array()) {
+        gg.levels.clear(); // levels array specified for this map. Otherwise, inherit base
+
+        int prev_kills = 0;
+        for (auto& node : *arr) {
+            auto tbl = node.as_table();
+            if (!tbl) {
+                xlog::warn("GunGame: level is not a table; skipping");
+                continue;
+            }
+
+            auto w = (*tbl)["weapon"].value_or<std::string>("");
+            if (w.empty()) {
+                xlog::warn("GunGame: level missing 'weapon'");
+                continue;
+            }
+
+            if (gg.dynamic_progression) {
+                int tier = (*tbl)["tier"].value_or<int>(-1);
+                if (tier < 1) {
+                    xlog::warn("GunGame: dynamic requires 'tier' >= 1");
+                    continue;
+                }
+                gg.add_level_by_tier(tier, w);
+            }
+            else {
+                int kills = (*tbl)["kills"].value_or<int>(prev_kills + 1);
+                gg.add_level_by_kills(kills, w);
+                prev_kills = kills;
+            }
+        }
+
+        if (!gg.dynamic_progression)
+            gg.normalize_manual(); // dedupe kill levels
+    }
+
+    return gg;
+}
+
 static WelcomeMessageConfig parse_welcome_message_config(const toml::table& t, WelcomeMessageConfig c)
 {
     if (auto x = t["enabled"].value<bool>())
@@ -340,6 +397,9 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 
     if (auto sub = t["critical_hits"].as_table())
         o.critical_hits = parse_critical_hits_config(*sub, o.critical_hits);
+
+    if (auto sub = t["gungame"].as_table())
+        o.gungame = parse_gungame_config(*sub, o.gungame);
 
     return o;
 }
@@ -778,6 +838,95 @@ std::string get_game_type_string(rf::NetGameType game_type) {
     return out_string;
 }
 
+void print_gungame(const GunGameConfig& cur, const GunGameConfig& base_cfg, bool base = true)
+{
+    // helper functions
+    auto gg_level_equal = [](const GunGameLevelEntry& a, const GunGameLevelEntry& b) {
+        return a.kills == b.kills && a.tier == b.tier && a.weapon_index == b.weapon_index;
+    };
+
+    auto gg_level_key = [](const GunGameLevelEntry& e) {
+        return std::tuple<int, int, int>{e.kills, e.tier, e.weapon_index};
+    };
+
+    auto gg_canon = [&](std::vector<GunGameLevelEntry> v, bool dynamic) {
+        if (dynamic) {
+            v.erase(std::remove_if(v.begin(), v.end(), [](auto& e) { return e.tier < 0 || e.weapon_index < 0; }),
+                    v.end());
+        }
+        else {
+            v.erase(std::remove_if(v.begin(), v.end(), [](auto& e) { return e.kills < 0 || e.weapon_index < 0; }),
+                    v.end());
+        }
+        std::sort(v.begin(), v.end(), [&](auto const& a, auto const& b) { return gg_level_key(a) < gg_level_key(b); });
+
+        std::vector<GunGameLevelEntry> out;
+        for (auto const& e : v) {
+            if (!out.empty() && gg_level_key(out.back()) == gg_level_key(e))
+                out.back() = e;
+            else
+                out.push_back(e);
+        }
+        return out;
+    };
+
+    auto gg_final_equal = [&](const std::optional<GunGameLevelEntry>& a, const std::optional<GunGameLevelEntry>& b) {
+        if (a.has_value() != b.has_value())
+            return false;
+        return !a || gg_level_equal(*a, *b);
+    };
+    // end helpers
+
+    if (base || cur.enabled != base_cfg.enabled)
+        rf::console::print("  GunGame:                               {}\n", cur.enabled);
+
+    if (!cur.enabled)
+        return;
+
+    if (base || cur.dynamic_progression != base_cfg.dynamic_progression)
+        rf::console::print("    Dynamic progression:                 {}\n", cur.dynamic_progression);
+    if (base || cur.rampage_rewards != base_cfg.rampage_rewards)
+        rf::console::print("    Rampage rewards:                     {}\n", cur.rampage_rewards);
+
+    bool cur_final = cur.final_level.has_value();
+    bool base_final = base_cfg.final_level.has_value();
+    if (base || cur_final != base_final)
+        rf::console::print("    Final level:                         {}\n", cur_final);
+
+    if (cur.final_level) {
+        bool print_details = base;
+        if (!print_details && base_cfg.final_level)
+            print_details = !gg_level_equal(*cur.final_level, *base_cfg.final_level);
+        else if (!base_cfg.final_level)
+            print_details = true;
+
+        if (print_details) {
+            rf::console::print("      Kills:                             {}\n", cur.final_level->kills);
+            rf::console::print("      Weapon:                            {}\n", cur.final_level->weapon_name);
+        }
+    }
+
+    const bool dyn = cur.dynamic_progression;
+    auto cur_levels = gg_canon(cur.levels, dyn);
+    auto base_levels = gg_canon(base_cfg.levels, dyn);
+
+    bool levels_changed = base || cur_levels.size() != base_levels.size() ||
+                          !std::equal(cur_levels.begin(), cur_levels.end(), base_levels.begin(), base_levels.end(),
+                                      [&](auto const& a, auto const& b) { return gg_level_equal(a, b); });
+
+    if (!levels_changed)
+        return;
+
+    if (dyn) {
+        rf::console::print("    Dynamic tiers:\n");
+        for (auto const& e : cur_levels) rf::console::print("      Tier {:<3} -> {}\n", e.tier, e.weapon_name);
+    }
+    else {
+        rf::console::print("    Levels (kills -> weapon):\n");
+        for (auto const& e : cur_levels) rf::console::print("      {:>4} -> {}\n", e.kills, e.weapon_name);
+    }
+}
+
 void print_rules(const AlpineServerConfigRules& rules, bool base = true)
 {
     const auto& b = g_alpine_server_config.base_rules;
@@ -1069,6 +1218,9 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
             }
         }
     }
+
+    // gungame
+    print_gungame(rules.gungame, b.gungame, base);
 }
 
 void print_alpine_dedicated_server_config_info(bool verbose) {
