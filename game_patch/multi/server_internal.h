@@ -129,12 +129,29 @@ struct DamageNotificationConfig
 struct CriticalHitsConfig
 {
     bool enabled = false;
-    int sound_id = 35;
-    int rate_limit = 10;
+    //int sound_id = 35; // hardcoded
+    //int rate_limit = 10; // hardcoded
     int reward_duration = 1500;
     float base_chance = 0.1f;
     bool dynamic_scale = true;
-    float dynamic_damage_for_max_bonus = 1200.0f;
+    float dynamic_damage_bonus_ceiling = 1200.0f;
+
+    // =============================================
+
+    void set_reward_duration(int new_ms)
+    {
+        reward_duration = std::clamp(new_ms, 50, 60000); // max 1 min
+    }
+
+    void set_base_chance(float in_value)
+    {
+        base_chance = std::clamp(in_value, 0.01f, 1.0f); // percentile
+    }
+
+    void set_damage_bonus_ceiling(float in_value)
+    {
+        dynamic_damage_bonus_ceiling = std::clamp(in_value, 100.0f, 100000.0f);
+    }
 };
 
 struct WeaponStayExemptionConfigOld
@@ -160,7 +177,14 @@ struct OvertimeConfig
 {
     bool enabled = false;
     int additional_time = 5;
-    bool tie_if_flag_stolen = true;
+    bool consider_tie_if_flag_stolen = false;
+
+    // =============================================
+
+    void set_additional_time(int new_minutes)
+    {
+        additional_time = std::clamp(new_minutes, 0, 60);
+    }
 };
 
 struct NewSpawnLogicRespawnItemConfig
@@ -283,6 +307,7 @@ struct AlpineRestrictConfig
     bool no_player_collide = false;
     bool location_pinging = true;
     VoteConfig vote_match;
+    OvertimeConfig overtime;
 };
 
 struct SpawnLifeConfig
@@ -427,6 +452,7 @@ struct AlpineServerConfigRules
     std::map<std::string, std::string> item_replacements;
     std::map<std::string, int> item_respawn_time_overrides;
     ForceCharacterConfig force_character;
+    CriticalHitsConfig critical_hits;
 
     // =============================================
     
@@ -564,9 +590,9 @@ struct ServerAdditionalConfig
     GunGameConfig gungame;
     //BagmanConfig bagman;
     //DamageNotificationConfig damage_notifications;
-    CriticalHitsConfig critical_hits;
+    //CriticalHitsConfig critical_hits;
     //WeaponStayExemptionConfigOld weapon_stay_exemptions;
-    OvertimeConfig overtime;
+    //OvertimeConfig overtime;
     //std::map<std::string, std::string> item_replacements;
     //std::map<std::string, int> item_respawn_time_overrides;
     //std::string default_player_weapon;

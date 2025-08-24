@@ -191,37 +191,37 @@ void parse_damage_notifications(rf::Parser& parser)
 void parse_critical_hits(rf::Parser& parser)
 {
     if (parser.parse_optional("$Critical Hits:")) {
-        g_additional_server_config.critical_hits.enabled = parser.parse_bool();
+        g_alpine_server_config_active_rules.critical_hits.enabled = parser.parse_bool();
         rf::console::print("Critical Hits Enabled: {}",
-                           g_additional_server_config.critical_hits.enabled ? "true" : "false");
+                           g_alpine_server_config_active_rules.critical_hits.enabled ? "true" : "false");
 
-        parse_uint_option(parser, "+Attacker Sound ID:", g_additional_server_config.critical_hits.sound_id,
+        /* parse_uint_option(parser, "+Attacker Sound ID:", g_additional_server_config.critical_hits.sound_id,
                           "+Sound ID");
-        parse_uint_option(parser, "+Rate Limit:", g_additional_server_config.critical_hits.rate_limit, "+Rate Limit");
-        parse_uint_option(parser, "+Reward Duration:", g_additional_server_config.critical_hits.reward_duration,
+        parse_uint_option(parser, "+Rate Limit:", g_additional_server_config.critical_hits.rate_limit, "+Rate Limit");*/
+        parse_uint_option(parser, "+Reward Duration:", g_alpine_server_config_active_rules.critical_hits.reward_duration,
                           "+Reward Duration");
-        parse_float_option(parser, "+Base Chance Percent:", g_additional_server_config.critical_hits.base_chance,
+        parse_float_option(parser, "+Base Chance Percent:", g_alpine_server_config_active_rules.critical_hits.base_chance,
                            "+Base Chance");
         parse_boolean_option(parser,
-                             "+Use Dynamic Chance Bonus:", g_additional_server_config.critical_hits.dynamic_scale,
+                             "+Use Dynamic Chance Bonus:", g_alpine_server_config_active_rules.critical_hits.dynamic_scale,
                              "+Dynamic Scaling");
         parse_float_option(parser, "+Dynamic Chance Damage Ceiling:",
-                           g_additional_server_config.critical_hits.dynamic_damage_for_max_bonus,
+                           g_alpine_server_config_active_rules.critical_hits.dynamic_damage_bonus_ceiling,
                            "+Dynamic Damage Ceiling");
     }
 }
 
 void parse_overtime(rf::Parser& parser)
 {
-    if (parser.parse_optional("$Overtime Enabled:")) {
+    /* if (parser.parse_optional("$Overtime Enabled:")) {
         g_additional_server_config.overtime.enabled = parser.parse_bool();
         rf::console::print("Overtime Enabled: {}", g_additional_server_config.overtime.enabled ? "true" : "false");
 
         parse_uint_option(parser, "+Duration:", g_additional_server_config.overtime.additional_time, "+Duration");
         parse_boolean_option(parser,
-                             "+Consider Tied If Flag Stolen:", g_additional_server_config.overtime.tie_if_flag_stolen,
+                             "+Consider Tied If Flag Stolen:", g_additional_server_config.overtime.consider_tie_if_flag_stolen,
                              "+Tie If Flag Stolen");
-    }
+    }*/
 }
 
 void parse_weapon_stay_exemptions(rf::Parser& parser)

@@ -119,6 +119,25 @@ static ForceCharacterConfig parse_force_character_config(const toml::table& t, F
     return c;
 }
 
+static CriticalHitsConfig parse_critical_hits_config(const toml::table& t, CriticalHitsConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["reward_duration"].value<int>())
+            c.set_reward_duration(*v);
+        if (auto v = t["base_chance"].value<float>())
+            c.set_base_chance(*v);
+        if (auto v = t["dynamic_scale"].value<float>())
+            c.dynamic_scale = *v;
+        if (auto v = t["dynamic_damage_bonus_ceiling"].value<float>())
+            c.set_damage_bonus_ceiling(*v);
+    }
+
+    return c;
+}
+
 static WelcomeMessageConfig parse_welcome_message_config(const toml::table& t, WelcomeMessageConfig c)
 {
     if (auto x = t["enabled"].value<bool>())
@@ -319,6 +338,9 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     if (auto sub = t["force_character"].as_table())
         o.force_character = parse_force_character_config(*sub, o.force_character);
 
+    if (auto sub = t["critical_hits"].as_table())
+        o.critical_hits = parse_critical_hits_config(*sub, o.critical_hits);
+
     return o;
 }
 
@@ -333,6 +355,21 @@ static VoteConfig parse_vote_config(const toml::table& t)
             v.ignore_nonvoters = *x;
         if (auto x = t["time"].value<float>())
             v.set_time_limit_seconds(*x);
+    }
+    return v;
+}
+
+static OvertimeConfig parse_overtime_config(const toml::table& t)
+{
+    OvertimeConfig v;
+    if (auto x = t["enabled"].value<bool>())
+        v.enabled = *x;
+
+    if (v.enabled) {
+        if (auto x = t["time"].value<int>())
+            v.set_additional_time(*x);
+        if (auto x = t["tie_when_flag_stolen"].value<bool>())
+            v.consider_tie_if_flag_stolen = *x;
     }
     return v;
 }
@@ -405,6 +442,10 @@ static AlpineRestrictConfig parse_alpine_restrict_config(const toml::table &t)
             o.location_pinging = *v;
         if (auto sub = t["vote_match"].as_table())
             o.vote_match = parse_vote_config(*sub);
+        if (o.vote_match.enabled) {
+            if (auto sub = t["overtime"].as_table())
+                o.overtime = parse_overtime_config(*sub);
+        }
     }
     return o;
 }
@@ -1009,6 +1050,25 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
             rf::console::print("    Character:                           {} ({})\n", rules.force_character.character_name, rules.force_character.character_index);
         }
     }
+
+    // critical hits
+    if (base || rules.critical_hits.enabled != b.critical_hits.enabled ||
+        (rules.critical_hits.enabled && rules.critical_hits.reward_duration != b.critical_hits.reward_duration) ||
+        (rules.critical_hits.enabled && rules.critical_hits.base_chance != b.critical_hits.base_chance) ||
+        (rules.critical_hits.enabled && rules.critical_hits.dynamic_scale != b.critical_hits.dynamic_scale) ||
+        (rules.critical_hits.enabled && rules.critical_hits.dynamic_scale &&
+         rules.critical_hits.dynamic_damage_bonus_ceiling != b.critical_hits.dynamic_damage_bonus_ceiling)
+        ) {
+        rf::console::print("  Critical hits:                         {}\n", rules.critical_hits.enabled);
+        if (rules.critical_hits.enabled) {
+            rf::console::print("    Reward duration:                     {} ms\n", rules.critical_hits.reward_duration);
+            rf::console::print("    Base chance:                         {:.1f}%\n", rules.critical_hits.base_chance * 100.0f);
+            rf::console::print("    Dynamic scale:                       {}\n", rules.critical_hits.dynamic_scale);
+            if (rules.critical_hits.dynamic_scale) {
+                rf::console::print("      Dynamic damage bonus ceiling:      {}\n", rules.critical_hits.dynamic_damage_bonus_ceiling);
+            }
+        }
+    }
 }
 
 void print_alpine_dedicated_server_config_info(bool verbose) {
@@ -1083,6 +1143,12 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
         if (vm.enabled) {
             rf::console::print("      Vote ignores nonvoters:            {}\n", vm.ignore_nonvoters);
             rf::console::print("      Vote time limit:                   {} sec\n", vm.time_limit_seconds);
+            auto& ot = cfg.alpine_restricted_config.overtime;
+            rf::console::print("      Overtime:                          {}\n", ot.enabled);
+            if (ot.enabled) {
+                rf::console::print("        Additional time:                 {}\n", ot.additional_time);
+                rf::console::print("        Tie when flag stolen:            {}\n", ot.consider_tie_if_flag_stolen);
+            }
         }
     }
 

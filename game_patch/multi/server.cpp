@@ -653,11 +653,11 @@ void send_hit_sound_packet(rf::Player* target)
     send_sound_packet(target, pdata.last_hitsound_sent_ms, 10, 29); // fallback for legacy clients
 }
 
+// todo optimization: move this to a new flag on af_damage_notify packet
 void send_critical_hit_packet(rf::Player* target)
 {
     auto& pdata = get_player_additional_data(target);
-    send_sound_packet(target, pdata.last_critsound_sent_ms, g_additional_server_config.critical_hits.rate_limit,
-                      g_additional_server_config.critical_hits.sound_id);
+    send_sound_packet(target, pdata.last_critsound_sent_ms, 10, 35); // rate limit 10/sec, sound id 35
 }
 
 FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
@@ -681,16 +681,16 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             }
 
             // Check if this is a crit
-            if (g_additional_server_config.critical_hits.enabled) {
-                float base_chance = g_additional_server_config.critical_hits.base_chance;
+            if (g_alpine_server_config_active_rules.critical_hits.enabled) {
+                float base_chance = g_alpine_server_config_active_rules.critical_hits.base_chance;
                 float bonus_chance = 0.0f;
 
                 // calculate bonus chance
-                if (g_additional_server_config.critical_hits.dynamic_scale && killer_player->stats) {
+                if (g_alpine_server_config_active_rules.critical_hits.dynamic_scale && killer_player->stats) {
                     auto* killer_stats = static_cast<PlayerStatsNew*>(killer_player->stats);
 
                     bonus_chance = 0.1f * std::min(killer_stats->damage_given_current_life /
-                        g_additional_server_config.critical_hits.dynamic_damage_for_max_bonus, 1.0f);
+                        g_alpine_server_config_active_rules.critical_hits.dynamic_damage_bonus_ceiling, 1.0f);
                 }
 
                 float critical_hit_chance = base_chance + bonus_chance;
@@ -704,8 +704,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                     damage *= (!rf::multi_powerup_has_player(killer_player, 1)) ? rf::g_multi_damage_modifier : 1.0f;
 
                     // On a crit, add amp for a duration
-                    int amp_time_to_add = rf::multi_powerup_get_time_until(killer_player, 1) +
-                                          g_additional_server_config.critical_hits.reward_duration;
+                    int amp_time_to_add = rf::multi_powerup_get_time_until(killer_player, 1) + g_alpine_server_config_active_rules.critical_hits.reward_duration;
 
                     rf::multi_powerup_add(killer_player, 1, amp_time_to_add);
 
@@ -853,6 +852,7 @@ CodeInjection player_create_entity_default_weapon_injection {
     },
 };
 
+// todo: add new packet here to sync loadout on spawn for alpine clients
 // multi_spawn_player_server_side
 FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
     0x00480820,
@@ -860,7 +860,7 @@ FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
         spawn_player_sync_ammo_hook.call_target(player);
         // if default player weapon has ammo override sync ammo using additional reload packet
         //if (g_additional_server_config.default_player_weapon_ammo && !rf::player_is_dead(player)) {
-        if (!rf::player_is_dead(player)) {
+        /* if (!rf::player_is_dead(player)) {
             rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
             RF_ReloadPacket packet;
             packet.header.type = RF_GPT_RELOAD;
@@ -872,7 +872,7 @@ FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
             int ammo_type = rf::weapon_types[weapon_type].ammo_type;
             packet.ammo = entity->ai.ammo[ammo_type];
             rf::multi_io_send_reliable(player, reinterpret_cast<uint8_t*>(&packet), sizeof(packet), 0);
-        }
+        }*/
     },
 };
 
@@ -1583,7 +1583,7 @@ bool round_is_tied(rf::NetGameType game_type)
             return true;
         }
 
-        if (g_additional_server_config.overtime.tie_if_flag_stolen) {        
+        if (g_alpine_server_config.alpine_restricted_config.overtime.consider_tie_if_flag_stolen) {        
             bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
             bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
 
@@ -1650,13 +1650,13 @@ FunHook<void()> multi_check_for_round_end_hook{
         if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
             //xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_additional_server_config.overtime.enabled, g_is_overtime, round_is_tied(game_type));
 
-            if (time_up && g_additional_server_config.overtime.enabled && !g_is_overtime && round_is_tied(game_type)) {
+            if (time_up && g_alpine_server_config.alpine_restricted_config.overtime.enabled && !g_is_overtime && round_is_tied(game_type)) {
                 g_is_overtime = true;
-                extend_round_time(g_additional_server_config.overtime.additional_time);
+                extend_round_time(g_alpine_server_config.alpine_restricted_config.overtime.additional_time);
 
                 std::string msg = std::format("\xA6 OVERTIME! Game will end when the tie is broken");
-                msg += g_additional_server_config.overtime.additional_time > 0
-                           ? std::format(", or in {} minutes!", g_additional_server_config.overtime.additional_time)
+                msg += g_alpine_server_config.alpine_restricted_config.overtime.additional_time > 0
+                           ? std::format(", or in {} minutes!", g_alpine_server_config.alpine_restricted_config.overtime.additional_time)
                            : "!";
                 send_chat_line_packet(msg.c_str(), nullptr);
             }
