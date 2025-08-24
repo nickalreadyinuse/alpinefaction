@@ -50,9 +50,12 @@ Version 1.2.0 (Willow): Not yet released
 - Fix inactivity incorrectly being tracked when endgame scoreboard is displayed
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
 
-### Imports from other repos
+### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
 - Add support for Dash Level Properties chunk and full lightmap depth setting (commit f90f81a)
+
+### Imported libraries
+- [toml++](https://github.com/marzer/tomlplusplus) by Mark Gillard
 
 Version 1.1.0 (Tamarack): Released Apr-19-2025
 --------------------------------
