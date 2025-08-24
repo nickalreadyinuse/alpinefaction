@@ -411,6 +411,7 @@ struct AlpineServerConfigRules
     bool flag_captures_while_stolen = false;
     bool drop_amps = false;
     int ctf_flag_return_time_ms = 25000;
+    float pvp_damage_modifier = 1.0f;
     DefaultPlayerWeaponConfig default_player_weapon;
     SpawnLifeConfig spawn_life;
     SpawnLifeConfig spawn_armour;
@@ -456,6 +457,10 @@ struct AlpineServerConfigRules
     void set_flag_return_time(float in_time)
     {
         ctf_flag_return_time_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+    }
+    void set_pvp_damage_modifier(float modifier)
+    {
+        pvp_damage_modifier = std::clamp(modifier, 0.0f, 100.0f);
     }
     bool add_item_replacement(std::string_view original, std::string_view replacement)
     {
@@ -557,7 +562,7 @@ struct ServerAdditionalConfig
     //float spawn_armor= -1.0f;
     //int ctf_flag_return_time_ms = 25000;
     GunGameConfig gungame;
-    BagmanConfig bagman;
+    //BagmanConfig bagman;
     //DamageNotificationConfig damage_notifications;
     CriticalHitsConfig critical_hits;
     //WeaponStayExemptionConfigOld weapon_stay_exemptions;
@@ -567,7 +572,7 @@ struct ServerAdditionalConfig
     //std::string default_player_weapon;
     //std::optional<int> default_player_weapon_ammo;
     //bool require_client_mod = true;
-    float player_damage_modifier = 1.0f;
+    //float player_damage_modifier = 1.0f;
     //bool saving_enabled = false;
     //bool flag_dropping = true;
     //bool flag_captures_while_stolen = false;

@@ -667,7 +667,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
         rf::Player* killer_player = rf::player_from_entity_handle(killer_handle);
         bool is_pvp_damage = damaged_player && killer_player && damaged_player != killer_player;
         if (rf::is_server && is_pvp_damage) {
-            damage *= g_additional_server_config.player_damage_modifier;
+            damage *= g_alpine_server_config_active_rules.pvp_damage_modifier;
             if (damage == 0.0f) {
                 return 0.0f;
             }
@@ -2050,8 +2050,8 @@ void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
 CodeInjection entity_maybe_die_patch{
     0x00420600,
     [](auto& regs) {
-        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) &&
-            (g_alpine_server_config_active_rules.drop_amps || g_additional_server_config.bagman.enabled)) {
+        //if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) && (g_alpine_server_config_active_rules.drop_amps || g_additional_server_config.bagman.enabled)) {
+        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) && g_alpine_server_config_active_rules.drop_amps) {
 
             rf::Entity* ep = regs.esi;
 
@@ -2061,13 +2061,13 @@ CodeInjection entity_maybe_die_patch{
 
                 if (rf::multi_powerup_has_player(player, 1)) {
                     int amp_count = 0;
-                    if (g_additional_server_config.bagman.enabled) {
-                        amp_count = 100000;
-                    }
-                    else {
+                    //if (g_additional_server_config.bagman.enabled) { // bagman not yet implemented
+                    //    amp_count = 100000;
+                    //}
+                    //else {
                         int time_left = rf::multi_powerup_get_time_until(player, 1);
                         amp_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
-                    }
+                    //}
 
                     //xlog::warn("amp count {}", amp_count);
 
@@ -2092,8 +2092,8 @@ CodeInjection entity_maybe_die_patch{
     },
 };
 
-// bagman
-CodeInjection item_get_oldest_dynamic_patch{
+// ensure bag isn't purged for being the oldest dropped item (not currently used)
+/* CodeInjection item_get_oldest_dynamic_patch{
     0x00458858,
     [](auto& regs) {
         if (g_additional_server_config.bagman.enabled) {
@@ -2109,7 +2109,7 @@ CodeInjection item_get_oldest_dynamic_patch{
             }
         }
     },
-};
+};*/
 
 CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int)> entity_create_no_collide_hook {
     0x004A41D3,
@@ -2179,7 +2179,7 @@ void server_init()
 
     // Handle dropping amps on death
     entity_maybe_die_patch.install();
-    item_get_oldest_dynamic_patch.install();
+    //item_get_oldest_dynamic_patch.install(); // bagman, not currently used
 
     // Allow players to capture CTF flag even if their own flag is stolen
     allow_red_cap_when_stolen_patch.install();

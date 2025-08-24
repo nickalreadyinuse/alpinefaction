@@ -236,6 +236,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.flag_captures_while_stolen = *v;
     if (auto v = t["flag_return_time"].value<int>())
         o.set_flag_return_time(*v);
+    if (auto v = t["pvp_damage_modifier"].value<float>())
+        o.set_pvp_damage_modifier(*v);
     if (auto v = t["drop_amps"].value<bool>())
         o.drop_amps = *v;
     if (auto v = t["weapon_pickups_give_full_ammo"].value<bool>())
@@ -786,6 +788,8 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
             rf::console::print("  Flag return time:                      {} sec\n", rules.ctf_flag_return_time_ms / 1000.0f);
     }
 
+    if (base || rules.pvp_damage_modifier != b.pvp_damage_modifier)
+        rf::console::print("  PvP damage modifier:                   {}\n", rules.pvp_damage_modifier);
     if (base || rules.drop_amps != b.drop_amps)
         rf::console::print("  Drop amps:                             {}\n", rules.drop_amps);
     if (base || rules.weapon_items_give_full_ammo != b.weapon_items_give_full_ammo)

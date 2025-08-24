@@ -346,7 +346,7 @@ void parse_miscellaneous_options(rf::Parser& parser)
     parse_boolean_option(parser, "$Dynamic Rotation:", g_alpine_server_config.dynamic_rotation, "Dynamic Rotation");
     parse_boolean_option(parser, "$Require Client Mod:", g_alpine_server_config.require_client_mod,
                          "Clients Require Mod");
-    parse_float_option(parser, "$Player Damage Modifier:", g_additional_server_config.player_damage_modifier,
+    parse_float_option(parser, "$Player Damage Modifier:", g_alpine_server_config_active_rules.pvp_damage_modifier,
                        "Player Damage Modifier");
     parse_boolean_option(parser, "$UPnP Enabled:", g_alpine_server_config.upnp_enabled, "UPnP Enabled");
     parse_boolean_option(parser, "$Send Player Stats Message:", g_alpine_server_config.stats_message_enabled,
