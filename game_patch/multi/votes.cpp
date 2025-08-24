@@ -201,14 +201,30 @@ protected:
         }
     }
 
+    static bool is_eligible_voter(rf::Player* p)
+    {
+        if (!p)
+            return false;
+        if (get_player_additional_data(p).is_browser)
+            return false;
+        if (ends_with(p->name, " (Bot)"))
+            return false;
+        return true;
+    }
+
     bool check_for_early_vote_finish()
     {
         int yes_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
                 { return p.second; });
         int no_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
                 { return !p.second; });
-        int remaining = std::count_if(get_current_player_list(false).begin(), get_current_player_list(false).end(), [this](rf::Player* p)
-            { return players_who_voted.count(p) == 0; });
+
+        const auto current = get_current_player_list(false);
+        int remaining = 0;
+        for (auto* p : current) {
+            if (is_eligible_voter(p) && players_who_voted.count(p) == 0)
+                ++remaining;
+        }
 
         const auto& vote_config = get_config();
         if (!vote_config.ignore_nonvoters) {
