@@ -802,23 +802,27 @@ CallHook<int(const char*)> item_lookup_type_hook{
     }
 };*/
 
-
+// legacy client compatible
 CallHook<int(const char*)> find_default_weapon_for_entity_hook{
     0x004A43DA,
     [](const char* weapon_name) {
-        if (rf::is_dedicated_server && !g_additional_server_config.default_player_weapon.empty()) {
-            weapon_name = g_additional_server_config.default_player_weapon.c_str();
+        if (rf::is_dedicated_server) {
+            weapon_name = g_alpine_server_config_active_rules.default_player_weapon.weapon_name.data();
         }
         return find_default_weapon_for_entity_hook.call_target(weapon_name);
     },
 };
 
+// legacy client compatible
 CallHook<void(rf::Player*, int, int)> give_default_weapon_ammo_hook{
     0x004A4414,
     [](rf::Player* player, int weapon_type, int ammo) {
-        if (g_additional_server_config.default_player_weapon_ammo) {
-            ammo = g_additional_server_config.default_player_weapon_ammo.value();
+        // if not using loadouts, this adjusts spawn weapon reserve ammo to match our clip config
+        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.spawn_loadout.loadouts_in_use) {
+            ammo = rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
+                   g_alpine_server_config_active_rules.default_player_weapon.num_clips;
         }
+
         give_default_weapon_ammo_hook.call_target(player, weapon_type, ammo);
     },
 };
@@ -833,11 +837,11 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
     },
 };
 
-// handle spawn loadouts (ADS only)
+// handle spawn loadouts (not legacy client compatible)
 CodeInjection player_create_entity_default_weapon_injection {
     0x004A43F6,
     [](auto& regs) {
-        if (rf::is_dedicated_server && g_dedicated_launched_from_ads) {
+        if (rf::is_dedicated_server && g_alpine_server_config_active_rules.spawn_loadout.loadouts_in_use) {
             rf::Player* player = regs.ebp;
 
             for (auto const& e : g_alpine_server_config_active_rules.spawn_loadout.red_weapons) {

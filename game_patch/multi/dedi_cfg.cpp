@@ -79,6 +79,20 @@ static rf::NetGameType parse_game_type(const std::string& s)
     return rf::NetGameType::NG_TYPE_DM;
 }
 
+static DefaultPlayerWeaponConfig parse_default_player_weapon(const toml::table& t, DefaultPlayerWeaponConfig c)
+{
+    if (auto x = t["weapon_name"].value<std::string>()) {
+        c.set_weapon(*x);
+    }
+
+    if (c.index >= 0) {
+        if (auto v = t["clips"].value<int>())
+            c.num_clips = *v;
+    }
+
+    return c;
+}
+
 static SpawnLifeConfig parse_spawn_life_config(const toml::table& t, SpawnLifeConfig c)
 {
     if (auto x = t["enabled"].value<bool>())
@@ -229,22 +243,27 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     if (auto v = t["infinite_reloads"].value<bool>())
         o.weapon_infinite_magazines = *v;
 
+    if (auto sub = t["spawn_weapon"].as_table())
+        o.default_player_weapon = parse_default_player_weapon(*sub, o.default_player_weapon);
     if (auto sub = t["spawn_life"].as_table())
         o.spawn_life  = parse_spawn_life_config(*sub, o.spawn_life);
     if (auto sub = t["spawn_armor"].as_table())
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
 
-    o.spawn_loadout.add("12mm handgun", 10, false, true);    
-    o.spawn_loadout.add("Riot Stick", 1, false, true);
-    o.spawn_loadout.add("Rocket Launcher", 10, false, true);
+    // add default loadout
+    int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
+    o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
+    int default_ammo = rf::weapon_types[o.default_player_weapon.index].clip_size_multi * o.default_player_weapon.num_clips;
+    o.spawn_loadout.add(o.default_player_weapon.weapon_name, default_ammo, false, true);
 
-    if (auto arr = t["spawn_loadout"].as_array()) { // todo: custom packet so clients know this, force alpine if changed from default
+    if (auto arr = t["spawn_loadout"].as_array()) { // todo: custom packet so clients know this
         for (auto& node : *arr) {
             if (auto tbl = node.as_table()) {
                 if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
                     int ammo = (*tbl)["ammo"].value<int>().value_or(0);
                     bool enabled = (*tbl)["include"].value<bool>().value_or(true); // default true if not specified
                     o.spawn_loadout.add(*nameOpt, ammo, false, enabled);
+                    o.spawn_loadout.loadouts_in_use = true; // if any loadout is specified, we need to restrict to alpine only
                 }
             }
         }
@@ -780,6 +799,13 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         if (rules.welcome_message.enabled) {
             rf::console::print("    Text:                                {}\n", rules.welcome_message.welcome_message);
         }
+    }
+
+    // spawn weapon
+    if (base || rules.default_player_weapon.index != b.default_player_weapon.index ||
+        (rules.default_player_weapon.num_clips != b.default_player_weapon.num_clips)) {
+        rf::console::print("  Spawn weapon:                          {}\n", rules.default_player_weapon.weapon_name);
+        rf::console::print("    Reserve clips:                       {}\n", rules.default_player_weapon.num_clips);
     }
 
     // spawn life

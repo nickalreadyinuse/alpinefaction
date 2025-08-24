@@ -94,7 +94,7 @@ struct InactivityConfig
 struct VoteConfig
 {
     bool enabled = false;
-    bool ignore_nonvoters = false; // not imp
+    bool ignore_nonvoters = false;
     int time_limit_seconds = 60;
 
     // =============================================
@@ -333,7 +333,8 @@ struct WeaponLoadoutEntry
 
 struct WeaponLoadoutConfig
 {
-    std::vector<WeaponLoadoutEntry> red_weapons;
+    bool loadouts_in_use = false;
+    std::vector<WeaponLoadoutEntry> red_weapons; // todo: teams
     std::vector<WeaponLoadoutEntry> blue_weapons;
 
     // =============================================
@@ -357,6 +358,24 @@ struct WeaponLoadoutConfig
 
         weapons_array->emplace_back(WeaponLoadoutEntry{std::string{name}, idx, ammo, enabled});
         return true;
+    }
+};
+
+struct DefaultPlayerWeaponConfig
+{
+    std::string weapon_name = "12mm handgun";
+    int index = 3;
+    int num_clips = 3;
+
+    // =============================================
+
+    void set_weapon(std::string_view in_weapon)
+    {
+        int idx = rf::weapon_lookup_type(in_weapon.data());
+        if (idx >= 0) {
+            index = idx;
+            weapon_name = std::string(in_weapon);
+        }
     }
 };
 
@@ -392,6 +411,7 @@ struct AlpineServerConfigRules
     bool flag_captures_while_stolen = false;
     bool drop_amps = false;
     int ctf_flag_return_time_ms = 25000;
+    DefaultPlayerWeaponConfig default_player_weapon;
     SpawnLifeConfig spawn_life;
     SpawnLifeConfig spawn_armour;
     WeaponLoadoutConfig spawn_loadout;
@@ -544,8 +564,8 @@ struct ServerAdditionalConfig
     OvertimeConfig overtime;
     //std::map<std::string, std::string> item_replacements;
     //std::map<std::string, int> item_respawn_time_overrides;
-    std::string default_player_weapon;
-    std::optional<int> default_player_weapon_ammo;
+    //std::string default_player_weapon;
+    //std::optional<int> default_player_weapon_ammo;
     //bool require_client_mod = true;
     float player_damage_modifier = 1.0f;
     //bool saving_enabled = false;

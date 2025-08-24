@@ -283,20 +283,21 @@ void parse_default_player_weapon(rf::Parser& parser)
     if (parser.parse_optional("$Default Player Weapon:")) {
         rf::String default_weapon;
         parser.parse_string(&default_weapon);
-        g_additional_server_config.default_player_weapon = default_weapon.c_str();
-        rf::console::print("Default Player Weapon: {}", g_additional_server_config.default_player_weapon);
+        g_alpine_server_config_active_rules.default_player_weapon.set_weapon(default_weapon.c_str());
+        rf::console::print("Default Player Weapon: {}", g_alpine_server_config_active_rules.default_player_weapon.weapon_name);
 
-        if (parser.parse_optional("+Initial Ammo:")) {
+        // old method set ammo directly, new (proper) method uses clip count. Keeping old config syntax with new logic would be confusing
+        /*if (parser.parse_optional("+Initial Ammo:")) {
             auto ammo = parser.parse_uint();
-            g_additional_server_config.default_player_weapon_ammo = {ammo};
+            g_alpine_server_config_active_rules.default_player_weapon.num_clips = ammo;
             rf::console::print("+Initial Ammo: {}", ammo);
 
-            auto weapon_type = rf::weapon_lookup_type(g_additional_server_config.default_player_weapon.c_str());
+             auto weapon_type = rf::weapon_lookup_type(g_additional_server_config.default_player_weapon.c_str());
             if (weapon_type >= 0) {
                 auto& weapon_cls = rf::weapon_types[weapon_type];
                 weapon_cls.max_ammo_multi = std::max<int>(weapon_cls.max_ammo_multi, ammo);
             }
-        }
+        }*/
     }
 }
 
