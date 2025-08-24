@@ -1339,8 +1339,8 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         update_player_active_status(player); // active pulse on spawn
         const auto& pad = get_player_additional_data(player);
 
-        if (g_additional_server_config.force_player_character) {
-            player->settings.multi_character = g_additional_server_config.force_player_character.value();
+        if (g_alpine_server_config_active_rules.force_character.enabled) {
+            player->settings.multi_character = g_alpine_server_config_active_rules.force_character.character_index;
         }
         if (g_alpine_server_config.alpine_restricted_config.clients_require_alpine) {
             if (!pad.is_alpine) {

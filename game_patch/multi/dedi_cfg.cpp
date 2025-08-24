@@ -92,6 +92,19 @@ static SpawnLifeConfig parse_spawn_life_config(const toml::table& t, SpawnLifeCo
     return c;
 }
 
+static ForceCharacterConfig parse_force_character_config(const toml::table& t, ForceCharacterConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["character"].value<std::string>())
+            c.set_character(*v);
+    }
+
+    return c;
+}
+
 static WelcomeMessageConfig parse_welcome_message_config(const toml::table& t, WelcomeMessageConfig c)
 {
     if (auto x = t["enabled"].value<bool>())
@@ -281,6 +294,9 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
             }
         }
     }
+
+    if (auto sub = t["force_character"].as_table())
+        o.force_character = parse_force_character_config(*sub, o.force_character);
 
     return o;
 }
@@ -952,6 +968,15 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
                 std::string item_name_string = item + ":";
                 rf::console::print("    {:<20}                 {} ms\n", item_name_string, ms);
             }
+        }
+    }
+
+    // force character
+    if (base || rules.force_character.enabled != b.force_character.enabled ||
+        (rules.force_character.enabled && rules.force_character.character_index != b.force_character.character_index)) {
+        rf::console::print("  Forced character:                      {}\n", rules.force_character.enabled);
+        if (rules.force_character.enabled) {
+            rf::console::print("    Character:                           {} ({})\n", rules.force_character.character_name, rules.force_character.character_index);
         }
     }
 }

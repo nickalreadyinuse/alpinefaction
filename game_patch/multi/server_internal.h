@@ -298,6 +298,29 @@ struct SpawnLifeConfig
     }
 };
 
+struct ForceCharacterConfig
+{
+    bool enabled = false;
+    int character_index = 0;
+    std::string character_name = "enviro_parker"; // only used for human-readable logging
+
+    // =============================================
+
+    void set_character(std::string_view in_character)
+    {
+        int idx = rf::multi_find_character(in_character.data());
+
+        if (idx < 0) {
+            character_index = 0;
+            character_name = "enviro_parker";
+        }
+        else {
+            character_index = idx;
+            character_name = std::string(in_character);
+        }
+    }
+};
+
 struct WeaponLoadoutEntry
 {
     std::string weapon_name;
@@ -382,6 +405,7 @@ struct AlpineServerConfigRules
     WeaponStayExemptionConfig weapon_stay_exemptions;
     std::map<std::string, std::string> item_replacements;
     std::map<std::string, int> item_respawn_time_overrides;
+    ForceCharacterConfig force_character;
 
     // =============================================
     
@@ -530,7 +554,7 @@ struct ServerAdditionalConfig
     //bool no_player_collide = false;
     //bool location_pinging = true;
     //bool upnp_enabled = false;
-    std::optional<int> force_player_character;
+    //std::optional<int> force_player_character;
     std::optional<float> max_fov; // na
     //bool allow_fullbright_meshes = true;
     //bool allow_lightmaps_only = true;

@@ -307,8 +307,9 @@ void parse_force_character(rf::Parser& parser)
         parser.parse_string(&character_name);
         int character_num = rf::multi_find_character(character_name.c_str());
         if (character_num != -1) {
-            g_additional_server_config.force_player_character = {character_num};
-            rf::console::print("Forced Player Character: {} (ID {})", character_name, character_num);
+            g_alpine_server_config_active_rules.force_character.set_character(character_name.c_str());
+            g_alpine_server_config_active_rules.force_character.enabled = true;
+            rf::console::print("Forced Player Character: {} (ID {})", character_name, g_alpine_server_config_active_rules.force_character.character_index);
         }
         else {
             xlog::warn("Unknown character name in Force Player Character setting: {}", character_name);
