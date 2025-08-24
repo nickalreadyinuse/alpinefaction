@@ -167,7 +167,7 @@ bool should_use_gaussian_spread()
     if (!rf::is_multi && g_alpine_game_config.gaussian_spread) {
         return true;
     }
-    else if ((rf::is_dedicated_server || rf::is_server) && g_additional_server_config.gaussian_spread) {
+    else if ((rf::is_dedicated_server || rf::is_server) && g_alpine_server_config.gaussian_spread) {
         return true;
     }
     else if (rf::is_multi && get_df_server_info().has_value() && get_df_server_info()->gaussian_spread) {

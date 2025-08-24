@@ -198,7 +198,9 @@ namespace rf
     static auto& player_start_death_fade = addr_as_ref<void(Player *pp, float time_sec, void (*callback)(Player *))>(0x004A73E0);
     static auto& get_player_entity_parent_vmesh = addr_as_ref<VMesh*(Player*)>(0x004A7830);
     static auto& game_get_skill_level = addr_as_ref<GameDifficultyLevel()>(0x004369D0);
-    static auto& game_set_skill_level = addr_as_ref<void(GameDifficultyLevel)>(0x00436970);    
+    static auto& game_set_skill_level = addr_as_ref<void(GameDifficultyLevel)>(0x00436970);
+    static auto& player_set_default_primary = addr_as_ref<void(Player* pp, int weapon_type)>(0x004A4070);
+    static auto& player_add_weapon = addr_as_ref<void(Player* pp, int weapon_type, int ammo)>(0x004A4000);  
     static auto& game_get_gore_level = addr_as_ref<int()>(0x00436A20);
     static auto& game_set_gore_level = addr_as_ref<void(int gore_setting)>(0x00436A10);
     static auto& player_settings_apply_graphics_options = addr_as_ref<void(Player* player)>(0x004A8D20);

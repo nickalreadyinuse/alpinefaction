@@ -122,6 +122,8 @@ set(SRCS
     debug/unresponsive.cpp
     multi/alpine_packets.cpp
     multi/alpine_packets.h
+    multi/dedi_cfg_legacy.cpp
+    multi/dedi_cfg.cpp
     multi/multi.h
     multi/multi.cpp
     multi/kill.cpp
@@ -215,6 +217,7 @@ target_include_directories(AlpineFaction PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/stb
     ${CMAKE_SOURCE_DIR}/vendor/freetype/include
     ${CMAKE_SOURCE_DIR}/vendor/dds
+    ${CMAKE_SOURCE_DIR}/vendor/toml++
 )
 
 if(NOT MSVC)

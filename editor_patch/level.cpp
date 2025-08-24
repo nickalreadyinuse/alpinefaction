@@ -80,7 +80,7 @@ CodeInjection CLevelDialog_OnOK_patch{
 
 void ApplyLevelPatches()
 {
-    // include AlpineLevelProperties chunk in saved files
+    // include space for default AlpineLevelProperties chunk in newly created rfls
     write_mem<std::uint32_t>(0x0041C906 + 1, 0x668 + sizeof(AlpineLevelProperties));
 
     // handle AlpineLevelProperties chunk

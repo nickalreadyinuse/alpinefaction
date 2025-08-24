@@ -3,7 +3,7 @@
 #include <xlog/xlog.h>
 #include "../rf/file/file.h"
 
-constexpr int alpine_props_chunk_id = 0xAFBA5ED1;
+constexpr int alpine_props_chunk_id = 0x0AFBA5ED;
 constexpr int dash_level_props_chunk_id = 0xDA58FA00;
 
 // should match structure in editor_patch\level.h

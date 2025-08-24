@@ -9,6 +9,8 @@ namespace rf
 }
 
 void server_init();
+void dedi_cfg_init();
+void apply_rules_for_current_level();
 void server_do_frame();
 bool check_server_chat_command(const char* msg, rf::Player* sender);
 bool server_is_saving_enabled();

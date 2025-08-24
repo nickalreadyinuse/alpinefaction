@@ -127,6 +127,7 @@ ConsoleCommand2 map_prev_cmd{
 
 void kick_player_delayed(rf::Player* player)
 {
+    rf::console::print("{}{}", player->name, rf::strings::was_kicked);
     g_players_to_kick.push_back(player->net_data->player_id);
 }
 

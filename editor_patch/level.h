@@ -8,7 +8,7 @@
 #include "resources.h"
 
 constexpr std::size_t stock_cdedlevel_size = 0x608;
-constexpr int alpine_props_chunk_id = 0xAFBA5ED1;
+constexpr int alpine_props_chunk_id = 0x0AFBA5ED;
 
 // should match structure in game_patch\misc\level.h
 struct AlpineLevelProperties

@@ -20,6 +20,7 @@
 #include "../os/console.h"
 #include "../main/main.h"
 #include "../multi/multi.h"
+#include "../multi/server.h"
 #include "../rf/gr/gr.h"
 #include "../rf/player/player.h"
 #include "../rf/multi.h"
@@ -414,6 +415,7 @@ CallHook level_init_pre_console_output_hook{
     0x00435ABB,
     []() {
         rf::console::print("-- Level Initializing: {} --", rf::level_filename_to_load);
+        apply_rules_for_current_level();
     },
 };
 

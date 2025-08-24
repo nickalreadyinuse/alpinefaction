@@ -201,41 +201,50 @@ protected:
         }
     }
 
+    static bool is_eligible_voter(rf::Player* p)
+    {
+        if (!p)
+            return false;
+        if (get_player_additional_data(p).is_browser)
+            return false;
+        if (ends_with(p->name, " (Bot)"))
+            return false;
+        return true;
+    }
+
     bool check_for_early_vote_finish()
     {
-        const auto current_player_list = get_current_player_list(false);
+        int yes_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
+                { return p.second; });
+        int no_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
+                { return !p.second; });
 
-        // cancel the vote if the server clears out
-        if (current_player_list.empty()) {
-            return false;
+        const auto current = get_current_player_list(false);
+        int remaining = 0;
+        for (auto* p : current) {
+            if (is_eligible_voter(p) && players_who_voted.count(p) == 0)
+                ++remaining;
         }
 
-        const int remaining_players_count =
-            std::count_if(current_player_list.begin(), current_player_list.end(), [this](rf::Player* player) {
-                return players_who_voted.find(player) == players_who_voted.end();
-            });
+        const auto& vote_config = get_config();
+        if (!vote_config.ignore_nonvoters) {
+            no_votes += remaining;
+            remaining = 0;
+        }
 
-        const int yes_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](const auto& pair) {
-            return pair.second;
-        });
+        const bool can_pass = yes_votes > no_votes + remaining;
+        const bool can_fail = no_votes > yes_votes + remaining;
+        const bool all_have_voted = remaining == 0;
 
-        const int no_votes =
-            players_who_voted.size() - yes_votes;
-
-        // success
-        if (yes_votes > no_votes + remaining_players_count) {
+        if (can_pass) {
             finish_vote(true);
             return false;
         }
-
-        // failure
-        if (no_votes > yes_votes + remaining_players_count) {
+        if (can_fail) {
             finish_vote(false);
             return false;
         }
-
-        // tie (failure)
-        if (remaining_players_count == 0) {
+        if (all_have_voted) {
             finish_vote(yes_votes > no_votes);
             return false;
         }
@@ -341,7 +350,7 @@ struct VoteMatch : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_match;
+        return g_alpine_server_config.alpine_restricted_config.vote_match;
     }
 };
 
@@ -376,7 +385,7 @@ struct VoteCancelMatch : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_match; // Ensure this config exists in your settings
+        return g_alpine_server_config.alpine_restricted_config.vote_match;
     }
 };
 
@@ -418,7 +427,7 @@ struct VoteKick : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_kick;
+        return g_alpine_server_config.vote_kick;
     }
 };
 
@@ -449,7 +458,7 @@ struct VoteExtend : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_extend;
+        return g_alpine_server_config.vote_extend;
     }
 };
 
@@ -495,7 +504,7 @@ struct VoteLevel : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_level;
+        return g_alpine_server_config.vote_level;
     }
 };
 
@@ -525,7 +534,7 @@ struct VoteRestart : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_restart;
+        return g_alpine_server_config.vote_restart;
     }
 };
 
@@ -554,7 +563,7 @@ struct VoteNext : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_next;
+        return g_alpine_server_config.vote_next;
     }
 };
 
@@ -575,7 +584,7 @@ struct VoteRandom : public Vote
         send_chat_line_packet("\xA6 Vote passed: loading random level from rotation", nullptr);
 
         // if dynamic rotation is on, just load the next level
-        g_additional_server_config.dynamic_rotation ? load_next_level() : load_rand_level();
+        g_alpine_server_config.dynamic_rotation ? load_next_level() : load_rand_level();
     }
 
     [[nodiscard]] bool is_allowed_in_limbo_state() const override
@@ -585,7 +594,7 @@ struct VoteRandom : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_rand;
+        return g_alpine_server_config.vote_rand;
     }
 };
 
@@ -614,7 +623,7 @@ struct VotePrevious : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_additional_server_config.vote_previous;
+        return g_alpine_server_config.vote_previous;
     }
 };
 
