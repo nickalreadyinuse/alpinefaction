@@ -32,6 +32,7 @@ Version 1.2.0 (Willow): Not yet released
 - Deprecated `sv_connectedclients` command as all info is now in the output of `info`
 - Updated new player joining message printed to ADS server console to include socket, client info, and max RFL version
 - Support weapon stay exemption functionality for any weapons, including stock fusion behaviour and weapons fron TC mods
+- Deprecate `$Max FOV` dedicated server setting
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

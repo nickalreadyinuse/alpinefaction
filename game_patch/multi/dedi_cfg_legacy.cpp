@@ -482,13 +482,13 @@ void load_additional_server_config(rf::Parser& parser)
     parse_inactivity_settings(parser);
 
     // separate for now because they need to use std::optional
-    if (parser.parse_optional("$Max FOV:")) {
+    /* if (parser.parse_optional("$Max FOV:")) {
         float max_fov = parser.parse_float();
         if (max_fov > 0.0f) {
             g_additional_server_config.max_fov = {max_fov};
             rf::console::print("Max FOV: {}", g_additional_server_config.max_fov.value_or(180));
         }
-    }
+    }*/
 
     parse_boolean_option(parser, "$Use Gaussian Bullet Spread:", g_alpine_server_config.gaussian_spread,
                          "Use Gaussian Bullet Spread");

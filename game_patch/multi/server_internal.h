@@ -606,7 +606,7 @@ struct ServerAdditionalConfig
     //bool location_pinging = true;
     //bool upnp_enabled = false;
     //std::optional<int> force_player_character;
-    std::optional<float> max_fov; // na
+    //std::optional<float> max_fov; // na
     //bool allow_fullbright_meshes = true;
     //bool allow_lightmaps_only = true;
     //bool allow_disable_screenshake = true;
@@ -614,7 +614,7 @@ struct ServerAdditionalConfig
     //bool apply_click_limiter = true;
     //bool allow_unlimited_fps = false;
     //std::optional<int> semi_auto_cooldown = 90;
-    int anticheat_level = 0; // na
+    //int anticheat_level = 0; // na
     //bool stats_message_enabled = true;
     //bool drop_amps = false;
     //bool dynamic_rotation = false;

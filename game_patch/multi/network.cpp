@@ -861,10 +861,10 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_is_saving_enabled()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::saving_enabled;
         }
-        if (server_get_df_config().max_fov) {
-            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::max_fov;
-            ext_data.max_fov = server_get_df_config().max_fov.value();
-        }
+        //if (server_get_df_config().max_fov) {
+        //    ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::max_fov;
+        //    ext_data.max_fov = server_get_df_config().max_fov.value();
+        //}
         if (server_allow_fullbright_meshes()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_fb_mesh;
         }
