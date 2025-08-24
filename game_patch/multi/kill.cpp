@@ -148,9 +148,13 @@ void reset_gungame_notifications()
 void gungame_weapon_notification(rf::Player* player, bool just_spawned)
 {    
     int current_score = player->stats->score;
-    int weapon_type = *weapon_manager.get_weapon_for_score(current_score);
 
-    if (current_score < 0 || !weapon_type) {
+    auto opt = weapon_manager.get_weapon_for_score(current_score);
+    if (!opt)
+        return; // prevent crash if weapon is somehow not valid
+    int weapon_type = *opt;
+
+    if (current_score < 0) {
         return;
     }
 
