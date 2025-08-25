@@ -375,7 +375,7 @@ struct AlpineRestrictConfig
     bool alpine_server_version_enforce_min = false;
     bool alpine_require_release_build = false;
     bool only_welcome_alpine = false;
-    bool advertise_alpine = false;
+    bool advertise_alpine = true;
     bool no_player_collide = false;
     bool location_pinging = true;
     VoteConfig vote_match;
@@ -564,8 +564,9 @@ struct AlpineServerConfigRules
     {
         int orig_idx = rf::item_lookup_type(original.data());
         int repl_idx = rf::item_lookup_type(replacement.data());
-        if (orig_idx < 0 || repl_idx < 0) {
-            // check if either name is invalid
+        if (orig_idx < 0) {
+            // check if original name is invalid
+            // replacement name being blank is fine, removes item
             return false;
         }
         item_replacements[std::string(original)] = std::string(replacement);
@@ -701,6 +702,8 @@ void toggle_ready_status(rf::Player* player);
 bool get_ready_status(const rf::Player* player);
 void server_vote_do_frame();
 void init_server_commands();
+void rebuild_rotation_from_cfg();
+void on_dedicated_server_launch_post();
 void extend_round_time(int minutes);
 void restart_current_level();
 void load_next_level();
