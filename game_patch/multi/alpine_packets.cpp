@@ -278,14 +278,14 @@ void af_send_obj_update_packet(rf::Player* player)
 
         uint8_t current_primary_weapon = static_cast<uint8_t>(entity->ai.current_primary_weapon);
         if (current_primary_weapon > 63) {
-            xlog::error("obj_update packet tried to process an invalid weapon type: {}", current_primary_weapon);
+            xlog::debug("obj_update packet tried to process an invalid weapon type: {}", current_primary_weapon);
             continue; // reported weapon type is out of valid range
         }
         obj_update.current_primary_weapon = current_primary_weapon;
 
         uint8_t ammo_type = static_cast<uint8_t>(rf::weapon_types[current_primary_weapon].ammo_type);
         if (ammo_type > 31) {
-            xlog::error("obj_update packet tried to process an invalid ammo type: {}", ammo_type);
+            xlog::debug("obj_update packet tried to process an invalid ammo type: {}", ammo_type); // todo: figure out why this happens sometimes on specific maps???
             continue; // reported ammo type is out of valid range
         }
         obj_update.ammo_type = ammo_type;
