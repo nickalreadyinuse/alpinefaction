@@ -357,10 +357,14 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     // add default loadout
     int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
     o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
-    int default_ammo = rf::weapon_types[o.default_player_weapon.index].clip_size_multi * o.default_player_weapon.num_clips;
-    o.spawn_loadout.add(o.default_player_weapon.weapon_name, default_ammo, false, true);
 
-    if (auto arr = t["spawn_loadout"].as_array()) { // todo: custom packet so clients know this
+    if (o.default_player_weapon.index >= 0) {
+        int default_ammo = rf::weapon_types[o.default_player_weapon.index].clip_size_multi * o.default_player_weapon.num_clips;
+        o.spawn_loadout.add(o.default_player_weapon.weapon_name, default_ammo, false, true);
+        
+    }
+
+    if (auto arr = t["spawn_loadout"].as_array()) {
         for (auto& node : *arr) {
             if (auto tbl = node.as_table()) {
                 if (auto nameOpt = (*tbl)["weapon_name"].value<std::string>()) {
@@ -824,7 +828,8 @@ void load_ads_server_config(std::string ads_config_name)
 {
     rf::console::print("Loading and applying server configuration from {}...\n\n", ads_config_name);
 
-    AlpineServerConfig cfg; // start from defaults
+    loadouts_in_use = false;    // reset per load
+    AlpineServerConfig cfg;     // start from defaults
 
     toml::table root;
     try {
@@ -1413,6 +1418,16 @@ void apply_alpine_dedicated_server_rules(rf::NetGameInfo& netgame, const AlpineS
     if (r.balance_teams) netgame.flags |= rf::NG_FLAG_BALANCE_TEAMS;
 }
 
+// keep the netgame levels array synced with level+rules array
+void rebuild_rotation_from_cfg()
+{
+    auto& levels_arr = rf::netgame.levels;
+    levels_arr.clear();
+    for (const auto& lvlEntry : g_alpine_server_config.levels) {
+        levels_arr.add(lvlEntry.level_filename.c_str());
+    }
+}
+
 void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, bool on_launch) {
     auto& netgame = rf::netgame;
     const auto& cfg = g_alpine_server_config;
@@ -1430,11 +1445,7 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
 
     print_alpine_dedicated_server_config_info(!g_ads_minimal_server_info);
 
-    auto& levels_arr = netgame.levels;
-    levels_arr.clear();
-    for (auto const& lvlEntry : cfg.levels) {
-        levels_arr.add(lvlEntry.level_filename.c_str());
-    }
+    rebuild_rotation_from_cfg();
 }
 
 void apply_rules_for_current_level()
@@ -1451,7 +1462,7 @@ void apply_rules_for_current_level()
 
     int idx = netgame.current_level_index;
 
-    if (!g_ads_minimal_server_info && rf::level_filename_to_load != cfg.levels[idx].level_filename.c_str()) {
+    if (!g_ads_minimal_server_info && rf::level_filename_to_load != netgame.levels[idx].c_str()) {
         g_alpine_server_config_active_rules = cfg.base_rules;
         rf::console::print("Applying base rules for manually loaded level {}...\n", rf::level_filename_to_load, cfg.levels[idx].level_filename.c_str());
         return;
@@ -1484,10 +1495,10 @@ void launch_alpine_dedicated_server() {
     rf::console::print("================  Alpine Faction Dedicated Server ================\n");
     rf::console::print("==================================================================\n\n");
 
-    auto& netgame = rf::netgame;
-    const auto& cfg = g_alpine_server_config;
+    auto& netgame = rf::netgame;    
 
     load_ads_server_config(g_ads_config_name);
+    const auto& cfg = g_alpine_server_config;
 
     if (!rf::lan_only_cmd_line_param.found()) {
         rf::console::print("Public game tracker:                     {}\n", g_alpine_game_config.multiplayer_tracker);

@@ -112,6 +112,7 @@ FunHook<void ()> dedicated_server_load_config_hook{
     []() {
         if (g_dedicated_launched_from_ads) {
             launch_alpine_dedicated_server();
+            on_dedicated_server_launch_post();
         }
         else {
             dedicated_server_load_config_hook.call_target();
@@ -133,19 +134,41 @@ CodeInjection rf_process_command_line_dedicated_server_patch{
     },
 };
 
+void set_server_window_title() {
+    std::string wnd_name;
+    wnd_name.append(rf::netgame.name.c_str());
+    wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
+    SetWindowTextA(rf::main_wnd, wnd_name.c_str());
+}
+
+void on_dedicated_server_launch_post() {
+    initialize_game_info_server_flags(); // build global flags var used in game_info packets
+    set_server_window_title();
+
+    // shuffle maplist
+    xlog::warn("attempted shuffle, dyn on? {}", g_alpine_server_config.dynamic_rotation);
+    if (g_alpine_server_config.dynamic_rotation) {
+        shuffle_level_array();
+    }
+
+    // no weapon drops on player death
+    if (g_alpine_server_config_active_rules.gungame.enabled) { // todo: codeinjection
+        AsmWriter(0x0042B0D3).jmp(0x0042B2BC);
+    }
+
+    // infinite reloads
+    if (g_alpine_server_config_active_rules.gungame.enabled ||
+        g_alpine_server_config_active_rules.weapon_infinite_magazines) { // todo: codeinjection
+        AsmWriter{0x00425506}.nop(2);
+    }
+}
+
 // used only in legacy dedi serv mode
 CodeInjection dedicated_server_load_config_patch{
     0x0046E103,
     [](auto& regs) {
         auto& parser = *reinterpret_cast<rf::Parser*>(regs.esp - 4 + 0x4C0 - 0x470);
-        load_additional_server_config(parser); // custom AF dedicated server config
-        initialize_game_info_server_flags(); // build global flags var used in game_info packets
-
-        // Insert server name in window title when hosting dedicated server
-        std::string wnd_name;
-        wnd_name.append(rf::netgame.name.c_str());
-        wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
-        SetWindowTextA(rf::main_wnd, wnd_name.c_str()); 
+        load_additional_server_config(parser);
     },
 };
 
@@ -153,20 +176,7 @@ CodeInjection dedicated_server_load_config_patch{
 CodeInjection dedicated_server_load_post_map_patch{
     0x0046E216,
     [](auto& regs) {
-        // shuffle maplist
-        if (g_alpine_server_config.dynamic_rotation) {
-            shuffle_level_array();
-        }
-
-        // no weapon drops on player death
-        if (g_alpine_server_config_active_rules.gungame.enabled) { // todo: codeinjection
-            AsmWriter(0x0042B0D3).jmp(0x0042B2BC);
-        }
-
-        // infinite reloads
-        if (g_alpine_server_config_active_rules.gungame.enabled || g_alpine_server_config_active_rules.weapon_infinite_magazines) { // todo: codeinjection
-            AsmWriter{0x00425506}.nop(2);
-        }
+        on_dedicated_server_launch_post();
     },
 };
 
@@ -433,7 +443,7 @@ void handle_whosready_command(rf::Player* player)
 
 static void handle_drop_flag_request(rf::Player* player)
 {
-    if (!rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
+    if (rf::multi_get_game_type() != rf::NG_TYPE_CTF) {
         return; // can't drop flags unless in CTF
     }
 
@@ -501,7 +511,19 @@ static void notify_for_upcoming_level_version_incompatible(rf::Player* player)
 
 void shuffle_level_array()
 {
-    std::ranges::shuffle(rf::netgame.levels, g_rng);
+    // ads servers, shuffle the level+rules array (ssot) and then sync the netgame levels array
+    if (g_dedicated_launched_from_ads) {
+        auto& cfg = g_alpine_server_config;
+
+        if (cfg.levels.size() <= 1)
+            return;
+
+        std::ranges::shuffle(cfg.levels, g_rng);
+        rebuild_rotation_from_cfg(); // sync netgame levels array
+    }
+    else { // legacy servers shuffle netgame array directly
+        std::ranges::shuffle(rf::netgame.levels, g_rng);
+    }
     xlog::info("Shuffled level rotation");
 }
 
@@ -1443,7 +1465,7 @@ void server_reliable_socket_ready(rf::Player* player)
     auto& data = get_player_additional_data(player);
 
     // welcome players, restricting to only welcoming alpine clients if configured
-    if (!g_alpine_server_config_active_rules.welcome_message.enabled) {
+    if (g_alpine_server_config_active_rules.welcome_message.enabled) {
         if (!g_alpine_server_config.alpine_restricted_config.only_welcome_alpine || data.is_alpine) {
             auto msg = string_replace(g_alpine_server_config_active_rules.welcome_message.welcome_message, "$PLAYER", player->name.c_str());
             send_chat_line_packet(msg.c_str(), player);
