@@ -49,6 +49,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix `Advertise AF` sometimes sending the wrong advert to players running old Alpine versions
 - Fix inactivity incorrectly being tracked when endgame scoreboard is displayed
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
+- Fix overtime initiating even if no match is active
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

@@ -1635,7 +1635,7 @@ FunHook<void()> multi_check_for_round_end_hook{
         if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
             //xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_additional_server_config.overtime.enabled, g_is_overtime, round_is_tied(game_type));
 
-            if (time_up && g_alpine_server_config.alpine_restricted_config.overtime.enabled && !g_is_overtime && round_is_tied(game_type)) {
+            if (time_up && g_alpine_server_config.alpine_restricted_config.overtime.enabled && !g_is_overtime && g_match_info.match_active && round_is_tied(game_type)) {
                 g_is_overtime = true;
                 extend_round_time(g_alpine_server_config.alpine_restricted_config.overtime.additional_time);
 
