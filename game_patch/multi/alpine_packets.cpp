@@ -65,6 +65,9 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         case af_packet_type::af_client_req:
             af_process_client_req_packet(data, len, addr);
             break;
+        case af_packet_type::af_just_spawned_info:
+            af_process_just_spawned_info_packet(data, len, addr);
+            break;
         default:
             return false; // ignore if unrecognized
     }
@@ -490,5 +493,139 @@ static void af_process_client_req_packet(const void* data, size_t len, const rf:
         default:
             xlog::warn("af_process_client_req_packet: Unknown req_type {}", static_cast<int>(req_type));
             return;
+    }
+}
+
+static inline bool af_encode_loadout_payload_to_bytes(const std::vector<WeaponLoadoutEntry>& loadout, std::byte* out, size_t out_cap, size_t& out_written)
+{
+    out_written = 0;
+
+    LoadoutEntry tmp[64];
+    uint8_t count = 0;
+
+    // collect valid and enabled loadout entries first
+    for (const auto& src : loadout) {
+        if (!src.enabled)
+            continue;
+        if (src.index < 0 || src.index >= 64)
+            continue;
+        if (count == 64)
+            break;
+
+        tmp[count].weapon_index = static_cast<uint8_t>(src.index);
+        tmp[count].ammo = static_cast<uint32_t>(src.reserve_ammo);
+        ++count;
+    }
+
+    const size_t need = sizeof(uint8_t) + static_cast<size_t>(count) * sizeof(LoadoutEntry);
+    if (out_cap < need)
+        return false;
+
+    // write count
+    out[0] = static_cast<std::byte>(count);
+
+    // write entries
+    if (count) {
+        std::memcpy(out + sizeof(uint8_t), tmp, static_cast<size_t>(count) * sizeof(LoadoutEntry));
+    }
+
+    out_written = need;
+    return true;
+}
+
+void af_send_just_spawned_loadout(rf::Player* to_player, std::vector<WeaponLoadoutEntry> loadout)
+{
+    if (!rf::is_server || !to_player)
+        return;
+
+    std::byte buf[rf::max_packet_size];
+    if (sizeof(buf) < sizeof(RF_GamePacketHeader) + 1)
+        return;
+
+    // create header
+    auto* hdr = reinterpret_cast<RF_GamePacketHeader*>(buf);
+    std::byte* p = buf + sizeof(RF_GamePacketHeader);
+    const std::byte* end = buf + sizeof(buf);
+
+    // info_type
+    *p++ = static_cast<std::byte>(af_just_spawned_info_type::af_loadout);
+
+    // payload
+    size_t payload_written = 0;
+    if (!af_encode_loadout_payload_to_bytes(loadout, p, static_cast<size_t>(end - p), payload_written)) {
+        xlog::warn("af_send_just_spawned_loadout: payload too large");
+        return;
+    }
+    p += payload_written;
+
+    // fill header
+    hdr->type = static_cast<uint8_t>(af_packet_type::af_just_spawned_info); // 0x56
+    hdr->size = static_cast<uint16_t>(1 + payload_written);
+
+    const size_t total_len = sizeof(RF_GamePacketHeader) + hdr->size;
+    if (total_len > rf::max_packet_size)
+        return;
+
+    af_send_packet(to_player, buf, static_cast<int>(total_len), true);
+}
+
+static void af_process_just_spawned_info_packet(const void* data, size_t len, const rf::NetAddr&)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server)
+        return;
+    if (len < sizeof(RF_GamePacketHeader) + 1)
+        return;
+
+    const auto* hdr = reinterpret_cast<const RF_GamePacketHeader*>(data);
+    if (hdr->type != static_cast<uint8_t>(af_packet_type::af_just_spawned_info))
+        return;
+
+    const size_t bytes_after_header = hdr->size;
+    if (sizeof(RF_GamePacketHeader) + bytes_after_header != len) {
+        xlog::warn("af_just_spawned_info: size mismatch");
+        return;
+    }
+
+    const uint8_t* p = reinterpret_cast<const uint8_t*>(data) + sizeof(RF_GamePacketHeader);
+    const uint8_t* end = reinterpret_cast<const uint8_t*>(data) + len;
+
+    if (p >= end)
+        return;
+    const auto info_type = static_cast<af_just_spawned_info_type>(*p++);
+    const size_t payload_len = static_cast<size_t>(end - p);
+
+    switch (info_type) {
+        case af_just_spawned_info_type::af_loadout: {
+            if (payload_len < 1)
+                return;
+            const uint8_t num = *p++;
+            const size_t need = sizeof(uint8_t) + static_cast<size_t>(num) * sizeof(LoadoutEntry);
+            if (payload_len != need) {
+                xlog::warn("af_just_spawned_info: loadout payload_len mismatch");
+                return;
+            }
+
+            const auto* entries = reinterpret_cast<const LoadoutEntry*>(p);
+            if (!rf::local_player)
+                return;
+
+            for (uint8_t i = 0; i < num; ++i) {
+                const int weapon_idx = static_cast<int>(entries[i].weapon_index);
+                const int ammo = static_cast<int>(entries[i].ammo);
+
+                // ignore invalid indices
+                if (weapon_idx < 0 || weapon_idx >= 64) {
+                    xlog::warn("af_just_spawned_info: invalid weapon index {} (ignored)", weapon_idx);
+                    continue;
+                }
+
+                // add weapon locally
+                rf::player_add_weapon(rf::local_player, weapon_idx, ammo);
+            }
+        } break;
+
+        default: // ignore unknown info types
+            break;
     }
 }

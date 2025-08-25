@@ -837,30 +837,6 @@ CodeInjection player_create_entity_default_weapon_injection {
     },
 };
 
-// todo: add new packet here to sync loadout on spawn for alpine clients
-// multi_spawn_player_server_side
-FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
-    0x00480820,
-    [](rf::Player* player) {
-        spawn_player_sync_ammo_hook.call_target(player);
-        // if default player weapon has ammo override sync ammo using additional reload packet
-        //if (g_additional_server_config.default_player_weapon_ammo && !rf::player_is_dead(player)) {
-        /* if (!rf::player_is_dead(player)) {
-            rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-            RF_ReloadPacket packet;
-            packet.header.type = RF_GPT_RELOAD;
-            packet.header.size = sizeof(packet) - sizeof(packet.header);
-            packet.entity_handle = entity->handle;
-            int weapon_type = entity->ai.current_primary_weapon;
-            packet.weapon = weapon_type;
-            packet.clip_ammo = entity->ai.clip_ammo[weapon_type];
-            int ammo_type = rf::weapon_types[weapon_type].ammo_type;
-            packet.ammo = entity->ai.ammo[ammo_type];
-            rf::multi_io_send_reliable(player, reinterpret_cast<uint8_t*>(&packet), sizeof(packet), 0);
-        }*/
-    },
-};
-
 CallHook<void(char*)> get_mod_name_require_client_mod_hook{
     {
         0x0047B1E0, // send_game_info_packet
@@ -1371,7 +1347,7 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         if (g_alpine_server_config_active_rules.gungame.enabled && player) {
             gungame_on_player_spawn(player);
-            //multi_update_gungame_weapon(player, true);            
+            //multi_update_gungame_weapon(player, true);
         }
 
         if (player) {
@@ -1382,6 +1358,14 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
                 if (g_alpine_server_config_active_rules.spawn_armour.enabled) {
                     ep->armor = g_alpine_server_config_active_rules.spawn_armour.value;
                 }
+            }
+
+            // inform newly spawned players of their loadout
+            if (rf::is_dedicated_server &&
+                (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
+                !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
+                ) {
+                af_send_just_spawned_loadout(player, g_alpine_server_config_active_rules.spawn_loadout.red_weapons);
             }
         }
 
@@ -2212,7 +2196,6 @@ void server_init()
     // Default player weapon class and ammo override
     find_default_weapon_for_entity_hook.install();
     give_default_weapon_ammo_hook.install();
-    //spawn_player_sync_ammo_hook.install();
 
     init_server_commands();
 

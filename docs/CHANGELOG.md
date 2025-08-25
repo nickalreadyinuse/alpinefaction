@@ -37,6 +37,7 @@ Version 1.2.0 (Willow): Not yet released
 - Deprecate `$Max FOV` dedicated server setting
 - Support GunGame configuration using weapon names (from `weapons.tbl`) rather than weapon indices
 - Restrict overtime configuration to match mode
+- Add support for custom weapon loadouts in dedicated servers
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
