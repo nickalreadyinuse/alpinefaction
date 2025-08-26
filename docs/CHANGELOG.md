@@ -33,7 +33,7 @@ Version 1.2.0 (Willow): Not yet released
 - Reformatted output of `info` command to contain more useful info
 - Deprecate `sv_connectedclients` command as all info is now in the output of `info`
 - Updated new player joining message printed to ADS server console to include socket, client info, and max RFL version
-- Support weapon stay exemption functionality for any weapons, including stock fusion behaviour and weapons fron TC mods
+- Support weapon stay exemption functionality for any weapons, including stock fusion behaviour and weapons from TC mods
 - Deprecate `$Max FOV` dedicated server setting
 - Support GunGame configuration using weapon names (from `weapons.tbl`) rather than weapon indices
 - Restrict overtime configuration to match mode
@@ -51,6 +51,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix inactivity incorrectly being tracked when endgame scoreboard is displayed
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
 - Fix overtime initiating even if no match is active
+- Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

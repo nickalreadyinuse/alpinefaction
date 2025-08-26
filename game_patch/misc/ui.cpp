@@ -562,7 +562,6 @@ void ao_fov_cbox_on_click_callback() {
 }
 void ao_fov_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new FOV value (0 for automatic scaling):", "", ao_fov_cbox_on_click_callback, 1);
-    //ao_play_tab_snd();
 }
 
 // fpgun fov
@@ -580,7 +579,6 @@ void ao_fpfov_cbox_on_click_callback() {
 }
 void ao_fpfov_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new FPGun FOV modifier value:", "", ao_fpfov_cbox_on_click_callback, 1);
-    //ao_play_tab_snd();
 }
 
 // ms
@@ -598,7 +596,6 @@ void ao_ms_cbox_on_click_callback() {
 }
 void ao_ms_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new mouse sensitivity value:", "", ao_ms_cbox_on_click_callback, 1);
-    //ao_play_tab_snd();
 }
 
 // scanner ms
@@ -608,7 +605,8 @@ void ao_scannersens_cbox_on_click_callback() {
     std::string str = str_buffer;
     try {
         float new_scale = std::stof(str);
-        g_alpine_game_config.scanner_sensitivity_modifier = new_scale;
+        g_alpine_game_config.set_scanner_sens_mod(new_scale);
+        update_scanner_sensitivity();
     }
     catch (const std::exception& e) {
         xlog::info("Invalid modifier input: '{}', reason: {}", str, e.what());
@@ -616,7 +614,6 @@ void ao_scannersens_cbox_on_click_callback() {
 }
 void ao_scannersens_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new scanner sensitivity modifier value:", "", ao_scannersens_cbox_on_click_callback, 1);
-    //ao_play_tab_snd();
 }
 
 // scope ms
@@ -626,7 +623,8 @@ void ao_scopesens_cbox_on_click_callback() {
     std::string str = str_buffer;
     try {
         float new_scale = std::stof(str);
-        g_alpine_game_config.scope_sensitivity_modifier = new_scale;
+        g_alpine_game_config.set_scope_sens_mod(new_scale);
+        update_scope_sensitivity();
     }
     catch (const std::exception& e) {
         xlog::info("Invalid modifier input: '{}', reason: {}", str, e.what());
@@ -634,7 +632,6 @@ void ao_scopesens_cbox_on_click_callback() {
 }
 void ao_scopesens_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new scope sensitivity modifier value:", "", ao_scopesens_cbox_on_click_callback, 1);
-    //ao_play_tab_snd();
 }
 
 // reticle scale
@@ -652,7 +649,6 @@ void ao_retscale_cbox_on_click_callback() {
 }
 void ao_retscale_cbox_on_click(int x, int y) {
     rf::ui::popup_message("Enter new reticle scale value:", "", ao_retscale_cbox_on_click_callback, 1);
-    //ao_play_tab_snd();
 }
 
 // max fps
@@ -672,7 +668,6 @@ void ao_maxfps_cbox_on_click_callback()
 void ao_maxfps_cbox_on_click(int x, int y)
 {
     rf::ui::popup_message("Enter new maximum FPS value:", "", ao_maxfps_cbox_on_click_callback, 1);
-    // ao_play_tab_snd();
 }
 
 // lod dist scale
@@ -692,7 +687,6 @@ void ao_loddist_cbox_on_click_callback()
 void ao_loddist_cbox_on_click(int x, int y)
 {
     rf::ui::popup_message("Enter new LOD distance scale value:", "", ao_loddist_cbox_on_click_callback, 1);
-    // ao_play_tab_snd();
 }
 
 // simulation distance
@@ -713,7 +707,6 @@ void ao_simdist_cbox_on_click_callback()
 void ao_simdist_cbox_on_click(int x, int y)
 {
     rf::ui::popup_message("Enter new simulation distance value:", "", ao_simdist_cbox_on_click_callback, 1);
-    // ao_play_tab_snd();
 }
 
 void ao_mpcharlod_cbox_on_click(int x, int y) {
