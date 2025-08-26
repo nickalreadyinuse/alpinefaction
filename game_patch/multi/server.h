@@ -25,7 +25,6 @@ bool server_allow_unlimited_fps();
 bool server_gaussian_spread();
 void server_reliable_socket_ready(rf::Player* player);
 bool server_weapon_items_give_full_ammo();
-bool server_weapon_infinite_magazines();
 void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_ammo);
 void multi_reload_weapon_server_side(rf::Player* pp, int weapon_type);
 void multi_update_gungame_weapon(rf::Player* player, bool force_notification);

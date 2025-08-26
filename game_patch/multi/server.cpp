@@ -146,22 +146,34 @@ void on_dedicated_server_launch_post() {
     set_server_window_title();
 
     // shuffle maplist
-    xlog::warn("attempted shuffle, dyn on? {}", g_alpine_server_config.dynamic_rotation);
     if (g_alpine_server_config.dynamic_rotation) {
         shuffle_level_array();
     }
-
-    // no weapon drops on player death
-    if (g_alpine_server_config_active_rules.gungame.enabled) { // todo: codeinjection
-        AsmWriter(0x0042B0D3).jmp(0x0042B2BC);
-    }
-
-    // infinite reloads
-    if (g_alpine_server_config_active_rules.gungame.enabled ||
-        g_alpine_server_config_active_rules.weapon_infinite_magazines) { // todo: codeinjection
-        AsmWriter{0x00425506}.nop(2);
-    }
 }
+
+// should weapons drop on player death?
+CodeInjection entity_drop_weapon_patch{
+    0x0042B0D3,
+    [](auto& regs) {
+        if (g_alpine_server_config_active_rules.gungame.enabled ||
+            !g_alpine_server_config_active_rules.drop_weapons) {
+            regs.eip = 0x0042B2BC;
+        }
+    },
+};
+
+// should a reload subtract from reserve ammo?
+CodeInjection entity_reload_current_primary_patch{
+    0x00425506,
+    [](auto& regs) {
+        if (g_alpine_server_config_active_rules.gungame.enabled ||
+            g_alpine_server_config_active_rules.weapon_infinite_magazines) {
+            int current_reserve = regs.ecx;
+            int used_ammo = regs.eax;
+            regs.ecx = current_reserve + used_ammo; // negate the reload subtraction
+        }
+    },
+};
 
 // used only in legacy dedi serv mode
 CodeInjection dedicated_server_load_config_patch{
@@ -226,11 +238,11 @@ void print_player_info(rf::Player* player, bool new_join) {
     auto player_addr = player->net_data->addr;
     addr.S_un.S_addr = ntohl(player_addr.ip_addr);
     if (new_join) {
-            rf::console::print("===| {}{} | IP: {}:{} | Client: {} | Max RFL version: {} |===",
+            rf::console::print("===| {}{} | IP: {}:{} | Client: {} | Max RFL: {} |===",
                 player->name, rf::strings::has_joined, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version);
     }
     else {
-        rf::console::print("- {} | IP: {}:{} | Client: {} | Max RFL version: {} | Ping: {} | Handicap: {}%",
+        rf::console::print("- {} | IP: {}:{} | Client: {} | Max RFL: {} | Ping: {} | HC: {}%",
             player->name, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version, player->net_data->ping, pdata.damage_handicap);
     }
 }
@@ -2037,45 +2049,33 @@ void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
     }
 }
 
-// drop_amps and bagman
+// should amps drop on player death?
 CodeInjection entity_maybe_die_patch{
     0x00420600,
     [](auto& regs) {
-        //if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) && (g_alpine_server_config_active_rules.drop_amps || g_additional_server_config.bagman.enabled)) {
         if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) && g_alpine_server_config_active_rules.drop_amps) {
-
             rf::Entity* ep = regs.esi;
 
             if (ep) {
-                //xlog::warn("{} died", ep->name);
                 rf::Player* player = rf::player_from_entity_handle(ep->handle);
 
                 if (rf::multi_powerup_has_player(player, 1)) {
                     int amp_count = 0;
-                    //if (g_additional_server_config.bagman.enabled) { // bagman not yet implemented
-                    //    amp_count = 100000;
-                    //}
-                    //else {
-                        int time_left = rf::multi_powerup_get_time_until(player, 1);
-                        amp_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
-                    //}
+                    int time_left = rf::multi_powerup_get_time_until(player, 1);
+                    amp_count = time_left >= 1000 ? time_left : 0;
 
-                    //xlog::warn("amp count {}", amp_count);
-
-                    if (amp_count >= 1) {
-                        entity_drop_powerup(ep, 1, amp_count); 
+                    if (amp_count >= 1000) { // only drop if at least 1 second left
+                        entity_drop_powerup(ep, 1, amp_count / 1000); // item_touch_multi_amp multiplies by 1000
                     }
                 }
 
-                if (g_alpine_server_config_active_rules.drop_amps && rf::multi_powerup_has_player(player, 0)) {
+                if (rf::multi_powerup_has_player(player, 0)) {
                     int invuln_count = 0;
                     int time_left = rf::multi_powerup_get_time_until(player, 0);
-                    invuln_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
+                    invuln_count = time_left >= 1000 ? time_left : 0;
 
-                    //xlog::warn("invuln count {}", invuln_count);
-
-                    if (invuln_count >= 1) {
-                        entity_drop_powerup(ep, 0, invuln_count);
+                    if (invuln_count >= 1000) { // only drop if at least 1 second left
+                        entity_drop_powerup(ep, 0, invuln_count / 1000); // item_touch_multi_amp multiplies by 1000
                     }
                 }
             }
@@ -2195,6 +2195,10 @@ void server_init()
     rf_process_command_line_dedicated_server_patch.install(); // set dedi server bool when launching via ads
     dedicated_server_load_config_patch.install();
     dedicated_server_load_post_map_patch.install();
+
+    // handle weapon dropping and infinite magazines
+    entity_drop_weapon_patch.install();
+    entity_reload_current_primary_patch.install();
 
     // handle weapon stay exemptions
     weapon_stay_remove_instance_injection.install();

@@ -346,6 +346,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.weapon_items_give_full_ammo = *v;
     if (auto v = t["infinite_reloads"].value<bool>())
         o.weapon_infinite_magazines = *v;
+    if (auto v = t["drop_weapons"].value<bool>())
+        o.drop_weapons = *v;
 
     if (auto sub = t["spawn_weapon"].as_table())
         o.default_player_weapon = parse_default_player_weapon(*sub, o.default_player_weapon);
@@ -1014,6 +1016,8 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("  PvP damage modifier:                   {}\n", rules.pvp_damage_modifier);
     if (base || rules.drop_amps != b.drop_amps)
         rf::console::print("  Drop amps:                             {}\n", rules.drop_amps);
+    if (base || rules.drop_weapons != b.drop_weapons)
+        rf::console::print("  Drop weapons:                          {}\n", rules.drop_weapons);
     if (base || rules.weapon_items_give_full_ammo != b.weapon_items_give_full_ammo)
         rf::console::print("  Weapon pickups give full ammo:         {}\n", rules.weapon_items_give_full_ammo);
     if (base || rules.weapon_infinite_magazines != b.weapon_infinite_magazines)
