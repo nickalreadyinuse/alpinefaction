@@ -65,7 +65,7 @@ CodeInjection level_load_chunk_patch{
 
         // handling for alpine level props chunk
         if (chunk_id == alpine_props_chunk_id) {
-            AlpineLevelProperties::instance().deserialize(file);
+            AlpineLevelProperties::instance().deserialize(file, chunk_len);
             regs.eip = 0x004608EF; // loop back to begin next chunk
         }
 

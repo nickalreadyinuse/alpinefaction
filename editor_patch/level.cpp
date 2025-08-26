@@ -38,7 +38,7 @@ CodeInjection CDedLevel_LoadLevel_patch2{
             std::size_t chunk_size = regs.ebx;
             if (chunk_id == alpine_props_chunk_id) {
                 auto& alpine_level_props = level.GetAlpineLevelProperties();
-                alpine_level_props.Deserialize(file);
+                alpine_level_props.Deserialize(file, chunk_size);
                 regs.eip = 0x0043090C;
             }
         }
