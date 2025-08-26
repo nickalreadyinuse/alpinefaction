@@ -845,8 +845,8 @@ CodeInjection player_create_entity_default_weapon_injection {
     0x004A43F6,
     [](auto& regs) {
         if (rf::is_dedicated_server &&
-            (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
-            !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
+            g_alpine_server_config_active_rules.spawn_loadout.loadouts_active &&
+            !g_alpine_server_config_active_rules.gungame.enabled // no loadouts when gungame is on
             ) {
             rf::Player* player = regs.ebp;
 
