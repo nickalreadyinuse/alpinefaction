@@ -1224,42 +1224,62 @@ FunHook<int(rf::NetAddr*, rf::JoinRequest*)> check_access_for_new_player_hook {
     },
 };
 
+static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict_status(ClientVersion cv, const AlpineFactionJoinReqPacketExt& info)
+{
+    const auto& cfg = g_alpine_server_config.alpine_restricted_config;
+    const bool require_alpine = cfg.clients_require_alpine && cfg.reject_non_alpine_clients;
+
+    if (!require_alpine)
+        return {AlpineRestrictVerdict::ok, {}};
+
+    // require af client
+    if (cv != ClientVersion::alpine_faction) {
+        switch (cv) {
+            case ClientVersion::dash_faction:
+                return {AlpineRestrictVerdict::need_alpine,
+                    std::format("unsupported client - Dash Faction v{}.{}", info.version_major, info.version_minor)};
+            case ClientVersion::browser:
+                return {AlpineRestrictVerdict::need_alpine, "unsupported client - Server Browser"};
+            case ClientVersion::pure_faction:
+                return {AlpineRestrictVerdict::need_alpine, "unsupported client - Pure Faction"};
+            default:
+                return {AlpineRestrictVerdict::need_alpine, "unknown client"};
+        }
+    }
+
+    // require af release build
+    if (cfg.alpine_require_release_build && info.version_type != VERSION_TYPE_RELEASE) {
+        return {AlpineRestrictVerdict::need_release,
+                std::format("incompatible Alpine Faction client v{}.{}.{} non-stable",
+                    info.version_major, info.version_minor, info.version_patch)};
+    }
+
+    // require af min version match server
+    if (cfg.alpine_server_version_enforce_min) {
+        if (version_is_older(info.version_major, info.version_minor, VERSION_MAJOR, VERSION_MINOR)) {
+            return {AlpineRestrictVerdict::need_update,
+                    std::format("incompatible Alpine Faction client v{}.{}.{}-{}",
+                        info.version_major, info.version_minor, info.version_patch, info.version_type)};
+        }
+    }
+
+    return {AlpineRestrictVerdict::ok, {}};
+}
+
 CodeInjection process_join_req_injection{
     0x0047ADAB,
     [](auto& regs) {
         bool found_tail = parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len);
         g_join_request_stashed = {};
 
-        if (g_joining_client_version != ClientVersion::alpine_faction && g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients) {
-            // todo: consolidate alpine restrict logic and use to stop spawn and reject, so rejection will include min server ver
-			if (auto* addr = static_cast<rf::NetAddr*>(regs.esi)) {
-				in_addr ia;
-				ia.S_un.S_addr = ntohl(addr->ip_addr);
-                std::string jdr_str = "unknown";
+        const auto [verdict, reason] = check_join_request_restrict_status(g_joining_client_version, g_joining_player_info);
 
-				if (g_joining_client_version == ClientVersion::alpine_faction) { // not used yet
-                        jdr_str = std::format("incompatible Alpine Faction client v{}.{}.{}",
-                            g_joining_player_info.version_major,
-                            g_joining_player_info.version_minor,
-                            g_joining_player_info.version_patch);
-				}
-                else if (g_joining_client_version == ClientVersion::dash_faction) {
-                    jdr_str = std::format("unsupported client - Dash Faction v{}.{}",
-                            g_joining_player_info.version_major,
-                            g_joining_player_info.version_minor);
-                }
-                else if (g_joining_client_version == ClientVersion::browser) {
-                    jdr_str = "unsupported client - Server Browser";
-                }
-                else if (g_joining_client_version == ClientVersion::pure_faction) {
-                    jdr_str = "unsupported client - Pure Faction";
-                }
-				else {
-					jdr_str = "unknown client";
-				}
-
-                rf::console::print("Join request from {}:{} was rejected (reason: {})\n", inet_ntoa(ia), addr->port, jdr_str);
-			}
+        if (verdict != AlpineRestrictVerdict::ok) {
+            if (auto* addr = static_cast<rf::NetAddr*>(regs.esi)) {
+                in_addr ia;
+                ia.S_un.S_addr = ntohl(addr->ip_addr);
+                rf::console::print("Join request from {}:{} was rejected (reason: {})\n", inet_ntoa(ia), addr->port, reason);
+            }
 
             regs.eax = 8; // RF_JDR_UNSUPPORTED_VERSION
         }

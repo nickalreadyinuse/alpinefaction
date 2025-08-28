@@ -1391,6 +1391,56 @@ void player_idle_check(rf::Player* player)
     }
 }
 
+inline bool version_is_older(int aMaj, int aMin, int bMaj, int bMin)
+{
+    if (aMaj != bMaj)
+        return aMaj < bMaj;
+    if (aMin != bMin)
+        return aMin < bMin;
+    return false;
+}
+
+AlpineRestrictVerdict check_player_alpine_restrict_status(rf::Player* player)
+{
+    const auto& pad = get_player_additional_data(player);
+
+    if (!g_alpine_server_config.alpine_restricted_config.clients_require_alpine)
+        return AlpineRestrictVerdict::ok;
+
+    if (pad.client_version != ClientVersion::alpine_faction)
+        return AlpineRestrictVerdict::need_alpine;
+
+    if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
+        pad.client_version_type != VERSION_TYPE_RELEASE)
+        return AlpineRestrictVerdict::need_release;
+
+    if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min) {
+        if (version_is_older(pad.client_version_major, pad.client_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
+            return AlpineRestrictVerdict::need_update;
+        }
+    }
+    return AlpineRestrictVerdict::ok;
+}
+
+bool check_can_player_spawn(rf::Player* player)
+{
+    const auto v = check_player_alpine_restrict_status(player);
+    switch (v) {
+    case AlpineRestrictVerdict::ok:
+        return true;
+    case AlpineRestrictVerdict::need_alpine:
+        send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
+        return false;
+    case AlpineRestrictVerdict::need_release:
+        send_chat_line_packet("\xA6 This server requires an official Alpine Faction build. Get it at alpinefaction.com", player);
+        return false;
+    case AlpineRestrictVerdict::need_update:
+        send_chat_line_packet("\xA6 This server requires a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
+        return false;
+    }
+    return false;
+}
+
 FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
     0x00480820,
     [](rf::Player* player) {
@@ -1400,25 +1450,8 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (g_alpine_server_config_active_rules.force_character.enabled) {
             player->settings.multi_character = g_alpine_server_config_active_rules.force_character.character_index;
         }
-        if (g_alpine_server_config.alpine_restricted_config.clients_require_alpine) {
-            if (pad.client_version != ClientVersion::alpine_faction) {
-                send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
-                return;
-            }
-            else if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
-                pad.client_version_type != VERSION_TYPE_RELEASE) {
-                send_chat_line_packet("\xA6 This server requires an official Alpine Faction build. Get it at alpinefaction.com", player);
-                return;
-            }
-            else if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min) {
-                auto needs_update = [](int client_major, int client_minor, int req_major, int req_minor) {
-                    return (client_major < req_major) || (client_major == req_major && client_minor < req_minor);
-                };
-                if (needs_update(pad.client_version_major, pad.client_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
-                    send_chat_line_packet("\xA6 This server requires a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
-                    return;
-                }
-            }
+        if (!check_can_player_spawn(player)) {
+            return;
         }
         if (!check_player_ac_status(player)) {
             return;

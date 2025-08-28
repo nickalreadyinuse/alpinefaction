@@ -105,6 +105,15 @@ enum ClientVersion
     alpine_faction = 4
 };
 
+enum class AlpineRestrictVerdict : uint8_t
+{
+    ok = 0,
+    need_alpine = 1,
+    need_release = 2,
+    need_update = 3
+};
+
+inline bool version_is_older(int aMaj, int aMin, int bMaj, int bMin);
 void multi_level_download_update();
 void multi_do_patch();
 void multi_after_full_game_init();
