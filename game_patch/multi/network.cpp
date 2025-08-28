@@ -52,7 +52,8 @@
 #endif
 
 int g_update_rate = 30; // client netfps
-bool g_joining_player_is_alpine = false;
+
+ClientVersion g_joining_client_version = ClientVersion::unknown;
 std::optional<int> g_desired_multiplayer_character; // caches local mp character when forced by server
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
@@ -697,6 +698,7 @@ CallHook<int(void*, int, int, rf::NetAddr&, int)> net_get_tracker_hook{
 };
 
 constexpr uint32_t ALPINE_FACTION_SIGNATURE = 0x4E4C5246;
+constexpr uint32_t DASH_FACTION_SIGNATURE = 0xDA58FAC7;
 
 // Appended to game_info packets
 struct af_sign_packet_ext
@@ -714,87 +716,77 @@ struct af_sign_packet_ext
     }
 };
 
-template<typename T>
-std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_fixed(const std::byte* data, size_t len, const T& ext_data)
+std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_bytes(const std::byte* data, size_t len, const void* add, size_t add_len)
 {
-    size_t total_ext_size = sizeof(ext_data);
-    auto new_data = std::make_unique<std::byte[]>(len + total_ext_size);
+    auto passthrough = [&](const char* why) {
+        xlog::warn("extend_packet_bytes: passthrough ({})", why);
+        auto out = std::make_unique<std::byte[]>(len);
+        std::memcpy(out.get(), data, len);
+        return std::pair{std::move(out), len};
+    };
 
-    // Modify size in packet header
-    RF_GamePacketHeader header;
-    std::memcpy(&header, data, sizeof(header));
-    header.size += static_cast<uint32_t>(total_ext_size);
-    std::memcpy(new_data.get(), &header, sizeof(header));
+    if (!data || len < sizeof(RF_GamePacketHeader))
+        return passthrough("bad input");
+    if (!add || add_len == 0)
+        return passthrough("nothing to append");
+    if (len > SIZE_MAX - add_len)
+        return passthrough("size_t overflow");
 
-    // Copy old data
-    std::memcpy(new_data.get() + sizeof(header), data + sizeof(header), len - sizeof(header));
+    RF_GamePacketHeader hdr;
+    std::memcpy(&hdr, data, sizeof(hdr));
 
-    // Append struct data
-    std::memcpy(new_data.get() + len, &ext_data, sizeof(ext_data));
+    using size_field_t = decltype(hdr.size);
+    static_assert(std::is_unsigned_v<size_field_t>, "header.size must be unsigned");
 
-    return {std::move(new_data), len + total_ext_size};
-}
+    // prevent header size overflow
+    if (add_len > size_t(std::numeric_limits<size_field_t>::max() - hdr.size))
+        return passthrough("header.size overflow");
 
-template<typename T>
-std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_variable(
-    const std::byte* data, size_t len, 
-    const T& ext_data, 
-    const std::byte* extra_data, size_t extra_len)
-{
-    size_t total_ext_size = sizeof(ext_data) + extra_len;
-    auto new_data = std::make_unique<std::byte[]>(len + total_ext_size);
+    auto out = std::make_unique<std::byte[]>(len + add_len);
 
-    // Modify size in packet header
-    RF_GamePacketHeader header;
-    std::memcpy(&header, data, sizeof(header));
-    header.size += static_cast<uint32_t>(total_ext_size);
-    std::memcpy(new_data.get(), &header, sizeof(header));
+    hdr.size = static_cast<size_field_t>(hdr.size + static_cast<size_field_t>(add_len));
 
-    // Copy old data
-    std::memcpy(new_data.get() + sizeof(header), data + sizeof(header), len - sizeof(header));
+    // header
+    std::memcpy(out.get(), &hdr, sizeof(hdr));
+    // old payload
+    std::memcpy(out.get() + sizeof(hdr), data + sizeof(hdr), len - sizeof(hdr));
+    // appended bytes
+    std::memcpy(out.get() + len, add, add_len);
 
-    // Append struct data
-    std::memcpy(new_data.get() + len, &ext_data, sizeof(ext_data));
-
-    // Append extra variable-length data
-    if (extra_data && extra_len > 0) {
-        std::memcpy(new_data.get() + len + sizeof(ext_data), extra_data, extra_len);
-    }
-
-    return {std::move(new_data), len + total_ext_size};
-}
-
-std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_with_af_signature(std::byte* data, size_t len)
-{
-    // Allows for 64 characters (63 + terminator). Actual filename will never be greater than 60 characters
-    std::string filename_copy = "";
-    if (rf::level.flags & rf::LEVEL_LOADED) { // prevent crash if called before level is loaded (usually on listen servers)
-        filename_copy = rf::level.filename.substr(0, 63).c_str();
-    }
-    std::string_view filename = filename_copy;
-
-    // Calculate filename length
-    uint8_t filename_len = static_cast<uint8_t>(filename.size() + 1);
-
-    // Create the extension struct (fixed-size portion)
-    af_sign_packet_ext ext;
-    ext.af_signature = ALPINE_FACTION_SIGNATURE;
-    ext.version_major = VERSION_MAJOR;
-    ext.version_minor = VERSION_MINOR;
-    ext.version_patch = VERSION_PATCH;
-    ext.version_type = VERSION_TYPE;
-    ext.set_flags(g_game_info_server_flags);
-
-    // Extend the packet with the struct and level filename
-    return extend_packet_variable(data, len, ext, reinterpret_cast<const std::byte*>(filename.data()), filename_len);
+    return {std::move(out), len + add_len};
 }
 
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook{
     0x0047B287,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
-        // Add Alpine Faction info to game_info packet
-        auto [new_data, new_len] = extend_packet_with_af_signature(data, len);
-        return send_game_info_packet_hook.call_target(addr, new_data.get(), new_len);
+        // core packet ext
+        af_sign_packet_ext ext{};
+        ext.af_signature = ALPINE_FACTION_SIGNATURE;
+        ext.version_major = VERSION_MAJOR;
+        ext.version_minor = VERSION_MINOR;
+        ext.version_patch = VERSION_PATCH;
+        ext.version_type = VERSION_TYPE;
+        ext.set_flags(g_game_info_server_flags);
+
+        // level filename
+        uint8_t fname[64] = {0};
+        size_t fname_len = 0;
+        if (rf::level.flags & rf::LEVEL_LOADED) {
+            auto s = rf::level.filename.substr(0, 63);
+            fname_len = s.size() + 1; // null terminator
+            std::memcpy(fname, s.c_str(), fname_len);
+        }
+
+        // build tail
+        std::vector<uint8_t> tail;
+        tail.reserve(sizeof(ext) + fname_len);
+        tail.insert(tail.end(), reinterpret_cast<const uint8_t*>(&ext), reinterpret_cast<const uint8_t*>(&ext) + sizeof(ext));
+
+        if (fname_len)
+            tail.insert(tail.end(), fname, fname + fname_len);
+
+        auto [buf, new_len] = extend_packet_bytes(data, len, tail.data(), tail.size());
+        return send_game_info_packet_hook.call_target(addr, buf.get(), new_len);
     },
 };
 
@@ -826,32 +818,115 @@ struct AlpineFactionJoinAcceptPacketExt
 template<>
 struct EnableEnumBitwiseOperators<AlpineFactionJoinAcceptPacketExt::Flags> : std::true_type {};
 
-struct AlpineFactionJoinReqPacketExt
+#pragma pack(push, 1)
+struct DFJoinReq_v1 // df
 {
-    uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
-    uint8_t version_major = VERSION_MAJOR;
-    uint8_t version_minor = VERSION_MINOR;
-    uint8_t version_patch = VERSION_PATCH;
-    uint8_t version_type = VERSION_TYPE;
-    uint32_t max_rfl_version = MAXIMUM_RFL_VERSION;
+    uint32_t signature;
+    uint8_t version_major;
+    uint8_t version_minor;
+    uint8_t padding1;
+    uint8_t padding2;
+};
 
-    enum class Flags : uint32_t {
-        none                = 0,
-    } flags = Flags::none;
+struct AFJoinReq_v1 // af v1.0
+{
+    uint32_t signature;
+    uint8_t version_major;
+    uint8_t version_minor;
+    uint8_t padding1;
+    uint8_t padding2;
+    uint32_t flags;
+};
 
+struct AFJoinReq_v2 // af v1.1+
+{
+    uint32_t signature;
+    uint8_t version_major;
+    uint8_t version_minor;
+    uint8_t version_patch;
+    uint8_t version_type;
+    uint32_t max_rfl_version;
+    uint32_t flags;
+};
+
+static constexpr uint32_t AF_FOOTER_MAGIC = 0x52544641u; // AFTR (LE)
+
+struct AFFooter
+{
+    uint16_t total_len; // bytes from start of AF block up to start of this footer
+    uint32_t magic;
+};
+#pragma pack(pop)
+
+struct StashedPacket
+{
+    rf::NetAddr addr; // source
+    const uint8_t* pkt;
+    size_t len;
+    uint8_t type;
+};
+
+struct AlpineFactionJoinReqPacketExt // used for stashed data during join process
+{
+    enum class Flags : uint32_t
+    {
+        none = 0,
+    };
+
+    uint32_t af_signature = 0u;
+    uint8_t version_major = 0u;
+    uint8_t version_minor = 0u;
+    uint8_t version_patch = 0u;
+    uint8_t version_type = 0u;
+    uint32_t max_rfl_version = 0u;
+    Flags flags = Flags::none;
 };
 template<>
 struct EnableEnumBitwiseOperators<AlpineFactionJoinReqPacketExt::Flags> : std::true_type {};
+
+std::pair<std::unique_ptr<std::byte[]>, size_t> append_af_v3_tail(
+    const std::byte* pkt, size_t len, const AFJoinReq_v2& core_af_ext, const std::vector<uint8_t>& tlvs)
+{
+    // tail is [core_af_ext][tlvs][footer]
+    const uint16_t total_len = static_cast<uint16_t>(sizeof(core_af_ext) + tlvs.size());
+    std::vector<uint8_t> tail;
+    tail.reserve(total_len + sizeof(AFFooter));
+
+    // core_af_ext
+    tail.insert(tail.end(), reinterpret_cast<const uint8_t*>(&core_af_ext), reinterpret_cast<const uint8_t*>(&core_af_ext) + sizeof(core_af_ext));
+
+    // tlvs
+    tail.insert(tail.end(), tlvs.begin(), tlvs.end());
+
+    // footer
+    AFFooter f{};
+    f.total_len = total_len; 
+    f.magic = AF_FOOTER_MAGIC;
+    const uint8_t* fptr = reinterpret_cast<const uint8_t*>(&f);
+    tail.insert(tail.end(), fptr, fptr + sizeof(f));
+
+    return extend_packet_bytes(pkt, len, tail.data(), tail.size());
+}
 
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
 
-        // Add Alpine Faction signature to join_req packet
-        AlpineFactionJoinReqPacketExt ext_data;
+        // Add Alpine Faction info to join_req packet
+        AFJoinReq_v2 ext_data;
+        ext_data.signature = ALPINE_FACTION_SIGNATURE;
+        ext_data.version_major = VERSION_MAJOR;
+        ext_data.version_minor = VERSION_MINOR;
+        ext_data.version_patch = VERSION_PATCH;
+        ext_data.version_type = VERSION_TYPE;
+        ext_data.max_rfl_version = MAXIMUM_RFL_VERSION;
+        ext_data.flags = 0u;
 
-        auto [new_data, new_len] = extend_packet_fixed(data, len, ext_data);
-        return send_join_req_packet_hook.call_target(addr, new_data.get(), new_len);
+        std::vector<uint8_t> tlvs;
+
+        auto [buf, new_len] = append_af_v3_tail(data, len, ext_data, tlvs);
+
+        return send_join_req_packet_hook.call_target(addr, buf.get(), new_len);
     },
 };
 
@@ -863,10 +938,6 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_is_saving_enabled()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::saving_enabled;
         }
-        //if (server_get_df_config().max_fov) {
-        //    ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::max_fov;
-        //    ext_data.max_fov = server_get_df_config().max_fov.value();
-        //}
         if (server_allow_fullbright_meshes()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_fb_mesh;
         }
@@ -895,8 +966,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_location_pinging()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::location_pinging;
         }
-        auto [new_data, new_len] = extend_packet_fixed(data, len, ext_data);
-        return send_join_accept_packet_hook.call_target(addr, new_data.get(), new_len);
+        auto [buf, new_len] = extend_packet_bytes(data, len, &ext_data, sizeof(ext_data));
+        //auto [new_data, new_len] = extend_packet_fixed(data, len, ext_data);
+        return send_join_accept_packet_hook.call_target(addr, buf.get(), new_len);
     },
 };
 
@@ -942,62 +1014,254 @@ CodeInjection process_join_accept_injection{
 };
 
 AlpineFactionJoinReqPacketExt g_joining_player_info;
+StashedPacket g_join_request_stashed;
+
+static bool parse_af_tail_v3(const uint8_t* payload, size_t payload_len, const AFJoinReq_v2*& out_prefix, const uint8_t*& tlv_begin, const uint8_t*& tlv_end)
+{
+    if (payload_len < sizeof(AFFooter))
+        return false;
+
+    const uint8_t* end = payload + payload_len;
+    const auto* footer = reinterpret_cast<const AFFooter*>(end - sizeof(AFFooter));
+    if (footer->magic != AF_FOOTER_MAGIC) // validate footer
+        return false;
+
+    const uint16_t total_len = footer->total_len;
+    if (total_len < sizeof(AFJoinReq_v2))
+        return false;
+    if (total_len > payload_len - sizeof(AFFooter))
+        return false;
+
+    const uint8_t* af_start = end - sizeof(AFFooter) - total_len;
+    if (af_start < payload)
+        return false;
+
+    const auto* pre = reinterpret_cast<const AFJoinReq_v2*>(af_start);
+    if (pre->signature != ALPINE_FACTION_SIGNATURE) // validate AF extension
+        return false;
+
+    out_prefix = pre;
+    tlv_begin = af_start + sizeof(AFJoinReq_v2);
+    tlv_end = end - sizeof(AFFooter);
+    return true;
+}
+
+static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
+{
+    g_joining_client_version = ClientVersion::unknown;
+    g_joining_player_info = {};
+
+    if (!pkt || datalen < sizeof(RF_GamePacketHeader))
+        return false;
+
+    RF_GamePacketHeader gh{};
+    std::memcpy(&gh, pkt, sizeof(gh));
+    if (gh.type != RF_GPT_JOIN_REQUEST)
+        return false;
+
+    const uint8_t* payload = pkt + sizeof(gh);
+    const size_t plen = gh.size;
+    if (datalen < sizeof(gh) + plen)
+        return false;
+
+    // try to parse as v3 (AF v1.2+)
+    const AFJoinReq_v2* pre = nullptr;
+    const uint8_t *tlv_b = nullptr, *tlv_e = nullptr;
+    
+    if (parse_af_tail_v3(payload, plen, pre, tlv_b, tlv_e)) {
+        xlog::debug("matched v3 join_req tail with signature {}", pre->signature);
+        g_joining_client_version = ClientVersion::alpine_faction;
+        g_joining_player_info.af_signature = pre->signature;
+        g_joining_player_info.version_major = pre->version_major;
+        g_joining_player_info.version_minor = pre->version_minor;
+        g_joining_player_info.version_patch = pre->version_patch;
+        g_joining_player_info.version_type = pre->version_type;
+        g_joining_player_info.max_rfl_version = pre->max_rfl_version;
+        g_joining_player_info.flags = static_cast<AlpineFactionJoinReqPacketExt::Flags>(pre->flags);
+        return true;
+    }
+
+    // try to parse as v2 (AF v1.1)
+    if (plen >= sizeof(AFJoinReq_v2)) {
+        const uint8_t* p = payload + plen - sizeof(AFJoinReq_v2);
+        const auto* v2 = reinterpret_cast<const AFJoinReq_v2*>(p);
+        xlog::debug("matched v2 join_req tail, sig {}", v2->signature);
+        if (v2->signature == ALPINE_FACTION_SIGNATURE) {
+            g_joining_client_version = ClientVersion::alpine_faction;
+            g_joining_player_info.af_signature = v2->signature;
+            g_joining_player_info.version_major = v2->version_major;
+            g_joining_player_info.version_minor = v2->version_minor;
+            g_joining_player_info.version_patch = v2->version_patch;
+            g_joining_player_info.version_type = v2->version_type;
+            g_joining_player_info.max_rfl_version = v2->max_rfl_version;
+            g_joining_player_info.flags = static_cast<AlpineFactionJoinReqPacketExt::Flags>(v2->flags);
+            return true;
+        }
+    }
+
+    // try to parse as v1 (DF and AF v1.0)
+    if (plen >= sizeof(AFJoinReq_v1)) {
+        
+        const uint8_t* p = payload + plen - sizeof(AFJoinReq_v1);
+        const auto* v1 = reinterpret_cast<const AFJoinReq_v1*>(p);
+        xlog::debug("matched v1 join_req tail, sig {}", v1->signature);
+        if (v1->signature == ALPINE_FACTION_SIGNATURE) {
+            if (v1->version_minor == 1u) { // Dash v1.9 clients masquerading as Alpine clients
+                g_joining_player_info.af_signature = DASH_FACTION_SIGNATURE;
+                g_joining_client_version = ClientVersion::dash_faction;
+                g_joining_player_info.version_major = 1u;
+                g_joining_player_info.version_minor = 9u;
+                g_joining_player_info.max_rfl_version = 200u;
+            }
+            else { // authentic Alpine v1.0 clients
+                g_joining_client_version = ClientVersion::alpine_faction;
+                g_joining_player_info.af_signature = v1->signature;
+                g_joining_player_info.version_major = v1->version_major;
+                g_joining_player_info.version_minor = v1->version_minor;
+                g_joining_player_info.max_rfl_version = 300u;
+            }
+            g_joining_player_info.version_patch = 0u;
+            g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+            return true;
+        }
+        else if (v1->signature == DASH_FACTION_SIGNATURE) {
+            g_joining_client_version = ClientVersion::dash_faction;
+            g_joining_player_info.af_signature = v1->signature;
+            g_joining_player_info.version_major = v1->version_major;
+            g_joining_player_info.version_minor = v1->version_minor;
+            g_joining_player_info.version_patch = 0u;
+            g_joining_player_info.version_type = 0u;
+            g_joining_player_info.max_rfl_version = 200u;
+            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+            return true;
+        }
+    }
+
+    // try to parse as authentic DF tail
+    if (plen >= sizeof(DFJoinReq_v1)) {
+        const uint8_t* p = payload + plen - sizeof(DFJoinReq_v1);
+        const auto* v2 = reinterpret_cast<const DFJoinReq_v1*>(p);
+        xlog::debug("matched df join_req tail, sig {}", v2->signature);
+        if (v2->signature == DASH_FACTION_SIGNATURE) {
+            g_joining_client_version = ClientVersion::dash_faction;
+            g_joining_player_info.af_signature = v2->signature;
+            g_joining_player_info.version_major = v2->version_major;
+            g_joining_player_info.version_minor = v2->version_minor;
+            g_joining_player_info.version_patch = 0u;
+            g_joining_player_info.version_type = 0u;
+            g_joining_player_info.max_rfl_version = 200u;
+            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+            return true;
+        }
+    }
+
+    // couldn not match a known tail
+    return false;
+}
 
 FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     0x0047AC60,
-    [](int pPacket, rf::NetAddr* addr) {        
+    [](int pPacket, rf::NetAddr* addr) {
         process_join_req_packet_hook.call_target(pPacket, addr);
 
-        if (rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr)) {
-            if (g_joining_player_is_alpine) {
-                //rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
-                if (alpine_player){
-                    get_player_additional_data(alpine_player).is_alpine = true;
-                    get_player_additional_data(alpine_player).alpine_version_major = g_joining_player_info.version_major;
-                    get_player_additional_data(alpine_player).alpine_version_minor = g_joining_player_info.version_minor;
+        if (rf::Player* valid_player = rf::multi_find_player_by_addr(*addr)) { // player successfully joined
+            if (g_joining_client_version == ClientVersion::alpine_faction || g_joining_client_version == ClientVersion::dash_faction) {
+                auto& pdata = get_player_additional_data(valid_player);
 
-                    // Alpine 1.0.0 doesn't provide ver_type or max_rfl_ver
-                    if (g_joining_player_info.version_minor < 1) {
-                        get_player_additional_data(alpine_player).alpine_version_type = VERSION_TYPE_RELEASE; 
-                        get_player_additional_data(alpine_player).max_rfl_version = 300; // Alpine 1.0.0 clients
-                    }
-                    else {
-                        get_player_additional_data(alpine_player).alpine_version_type = g_joining_player_info.version_type;
-                        get_player_additional_data(alpine_player).max_rfl_version = g_joining_player_info.max_rfl_version;
-                    }
-                
-                    auto player_data = get_player_additional_data(alpine_player);
-                }
+                pdata.client_version = g_joining_client_version;
+                pdata.alpine_version_major = g_joining_player_info.version_major;
+                pdata.alpine_version_minor = g_joining_player_info.version_minor;
+                pdata.alpine_version_type = g_joining_player_info.version_type;
+                pdata.max_rfl_version = g_joining_player_info.max_rfl_version;
+
+                // reset for safety
                 g_joining_player_info = {};
-                g_joining_player_is_alpine = false;
+                g_joining_client_version = ClientVersion::unknown;
             }
 
             if (g_dedicated_launched_from_ads) {
-                print_player_info(alpine_player, true);
+                print_player_info(valid_player, true);
             }
         }
+    },
+};
+
+FunHook<int(rf::NetAddr*, rf::JoinRequest*)> check_access_for_new_player_hook {
+    0x0047AE10,
+    [](rf::NetAddr* addr, rf::JoinRequest* join_req) {
+        auto reason = check_access_for_new_player_hook.call_target(addr, join_req);
+        
+        if (reason != 0 && rf::is_dedicated_server) {
+            in_addr ia;
+            ia.S_un.S_addr = ntohl(addr->ip_addr);
+            RF_JoinDenyReason jdr = static_cast<RF_JoinDenyReason>(reason);
+            std::string jdr_str = "unknown";
+
+            if (jdr == RF_JoinDenyReason::RF_JDR_INVALID_PASSWORD) {
+                jdr_str = std::format("wrong password '{}'", join_req->password);
+            }
+            else if (jdr == RF_JoinDenyReason::RF_JDR_BANNED) {
+                jdr_str = "banned";
+            }
+            else if (jdr == RF_JoinDenyReason::RF_JDR_SERVER_IS_FULL) {
+                jdr_str = "server full";
+            }
+            else if (jdr == RF_JoinDenyReason::RF_JDR_THE_SAME_IP) {
+                jdr_str = "same socket as another player";
+            }
+            else if (jdr == RF_JoinDenyReason::RF_JDR_LEVEL_CHANGING) {
+                jdr_str = "level change in progress";
+            }
+            else if (jdr == RF_JoinDenyReason::RF_JDR_DATA_DOESNT_MATCH) {
+                jdr_str = "failed data validation";
+            }
+
+            rf::console::print("Join request from {}:{} was rejected (reason: {})\n", inet_ntoa(ia), addr->port, jdr_str);
+        }
+
+        return reason;
     },
 };
 
 CodeInjection process_join_req_injection{
-    0x0047AD99,
-    [](auto& regs) {
-        std::byte* packet = regs.esi;
-        auto* extended_data = reinterpret_cast<const AlpineFactionJoinReqPacketExt*>(packet);
-
-        // matched an alpine client
-        if (extended_data->af_signature == ALPINE_FACTION_SIGNATURE) {
-            g_joining_player_info = *extended_data;
-            g_joining_player_is_alpine = true;
-        }
-    },
-};
-
-CodeInjection process_join_req_injection2 {
     0x0047ADAB,
     [](auto& regs) {
-        if (!g_joining_player_is_alpine && g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients) {
-            regs.eax = 8; // uses string 874 as join rejection message
+        bool found_tail = parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len);
+        g_join_request_stashed = {};
+
+        if (g_joining_client_version != ClientVersion::alpine_faction && g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients) {
+            // todo: consolidate alpine restrict logic and use to stop spawn and reject, so rejection will include min server ver
+			if (auto* addr = static_cast<rf::NetAddr*>(regs.esi)) {
+				in_addr ia;
+				ia.S_un.S_addr = ntohl(addr->ip_addr);
+                std::string jdr_str = "unknown";
+
+				if (g_joining_client_version == ClientVersion::alpine_faction) { // not used yet
+                        jdr_str = std::format("incompatible Alpine Faction client v{}.{}.{}",
+                            g_joining_player_info.version_major,
+                            g_joining_player_info.version_minor,
+                            g_joining_player_info.version_patch);
+				}
+                else if (g_joining_client_version == ClientVersion::dash_faction) {
+                    jdr_str = std::format("unsupported client - Dash Faction v{}.{}",
+                            g_joining_player_info.version_major,
+                            g_joining_player_info.version_minor);
+                }
+                else if (g_joining_client_version == ClientVersion::browser) {
+                    jdr_str = "unsupported client - Server Browser";
+                }
+                else if (g_joining_client_version == ClientVersion::pure_faction) {
+                    jdr_str = "unsupported client - Pure Faction";
+                }
+				else {
+					jdr_str = "unknown client";
+				}
+
+                rf::console::print("Join request from {}:{} was rejected (reason: {})\n", inet_ntoa(ia), addr->port, jdr_str);
+			}
+
+            regs.eax = 8; // RF_JDR_UNSUPPORTED_VERSION
         }
     },
 };
@@ -1342,6 +1606,15 @@ CodeInjection multi_io_process_packets_injection{
             process_custom_packet(data + offset, len, addr, player);
             regs.eip = 0x00479194;
         }
+        // stash the join req packet so we can analyze it if the player successfully joins
+        if (rf::is_dedicated_server && packet_type == static_cast<int>(RF_GamePacketType::RF_GPT_JOIN_REQUEST)) {
+            const uint8_t* base = static_cast<const uint8_t*>(regs.ecx);
+            auto stack_frame = regs.esp + 0x1C;
+            auto& addr = *addr_as_ref<rf::NetAddr*>(stack_frame + 0xC);
+            const int off = regs.ebp;
+            const int len = regs.edi;
+            g_join_request_stashed = {addr, base + off, size_t(len), uint8_t(packet_type)};
+        }
     },
 };
 
@@ -1369,7 +1642,7 @@ CallHook<int()> game_info_num_players_hook{
         int player_count = 0;
         auto player_list = SinglyLinkedList{rf::player_list};
         for (auto& current_player : player_list) {
-            if (get_player_additional_data(&current_player).is_browser) continue;
+            if (get_player_additional_data(&current_player).client_version == ClientVersion::browser) continue;
             player_count++;
         }
         return player_count;
@@ -1497,11 +1770,13 @@ void network_init()
     send_join_req_packet_hook.install();
     process_join_req_packet_hook.install();
     process_join_req_injection.install();
-    process_join_req_injection2.install();
     send_join_accept_packet_hook.install();
     process_join_accept_injection.install();
     process_join_accept_send_game_info_req_injection.install();
     multi_stop_hook.install();
+
+    // print join_req denial reasons
+    check_access_for_new_player_hook.install();
 
     // Use port 7755 when hosting a server without 'Force port' option
     multi_start_hook.install();

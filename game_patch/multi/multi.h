@@ -96,6 +96,15 @@ struct AlpineFactionServerInfo
     bool location_pinging = false;
 };
 
+enum ClientVersion
+{
+    unknown = 0,
+    browser = 1,
+    pure_faction = 2,
+    dash_faction = 3,
+    alpine_faction = 4
+};
+
 void multi_level_download_update();
 void multi_do_patch();
 void multi_after_full_game_init();

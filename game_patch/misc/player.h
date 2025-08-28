@@ -3,6 +3,7 @@
 #include <optional>
 #include <string>
 #include <common/utils/string-utils.h>
+#include "../multi/multi.h"
 #include "../rf/math/vector.h"
 #include "../rf/math/matrix.h"
 #include "../rf/os/timestamp.h"
@@ -22,8 +23,8 @@ struct PlayerNetGameSaveData
 
 struct PlayerAdditionalData
 {
+    ClientVersion client_version = ClientVersion::unknown;
     std::optional<pf_pure_status> received_ac_status{};
-    bool is_browser = false;
     bool is_muted = false;
     int last_hitsound_sent_ms = 0;
     int last_critsound_sent_ms = 0;
@@ -31,7 +32,6 @@ struct PlayerAdditionalData
     rf::Vector3 last_teleport_pos;
     rf::TimestampRealtime last_teleport_timestamp;
     std::optional<int> last_spawn_point_index;
-    bool is_alpine = false;
     int last_activity_ms = 0;
     rf::TimestampRealtime idle_check_timestamp;
     rf::TimestampRealtime idle_kick_timestamp;
