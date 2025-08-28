@@ -1170,9 +1170,9 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
                 auto& pdata = get_player_additional_data(valid_player);
 
                 pdata.client_version = g_joining_client_version;
-                pdata.alpine_version_major = g_joining_player_info.version_major;
-                pdata.alpine_version_minor = g_joining_player_info.version_minor;
-                pdata.alpine_version_type = g_joining_player_info.version_type;
+                pdata.client_version_major = g_joining_player_info.version_major;
+                pdata.client_version_minor = g_joining_player_info.version_minor;
+                pdata.client_version_type = g_joining_player_info.version_type;
                 pdata.max_rfl_version = g_joining_player_info.max_rfl_version;
 
                 // reset for safety

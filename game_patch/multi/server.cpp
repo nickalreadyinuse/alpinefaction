@@ -224,11 +224,11 @@ void print_player_info(rf::Player* player, bool new_join) {
 
     std::string client_info;
     if (pdata.client_version == ClientVersion::alpine_faction) {
-        client_info = std::format("Alpine Faction {}.{}-{}", pdata.alpine_version_major, pdata.alpine_version_minor,
-            pdata.alpine_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
+        client_info = std::format("Alpine Faction {}.{}-{}", pdata.client_version_major, pdata.client_version_minor,
+            pdata.client_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
     }
     else if (pdata.client_version == ClientVersion::dash_faction) {
-        client_info = std::format("Dash Faction {}.{}", pdata.alpine_version_major, pdata.alpine_version_minor);
+        client_info = std::format("Dash Faction {}.{}", pdata.client_version_major, pdata.client_version_minor);
     }
     else if (pdata.client_version == ClientVersion::browser) {
         client_info = std::format("Server Browser");
@@ -1406,7 +1406,7 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
                 return;
             }
             else if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
-                pad.alpine_version_type != VERSION_TYPE_RELEASE) {
+                pad.client_version_type != VERSION_TYPE_RELEASE) {
                 send_chat_line_packet("\xA6 This server requires an official Alpine Faction build. Get it at alpinefaction.com", player);
                 return;
             }
@@ -1414,7 +1414,7 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
                 auto needs_update = [](int client_major, int client_minor, int req_major, int req_minor) {
                     return (client_major < req_major) || (client_major == req_major && client_minor < req_minor);
                 };
-                if (needs_update(pad.alpine_version_major, pad.alpine_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
+                if (needs_update(pad.client_version_major, pad.client_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
                     send_chat_line_packet("\xA6 This server requires a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
                     return;
                 }
@@ -1551,8 +1551,8 @@ void server_reliable_socket_ready(rf::Player* player)
         send_chat_line_packet(msg.c_str(), player);
     }
 
-    int pm = data.alpine_version_major;
-    int pn = data.alpine_version_minor;
+    int pm = data.client_version_major;
+    int pn = data.client_version_minor;
 
     // advertise AF to non-alpine clients if configured
     if (g_alpine_server_config.alpine_restricted_config.advertise_alpine) {

@@ -65,8 +65,7 @@ bool is_player_minimum_af_client_version(rf::Player* player, int version_major, 
     }
 
     return player_info.client_version == ClientVersion::alpine_faction &&
-        player_info.alpine_version_major >= version_major &&
-        player_info.alpine_version_minor >= version_minor;
+        player_info.client_version_major >= version_major && player_info.client_version_minor >= version_minor;
 }
 
 bool is_server_minimum_af_version(int version_major, int version_minor) {
