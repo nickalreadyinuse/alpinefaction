@@ -1099,40 +1099,19 @@ static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
         }
     }
 
-    // try to parse as v1 (DF and AF v1.0)
-    if (plen >= sizeof(AFJoinReq_v1)) {
-        
+    // try to parse as v1 (AF v1.0)
+    if (plen >= sizeof(AFJoinReq_v1)) {        
         const uint8_t* p = payload + plen - sizeof(AFJoinReq_v1);
         const auto* v1 = reinterpret_cast<const AFJoinReq_v1*>(p);
         xlog::debug("matched v1 join_req tail, sig {}", v1->signature);
         if (v1->signature == ALPINE_FACTION_SIGNATURE) {
-            if (v1->version_minor == 1u) { // Dash v1.9 clients masquerading as Alpine clients
-                g_joining_player_info.af_signature = DASH_FACTION_SIGNATURE;
-                g_joining_client_version = ClientVersion::dash_faction;
-                g_joining_player_info.version_major = 1u;
-                g_joining_player_info.version_minor = 9u;
-                g_joining_player_info.max_rfl_version = 200u;
-            }
-            else { // authentic Alpine v1.0 clients
-                g_joining_client_version = ClientVersion::alpine_faction;
-                g_joining_player_info.af_signature = v1->signature;
-                g_joining_player_info.version_major = v1->version_major;
-                g_joining_player_info.version_minor = v1->version_minor;
-                g_joining_player_info.max_rfl_version = 300u;
-            }
-            g_joining_player_info.version_patch = 0u;
-            g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
-            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
-            return true;
-        }
-        else if (v1->signature == DASH_FACTION_SIGNATURE) {
-            g_joining_client_version = ClientVersion::dash_faction;
+            g_joining_client_version = ClientVersion::alpine_faction;
             g_joining_player_info.af_signature = v1->signature;
             g_joining_player_info.version_major = v1->version_major;
             g_joining_player_info.version_minor = v1->version_minor;
             g_joining_player_info.version_patch = 0u;
-            g_joining_player_info.version_type = 0u;
-            g_joining_player_info.max_rfl_version = 200u;
+            g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+            g_joining_player_info.max_rfl_version = 300u;
             g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
             return true;
         }
@@ -1149,7 +1128,19 @@ static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
             g_joining_player_info.version_major = v2->version_major;
             g_joining_player_info.version_minor = v2->version_minor;
             g_joining_player_info.version_patch = 0u;
-            g_joining_player_info.version_type = 0u;
+            g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+            g_joining_player_info.max_rfl_version = 200u;
+            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+            return true;
+        }
+        // Dash v1.9 clients masquerading as Alpine v1.1 clients
+        else if (v2->signature == ALPINE_FACTION_SIGNATURE) {
+            g_joining_client_version = ClientVersion::dash_faction;
+            g_joining_player_info.af_signature = v2->signature;
+            g_joining_player_info.version_major = 1u;
+            g_joining_player_info.version_minor = 9u;
+            g_joining_player_info.version_patch = 0u;
+            g_joining_player_info.version_type = VERSION_TYPE_BETA;
             g_joining_player_info.max_rfl_version = 200u;
             g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
             return true;

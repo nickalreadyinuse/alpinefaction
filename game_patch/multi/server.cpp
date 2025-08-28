@@ -228,7 +228,8 @@ void print_player_info(rf::Player* player, bool new_join) {
             pdata.client_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
     }
     else if (pdata.client_version == ClientVersion::dash_faction) {
-        client_info = std::format("Dash Faction {}.{}", pdata.client_version_major, pdata.client_version_minor);
+        client_info = std::format("Dash Faction {}.{}{}", pdata.client_version_major, pdata.client_version_minor,
+                                  pdata.client_version_type == VERSION_TYPE_BETA ? "-m" : "");
     }
     else if (pdata.client_version == ClientVersion::browser) {
         client_info = std::format("Server Browser");
