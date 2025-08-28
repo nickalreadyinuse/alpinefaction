@@ -15,6 +15,7 @@
 #include <xlog/xlog.h>
 #include "server_internal.h"
 #include "multi.h"
+#include "server.h"
 
 MatchInfo g_match_info;
 
@@ -120,7 +121,7 @@ public:
 
             for (rf::Player* player : current_player_list) {
                 if (players_who_voted.find(player) == players_who_voted.end()) {
-                    if (!get_player_additional_data(player).is_alpine) { // don't send reminder pings to alpine clients
+                    if (get_player_additional_data(player).client_version != ClientVersion::alpine_faction) { // don't send reminder pings to alpine clients
                         send_chat_line_packet("\xA6 Send message \"/vote yes\" or \"/vote no\" to vote.", player);
                     }
                 }
@@ -185,7 +186,7 @@ protected:
             }
 
             const std::string& message_to_send =
-                get_player_additional_data(player).is_alpine ? msg_alpine : msg_non_alpine;
+                get_player_additional_data(player).client_version == ClientVersion::alpine_faction ? msg_alpine : msg_non_alpine;
 
             send_chat_line_packet(message_to_send.c_str(), player);
         }
@@ -205,7 +206,7 @@ protected:
     {
         if (!p)
             return false;
-        if (get_player_additional_data(p).is_browser)
+        if (get_player_additional_data(p).client_version == ClientVersion::browser)
             return false;
         if (ends_with(p->name, " (Bot)"))
             return false;
@@ -339,7 +340,7 @@ struct VoteMatch : public Vote
             start_pre_match();
         }
         else if (!g_match_info.match_level_name.empty()) {
-            rf::multi_change_level(g_match_info.match_level_name.c_str());
+            multi_change_level_alpine(g_match_info.match_level_name.c_str());
         }      
     }
 
@@ -494,7 +495,7 @@ struct VoteLevel : public Vote
     {
         auto msg = std::format("\xA6 Vote passed: changing level to {}", m_level_name);
         send_chat_line_packet(msg.c_str(), nullptr);
-        rf::multi_change_level(m_level_name.c_str());
+        multi_change_level_alpine(m_level_name.c_str());
     }
 
     [[nodiscard]] bool is_allowed_in_limbo_state() const override
@@ -721,7 +722,7 @@ VoteMgr g_vote_mgr;
 
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender)
 {
-    if (get_player_additional_data(sender).is_browser || ends_with(sender->name, " (Bot)")) {
+    if (get_player_additional_data(sender).client_version == ClientVersion::browser || ends_with(sender->name, " (Bot)")) {
         send_chat_line_packet("Browsers and bots are not allowed to vote!", sender);
         return;
     }

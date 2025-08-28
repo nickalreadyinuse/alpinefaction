@@ -32,6 +32,7 @@ void gungame_on_player_spawn(rf::Player* player);
 void update_player_active_status(rf::Player* player);
 void player_idle_check(rf::Player* player);
 void send_sound_packet_throwaway(rf::Player* target, int sound_id);
+void multi_change_level_alpine(const char* filename);
 const char* get_rand_level_filename();
 void shuffle_level_array();void process_queued_spawn_points_from_items();
 std::vector<rf::RespawnPoint> get_new_multi_respawn_points();

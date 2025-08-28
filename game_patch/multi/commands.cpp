@@ -21,12 +21,12 @@ void extend_round_time(int minutes)
 
 void restart_current_level()
 {
-    rf::multi_change_level(rf::level.filename.c_str());
+    multi_change_level_alpine(rf::level.filename.c_str());
 }
 
 void load_next_level()
 {
-    rf::multi_change_level(nullptr);
+    multi_change_level_alpine(nullptr);
 }
 
 void load_prev_level()
@@ -37,16 +37,16 @@ void load_prev_level()
     }
     if (g_prev_level.empty()) {
         // this is the first level running - use previous level from rotation
-        rf::multi_change_level(rf::netgame.levels[rf::netgame.current_level_index]);
+        multi_change_level_alpine(rf::netgame.levels[rf::netgame.current_level_index].c_str());
     }
     else {
-        rf::multi_change_level(g_prev_level.c_str());
+        multi_change_level_alpine(g_prev_level.c_str());
     }
 }
 
 void load_rand_level()
 {
-    rf::multi_change_level(get_rand_level_filename());
+    multi_change_level_alpine(get_rand_level_filename());
 }
 
 bool validate_is_server()
