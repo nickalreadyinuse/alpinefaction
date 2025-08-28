@@ -1288,6 +1288,75 @@ CodeInjection process_join_accept_send_game_info_req_injection{
     },
 };
 
+static inline const char* rcon_player_name(const rf::NetAddr a)
+{
+    if (auto p = rf::multi_find_player_by_addr(a)) {
+        return p->name.empty() ? "<unnamed player>" : p->name.c_str();
+    }
+    return "<unknown player>";
+}
+
+CodeInjection process_rcon_packet_log1{
+    0x0046C7E4,
+    [](auto& regs) {
+        const char* cmd = reinterpret_cast<const char*>(regs.esp + 0x10);
+        auto& addr = *addr_as_ref<rf::NetAddr*>(regs.esp + 0x410 + 8);
+        const char* pname = rcon_player_name(addr);
+
+        rf::console::print(
+            "{} issued command '{}' via rcon, successfully executed",
+            rcon_player_name(addr), cmd ? cmd : "");
+    },
+};
+
+CodeInjection process_rcon_packet_log2{
+    0x0046C71D,
+    [](auto& regs) {
+        const uint32_t netplayer_flags = *reinterpret_cast<const uint32_t*>(regs.eax + 0x8);
+        const bool authorized = (netplayer_flags & 0x100u) != 0u;
+
+        if (!authorized) {
+            const char* cmd = addr_as_ref<const char*>(regs.esp + 0x410 + 4);
+            const auto& addr = *addr_as_ref<rf::NetAddr*>(regs.esp + 0x410 + 8);
+
+            rf::console::print(
+                "{} issued command '{}' via rcon, DENIED because not an rcon holder",
+                rcon_player_name(addr), cmd ? cmd : "");
+        }
+    },
+};
+
+CodeInjection process_rcon_packet_log3{
+    0x0046C7D9,
+    [](auto& regs) {
+        const char* cmd = reinterpret_cast<const char*>(regs.esp + 0x10);
+        const auto& addr = *addr_as_ref<rf::NetAddr*>(regs.esp + 0x410 + 8);
+
+        rf::console::print(
+            "{} issued command '{}' via rcon, DENIED because not an allowed rcon command",
+            rcon_player_name(addr), cmd ? cmd : "");
+    },
+};
+
+CodeInjection rcon_pw_denied_log{
+    0x0046C5A0,
+    [](auto& regs) {
+        const char* tried_pw = reinterpret_cast<const char*>(regs.esp + 0x10);
+        const auto& addr = *addr_as_ref<rf::NetAddr*>(regs.esp + 0x118);
+
+        if (!tried_pw || rf::rcon_password[0] == '\0')
+            return;
+
+        if (std::strcmp(tried_pw, rf::rcon_password) != 0) {
+            rf::console::print("{} requested rcon with password '{}', DENIED because the password is wrong",
+                rcon_player_name(addr), tried_pw ? tried_pw : "");
+        }
+        else {
+            rf::console::print("{} requested rcon with the correct rcon password", rcon_player_name(addr));
+        }
+    },
+};
+
 CodeInjection process_entity_create_packet_injection{
     0x0047559B,
     [](auto& regs) {
@@ -1785,6 +1854,12 @@ void network_init()
     process_join_accept_injection.install();
     process_join_accept_send_game_info_req_injection.install();
     multi_stop_hook.install();
+
+    // print rcon commands
+    process_rcon_packet_log1.install();
+    process_rcon_packet_log2.install();
+    process_rcon_packet_log3.install();
+    rcon_pw_denied_log.install();
 
     // print join_req denial reasons
     check_access_for_new_player_hook.install();
