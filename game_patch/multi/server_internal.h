@@ -55,7 +55,7 @@ enum class ParsePass
 
 struct SpawnProtectionConfig
 {
-    bool enabled = true;
+    bool enabled = false;
     int duration = 1500;
     bool use_powerup = false;
 
