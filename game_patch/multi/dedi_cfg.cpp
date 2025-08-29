@@ -390,7 +390,7 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.welcome_message = parse_welcome_message_config(*sub, o.welcome_message);
 
     //o.weapon_stay_exemptions.exemptions.clear();
-    o.weapon_stay_exemptions.add("shoulder cannon", true); // stock default
+    o.weapon_stay_exemptions.add("shoulder_cannon", true); // stock default
 
     if (auto arr = t["weapon_stay_exemptions"].as_array()) {
         for (auto& node : *arr) {
