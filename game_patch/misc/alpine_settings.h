@@ -49,33 +49,6 @@ struct AlpineGameSettings
         reticle_scale = std::clamp(scale, 0.0f, 100.0f);
     }
 
-    // hud element scaling
-    static constexpr float min_hud_scale = 0.1f;
-    static constexpr float max_hud_scale = 5.0f;
-    float health_hud_scale = 1.0f;
-    void set_health_hud_scale(float scale)
-    {
-        health_hud_scale = std::clamp(scale, min_hud_scale, max_hud_scale);
-    }
-    
-    float ammo_hud_scale = 1.0f;
-    void set_ammo_hud_scale(float scale)
-    {
-        ammo_hud_scale = std::clamp(scale, min_hud_scale, max_hud_scale);
-    }
-
-    float powerup_hud_scale = 1.0f;
-    void set_powerup_hud_scale(float scale)
-    {
-        powerup_hud_scale = std::clamp(scale, min_hud_scale, max_hud_scale);
-    }
-
-    float weaponselect_hud_scale = 1.0f;
-    void set_weaponselect_hud_scale(float scale)
-    {
-        weaponselect_hud_scale = std::clamp(scale, min_hud_scale, max_hud_scale);
-    }
-
     float level_sound_volume = 1.0f;
     void set_level_sound_volume(float scale)
     {
@@ -194,43 +167,12 @@ struct AlpineGameSettings
     {
         server_netfps = std::clamp(netfps_value, min_server_netfps, max_server_netfps);
     }
-  
+
     int desired_handicap = 0;
     void set_desired_handicap(int value)
     {
         desired_handicap = std::clamp(value, 0, 99);
     }
-
-    // HUD element offset positions
-    struct HudOffset {
-        int x = -1;  // -1 means no offset (use default position)
-        int y = -1;
-    };
-    
-    HudOffset health_hud_offset;
-    HudOffset ammo_hud_offset;
-    HudOffset timer_hud_offset;
-    HudOffset fps_hud_offset;
-    HudOffset ping_hud_offset;
-    HudOffset weapon_bar_hud_offset;
-    HudOffset powerup_hud_offset;
-    HudOffset weaponselect_hud_offset;
-
-    // Font sizes for different HUD elements (in points)
-    // Default values will be set to match current TTF font sizes
-    int chat_font_size = 17;
-    int console_font_size = 10;
-    int scoreboard_font_size = 10;
-    int health_font_size = 17;
-    int ammo_font_size = 17;
-    int timer_font_size = 17;
-    int fps_font_size = 17;
-    int ping_font_size = 17;
-    int hud_messages_font_size = 17;
-    
-    // Weapon bar settings
-    bool weapon_bar_enabled = false;
-    int weapon_bar_font_size = 12;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

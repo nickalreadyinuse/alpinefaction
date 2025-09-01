@@ -1,5 +1,4 @@
 #include "hud_internal.h"
-#include "hud.h"
 #include "../rf/hud.h"
 #include "../rf/player/player.h"
 #include "../rf/entity.h"
@@ -11,16 +10,14 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/MemUtils.h>
-#include <patch_common/CallHook.h>
 #include <algorithm>
 
 bool g_big_health_armor_hud = false;
-float g_hud_health_scale = 1.0f;
 
 FunHook<void(rf::Player*)> hud_status_render_hook{
     0x00439D80,
     [](rf::Player *player) {
-        if (!g_big_health_armor_hud && g_hud_health_scale == 1.0f) {
+        if (!g_big_health_armor_hud) {
             hud_status_render_hook.call_target(player);
             return;
         }
@@ -34,10 +31,9 @@ FunHook<void(rf::Player*)> hud_status_render_hook{
             return;
         }
 
-        int font_id = hud_get_health_font();
+        int font_id = rf::hud_status_font;
         // Note: 2x scale does not look good because bigfont is not exactly 2x version of smallfont
-        float base_scale = g_big_health_armor_hud ? 1.875f : 1.0f;
-        float scale = base_scale * g_hud_health_scale;
+        float scale = 1.875f;
 
         if (rf::entity_in_vehicle(entity)) {
             rf::hud_draw_damage_indicators(player);
@@ -143,7 +139,7 @@ void hud_status_apply_patches()
 void hud_status_set_big(bool is_big)
 {
     g_big_health_armor_hud = is_big;
-    g_hud_health_scale = g_alpine_game_config.health_hud_scale;
+    rf::hud_status_font = rf::gr::load_font(is_big ? "bigfont.vf" : "smallfont.vf");
     static bool big_bitmaps_preloaded = false;
     if (is_big && !big_bitmaps_preloaded) {
         for (int i = 0; i <= 10; ++i) {
@@ -154,9 +150,4 @@ void hud_status_set_big(bool is_big)
         }
         big_bitmaps_preloaded = true;
     }
-}
-
-void hud_status_update_scale()
-{
-    g_hud_health_scale = g_alpine_game_config.health_hud_scale;
 }
