@@ -11,7 +11,6 @@
 #include "../misc/alpine_settings.h"
 #include "../os/console.h"
 #include "hud_internal.h"
-#include "hud.h"
 
 float g_hud_ammo_scale = 1.0f;
 
@@ -61,17 +60,6 @@ FunHook<void(rf::Entity*, int, int, bool)> hud_render_ammo_hook{
     },
 };
 
-// Function to update ammo font
-void hud_weapons_update_ammo_font()
-{
-    if (!rf::is_dedicated_server) {
-        int custom_ammo_font = hud_get_ammo_font();
-        if (custom_ammo_font >= 0) {
-            rf::hud_ammo_font = custom_ammo_font;
-        }
-    }
-}
-
 void hud_weapons_set_big(bool is_big)
 {
     rf::HudItem ammo_hud_items[] = {
@@ -90,11 +78,11 @@ void hud_weapons_set_big(bool is_big)
         rf::hud_ammo_in_clip_ul_coord,
         rf::hud_ammo_in_clip_width_and_height,
     };
-    float base_scale = is_big ? 1.875f : 1.0f;
-    g_hud_ammo_scale = base_scale * g_alpine_game_config.ammo_hud_scale;
+    g_hud_ammo_scale = is_big ? 1.875f : 1.0f;
     for (auto item_num : ammo_hud_items) {
         rf::hud_coords[item_num] = hud_scale_coords(rf::hud_coords[item_num], g_hud_ammo_scale);
     }
+    rf::hud_ammo_font = rf::gr::load_font(is_big ? "biggerfont.vf" : "bigfont.vf");
 }
 
 ConsoleCommand2 reticle_scale_cmd{
@@ -119,21 +107,6 @@ bool hud_weapons_is_double_ammo()
     }
     auto weapon_type = entity->ai.current_primary_weapon;
     return weapon_type == rf::machine_pistol_weapon_type || weapon_type == rf::machine_pistol_special_weapon_type;
-}
-
-void hud_weapons_update_scale()
-{
-    // Restore original coordinates first to avoid cumulative scaling
-    extern void hud_setup_positions(int width);
-    hud_setup_positions(rf::gr::screen_width());
-    
-    // Now apply the scaling with the restored coordinates
-    bool is_big = g_alpine_game_config.big_hud;
-    hud_weapons_set_big(is_big);
-    
-    // Restore other HUD element scales that may have been affected
-    extern void set_big_countdown_counter(bool is_big);
-    set_big_countdown_counter(is_big);
 }
 
 void hud_weapons_apply_patches()

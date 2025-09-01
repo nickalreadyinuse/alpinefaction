@@ -53,7 +53,7 @@ namespace rf
         EVENT_FLAG_QUEUED = 0x2
 #endif
     };
-
+#pragma pack(push, 1)
     struct Event : Object
     {
         int event_type;
@@ -164,11 +164,12 @@ namespace rf
 
 
     };
-    static_assert(sizeof(Event) == 0x2B8); // 0x2B5 in original code
-
+    static_assert(sizeof(Event) == 0x2B5);
+#pragma pack(pop)
     struct GenericEvent : Event
     {
         char event_specific_data[24];
+        char padding[3];
     };
     static_assert(sizeof(GenericEvent) == 0x2D0);
 

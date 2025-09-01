@@ -99,8 +99,6 @@ set(SRCS
     hud/hud_personas.cpp
     hud/hud_status.cpp
     hud/hud_weapons.cpp
-    hud/hud_weapon_bar.cpp
-    hud/hud_weapon_bar.h
     hud/hud_internal.h
     hud/hud.cpp
     hud/hud.h
@@ -124,6 +122,8 @@ set(SRCS
     debug/unresponsive.cpp
     multi/alpine_packets.cpp
     multi/alpine_packets.h
+    multi/dedi_cfg_legacy.cpp
+    multi/dedi_cfg.cpp
     multi/multi.h
     multi/multi.cpp
     multi/kill.cpp
@@ -217,6 +217,7 @@ target_include_directories(AlpineFaction PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/stb
     ${CMAKE_SOURCE_DIR}/vendor/freetype/include
     ${CMAKE_SOURCE_DIR}/vendor/dds
+    ${CMAKE_SOURCE_DIR}/vendor/toml++
 )
 
 if(NOT MSVC)

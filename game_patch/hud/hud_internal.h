@@ -63,16 +63,10 @@ extern bool g_pre_match_active;
 
 void hud_status_apply_patches();
 void hud_status_set_big(bool is_big);
-void hud_status_update_scale();
 void hud_personas_apply_patches();
 void hud_personas_set_big(bool is_big);
 void hud_weapons_apply_patches();
 void hud_weapons_set_big(bool is_big);
-void hud_weapons_update_scale();
-void hud_weapons_update_ammo_font();
-
-// HUD offsets
-void hud_apply_offsets();
 void weapon_select_apply_patches();
 void weapon_select_set_big(bool is_big);
 void multi_hud_chat_apply_patches();
@@ -85,10 +79,7 @@ void hud_rect_border(int x, int y, int w, int h, int border, rf::gr::Mode state 
 std::string hud_fit_string(std::string_view str, int max_w, int* str_w_out, int font_id);
 rf::HudPoint hud_scale_coords(rf::HudPoint pt, float scale);
 const char* hud_get_default_font_name(bool big);
-const char* hud_get_small_font_name(bool big);
 const char* hud_get_bold_font_name(bool big);
-int hud_get_console_font();
-int hud_get_scoreboard_font();
 void scoreboard_maybe_render(bool show_scoreboard);
 int hud_transform_value(int val, int old_max, int new_max);
 int hud_scale_value(int val, int max, float scale);

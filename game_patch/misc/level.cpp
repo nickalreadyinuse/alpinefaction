@@ -48,20 +48,28 @@ CallHook<void(rf::Vector3*, float, float, float, float, bool, int, int)> level_r
     },
 };
 
-CodeInjection level_load_init_inj{
+CodeInjection level_load_init_patch{
     0x00460860,
     []() {
+        AlpineLevelProperties::instance() = {};
         DashLevelProps::instance() = {};
     },
 };
 
-CodeInjection level_load_chunk_inj{
+CodeInjection level_load_chunk_patch{
     0x00460912,
     [](auto& regs) {
         int chunk_id = regs.eax;
         rf::File& file = addr_as_ref<rf::File>(regs.esp + 0x2B0 - 0x278);
         auto chunk_len = addr_as_ref<std::size_t>(regs.esp + 0x2B0 - 0x2A0);
 
+        // handling for alpine level props chunk
+        if (chunk_id == alpine_props_chunk_id) {
+            AlpineLevelProperties::instance().deserialize(file, chunk_len);
+            regs.eip = 0x004608EF; // loop back to begin next chunk
+        }
+
+        // handling for dash faction level props chunk, safe up to v1
         if (chunk_id == dash_level_props_chunk_id) {
             auto version = file.read<std::uint32_t>();
             if (version == 1) {
@@ -85,7 +93,7 @@ void level_apply_patch()
     // Fix dedicated server crash when loading level that uses directional light
     level_read_geometry_header_light_add_directional_hook.install();
 
-    // Load custom rfl chunks
-    level_load_init_inj.install();
-    level_load_chunk_inj.install();
+    // Load new rfl chunks
+    level_load_init_patch.install();
+    level_load_chunk_patch.install();
 }

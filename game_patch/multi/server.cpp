@@ -25,16 +25,17 @@
 #include "../misc/player.h"
 #include "../main/main.h"
 #include "../misc/achievements.h"
+#include "../misc/alpine_settings.h"
 #include "../rf/file/file.h"
 #include "../rf/math/vector.h"
 #include "../rf/math/matrix.h"
 #include "../rf/player/player.h"
+#include "../rf/os/frametime.h"
 #include "../rf/item.h"
 #include "../rf/gameseq.h"
 #include "../rf/misc.h"
 #include "../rf/ai.h"
 #include "../rf/multi.h"
-#include "../rf/item.h"
 #include "../rf/parse.h"
 #include "../rf/weapon.h"
 #include "../rf/entity.h"
@@ -75,480 +76,119 @@ static const std::vector<std::string> possible_central_item_names = {
 }; // prioritized list of common central items
 int current_center_item_priority = possible_central_item_names.size();
 
-ServerAdditionalConfig g_additional_server_config;
+AlpineServerConfig g_alpine_server_config;
+AlpineServerConfigRules g_alpine_server_config_active_rules; // currently active rules which are applied
 AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
 
-// server config parsing helper functions
-void parse_boolean_option(rf::Parser& parser, const char* key, bool& option, const char* label = nullptr) {
-    if (parser.parse_optional(key)) {
-        option = parser.parse_bool();
-        if (label) {
-            rf::console::print("{}: {}", label, option ? "true" : "false");
-        }
-    }
-}
-
-void parse_uint_option(rf::Parser& parser, const char* key, int& option, const char* label = nullptr) {
-    if (parser.parse_optional(key)) {
-        option = parser.parse_uint();
-        if (label) {
-            rf::console::print("{}: {}", label, option);
-        }
-    }
-}
-
-void parse_int_option(rf::Parser& parser, const char* key, int& option, const char* label = nullptr) {
-    if (parser.parse_optional(key)) {
-        option = parser.parse_int();
-        if (label) {
-            rf::console::print("{}: {}", label, option);
-        }
-    }
-}
-
-void parse_float_option(rf::Parser& parser, const char* key, float& option, const char* label = nullptr) {
-    if (parser.parse_optional(key)) {
-        option = parser.parse_float();
-        if (label) {
-            rf::console::print("{}: {}", label, option);
-        }
-    }
-}
-
-void parse_vote_config(const char* vote_name, VoteConfig& config, rf::Parser& parser)
-{
-    std::string vote_option_name = std::format("{}:", vote_name);
-    if (parser.parse_optional(vote_option_name.c_str())) {
-        config.enabled = parser.parse_bool();
-        rf::console::print("{}: {}", vote_name, config.enabled ? "true" : "false");
-
-        if (parser.parse_optional("+Time Limit:")) {
-            config.time_limit_seconds = parser.parse_uint();
-            rf::console::print("{}: {}", "+Time Limit", config.time_limit_seconds);
-        }
-    }
-}
-
-void parse_spawn_protection(rf::Parser& parser)
-{
-    if (parser.parse_optional("$Spawn Protection Enabled:")) {
-        g_additional_server_config.spawn_protection.enabled = parser.parse_bool();
-        rf::console::print("Spawn Protection: {}", g_additional_server_config.spawn_protection.enabled ? "true" : "false");
-
-        parse_uint_option(parser, "+Duration:", g_additional_server_config.spawn_protection.duration, "+Duration");
-        parse_boolean_option(parser, "+Use Powerup:", g_additional_server_config.spawn_protection.use_powerup, "+Use Powerup");
-    }
-}
-
-void parse_respawn_logic(rf::Parser& parser)
-{
-    if (parser.parse_optional("$Player Respawn Logic")) {
-        rf::console::print("Parsing Player Respawn Logic...");
-
-        parse_boolean_option(parser, "+Respect Team Spawns:", g_additional_server_config.new_spawn_logic.respect_team_spawns, "+Respect Team Spawns");
-        parse_boolean_option(parser, "+Prefer Avoid Players:", g_additional_server_config.new_spawn_logic.try_avoid_players, "+Prefer Avoid Players");
-        parse_boolean_option(parser, "+Always Avoid Last:", g_additional_server_config.new_spawn_logic.always_avoid_last, "+Always Avoid Last");
-        parse_boolean_option(parser, "+Always Use Furthest:", g_additional_server_config.new_spawn_logic.always_use_furthest, "+Always Use Furthest");
-        parse_boolean_option(parser,"+Only Avoid Enemies:", g_additional_server_config.new_spawn_logic.only_avoid_enemies, "+Only Avoid Enemies");
-
-        while (parser.parse_optional("+Use Item As Spawn Point:")) {
-            rf::String item_name;
-            if (parser.parse_string(&item_name)) {
-                std::optional<int> threshold = parser.parse_int();
-                g_additional_server_config.new_spawn_logic.allowed_respawn_items[item_name.c_str()] = threshold;
-                rf::console::print("Item {} will be used for dynamic spawn points with threshold: {}", item_name.c_str(),
-                                   threshold.value_or(-1));
-            }
-        }
-    }
-}
-
-void parse_gungame(rf::Parser& parser)
-{
-    if (parser.parse_optional("$GunGame:")) {
-        g_additional_server_config.gungame.enabled = parser.parse_bool();
-        rf::console::print("GunGame Enabled: {}", g_additional_server_config.gungame.enabled ? "true" : "false");
-        parse_boolean_option(parser, "+Dynamic Progression:", g_additional_server_config.gungame.dynamic_progression, "+Dynamic Progression");
-        parse_boolean_option(parser, "+Rampage Rewards:", g_additional_server_config.gungame.rampage_rewards, "+Rampage Rewards");
-
-        if (parser.parse_optional("+Final Level:")) {
-            int final_kill_level = parser.parse_int();
-            int final_weapon_level = parser.parse_int();
-            g_additional_server_config.gungame.final_level = std::make_pair(final_kill_level, final_weapon_level);
-            rf::console::print("GunGame Final Level: Kill Level {} - Weapon Level {}",
-                g_additional_server_config.gungame.final_level->first,
-                g_additional_server_config.gungame.final_level->second);
-        }
-
-        while (parser.parse_optional("+Level:")) {
-            int kill_level = parser.parse_int();
-            int weapon_level = parser.parse_int();
-            g_additional_server_config.gungame.levels.emplace_back(kill_level, weapon_level);
-            rf::console::print("GunGame Level Added: Kill Level {} - Weapon Level {}",
-                g_additional_server_config.gungame.levels.back().first,
-                g_additional_server_config.gungame.levels.back().second);
-        }
-    }
-}
-
-void parse_damage_notifications(rf::Parser& parser) {
-    if (parser.parse_optional("$Damage Notifications:")) {
-        g_additional_server_config.damage_notifications.enabled = parser.parse_bool();
-        rf::console::print("Damage Notifications Enabled: {}", g_additional_server_config.damage_notifications.enabled ? "true" : "false");
-
-        parse_boolean_option(parser, "+Legacy Client Compatibility:", g_additional_server_config.damage_notifications.support_legacy_clients, "+Legacy Client Compatibility");
-    }
-}
-
-void parse_critical_hits(rf::Parser& parser) {
-    if (parser.parse_optional("$Critical Hits:")) {
-        g_additional_server_config.critical_hits.enabled = parser.parse_bool();
-        rf::console::print("Critical Hits Enabled: {}", g_additional_server_config.critical_hits.enabled ? "true" : "false");
-
-        parse_uint_option(parser, "+Attacker Sound ID:", g_additional_server_config.critical_hits.sound_id, "+Sound ID");
-        parse_uint_option(parser, "+Rate Limit:", g_additional_server_config.critical_hits.rate_limit, "+Rate Limit");
-        parse_uint_option(parser, "+Reward Duration:", g_additional_server_config.critical_hits.reward_duration, "+Reward Duration");
-        parse_float_option(parser, "+Base Chance Percent:", g_additional_server_config.critical_hits.base_chance, "+Base Chance");
-        parse_boolean_option(parser, "+Use Dynamic Chance Bonus:", g_additional_server_config.critical_hits.dynamic_scale, "+Dynamic Scaling");
-        parse_float_option(parser, "+Dynamic Chance Damage Ceiling:", g_additional_server_config.critical_hits.dynamic_damage_for_max_bonus, "+Dynamic Damage Ceiling");
-    }
-}
-
-void parse_overtime(rf::Parser& parser) {
-    if (parser.parse_optional("$Overtime Enabled:")) {
-        g_additional_server_config.overtime.enabled = parser.parse_bool();
-        rf::console::print("Overtime Enabled: {}", g_additional_server_config.overtime.enabled ? "true" : "false");
-
-        parse_uint_option(parser, "+Duration:", g_additional_server_config.overtime.additional_time, "+Duration");
-        parse_boolean_option(parser, "+Consider Tied If Flag Stolen:", g_additional_server_config.overtime.tie_if_flag_stolen, "+Tie If Flag Stolen");
-    }
-}
-
-void parse_weapon_stay_exemptions(rf::Parser& parser) {
-    if (parser.parse_optional("$Weapon Stay Exemptions:")) {
-        g_additional_server_config.weapon_stay_exemptions.enabled = parser.parse_bool();
-        rf::console::print("Weapon Stay Exemptions Enabled: {}", g_additional_server_config.weapon_stay_exemptions.enabled ? "true" : "false");
-
-        parse_boolean_option(parser, "+Flamethrower:", g_additional_server_config.weapon_stay_exemptions.flamethrower, "+Flamethrower");
-        parse_boolean_option(parser, "+Control Baton:", g_additional_server_config.weapon_stay_exemptions.riot_stick, "+Control Baton");
-        parse_boolean_option(parser, "+Riot Shield:", g_additional_server_config.weapon_stay_exemptions.riot_shield, "+Riot Shield");
-        parse_boolean_option(parser, "+Pistol:", g_additional_server_config.weapon_stay_exemptions.handgun, "+Pistol");
-        parse_boolean_option(parser, "+Shotgun:", g_additional_server_config.weapon_stay_exemptions.shotgun, "+Shotgun");
-        parse_boolean_option(parser, "+Submachine Gun:", g_additional_server_config.weapon_stay_exemptions.machine_pistol, "+Submachine Gun");
-        parse_boolean_option(parser, "+Sniper Rifle:", g_additional_server_config.weapon_stay_exemptions.sniper_rifle, "+Sniper Rifle");
-        parse_boolean_option(parser, "+Assault Rifle:", g_additional_server_config.weapon_stay_exemptions.assault_rifle, "+Assault Rifle");
-        parse_boolean_option(parser, "+Heavy Machine Gun:", g_additional_server_config.weapon_stay_exemptions.heavy_machine_gun, "+Heavy Machine Gun");
-        parse_boolean_option(parser, "+Precision Rifle:", g_additional_server_config.weapon_stay_exemptions.scope_assault_rifle, "+Precision Rifle");
-        parse_boolean_option(parser, "+Rail Driver:", g_additional_server_config.weapon_stay_exemptions.rail_gun, "+Rail Driver");
-        parse_boolean_option(parser, "+Rocket Launcher:", g_additional_server_config.weapon_stay_exemptions.rocket_launcher, "+Rocket Launcher");
-        parse_boolean_option(parser, "+Grenade:", g_additional_server_config.weapon_stay_exemptions.grenade, "+Grenade");
-        parse_boolean_option(parser, "+Remote Charges:", g_additional_server_config.weapon_stay_exemptions.remote_charge, "+Remote Charges");
-    }
-}
-
-void parse_weapon_ammo_settings(rf::Parser& parser) {
-    if (parser.parse_optional("$Weapon Items Give Full Ammo:")) {
-        g_additional_server_config.weapon_items_give_full_ammo = parser.parse_bool();
-        rf::console::print("Weapon Items Give Full Ammo: {}", g_additional_server_config.weapon_items_give_full_ammo ? "true" : "false");
-
-        parse_boolean_option(parser, "+Infinite Magazines:", g_additional_server_config.weapon_infinite_magazines, "+Infinite Magazines");
-    }
-}
-
-void parse_default_player_weapon(rf::Parser& parser) {
-    if (parser.parse_optional("$Default Player Weapon:")) {
-        rf::String default_weapon;
-        parser.parse_string(&default_weapon);
-        g_additional_server_config.default_player_weapon = default_weapon.c_str();
-        rf::console::print("Default Player Weapon: {}", g_additional_server_config.default_player_weapon);
-
-        if (parser.parse_optional("+Initial Ammo:")) {
-            auto ammo = parser.parse_uint();
-            g_additional_server_config.default_player_weapon_ammo = {ammo};
-            rf::console::print("+Initial Ammo: {}", ammo);
-
-            auto weapon_type = rf::weapon_lookup_type(g_additional_server_config.default_player_weapon.c_str());
-            if (weapon_type >= 0) {
-                auto& weapon_cls = rf::weapon_types[weapon_type];
-                weapon_cls.max_ammo_multi = std::max<int>(weapon_cls.max_ammo_multi, ammo);
-            }
-        }
-    }
-}
-
-void parse_force_character(rf::Parser& parser) {
-    if (parser.parse_optional("$Force Player Character:")) {
-        rf::String character_name;
-        parser.parse_string(&character_name);
-        int character_num = rf::multi_find_character(character_name.c_str());
-        if (character_num != -1) {
-            g_additional_server_config.force_player_character = {character_num};
-            rf::console::print("Forced Player Character: {} (ID {})", character_name, character_num);
-        } else {
-            xlog::warn("Unknown character name in Force Player Character setting: {}", character_name);
-        }
-    }
-}
-
-void parse_kill_rewards(rf::Parser& parser) {
-    if (parser.parse_optional("$Kill Reward")) {
-        rf::console::print("Parsing Kill Rewards...");
-        parse_float_option(parser, "+Effective Health:", g_additional_server_config.kill_reward_effective_health, "Kill Reward: Effective Health");
-        parse_float_option(parser, "+Health:", g_additional_server_config.kill_reward_health, "Kill Reward: Health");
-        parse_float_option(parser, "+Armor:", g_additional_server_config.kill_reward_armor, "Kill Reward: Armor");
-        parse_boolean_option(parser, "+Health Is Super:", g_additional_server_config.kill_reward_health_super, "Kill Reward: Health Is Super");
-        parse_boolean_option(parser, "+Armor Is Super:", g_additional_server_config.kill_reward_armor_super, "Kill Reward: Armor Is Super");
-    }
-}
-
-void parse_miscellaneous_options(rf::Parser& parser) {
-    parse_int_option(parser, "$Desired Player Count:", g_additional_server_config.desired_player_count, "Desired Player Count");
-    parse_float_option(parser, "$Spawn Health:", g_additional_server_config.spawn_life, "Spawn Health");
-    parse_float_option(parser, "$Spawn Armor:", g_additional_server_config.spawn_armor, "Spawn Armor");
-    parse_boolean_option(parser, "$Use SP Damage Calculation:", g_additional_server_config.use_sp_damage_calculation, "Use SP Damage Calculation");
-    parse_int_option(parser, "$CTF Flag Return Time:", g_additional_server_config.ctf_flag_return_time_ms, "CTF Flag Return Time");
-    parse_boolean_option(parser, "$Dynamic Rotation:", g_additional_server_config.dynamic_rotation, "Dynamic Rotation");
-    parse_boolean_option(parser, "$Require Client Mod:", g_additional_server_config.require_client_mod, "Clients Require Mod");
-    parse_float_option(parser, "$Player Damage Modifier:", g_additional_server_config.player_damage_modifier, "Player Damage Modifier");
-    parse_boolean_option(parser, "$UPnP Enabled:", g_additional_server_config.upnp_enabled, "UPnP Enabled");
-    parse_boolean_option(parser, "$Send Player Stats Message:", g_additional_server_config.stats_message_enabled, "Send Player Stats Message");
-    parse_boolean_option(parser, "$Drop Amps On Death:", g_additional_server_config.drop_amps, "Drop Amps On Death");
-    parse_boolean_option(parser, "$Flag Dropping:", g_additional_server_config.flag_dropping, "Flag Dropping");
-    parse_boolean_option(parser, "$Flag Captures While Stolen:", g_additional_server_config.flag_captures_while_stolen, "Flag Captures While Stolen");
-    parse_boolean_option(parser, "$Saving Enabled:", g_additional_server_config.saving_enabled, "Saving Enabled");
-    parse_boolean_option(parser, "$Allow Fullbright Meshes:", g_additional_server_config.allow_fullbright_meshes, "Allow Fullbright Meshes");
-    parse_boolean_option(parser, "$Allow Lightmaps Only Mode:", g_additional_server_config.allow_lightmaps_only, "Allow Lightmaps Only Mode");
-    parse_boolean_option(parser, "$Allow Disable Screenshake:", g_additional_server_config.allow_disable_screenshake, "Allow Disable Screenshake");
-    parse_boolean_option(parser, "$Allow Disable Muzzle Flash Lights:", g_additional_server_config.allow_disable_muzzle_flash, "Allow Disable Muzzle Flash Lights");
-    parse_boolean_option(parser, "$Allow Client Unlimited FPS:", g_additional_server_config.allow_unlimited_fps, "Allow Client Unlimited FPS");
-
-    if (parser.parse_optional("$Welcome Message:")) {
-        rf::String welcome_message;
-        parser.parse_string(&welcome_message);
-        g_additional_server_config.welcome_message = welcome_message.c_str();
-        rf::console::print("Welcome Message Set: {}", g_additional_server_config.welcome_message);
-        parse_boolean_option(parser, "+Only Welcome Alpine Faction Clients:", g_additional_server_config.only_welcome_alpine, "+Only Welcome Alpine Faction Clients");
-    }
-}
-
-void parse_alpine_locking(rf::Parser& parser) {
-    parse_boolean_option(parser, "$Advertise Alpine Faction:", g_additional_server_config.advertise_alpine, "Advertise Alpine Faction");
-    if (parser.parse_optional("$Clients Require Alpine Faction:")) {
-        g_additional_server_config.clients_require_alpine = parser.parse_bool();
-        rf::console::print("Clients Require Alpine Faction: {}", g_additional_server_config.clients_require_alpine ? "true" : "false");
-
-        parse_boolean_option(parser, "+Require Official Build:", g_additional_server_config.alpine_require_release_build, "+Require Official Build");
-        parse_boolean_option(parser, "+Enforce Server Version Minimum:", g_additional_server_config.alpine_server_version_enforce_min, "+Enforce Server Version Minimum");
-        parse_boolean_option(parser, "+Reject Legacy Clients:", g_additional_server_config.reject_non_alpine_clients, "+Reject Legacy Clients");
-        parse_boolean_option(parser, "+No Player Collide:", g_additional_server_config.no_player_collide, "+No Player Collide");
-        parse_boolean_option(parser, "+Location Pinging:", g_additional_server_config.location_pinging, "+Location Pinging");
-        parse_vote_config("+Match Mode", g_additional_server_config.vote_match, parser);
-    }
-}
-
-void parse_inactivity_settings(rf::Parser& parser) {
-    if (parser.parse_optional("$Kick Inactive Players:")) {
-        g_additional_server_config.inactivity.enabled = parser.parse_bool();
-        rf::console::print("Kick Inactive Players: {}", g_additional_server_config.inactivity.enabled ? "true" : "false");
-
-        parse_uint_option(parser, "+Grace Period:", g_additional_server_config.inactivity.new_player_grace_ms, "+Grace Period");
-        parse_uint_option(parser, "+Maximum Idle Time:", g_additional_server_config.inactivity.allowed_inactive_ms, "+Maximum Idle Time");
-        parse_uint_option(parser, "+Warning Period:", g_additional_server_config.inactivity.warning_duration_ms, "+Warning Period");
-
-        if (parser.parse_optional("+Idle Warning Message:")) {
-            rf::String kick_message;
-            parser.parse_string(&kick_message);
-            g_additional_server_config.inactivity.kick_message = kick_message.c_str();
-            rf::console::print("+Idle Warning Message: {}", g_additional_server_config.inactivity.kick_message);
-        }
-    }
-}
-
-void parse_item_respawn_time_override(rf::Parser& parser) {
-    while (parser.parse_optional("$Item Respawn Time Override:")) {
-        rf::String item_name;
-        parser.parse_string(&item_name);
-        auto new_time = parser.parse_uint();
-        g_additional_server_config.item_respawn_time_overrides[item_name.c_str()] = new_time;
-        rf::console::print("Item Respawn Time Override: {} -> {}ms", item_name.c_str(), new_time);
-    }
-}
-
-void parse_item_replacements(rf::Parser& parser) {
-    while (parser.parse_optional("$Item Replacement:")) {
-        rf::String old_item, new_item;
-        parser.parse_string(&old_item);
-        parser.parse_string(&new_item);
-        g_additional_server_config.item_replacements[old_item.c_str()] = new_item.c_str();
-        rf::console::print("Item Replaced: {} -> {}", old_item.c_str(), new_item.c_str());
-    }
-}
-
-void load_additional_server_config(rf::Parser& parser) {
-    // Vote config
-    parse_vote_config("$Vote Kick", g_additional_server_config.vote_kick, parser);
-    parse_vote_config("$Vote Level", g_additional_server_config.vote_level, parser);
-    parse_vote_config("$Vote Extend", g_additional_server_config.vote_extend, parser);
-    parse_vote_config("$Vote Restart", g_additional_server_config.vote_restart, parser);
-    parse_vote_config("$Vote Next", g_additional_server_config.vote_next, parser);
-    parse_vote_config("$Vote Random", g_additional_server_config.vote_rand, parser);
-    parse_vote_config("$Vote Previous", g_additional_server_config.vote_previous, parser);
-
-    // Core config
-    parse_spawn_protection(parser);
-    parse_respawn_logic(parser);
-    parse_gungame(parser);
-    parse_damage_notifications(parser);
-    parse_critical_hits(parser);
-    parse_overtime(parser);
-    parse_weapon_stay_exemptions(parser);
-    parse_weapon_ammo_settings(parser);
-    parse_default_player_weapon(parser);
-    parse_force_character(parser);
-    parse_kill_rewards(parser);
-
-    // Misc config
-    parse_miscellaneous_options(parser);
-    parse_alpine_locking(parser);
-    parse_inactivity_settings(parser);
-
-    // separate for now because they need to use std::optional
-    if (parser.parse_optional("$Max FOV:")) {
-        float max_fov = parser.parse_float();
-        if (max_fov > 0.0f) {
-            g_additional_server_config.max_fov = {max_fov};
-            rf::console::print("Max FOV: {}", g_additional_server_config.max_fov.value_or(180));
-        }
-    }
-
-    parse_boolean_option(parser, "$Use Gaussian Bullet Spread:", g_additional_server_config.gaussian_spread, "Use Gaussian Bullet Spread");
-    if (parser.parse_optional("$Enforce Semi Auto Fire Rate Limit:")) {
-        g_additional_server_config.apply_click_limiter = parser.parse_bool();
-        rf::console::print("Enforce Semi Auto Fire Rate Limit: {}",
-                            g_additional_server_config.apply_click_limiter ? "true" : "false");
-        if (parser.parse_optional("+Cooldown:")) {
-            int fire_wait = parser.parse_int();
-            g_additional_server_config.semi_auto_cooldown = {fire_wait};
-            rf::console::print("+Cooldown: {}", g_additional_server_config.semi_auto_cooldown.value_or(0));
-        }
-    }
-
-    // Repeatable config
-    parse_item_respawn_time_override(parser);
-    parse_item_replacements(parser);
-}
-
-// memory addresses for weapon stay exemption indexes
-constexpr std::pair<bool WeaponStayExemptionConfig::*, uintptr_t> weapon_exemptions[] = {
-    {&WeaponStayExemptionConfig::rocket_launcher, 0x00872458},
-    {&WeaponStayExemptionConfig::heavy_machine_gun, 0x00872460},
-    {&WeaponStayExemptionConfig::sniper_rifle, 0x00872440},
-    {&WeaponStayExemptionConfig::assault_rifle, 0x00872470},
-    {&WeaponStayExemptionConfig::machine_pistol, 0x0085CCD8},
-    {&WeaponStayExemptionConfig::shotgun, 0x00872108},
-    {&WeaponStayExemptionConfig::scope_assault_rifle, 0x0087245C},
-    {&WeaponStayExemptionConfig::grenade, 0x00872118},
-    {&WeaponStayExemptionConfig::remote_charge, 0x0087210C},
-    {&WeaponStayExemptionConfig::handgun, 0x00872114},
-    {&WeaponStayExemptionConfig::flamethrower, 0x0087243C},
-    {&WeaponStayExemptionConfig::riot_stick, 0x00872468},
-    {&WeaponStayExemptionConfig::riot_shield, 0x0085CCE4},
-    {&WeaponStayExemptionConfig::rail_gun, 0x00872124}};
-
-// declare optional vector for weapon stay exemptions
-std::optional<std::vector<uintptr_t>> weapon_stay_exempt_indexes;
-
-// Consolidate weapon stay exemption logic for both injections
-void handle_weapon_stay_exemption(BaseCodeInjection::Regs& regs, uintptr_t jump_address)
-{
-    if (!weapon_stay_exempt_indexes) {
-        return; // no exemptions if the optional vector is not populated
-    }
-    for (const auto& index_addr : *weapon_stay_exempt_indexes) {
-        int weapon_index = *reinterpret_cast<int*>(index_addr);
-        if (regs.eax == weapon_index) {
-            regs.eip = jump_address;
-            return;
-        }
-    }
-}
-
 // Weapon stay exemption part 1: remove item when it is picked up and start respawn timer
 CodeInjection weapon_stay_remove_instance_injection{
-    0x0045982E, [](BaseCodeInjection::Regs& regs) { handle_weapon_stay_exemption(regs, 0x00459865); }};
-
-// Weapon stay exemption part 2: allow picking up item by a player who already did (after it respawns)
-CodeInjection weapon_stay_allow_pickup_injection{
-    0x004596B4, [](BaseCodeInjection::Regs& regs) { handle_weapon_stay_exemption(regs, 0x004596CD); }};
-
-void initialize_weapon_stay_exemptions()
-{
-    const auto& config = g_additional_server_config.weapon_stay_exemptions;
-    if (!config.enabled) {
-        xlog::debug("Weapon stay exemptions are not enabled.");
-        return;
-    }
-
-    // Populate weapon stay exemption array
-    weapon_stay_exempt_indexes = std::vector<uintptr_t>{};
-    for (const auto& [config_member, index_addr] : weapon_exemptions) {
-        // Add debug logs to see which weapons are being checked
-        bool is_exempt = config.*config_member;
-        xlog::debug("Checking weapon at address: {}. Is exempt? {}", index_addr, is_exempt);
-
-        if (is_exempt) {
-            weapon_stay_exempt_indexes->push_back(index_addr);
+    0x0045982E,
+    [](auto& regs){
+        for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
+            if (e.exemption_enabled && regs.eax == e.index) {
+                regs.eip = 0x00459865;
+                return;
+            }
         }
     }
+};
 
-    // injections
-    weapon_stay_remove_instance_injection.install();
-    weapon_stay_allow_pickup_injection.install();
-}
+CodeInjection weapon_stay_allow_pickup_injection{
+    0x004596B4,
+    [](auto& regs){
+        for (auto const& e : g_alpine_server_config_active_rules.weapon_stay_exemptions.exemptions) {
+            if (e.exemption_enabled && regs.eax == e.index) {
+                regs.eip = 0x004596CD;
+                return;
+            }
+        }
+    }
+};
 
-CodeInjection dedicated_server_load_config_patch{
-    //0x0046E216,
-    0x0046E103, // above $Map lines
-    [](auto& regs) {
-        auto& parser = *reinterpret_cast<rf::Parser*>(regs.esp - 4 + 0x4C0 - 0x470);
-        load_additional_server_config(parser); // custom AF dedicated server config
-        initialize_game_info_server_flags(); // build global flags var used in game_info packets
-
-        // Insert server name in window title when hosting dedicated server
-        std::string wnd_name;
-        wnd_name.append(rf::netgame.name.c_str());
-        wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
-        SetWindowTextA(rf::main_wnd, wnd_name.c_str()); 
+FunHook<void ()> dedicated_server_load_config_hook{
+    0x0046D900,
+    []() {
+        if (g_dedicated_launched_from_ads) {
+            launch_alpine_dedicated_server();
+            on_dedicated_server_launch_post();
+        }
+        else {
+            dedicated_server_load_config_hook.call_target();
+		}
     },
 };
 
+// handle setting dedicated_server flag when launched with -ads param 
+CodeInjection rf_process_command_line_dedicated_server_patch{
+    0x004B28A0,
+    []() {
+        if (get_ads_cmd_line_param().found()) {
+            rf::is_dedicated_server = get_ads_cmd_line_param().found();
+            std::string ads_filename = get_ads_cmd_line_param().get_arg();
+            g_dedicated_launched_from_ads = true;
+            g_ads_config_name = ads_filename;
+            handle_min_param(); // check if -min switch was used
+        }
+    },
+};
+
+void set_server_window_title() {
+    std::string wnd_name;
+    wnd_name.append(rf::netgame.name.c_str());
+    wnd_name.append(" - " PRODUCT_NAME " Dedicated Server");
+    SetWindowTextA(rf::main_wnd, wnd_name.c_str());
+}
+
+void on_dedicated_server_launch_post() {
+    initialize_game_info_server_flags(); // build global flags var used in game_info packets
+    set_server_window_title();
+
+    // shuffle maplist
+    if (g_alpine_server_config.dynamic_rotation) {
+        shuffle_level_array();
+    }
+}
+
+// should weapons drop on player death?
+CodeInjection entity_drop_weapon_patch{
+    0x0042B0D3,
+    [](auto& regs) {
+        if (g_alpine_server_config_active_rules.gungame.enabled ||
+            !g_alpine_server_config_active_rules.drop_weapons) {
+            regs.eip = 0x0042B2BC;
+        }
+    },
+};
+
+// should a reload subtract from reserve ammo?
+CodeInjection entity_reload_current_primary_patch{
+    0x00425506,
+    [](auto& regs) {
+        if (g_alpine_server_config_active_rules.gungame.enabled ||
+            g_alpine_server_config_active_rules.weapon_infinite_magazines) {
+            int current_reserve = regs.ecx;
+            int used_ammo = regs.eax;
+            regs.ecx = current_reserve + used_ammo; // negate the reload subtraction
+        }
+    },
+};
+
+// used only in legacy dedi serv mode
+CodeInjection dedicated_server_load_config_patch{
+    0x0046E103,
+    [](auto& regs) {
+        auto& parser = *reinterpret_cast<rf::Parser*>(regs.esp - 4 + 0x4C0 - 0x470);
+        load_additional_server_config(parser);
+    },
+};
+
+// used only in legacy dedi serv mode
 CodeInjection dedicated_server_load_post_map_patch{
     0x0046E216,
     [](auto& regs) {
-
-        initialize_weapon_stay_exemptions();
-
-        // shuffle maplist
-        if (g_additional_server_config.dynamic_rotation) {
-            shuffle_level_array();
-        }
-
-        // no weapon drops on player death
-        if (g_additional_server_config.gungame.enabled) {
-            AsmWriter(0x0042B0D3).jmp(0x0042B2BC);
-        }
-
-        // infinite reloads
-        if (g_additional_server_config.gungame.enabled || g_additional_server_config.weapon_infinite_magazines) {
-            AsmWriter{0x00425506}.nop(2);
-        }
-
-        // apply SP damage calculation
-        if (g_additional_server_config.use_sp_damage_calculation) {
-            AsmWriter(0x0041A37A).jmp(0x0041A3C1);
-        }
+        on_dedicated_server_launch_post();
     },
 };
 
@@ -574,12 +214,40 @@ int get_level_file_version(const std::string& file_name)
     return static_cast<int>(version);
 }
 
-void print_all_player_info() {
-    if (!(rf::is_dedicated_server || rf::is_server)) {
-        rf::console::print("This command can only be run on a server!");
+void print_player_info(rf::Player* player, bool new_join) {
+    if (player == rf::local_player) {
+        rf::console::print("- {} (local player)",player->name);
         return;
     }
 
+    auto& pdata = get_player_additional_data(player);
+
+    std::string client_info;
+    if (pdata.is_alpine) {
+        client_info = std::format("Alpine Faction {}.{}-{}", pdata.alpine_version_major, pdata.alpine_version_minor,
+                                  pdata.alpine_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
+    }
+    else if (pdata.is_browser) {
+        client_info = std::format("Server Browser");
+    }
+    else {
+        client_info = std::format("Non-Alpine Client");
+    }
+
+    in_addr addr;
+    auto player_addr = player->net_data->addr;
+    addr.S_un.S_addr = ntohl(player_addr.ip_addr);
+    if (new_join) {
+            rf::console::print("===| {}{} | IP: {}:{} | Client: {} | Max RFL: {} |===",
+                player->name, rf::strings::has_joined, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version);
+    }
+    else {
+        rf::console::print("- {} | IP: {}:{} | Client: {} | Max RFL: {} | Ping: {} | HC: {}%",
+            player->name, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version, player->net_data->ping, pdata.damage_handicap);
+    }
+}
+
+void print_all_player_info() {
     if (!rf::player_list) {
         rf::console::print("No players are currently connected!");
         return;
@@ -590,18 +258,57 @@ void print_all_player_info() {
     rf::console::print("Connected players:");    
 
     for (auto& player : player_list) {
-        auto& pdata = get_player_additional_data(&player);
-        std::string client_info;
-        if (pdata.is_alpine) {
-            client_info = std::format("Alpine Faction {}.{}-{}", pdata.alpine_version_major, pdata.alpine_version_minor,
-                pdata.alpine_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
-        }
-        else {
-            client_info = std::format("Non-Alpine Client");
-        }
-        rf::console::print("{}: {} | Max RFL version {}", player.name, client_info, pdata.max_rfl_version);
+        print_player_info(&player, false);
     }
 }
+
+FunHook<void ()> dcf_info_hook{
+    0x00486050,
+    []() {
+        int64_t total_sec = static_cast<int64_t>(rf::level.time);
+        int days = int(total_sec / 86'400);
+        int hours = int((total_sec / 3'600) % 24);
+        int minutes = int((total_sec / 60) % 60);
+        int seconds = int(total_sec % 60);
+
+        rf::console::print("====================================================");
+        if (rf::level.flags & rf::LEVEL_LOADED) {
+            rf::console::print("{}: {} by {} ({})\n", rf::strings::level_name, rf::level.name, rf::level.author, rf::level.filename);
+
+            auto time_line = std::format("{}:  {} {}, {}h {}m {}s\n", rf::strings::level_time, days, rf::strings::days, hours, minutes, seconds);
+            rf::console::print("{}", time_line);
+        }
+        else {
+            rf::console::print("No level loaded\n");
+        }
+
+        std::string framerate_line = "";
+        bool is_server = rf::is_multi && (rf::is_server || rf::is_dedicated_server);
+        if (is_server) {
+            framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max) | NetFPS: {}\n",
+                rf::frametime,
+                rf::current_fps,
+                rf::is_dedicated_server ? g_alpine_game_config.server_max_fps : g_alpine_game_config.max_fps,
+                g_alpine_game_config.server_netfps
+            );
+        }
+        else {
+            if (rf::local_player)
+                rf::console::print("Local player name: {}\n", rf::local_player->name);
+
+            framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max)\n",
+                rf::frametime, rf::current_fps, g_alpine_game_config.max_fps);
+        }            
+        rf::console::print("{}", framerate_line);
+
+        rf::console::print("====================================================\n");
+
+        if (rf::is_multi) {
+            rf::console::print("\n");
+            print_all_player_info();
+        }
+    },
+};
 
 std::pair<std::string_view, std::string_view> strip_by_space(std::string_view str)
 {
@@ -635,7 +342,7 @@ void handle_save_command(rf::Player* player, std::string_view save_name)
 {
     auto& pdata = get_player_additional_data(player);
     rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-    if (entity && g_additional_server_config.saving_enabled) {
+    if (entity && g_alpine_server_config_active_rules.saving_enabled) {
         PlayerNetGameSaveData save_data;
         save_data.pos = entity->pos;
         save_data.orient = entity->orient;
@@ -648,7 +355,7 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
 {
     auto& pdata = get_player_additional_data(player);
     rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-    if (entity && g_additional_server_config.saving_enabled && !rf::entity_is_dying(entity)) {
+    if (entity && g_alpine_server_config_active_rules.saving_enabled && !rf::entity_is_dying(entity)) {
         auto it = pdata.saves.find(std::string{save_name});
         if (it != pdata.saves.end()) {
             auto& save_data = it->second;
@@ -668,6 +375,15 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
             send_chat_line_packet("You do not have any position saved!", player);
         }
     }
+}
+
+void handle_player_set_handicap(rf::Player* player, uint8_t amount)
+{
+    auto& pdata = get_player_additional_data(player);
+    pdata.damage_handicap = amount;
+    rf::console::print("At their request, {} has been given a {}% damage reduction handicap.", player->name, amount);
+    auto msg = std::format("At your request, you have been given a {}% damage reduction handicap.", amount);
+    send_chat_line_packet(msg.c_str(), player);
 }
 
 std::string get_ready_player_names(bool is_blue_team)
@@ -739,11 +455,11 @@ void handle_whosready_command(rf::Player* player)
 
 static void handle_drop_flag_request(rf::Player* player)
 {
-    if (!rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
+    if (rf::multi_get_game_type() != rf::NG_TYPE_CTF) {
         return; // can't drop flags unless in CTF
     }
 
-    if (!g_additional_server_config.flag_dropping) {
+    if (!g_alpine_server_config_active_rules.flag_dropping) {
         send_chat_line_packet("\xA6 This server has disabled flag dropping.", player);
         return;
     }
@@ -807,7 +523,19 @@ static void notify_for_upcoming_level_version_incompatible(rf::Player* player)
 
 void shuffle_level_array()
 {
-    std::ranges::shuffle(rf::netgame.levels, g_rng);
+    // ads servers, shuffle the level+rules array (ssot) and then sync the netgame levels array
+    if (g_dedicated_launched_from_ads) {
+        auto& cfg = g_alpine_server_config;
+
+        if (cfg.levels.size() <= 1)
+            return;
+
+        std::ranges::shuffle(cfg.levels, g_rng);
+        rebuild_rotation_from_cfg(); // sync netgame levels array
+    }
+    else { // legacy servers shuffle netgame array directly
+        std::ranges::shuffle(rf::netgame.levels, g_rng);
+    }
     xlog::info("Shuffled level rotation");
 }
 
@@ -894,15 +622,15 @@ bool check_server_chat_command(const char* msg, rf::Player* sender)
 CodeInjection spawn_protection_duration_patch{
     0x0048089A,
     [](auto& regs) {
-        if (g_additional_server_config.spawn_protection.enabled) {
-            if (g_additional_server_config.spawn_protection.use_powerup) {
+        if (g_alpine_server_config_active_rules.spawn_protection.enabled) {
+            if (g_alpine_server_config_active_rules.spawn_protection.use_powerup) {
                 rf::Player* pp = regs.esi;
-                rf::multi_powerup_add(pp, 0, g_additional_server_config.spawn_protection.duration);
+                rf::multi_powerup_add(pp, 0, g_alpine_server_config_active_rules.spawn_protection.duration);
                 return;
             }
         }
-        *static_cast<int*>(regs.esp) = g_additional_server_config.spawn_protection.enabled
-			? g_additional_server_config.spawn_protection.duration
+        *static_cast<int*>(regs.esp) = g_alpine_server_config_active_rules.spawn_protection.enabled
+			? g_alpine_server_config_active_rules.spawn_protection.duration
 			: 0;
     },
 };
@@ -958,11 +686,11 @@ void send_hit_sound_packet(rf::Player* target)
     send_sound_packet(target, pdata.last_hitsound_sent_ms, 10, 29); // fallback for legacy clients
 }
 
+// todo optimization: move this to a new flag on af_damage_notify packet
 void send_critical_hit_packet(rf::Player* target)
 {
     auto& pdata = get_player_additional_data(target);
-    send_sound_packet(target, pdata.last_critsound_sent_ms, g_additional_server_config.critical_hits.rate_limit,
-                      g_additional_server_config.critical_hits.sound_id);
+    send_sound_packet(target, pdata.last_critsound_sent_ms, 10, 35); // rate limit 10/sec, sound id 35
 }
 
 FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
@@ -972,26 +700,34 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
         rf::Player* killer_player = rf::player_from_entity_handle(killer_handle);
         bool is_pvp_damage = damaged_player && killer_player && damaged_player != killer_player;
         if (rf::is_server && is_pvp_damage) {
-            damage *= g_additional_server_config.player_damage_modifier;
+            damage *= g_alpine_server_config_active_rules.pvp_damage_modifier;
             if (damage == 0.0f) {
                 return 0.0f;
             }
 
+            // handle handicap
+            auto& pdata = get_player_additional_data(killer_player);
+            if (pdata.damage_handicap > 0) {
+                float reduction = 1.0f - (pdata.damage_handicap / 100.0f);
+                damage *= reduction;
+                //xlog::debug("Applying handicap {}% ({}x multiplier) to damage, new damage: {}", pdata.damage_handicap, reduction, damage);
+            }
+
             // Check if this is a crit
-            if (g_additional_server_config.critical_hits.enabled) {
-                float base_chance = g_additional_server_config.critical_hits.base_chance;
+            if (g_alpine_server_config_active_rules.critical_hits.enabled) {
+                float base_chance = g_alpine_server_config_active_rules.critical_hits.base_chance;
                 float bonus_chance = 0.0f;
 
                 // calculate bonus chance
-                if (g_additional_server_config.critical_hits.dynamic_scale && killer_player->stats) {
+                if (g_alpine_server_config_active_rules.critical_hits.dynamic_scale && killer_player->stats) {
                     auto* killer_stats = static_cast<PlayerStatsNew*>(killer_player->stats);
 
                     bonus_chance = 0.1f * std::min(killer_stats->damage_given_current_life /
-                        g_additional_server_config.critical_hits.dynamic_damage_for_max_bonus, 1.0f);
+                        g_alpine_server_config_active_rules.critical_hits.dynamic_damage_bonus_ceiling, 1.0f);
                 }
 
                 float critical_hit_chance = base_chance + bonus_chance;
-                xlog::debug("Critical hit chance: {:.2f}", critical_hit_chance);
+                //xlog::debug("Critical hit chance: {:.2f}", critical_hit_chance);
 
                 std::uniform_real_distribution<float> dist_crit(0.0f, 1.0f);
                 float random_value = dist_crit(g_rng);
@@ -1001,8 +737,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                     damage *= (!rf::multi_powerup_has_player(killer_player, 1)) ? rf::g_multi_damage_modifier : 1.0f;
 
                     // On a crit, add amp for a duration
-                    int amp_time_to_add = rf::multi_powerup_get_time_until(killer_player, 1) +
-                                          g_additional_server_config.critical_hits.reward_duration;
+                    int amp_time_to_add = rf::multi_powerup_get_time_until(killer_player, 1) + g_alpine_server_config_active_rules.critical_hits.reward_duration;
 
                     rf::multi_powerup_add(killer_player, 1, amp_time_to_add);
 
@@ -1038,7 +773,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             auto* damaged_player_stats = static_cast<PlayerStatsNew*>(damaged_player->stats);
             damaged_player_stats->add_damage_received(real_damage);
 
-            if (g_additional_server_config.damage_notifications.enabled && damaged_player && killer_player) {
+            if (g_alpine_server_config.damage_notification_config.enabled && damaged_player && killer_player) {
                 if (!(!damaged_ep || rf::entity_is_dying(damaged_ep) || rf::player_is_dead(damaged_player))) {
 
                     // use new packet for clients that can process it (Alpine 1.1+)
@@ -1050,7 +785,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                             is_dead,
                             killer_player);
                     }
-                    else if (g_additional_server_config.damage_notifications.support_legacy_clients) {
+                    else if (g_alpine_server_config.damage_notification_config.support_legacy_clients) {
                         //xlog::warn("sending legacy notify to {}", killer_player->name);
                         send_hit_sound_packet(killer_player); // fallback for old clients
                     }
@@ -1074,48 +809,35 @@ CallHook<int(const char*)> item_lookup_type_hook{
     [](const char* cls_name) {
         if (rf::is_dedicated_server) {
             // support item replacement mapping
-            auto it = g_additional_server_config.item_replacements.find(cls_name);
-            if (it != g_additional_server_config.item_replacements.end())
+            auto it = g_alpine_server_config_active_rules.item_replacements.find(cls_name);
+            if (it != g_alpine_server_config_active_rules.item_replacements.end())
                 cls_name = it->second.c_str();
         }
         return item_lookup_type_hook.call_target(cls_name);
     },
 };
 
-/* CallHook<void(int, const char*, int, int, const rf::Vector3*, const rf::Matrix3*, int, bool, bool)>
-    item_create_hook{
-    0x00465175,
-    [](int type, const char* name, int count, int parent_handle, const rf::Vector3* pos,
-        const rf::Matrix3* orient, int respawn_time, bool permanent, bool from_packet) {
-
-        // when creating it, check if a spawn time override is configured for this item
-        if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
-            it != g_additional_server_config.item_respawn_time_overrides.end()) {
-            respawn_time = it->second;
-            //xlog::warn("Overriding respawn time for item '{}' to {} ms", name, respawn_time);
-        }
-
-        return item_create_hook.call_target(type, name, count, parent_handle, pos, orient, respawn_time, permanent, from_packet);
-    }
-};*/
-
-
+// legacy client compatible
 CallHook<int(const char*)> find_default_weapon_for_entity_hook{
     0x004A43DA,
     [](const char* weapon_name) {
-        if (rf::is_dedicated_server && !g_additional_server_config.default_player_weapon.empty()) {
-            weapon_name = g_additional_server_config.default_player_weapon.c_str();
+        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.gungame.enabled) {
+            weapon_name = g_alpine_server_config_active_rules.default_player_weapon.weapon_name.data();
         }
         return find_default_weapon_for_entity_hook.call_target(weapon_name);
     },
 };
 
+// legacy client compatible
 CallHook<void(rf::Player*, int, int)> give_default_weapon_ammo_hook{
     0x004A4414,
     [](rf::Player* player, int weapon_type, int ammo) {
-        if (g_additional_server_config.default_player_weapon_ammo) {
-            ammo = g_additional_server_config.default_player_weapon_ammo.value();
+        // if not using loadouts, this adjusts spawn weapon reserve ammo to match our clip config
+        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.spawn_loadout.loadouts_active) {
+            ammo = rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
+                   g_alpine_server_config_active_rules.default_player_weapon.num_clips;
         }
+
         give_default_weapon_ammo_hook.call_target(player, weapon_type, ammo);
     },
 };
@@ -1130,24 +852,21 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
     },
 };
 
-// multi_spawn_player_server_side
-FunHook<void(rf::Player*)> spawn_player_sync_ammo_hook{
-    0x00480820,
-    [](rf::Player* player) {
-        spawn_player_sync_ammo_hook.call_target(player);
-        // if default player weapon has ammo override sync ammo using additional reload packet
-        if (g_additional_server_config.default_player_weapon_ammo && !rf::player_is_dead(player)) {
-            rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
-            RF_ReloadPacket packet;
-            packet.header.type = RF_GPT_RELOAD;
-            packet.header.size = sizeof(packet) - sizeof(packet.header);
-            packet.entity_handle = entity->handle;
-            int weapon_type = entity->ai.current_primary_weapon;
-            packet.weapon = weapon_type;
-            packet.clip_ammo = entity->ai.clip_ammo[weapon_type];
-            int ammo_type = rf::weapon_types[weapon_type].ammo_type;
-            packet.ammo = entity->ai.ammo[ammo_type];
-            rf::multi_io_send_reliable(player, reinterpret_cast<uint8_t*>(&packet), sizeof(packet), 0);
+// handle spawn loadouts (not legacy client compatible)
+CodeInjection player_create_entity_default_weapon_injection {
+    0x004A43F6,
+    [](auto& regs) {
+        if (rf::is_dedicated_server &&
+            g_alpine_server_config_active_rules.spawn_loadout.loadouts_active &&
+            !g_alpine_server_config_active_rules.gungame.enabled // no loadouts when gungame is on
+            ) {
+            rf::Player* player = regs.ebp;
+
+            for (auto const& e : g_alpine_server_config_active_rules.spawn_loadout.red_weapons) {
+                rf::player_add_weapon(player, e.index, e.reserve_ammo);
+                rf::player_set_default_primary(player, e.index);
+            }
+            regs.eip = 0x004A4481;
         }
     },
 };
@@ -1158,7 +877,7 @@ CallHook<void(char*)> get_mod_name_require_client_mod_hook{
         0x004B32A3, // init_anticheat_checksums
     },
     [](char* mod_name) {
-        if (!rf::is_dedicated_server || g_additional_server_config.require_client_mod) {
+        if (!rf::is_dedicated_server || g_alpine_server_config.require_client_mod) {
             get_mod_name_require_client_mod_hook.call_target(mod_name);
         }
         else {
@@ -1188,10 +907,13 @@ CodeInjection send_ping_time_wrap_fix{
 CodeInjection multi_on_new_player_injection{
     0x0047B013,
     [](auto& regs) {
-        rf::Player* player = regs.esi;
-        in_addr addr;
-        addr.S_un.S_addr = ntohl(player->net_data->addr.ip_addr);
-        rf::console::print("{}{} ({})", player->name,  rf::strings::has_joined, inet_ntoa(addr));
+        // ADS version is in handled in process_join_req_packet_hook in network.cpp
+        if (!g_dedicated_launched_from_ads) {
+            rf::Player* player = regs.esi;
+            in_addr addr;
+            addr.S_un.S_addr = ntohl(player->net_data->addr.ip_addr);
+            rf::console::print("{}{} ({})", player->name,  rf::strings::has_joined, inet_ntoa(addr));
+        }
         regs.eip = 0x0047B051;
     },
 };
@@ -1476,7 +1198,7 @@ bool get_ready_status(const rf::Player* player)
 
 void match_do_frame()
 {
-    if (!g_additional_server_config.vote_match.enabled) {
+    if (!g_alpine_server_config.alpine_restricted_config.vote_match.enabled) {
         return;
     }
 
@@ -1548,10 +1270,10 @@ int count_spawned_players()
 
 void update_player_active_status(rf::Player* player)
 {
-    if (rf::is_dedicated_server && g_additional_server_config.inactivity.enabled) {
+    if (rf::is_dedicated_server && g_alpine_server_config.inactivity_config.enabled) {
         auto& additional_data = get_player_additional_data(player);
         additional_data.idle_kick_timestamp.invalidate();
-        additional_data.idle_check_timestamp.set(g_additional_server_config.inactivity.allowed_inactive_ms);    
+        additional_data.idle_check_timestamp.set(g_alpine_server_config.inactivity_config.allowed_inactive_ms);    
         //xlog::warn("player {} active now! timestamp {}", player->name, get_player_additional_data(player).last_activity_ms);
     }
 }
@@ -1571,7 +1293,7 @@ bool is_player_idle(rf::Player* player)
 void player_idle_check(rf::Player* player)
 {
     const auto& additional_data = get_player_additional_data(player);
-    if (!g_additional_server_config.inactivity.enabled) {
+    if (!g_alpine_server_config.inactivity_config.enabled) {
         return; // don't continue if inactivity monitoring is disabled
     }
 
@@ -1582,6 +1304,10 @@ void player_idle_check(rf::Player* player)
         return; // don't continue if a kick is already pending
     }
 
+    if (rf::gameseq_get_state() != rf::GS_GAMEPLAY) {
+        return; // don't mark players as idle unless we're in gameplay
+    }
+
     if (additional_data.is_browser || ends_with(player->name, " (Bot)")) {
         return; // don't mark browsers or bots as idle
     }
@@ -1590,18 +1316,18 @@ void player_idle_check(rf::Player* player)
         return; // don't mark players as idle during a match or pre-match
     }
 
-    if (player->net_data->join_time_ms > (rf::timer_get_milliseconds() - g_additional_server_config.inactivity.new_player_grace_ms)) {
+    if (player->net_data->join_time_ms > (rf::timer_get_milliseconds() - g_alpine_server_config.inactivity_config.new_player_grace_ms)) {
         return; // don't mark new players as idle
     }
 
     if (is_player_idle(player)) {
         rf::console::print("{} is idle and will be kicked if they don't spawn within 10 seconds.", player->name);
-        std::string msg = std::format("\xA6 {}", g_additional_server_config.inactivity.kick_message);
+        std::string msg = std::format("\xA6 {}", g_alpine_server_config.inactivity_config.kick_message);
         send_chat_line_packet(msg.c_str(), player);
 
         // set timer to kick them after 10 seconds
         if (!additional_data.idle_kick_timestamp.valid()) {
-            get_player_additional_data(player).idle_kick_timestamp.set(g_additional_server_config.inactivity.warning_duration_ms);
+            get_player_additional_data(player).idle_kick_timestamp.set(g_alpine_server_config.inactivity_config.warning_duration_ms);
         }
     }
 }
@@ -1610,25 +1336,29 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
     0x00480820,
     [](rf::Player* player) {
         update_player_active_status(player); // active pulse on spawn
+        const auto& pad = get_player_additional_data(player);
 
-        if (g_additional_server_config.force_player_character) {
-            player->settings.multi_character = g_additional_server_config.force_player_character.value();
+        if (g_alpine_server_config_active_rules.force_character.enabled) {
+            player->settings.multi_character = g_alpine_server_config_active_rules.force_character.character_index;
         }
-        if (g_additional_server_config.clients_require_alpine) {
-            if (!get_player_additional_data(player).is_alpine) {
+        if (g_alpine_server_config.alpine_restricted_config.clients_require_alpine) {
+            if (!pad.is_alpine) {
                 send_chat_line_packet("\xA6 You must upgrade to Alpine Faction to play here. Learn more at alpinefaction.com", player);
                 return;
             }
-            else if (g_additional_server_config.alpine_require_release_build &&
-                get_player_additional_data(player).alpine_version_type != VERSION_TYPE_RELEASE) {
-                send_chat_line_packet("\xA6 This server requires you to use an official build of Alpine Faction. Download the latest official build at alpinefaction.com", player);
+            else if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
+                pad.alpine_version_type != VERSION_TYPE_RELEASE) {
+                send_chat_line_packet("\xA6 This server requires an official Alpine Faction build. Get it at alpinefaction.com", player);
                 return;
             }
-            else if (g_additional_server_config.alpine_server_version_enforce_min &&
-                     (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR ||
-                      get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
-                send_chat_line_packet("\xA6 This server requires you to use a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
-                return;
+            else if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min) {
+                auto needs_update = [](int client_major, int client_minor, int req_major, int req_minor) {
+                    return (client_major < req_major) || (client_major == req_major && client_minor < req_minor);
+                };
+                if (needs_update(pad.alpine_version_major, pad.alpine_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
+                    send_chat_line_packet("\xA6 This server requires a newer version of Alpine Faction. Download the update at alpinefaction.com", player);
+                    return;
+                }
             }
         }
         if (!check_player_ac_status(player)) {
@@ -1638,9 +1368,9 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             send_chat_line_packet("\xA6 You cannot spawn because a match is in progress. Please feel free to spectate.", player);
             return;
         }
-        if (g_additional_server_config.desired_player_count < 32 &&
+        if (g_alpine_server_config_active_rules.ideal_player_count < 32 &&
             ends_with(player->name, " (Bot)") &&
-            count_spawned_players() >= g_additional_server_config.desired_player_count) {
+            count_spawned_players() >= g_alpine_server_config_active_rules.ideal_player_count) {
             std::string msg = std::format("\xA6 You're a bot and you can't spawn right now.");
 
             send_chat_line_packet(msg.c_str(), player);
@@ -1649,18 +1379,27 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         multi_spawn_player_server_side_hook.call_target(player);
 
-        if (g_additional_server_config.gungame.enabled && player) {
+        if (g_alpine_server_config_active_rules.gungame.enabled && player) {
             gungame_on_player_spawn(player);
-            //multi_update_gungame_weapon(player, true);            
+            //multi_update_gungame_weapon(player, true);
         }
 
-        rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
-        if (ep) {
-            if (g_additional_server_config.spawn_life > -1.0f) {
-                ep->life = g_additional_server_config.spawn_life;
+        if (player) {
+            if (auto* ep = rf::entity_from_handle(player->entity_handle)) {
+                if (g_alpine_server_config_active_rules.spawn_life.enabled) {
+                    ep->life = g_alpine_server_config_active_rules.spawn_life.value;
+                }
+                if (g_alpine_server_config_active_rules.spawn_armour.enabled) {
+                    ep->armor = g_alpine_server_config_active_rules.spawn_armour.value;
+                }
             }
-            if (g_additional_server_config.spawn_armor > -1.0f) {
-                ep->armor = g_additional_server_config.spawn_armor;
+
+            // inform newly spawned players of their loadout
+            if (rf::is_dedicated_server &&
+                (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
+                !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
+                ) {
+                af_send_just_spawned_loadout(player, g_alpine_server_config_active_rules.spawn_loadout.red_weapons);
             }
         }
 
@@ -1735,31 +1474,35 @@ FunHook<void(rf::Entity*, rf::Weapon*)> multi_lag_comp_weapon_fire_hook{
 
 void server_reliable_socket_ready(rf::Player* player)
 {
+    auto& data = get_player_additional_data(player);
+
     // welcome players, restricting to only welcoming alpine clients if configured
-    if (!g_additional_server_config.welcome_message.empty()) {
-        if (!g_additional_server_config.only_welcome_alpine || get_player_additional_data(player).is_alpine) {
-            auto msg = string_replace(g_additional_server_config.welcome_message, "$PLAYER", player->name.c_str());
+    if (g_alpine_server_config_active_rules.welcome_message.enabled) {
+        if (!g_alpine_server_config.alpine_restricted_config.only_welcome_alpine || data.is_alpine) {
+            auto msg = string_replace(g_alpine_server_config_active_rules.welcome_message.welcome_message, "$PLAYER", player->name.c_str());
             send_chat_line_packet(msg.c_str(), player);
         }
     }
 
     // alert alpine clients to the queued match on join
-    if (g_match_info.pre_match_active && get_player_additional_data(player).is_alpine) {    
+    if (g_match_info.pre_match_active && data.is_alpine) {    
         auto msg = std::format("\xA6 Match is queued and waiting for players: {}v{}! Use \"/ready\" to ready up.",
             g_match_info.team_size, g_match_info.team_size);
 
         send_chat_line_packet(msg.c_str(), player);
     }
 
+    int pm = data.alpine_version_major;
+    int pn = data.alpine_version_minor;
+
     // advertise AF to non-alpine clients if configured
-    if (g_additional_server_config.advertise_alpine) {
-        if (!get_player_additional_data(player).is_alpine) {
+    if (g_alpine_server_config.alpine_restricted_config.advertise_alpine) {
+        if (!data.is_alpine) {
             auto msg = std::format(
                 "\xA6 Have you heard of Alpine Faction? It's a new patch with lots of new and modern features! This server encourages you to upgrade for the best player experience. Learn more at alpinefaction.com");
             send_chat_line_packet(msg.c_str(), player);
         }
-        else if (VERSION_TYPE == VERSION_TYPE_RELEASE &&
-            (get_player_additional_data(player).alpine_version_major < VERSION_MAJOR || get_player_additional_data(player).alpine_version_minor < VERSION_MINOR)) {
+        else if (VERSION_TYPE == VERSION_TYPE_RELEASE && (pm < VERSION_MAJOR || (pm == VERSION_MAJOR && pn < VERSION_MINOR))) {
             auto msg = std::format("\xA6 A new version of Alpine Faction is available! Learn more at alpinefaction.com");
             send_chat_line_packet(msg.c_str(), player);
         }
@@ -1772,6 +1515,12 @@ CodeInjection multi_limbo_init_injection{
         if (!rf::player_list) {
             xlog::trace("Wait between levels shortened because server is empty");
             addr_as_ref<int>(regs.esp) = 100;
+        }
+        else {
+            auto player_list = SinglyLinkedList{rf::player_list};
+            for (auto& player : player_list) {
+                update_player_active_status(&player);
+            }
         }
 
         if (g_match_info.match_active) {
@@ -1790,7 +1539,7 @@ CodeInjection multi_limbo_init_injection{
 CodeInjection multi_level_init_injection{
     0x0046E450,
     [](auto& regs) {
-        if (g_additional_server_config.dynamic_rotation && rf::netgame.current_level_index ==
+        if (g_alpine_server_config.dynamic_rotation && rf::netgame.current_level_index ==
                     rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
                 // if this is the last level in the list and dynamic rotation is on, shuffle
                 shuffle_level_array();
@@ -1837,7 +1586,7 @@ bool round_is_tied(rf::NetGameType game_type)
             return true;
         }
 
-        if (g_additional_server_config.overtime.tie_if_flag_stolen) {        
+        if (g_alpine_server_config.alpine_restricted_config.overtime.consider_tie_if_flag_stolen) {        
             bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
             bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
 
@@ -1904,13 +1653,13 @@ FunHook<void()> multi_check_for_round_end_hook{
         if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
             //xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_additional_server_config.overtime.enabled, g_is_overtime, round_is_tied(game_type));
 
-            if (time_up && g_additional_server_config.overtime.enabled && !g_is_overtime && round_is_tied(game_type)) {
+            if (time_up && g_alpine_server_config.alpine_restricted_config.overtime.enabled && !g_is_overtime && g_match_info.match_active && round_is_tied(game_type)) {
                 g_is_overtime = true;
-                extend_round_time(g_additional_server_config.overtime.additional_time);
+                extend_round_time(g_alpine_server_config.alpine_restricted_config.overtime.additional_time);
 
                 std::string msg = std::format("\xA6 OVERTIME! Game will end when the tie is broken");
-                msg += g_additional_server_config.overtime.additional_time > 0
-                           ? std::format(", or in {} minutes!", g_additional_server_config.overtime.additional_time)
+                msg += g_alpine_server_config.alpine_restricted_config.overtime.additional_time > 0
+                           ? std::format(", or in {} minutes!", g_alpine_server_config.alpine_restricted_config.overtime.additional_time)
                            : "!";
                 send_chat_line_packet(msg.c_str(), nullptr);
             }
@@ -2027,7 +1776,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         const int team = player->team;
         const int last_index = pdata.last_spawn_point_index.value_or(-1);
         const bool is_team_game = multi_is_team_game_type();
-        const auto& config = g_additional_server_config.new_spawn_logic;
+        const auto& config = g_alpine_server_config_active_rules.spawn_logic;
 
         //xlog::debug("Spawn point requested! Player: {}, Team: {}, Last Spawn Index: {}", player->name, team, last_index);
 
@@ -2173,9 +1922,11 @@ void adjust_yaw_to_face_center(rf::Matrix3& orient, const rf::Vector3& pos, cons
 }
 
 void process_queued_spawn_points_from_items()
-{    
-    if (g_additional_server_config.new_spawn_logic.allowed_respawn_items.empty()) {
-        return; // early return if no spawn points are to be generated
+{
+    const auto& logic = g_alpine_server_config_active_rules.spawn_logic;
+
+    if (!rf::is_dedicated_server || !logic.dynamic_respawns || logic.dynamic_respawn_items.empty()) {
+        return;
     }
 
     auto map_center = likely_position_of_central_item;
@@ -2202,22 +1953,26 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
        int respawn_time, bool permanent, bool from_packet) {
 
         // when creating it, check if a spawn time override is configured for this item
-        if (auto it = g_additional_server_config.item_respawn_time_overrides.find(name);
-            it != g_additional_server_config.item_respawn_time_overrides.end()) {
+        if (auto it = g_alpine_server_config_active_rules.item_respawn_time_overrides.find(name);
+            it != g_alpine_server_config_active_rules.item_respawn_time_overrides.end()) {
             respawn_time = it->second;
         }
 
-        if (rf::is_dedicated_server && !g_additional_server_config.new_spawn_logic.allowed_respawn_items.empty()) {
-            const auto& allowed_items = g_additional_server_config.new_spawn_logic.allowed_respawn_items;
+        const auto& logic = g_alpine_server_config_active_rules.spawn_logic;
+        if (rf::is_dedicated_server && logic.dynamic_respawns) {
+            // look up this item in the vector
+            auto itcfg = std::find_if(logic.dynamic_respawn_items.begin(), logic.dynamic_respawn_items.end(),
+                                      [&](auto const& cfg) { return cfg.item_name == name; });
 
-            auto it = allowed_items.find(name);
-            if (it != allowed_items.end() &&
-                (!it->second || it->second == 0 || *it->second > static_cast<int>(g_new_multi_respawn_points.size()))) {
-
-                queued_item_spawn_points.emplace_back(std::string(name), *pos, *orient);                
+            if (itcfg != logic.dynamic_respawn_items.end()) {
+                int threshold = itcfg->min_respawn_points;
+                // queue if no threshold or we're under it
+                if (threshold == 0 || threshold > static_cast<int>(g_new_multi_respawn_points.size())) {
+                    queued_item_spawn_points.emplace_back(std::string(name), *pos, *orient);
+                }
             }
 
-            // make best guess at the center of the map
+            // attempt to isolate the center of the map based on items likely located there
             int item_priority = get_item_priority(name);
             if (item_priority < static_cast<int>(possible_central_item_names.size())) {
                 if (!likely_position_of_central_item || item_priority < current_center_item_priority) {
@@ -2237,7 +1992,7 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
     rf::WeaponInfo& winfo = rf::weapon_types[weapon_type];
     int ammo_count = winfo.clip_size;
     if (full_ammo) {
-        if (g_additional_server_config.gungame.enabled && !rf::weapon_uses_clip(weapon_type)) {
+        if (g_alpine_server_config_active_rules.gungame.enabled && !rf::weapon_uses_clip(weapon_type)) {
             // hackfix: in gungame, set max ammo to 999 for non-clip weapons
             winfo.max_ammo = 9999;
         }        
@@ -2294,45 +2049,33 @@ void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
     }
 }
 
-// drop_amps and bagman
+// should amps drop on player death?
 CodeInjection entity_maybe_die_patch{
     0x00420600,
     [](auto& regs) {
-        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) &&
-            (g_additional_server_config.drop_amps || g_additional_server_config.bagman.enabled)) {
-
+        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) && g_alpine_server_config_active_rules.drop_amps) {
             rf::Entity* ep = regs.esi;
 
             if (ep) {
-                //xlog::warn("{} died", ep->name);
                 rf::Player* player = rf::player_from_entity_handle(ep->handle);
 
                 if (rf::multi_powerup_has_player(player, 1)) {
                     int amp_count = 0;
-                    if (g_additional_server_config.bagman.enabled) {
-                        amp_count = 100000;
-                    }
-                    else {
-                        int time_left = rf::multi_powerup_get_time_until(player, 1);
-                        amp_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
-                    }
+                    int time_left = rf::multi_powerup_get_time_until(player, 1);
+                    amp_count = time_left >= 1000 ? time_left : 0;
 
-                    //xlog::warn("amp count {}", amp_count);
-
-                    if (amp_count >= 1) {
-                        entity_drop_powerup(ep, 1, amp_count); 
+                    if (amp_count >= 1000) { // only drop if at least 1 second left
+                        entity_drop_powerup(ep, 1, amp_count / 1000); // item_touch_multi_amp multiplies by 1000
                     }
                 }
 
-                if (g_additional_server_config.drop_amps && rf::multi_powerup_has_player(player, 0)) {
+                if (rf::multi_powerup_has_player(player, 0)) {
                     int invuln_count = 0;
                     int time_left = rf::multi_powerup_get_time_until(player, 0);
-                    invuln_count = time_left >= 1000 ? time_left / 1000 : 0; // item_touch_multi_amp multiplies by 1k
+                    invuln_count = time_left >= 1000 ? time_left : 0;
 
-                    //xlog::warn("invuln count {}", invuln_count);
-
-                    if (invuln_count >= 1) {
-                        entity_drop_powerup(ep, 0, invuln_count);
+                    if (invuln_count >= 1000) { // only drop if at least 1 second left
+                        entity_drop_powerup(ep, 0, invuln_count / 1000); // item_touch_multi_amp multiplies by 1000
                     }
                 }
             }
@@ -2340,8 +2083,8 @@ CodeInjection entity_maybe_die_patch{
     },
 };
 
-// bagman
-CodeInjection item_get_oldest_dynamic_patch{
+// ensure bag isn't purged for being the oldest dropped item (not currently used)
+/* CodeInjection item_get_oldest_dynamic_patch{
     0x00458858,
     [](auto& regs) {
         if (g_additional_server_config.bagman.enabled) {
@@ -2357,7 +2100,7 @@ CodeInjection item_get_oldest_dynamic_patch{
             }
         }
     },
-};
+};*/
 
 CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int)> entity_create_no_collide_hook {
     0x004A41D3,
@@ -2374,7 +2117,7 @@ CallHook<rf::Entity*(int, const char*, int, rf::Vector3*, rf::Matrix3*, int, int
 CodeInjection allow_red_cap_when_stolen_patch{
     0x00473C0A,
     [](auto& regs) {
-        if (g_additional_server_config.flag_captures_while_stolen) {
+        if (g_alpine_server_config_active_rules.flag_captures_while_stolen) {
             regs.eip = 0x00473C2C;
         }
     },
@@ -2383,8 +2126,33 @@ CodeInjection allow_red_cap_when_stolen_patch{
 CodeInjection allow_blue_cap_when_stolen_patch{
     0x00473CB9,
     [](auto& regs) {
-        if (g_additional_server_config.flag_captures_while_stolen) {
+        if (g_alpine_server_config_active_rules.flag_captures_while_stolen) {
             regs.eip = 0x00473CD3;
+        }
+    },
+};
+
+CodeInjection dropped_blue_flag_return_time_patch{
+    0x00473B88,
+    [](auto& regs) {
+        rf::multi_ctf_flag_blue_stolen_timestamp.set(g_alpine_server_config_active_rules.ctf_flag_return_time_ms);
+        regs.eip = 0x00473B97; // skip stock timestamp set call
+    },
+};
+
+CodeInjection dropped_red_flag_return_time_patch{
+    0x00473B28,
+    [](auto& regs) {
+        rf::multi_ctf_flag_red_stolen_timestamp.set(g_alpine_server_config_active_rules.ctf_flag_return_time_ms);
+        regs.eip = 0x00473B37; // skip stock timestamp set call
+    },
+};
+
+CodeInjection sp_damage_calculation_patch{
+    0x0041A373,
+    [](auto& regs) {
+        if (g_alpine_server_config.use_sp_damage_calculation) {
+            regs.eip = 0x0041A3C1;
         }
     },
 };
@@ -2402,19 +2170,39 @@ void server_init()
 
     // Handle dropping amps on death
     entity_maybe_die_patch.install();
-    item_get_oldest_dynamic_patch.install();
+    //item_get_oldest_dynamic_patch.install(); // bagman, not currently used
 
     // Allow players to capture CTF flag even if their own flag is stolen
     allow_red_cap_when_stolen_patch.install();
     allow_blue_cap_when_stolen_patch.install();
+
+    // Set CTF flag return time
+    dropped_blue_flag_return_time_patch.install();
+    dropped_red_flag_return_time_patch.install();
+
+    // SP-style damage calculations (ie. armour doesnt fully protect health)
+    sp_damage_calculation_patch.install();
+
+    // new "info" command for ADS servers
+    dcf_info_hook.install();
 
     // Override rcon command whitelist
     write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);
     write_mem_ptr(0x0046C7D1 + 2, g_rcon_cmd_whitelist + std::size(g_rcon_cmd_whitelist));
 
     // Additional server config
+    dedicated_server_load_config_hook.install(); // asd loading
+    rf_process_command_line_dedicated_server_patch.install(); // set dedi server bool when launching via ads
     dedicated_server_load_config_patch.install();
     dedicated_server_load_post_map_patch.install();
+
+    // handle weapon dropping and infinite magazines
+    entity_drop_weapon_patch.install();
+    entity_reload_current_primary_patch.install();
+
+    // handle weapon stay exemptions
+    weapon_stay_remove_instance_injection.install();
+    weapon_stay_allow_pickup_injection.install();
 
     // Apply customized spawn protection duration
     spawn_protection_duration_patch.install();
@@ -2434,7 +2222,6 @@ void server_init()
     // Default player weapon class and ammo override
     find_default_weapon_for_entity_hook.install();
     give_default_weapon_ammo_hook.install();
-    //spawn_player_sync_ammo_hook.install();
 
     init_server_commands();
 
@@ -2444,6 +2231,9 @@ void server_init()
 
     // In Multi -> Create game fix level filtering so 'pdm' and 'pctf' is supported
     multi_is_level_matching_game_type_hook.install();
+
+    // Support loadouts in ads
+    player_create_entity_default_weapon_injection.install();
 
     // Allow disabling mod name announcement
     get_mod_name_require_client_mod_hook.install();
@@ -2487,6 +2277,10 @@ void server_init()
 
     // Check if round is finished or if overtime should begin
     multi_check_for_round_end_hook.install();
+
+    // initialize -ads and -min switches
+    get_ads_cmd_line_param();
+    get_min_cmd_line_param();
 }
 
 void server_do_frame()
@@ -2510,7 +2304,7 @@ void server_on_limbo_state_enter()
         auto& pdata = get_player_additional_data(&player);
         pdata.saves.clear();
         pdata.last_teleport_timestamp.invalidate();
-        if (g_additional_server_config.stats_message_enabled) {
+        if (g_alpine_server_config.stats_message_enabled) {
             send_private_message_with_stats(&player);
         }
         if (&player != rf::local_player && upcoming_rfl_version > pdata.max_rfl_version) {
@@ -2521,97 +2315,97 @@ void server_on_limbo_state_enter()
 
 bool server_is_saving_enabled()
 {
-    return g_additional_server_config.saving_enabled;
+    return g_alpine_server_config_active_rules.saving_enabled;
 }
 
 bool server_allow_fullbright_meshes()
 {
-    return g_additional_server_config.allow_fullbright_meshes;
+    return g_alpine_server_config.allow_fullbright_meshes;
 }
 
 bool server_allow_lightmaps_only()
 {
-    return g_additional_server_config.allow_lightmaps_only;
+    return g_alpine_server_config.allow_lightmaps_only;
 }
 
 bool server_allow_disable_screenshake()
 {
-    return g_additional_server_config.allow_disable_screenshake;
+    return g_alpine_server_config.allow_disable_screenshake;
 }
 
 bool server_no_player_collide()
 {
-    return g_additional_server_config.no_player_collide;
+    return g_alpine_server_config.alpine_restricted_config.no_player_collide;
 }
 
 bool server_location_pinging()
 {
-    return g_additional_server_config.clients_require_alpine && g_additional_server_config.location_pinging;
+    return g_alpine_server_config.alpine_restricted_config.clients_require_alpine && g_alpine_server_config.alpine_restricted_config.location_pinging;
 }
 
 bool server_allow_disable_muzzle_flash()
 {
-    return g_additional_server_config.allow_disable_muzzle_flash;
+    return g_alpine_server_config.allow_disable_muzzle_flash;
 }
 
 bool server_apply_click_limiter()
 {
-    return g_additional_server_config.apply_click_limiter;
+    return g_alpine_server_config.click_limiter_config.enabled;
 }
 
 bool server_allow_unlimited_fps()
 {
-    return g_additional_server_config.allow_unlimited_fps;
+    return g_alpine_server_config.allow_unlimited_fps;
 }
 
 bool server_gaussian_spread()
 {
-    return g_additional_server_config.gaussian_spread;
+    return g_alpine_server_config.gaussian_spread;
 }
 
 bool server_weapon_items_give_full_ammo()
 {
-    return g_additional_server_config.weapon_items_give_full_ammo;
+    return g_alpine_server_config_active_rules.weapon_items_give_full_ammo;
 }
 
-const ServerAdditionalConfig& server_get_df_config()
+const AlpineServerConfig& server_get_alpine_config()
 {
-    return g_additional_server_config;
+    return g_alpine_server_config;
 }
 
 bool server_is_modded()
 {
-    return !g_additional_server_config.require_client_mod && rf::mod_param.found();
+    return !g_alpine_server_config.require_client_mod && rf::mod_param.found();
 }
 
 bool server_is_match_mode_enabled()
 {
-    return g_additional_server_config.vote_match.enabled;
+    return g_alpine_server_config.alpine_restricted_config.vote_match.enabled;
 }
 
 bool server_is_alpine_only_enabled()
 {
-    return g_additional_server_config.clients_require_alpine;
+    return g_alpine_server_config.alpine_restricted_config.clients_require_alpine;
 }
 
 bool server_rejects_legacy_clients()
 {
-    return g_additional_server_config.reject_non_alpine_clients;
+    return g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients;
 }
 
 bool server_enforces_click_limiter()
 {
-    return g_additional_server_config.apply_click_limiter;
+    return g_alpine_server_config.click_limiter_config.enabled;
 }
 
 bool server_enforces_no_player_collide()
 {
-    return g_additional_server_config.no_player_collide;
+    return g_alpine_server_config.alpine_restricted_config.no_player_collide;
 }
 
 bool server_has_damage_notifications()
 {
-    return g_additional_server_config.damage_notifications.enabled;
+    return g_alpine_server_config.damage_notification_config.enabled;
 }
 
 const AFGameInfoFlags& server_get_game_info_flags()

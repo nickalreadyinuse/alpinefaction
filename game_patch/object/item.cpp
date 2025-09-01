@@ -13,6 +13,7 @@
 #include "../rf/weapon.h"
 #include "../rf/player/player.h"
 #include "../misc/achievements.h"
+#include "../misc/misc.h"
 #include "../multi/server.h"
 
 int item_lookup_type(const char* name)
@@ -138,16 +139,36 @@ CodeInjection item_pickup_patch2 {
     }
 };
 
+CodeInjection item_touch_amp_multi_check {
+    0x0045AAFD,
+    [](auto& regs) {
+        if (!rf::is_multi && af_rfl_version(rf::level.version)) {
+            regs.eip = 0x0045AB11;
+        }
+    }
+};
+
+CodeInjection multi_powerup_add_mp_check {
+    0x004800B5,
+    [](auto& regs) {
+        // eax bool is true if powerup has an associated timer (ie. amp/invuln)
+        // for some reason, only for powerups without timer, game checks again here for mp
+        if (!static_cast<bool>(regs.eax.value) && !rf::is_multi) {
+            regs.eip = 0x00480135;
+        }
+    }
+};
+
 void item_do_patch()
 {
     // activate When_Picked_Up events
     item_pickup_patch.install();
     item_pickup_patch2.install();
 
-    // allow picking up powerups in SP // todo: restrict to Alpine levels
-    AsmWriter(0x0045AAFD).jmp(0x0045AB11); // allow item_touch_multi_amp in SP
-    AsmWriter(0x0048012B).jmp(0x00480135); // allow multi_powerup_add in SP
-    game_level_init_pre_patch.install();   // initialize powerup vars in SP
+    // allow use of MP powerups in SP in alpine levels
+    item_touch_amp_multi_check.install();   // touch
+    multi_powerup_add_mp_check.install();   // apply effect
+    game_level_init_pre_patch.install();    // initialize powerup vars
 
     // Allow overriding weapon items count value
     item_touch_weapon_hook.install();

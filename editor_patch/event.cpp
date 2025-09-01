@@ -25,6 +25,7 @@
 #include "../game_patch/rf/os/array.h"
 #include "exports.h"
 #include "resources.h"
+#include "level.h"
 #include "mfc_types.h"
 #include "vtypes.h"
 #include "event.h"

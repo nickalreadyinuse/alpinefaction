@@ -22,6 +22,16 @@ FunHook<rf::ParticleEmitter*(int, rf::ParticleEmitterType&, rf::GRoom*, rf::Vect
             new_type.flags &= ~rf::PEF_CONTINOUS;
             new_type.min_spawn_delay = std::max(new_type.min_spawn_delay, min_spawn_delay);
             new_type.max_spawn_delay = std::max(new_type.max_spawn_delay, min_spawn_delay);
+
+            // hackfix for particle emitter on dm-birthday.rfl which doesn't render properly with the spawn delay fix
+            if (type.uid == 23616 && rf::level.filename == "dm-birthday.rfl") {
+                new_type.particle_flags &= ~0x4;    // turn off fade
+                new_type.min_spawn_delay = 1.0f;    // set spawn delay to 1 sec
+                new_type.max_spawn_delay = 1.0f;
+                new_type.min_life_secs = 1.0f;      // set decay to 1 sec
+                new_type.max_life_secs = 1.0f;
+            }
+
             return particle_emitter_create_hook.call_target(objh, new_type, room, pos, is_on);
         }
         return particle_emitter_create_hook.call_target(objh, type, room, pos, is_on);

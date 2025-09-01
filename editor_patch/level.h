@@ -1,25 +1,41 @@
 #pragma once
 
-#include <xlog/xlog.h>
-#include "../rf/file/file.h"
+#include <map>
+#include <vector>
+#include <string>
+#include "vtypes.h"
+#include "mfc_types.h"
+#include "resources.h"
 
+constexpr std::size_t stock_cdedlevel_size = 0x608;
 constexpr int alpine_props_chunk_id = 0x0AFBA5ED;
-constexpr int dash_level_props_chunk_id = 0xDA58FA00;
 
-// should match structure in editor_patch\level.h
+// should match structure in game_patch\misc\level.h
 struct AlpineLevelProperties
 {
-    // default values if not set by level file
+    // defaults for new levels
     // v1
-    bool legacy_cyclic_timers = true;
+    bool legacy_cyclic_timers = false;
 
-    static AlpineLevelProperties& instance()
+    static constexpr std::uint32_t current_alpine_chunk_version = 1u;
+
+    // defaults for existing levels, overwritten for maps with these fields in their alpine level props chunk
+    // relevant for maps without alpine level props and maps with older alpine level props versions
+    // should always match stock game behaviour
+    void LoadDefaults()
     {
-        static AlpineLevelProperties instance;
-        return instance;
+        legacy_cyclic_timers = true;
     }
 
-    void deserialize(rf::File& file, std::size_t chunk_len)
+    void Serialize(rf::File& file) const
+    {
+        file.write<std::uint32_t>(current_alpine_chunk_version);
+
+        // v1
+        file.write<std::uint8_t>(legacy_cyclic_timers ? 1u : 0u);
+    }
+
+    void Deserialize(rf::File& file, std::size_t chunk_len)
     {
         std::size_t remaining = chunk_len;
 
@@ -74,20 +90,30 @@ struct AlpineLevelProperties
     }
 };
 
-struct DashLevelProps
+struct CDedLevel
 {
-    // default values for if not set
-    bool lightmaps_full_depth = false; // since DashLevelProps v1
+    char padding_before_selection[0x298];
+    VArray<int> selection;
+    char padding_after_selection[0x608 - (0x298 + 0xC)];
 
-    static DashLevelProps& instance()
+    std::size_t BeginRflSection(rf::File& file, int chunk_id)
     {
-        static DashLevelProps instance;
-        return instance;
+        return AddrCaller{0x00430B60}.this_call<std::size_t>(this, &file, chunk_id);
     }
 
-    void deserialize(rf::File& file)
+    void EndRflSection(rf::File& file, std::size_t start_pos)
     {
-        lightmaps_full_depth = file.read<std::uint8_t>();
-        xlog::debug("[DashLevelProps] lightmaps_full_depth {}", lightmaps_full_depth);
+        return AddrCaller{0x00430B90}.this_call(this, &file, start_pos);
+    }
+
+    AlpineLevelProperties& GetAlpineLevelProperties()
+    {
+        return struct_field_ref<AlpineLevelProperties>(this, stock_cdedlevel_size);
+    }
+
+    static CDedLevel* Get()
+    {
+        return AddrCaller{0x004835F0}.c_call<CDedLevel*>();
     }
 };
+static_assert(sizeof(CDedLevel) == 0x608);

@@ -563,14 +563,6 @@ static_assert(offsetof(CEventDialog, field_5C) == 0x5C, "field_5C offset mismatc
 static_assert(offsetof(CEventDialog, field_98) == 0x98, "field_98 offset mismatch!");
 static_assert(offsetof(CEventDialog, field_1724) == 0x1724, "field_1724 offset mismatch!");
 
-struct CDedLevel
-{
-    char padding_before_selection[0x298];
-    VArray<int> selection;
-    char padding_after_selection[0x608 - (0x298 + 0xC)];
-};
-static_assert(sizeof(CDedLevel) == 0x608);
-
 struct CCmdTarget_mbrs
 {
     char padding[0x18];
@@ -614,26 +606,14 @@ struct VFile
     {
         AddrCaller{0x004D1820}.this_call(this, mat, ver, deflt);
     }
+
+    int get_version()
+    {
+        AddrCaller{0x004CF680}.this_call(this);
+    }
 };
 static_assert(sizeof(VFile) == 0x114);
 
 bool get_is_saving_af_version();
 
 static auto& editor_file_default_matrix = *reinterpret_cast<Matrix3*>(0x01642060);
-
-//static auto DDX_Control = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CWnd*)>(0x005394EF);
-//static auto DDX_Text = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CString*)>(0x0053929C);
-//static auto DDX_Check = *reinterpret_cast<int(__stdcall*)(CDataExchange*, int, int*)>(0x005392EE);
-
-//static auto& DDX_Control = addr_as_ref<void(__stdcall)(CDataExchange*, int, CWnd*)>(0x005394EF);
-//static auto& DDX_Text = addr_as_ref<void(__stdcall)(CDataExchange*, int, CString*)>(0x0053929C);
-//static auto& DDX_Check = addr_as_ref<int(__stdcall)(CDataExchange*, int, int*)>(0x005392EE);
-
-
-// console is still broken
-//static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
-//static auto& console_open = addr_as_ref<char()>(0x004D66A0);
-//static auto& console_visible = *reinterpret_cast<bool*>(0x0171C214);
-//static auto& console_is_visible = addr_as_ref<bool()>(0x004D66C0);
-//static auto& console_update = addr_as_ref<void(bool)>(0x004D58C0);
-//static auto& console_init = addr_as_ref<void(char)>(0x004D66F0);

@@ -125,9 +125,11 @@ namespace rf
         NG_FLAG_RANDOM_MAP_ROTATION = 0x8,
         NG_FLAG_WEAPON_STAY = 0x10,
         NG_FLAG_FORCE_RESPAWN = 0x20,
+        NG_FLAG_TEAM_DAMAGE_LOW = 0x40,
         NG_FLAG_FALL_DAMAGE = 0x80,
         NG_FLAG_REAL_FALL_DAMAGE = 0x100,
-        NG_FLAG_TEAM_DAMAGE = 0x240,
+        NG_FLAG_TEAM_DAMAGE_HIGH = 0x200,
+        NG_FLAG_TEAM_DAMAGE = 0x240, // unsure why this is split into two
         NG_FLAG_NOT_LAN_ONLY = 0x400,
         NG_FLAG_BALANCE_TEAMS = 0x2000,
     };
@@ -147,7 +149,7 @@ namespace rf
         int max_captures;
         NetAddr server_addr;
         int current_level_index;
-        VArray<String> levels;
+        VArray_String<String> levels;
     };
 
     enum class ChatMsgColor
@@ -174,6 +176,11 @@ namespace rf
     static auto& multi_time_limit = addr_as_ref<float>(0x0064EC4C);
     static auto& multi_kill_limit = addr_as_ref<int>(0x0064EC50);
     static auto& multi_cap_limit = addr_as_ref<int>(0x0064EC58);
+    static auto& multi_geo_limit = addr_as_ref<int>(0x0064EC54);
+    static auto& multi_max_players = addr_as_ref<int>(0x0064EC44);
+    static auto& multi_server_flags = addr_as_ref<NetGameFlags>(0x0064EC40);
+    static auto& multi_game_type = addr_as_ref<int>(0x0064EC3C);
+    static auto& multi_level_switch_queued = addr_as_ref<int>(0x0064EC64);
     static auto& ctf_flag_cooldown_timestamp = addr_as_ref<Timestamp>(0x006C74F4);
     static auto& multi_ctf_drop_flag = addr_as_ref<void(Player* pp)>(0x00473F40);
     static auto& multi_ctf_get_red_team_score = addr_as_ref<uint8_t()>(0x00475020);
@@ -184,6 +191,8 @@ namespace rf
     static auto& multi_ctf_is_blue_flag_in_base = addr_as_ref<bool()>(0x00474EA0);
     static auto& multi_ctf_get_blue_flag_pos = addr_as_ref<Vector3*(Vector3*)>(0x00474F40);
     static auto& multi_ctf_get_red_flag_pos = addr_as_ref<Vector3*(Vector3*)>(0x00474EC0);
+    static auto& multi_ctf_flag_blue_stolen_timestamp = addr_as_ref<Timestamp>(0x006C7544);
+    static auto& multi_ctf_flag_red_stolen_timestamp = addr_as_ref<Timestamp>(0x006C754C);
     static auto& ctf_red_flag_item = addr_as_ref<Object*>(0x006C7560);
     static auto& ctf_blue_flag_item = addr_as_ref<Object*>(0x006C7564);
     static auto& ctf_red_flag_pos = addr_as_ref<Vector3>(0x006C7500);

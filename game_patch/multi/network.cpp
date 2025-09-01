@@ -194,7 +194,9 @@ enum packet_type : uint8_t {
     af_ping_location_req   = 0x50,
     af_ping_location       = 0x51,
     af_damage_notify       = 0x52,
-    af_obj_update          = 0x53
+    af_obj_update          = 0x53,
+    af_client_req          = 0x55,
+    af_just_spawned_info   = 0x56
 };
 
 // client -> server
@@ -220,6 +222,7 @@ std::array g_server_side_packet_whitelist{
     rcon_request,
     rcon,
     af_ping_location_req,
+    af_client_req
 };
 
 // server -> client
@@ -270,6 +273,7 @@ std::array g_client_side_packet_whitelist{
     af_ping_location,
     af_damage_notify,
     af_obj_update,
+    af_just_spawned_info
 };
 // clang-format on
 
@@ -859,10 +863,10 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_is_saving_enabled()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::saving_enabled;
         }
-        if (server_get_df_config().max_fov) {
-            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::max_fov;
-            ext_data.max_fov = server_get_df_config().max_fov.value();
-        }
+        //if (server_get_df_config().max_fov) {
+        //    ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::max_fov;
+        //    ext_data.max_fov = server_get_df_config().max_fov.value();
+        //}
         if (server_allow_fullbright_meshes()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_fb_mesh;
         }
@@ -880,7 +884,7 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         }
         if (server_apply_click_limiter()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::click_limit;
-            ext_data.semi_auto_cooldown = server_get_df_config().semi_auto_cooldown.value();
+            ext_data.semi_auto_cooldown = server_get_alpine_config().click_limiter_config.cooldown;
         }
         if (server_allow_unlimited_fps()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::unlimited_fps;
@@ -944,36 +948,34 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     [](int pPacket, rf::NetAddr* addr) {        
         process_join_req_packet_hook.call_target(pPacket, addr);
 
-        if (g_joining_player_is_alpine) {
-            rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
-            if (alpine_player){
-                get_player_additional_data(alpine_player).is_alpine = true;
-                get_player_additional_data(alpine_player).alpine_version_major = g_joining_player_info.version_major;
-                get_player_additional_data(alpine_player).alpine_version_minor = g_joining_player_info.version_minor;
+        if (rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr)) {
+            if (g_joining_player_is_alpine) {
+                //rf::Player* alpine_player = rf::multi_find_player_by_addr(*addr);
+                if (alpine_player){
+                    get_player_additional_data(alpine_player).is_alpine = true;
+                    get_player_additional_data(alpine_player).alpine_version_major = g_joining_player_info.version_major;
+                    get_player_additional_data(alpine_player).alpine_version_minor = g_joining_player_info.version_minor;
 
-                // Alpine 1.0.0 doesn't provide ver_type or max_rfl_ver
-                if (g_joining_player_info.version_minor < 1) {
-                    get_player_additional_data(alpine_player).alpine_version_type = VERSION_TYPE_RELEASE; 
-                    get_player_additional_data(alpine_player).max_rfl_version = 300; // Alpine 1.0.0 clients
-                }
-                else {
-                    get_player_additional_data(alpine_player).alpine_version_type = g_joining_player_info.version_type;
-                    get_player_additional_data(alpine_player).max_rfl_version = g_joining_player_info.max_rfl_version;
-                }
+                    // Alpine 1.0.0 doesn't provide ver_type or max_rfl_ver
+                    if (g_joining_player_info.version_minor < 1) {
+                        get_player_additional_data(alpine_player).alpine_version_type = VERSION_TYPE_RELEASE; 
+                        get_player_additional_data(alpine_player).max_rfl_version = 300; // Alpine 1.0.0 clients
+                    }
+                    else {
+                        get_player_additional_data(alpine_player).alpine_version_type = g_joining_player_info.version_type;
+                        get_player_additional_data(alpine_player).max_rfl_version = g_joining_player_info.max_rfl_version;
+                    }
                 
-                auto player_data = get_player_additional_data(alpine_player);
+                    auto player_data = get_player_additional_data(alpine_player);
+                }
+                g_joining_player_info = {};
+                g_joining_player_is_alpine = false;
             }
-            g_joining_player_info = {};
-            g_joining_player_is_alpine = false;
-        }
 
-        /* rf::Player* player = rf::multi_find_player_by_addr(*addr);
-        xlog::warn("{} is {}an Alpine client! Running Alpine {}.{}-{} with max rfl version {}",
-                   player->name, get_player_additional_data(player).is_alpine ? "" : "NOT ",
-                   get_player_additional_data(player).alpine_version_major,
-                   get_player_additional_data(player).alpine_version_minor,
-                   get_player_additional_data(player).alpine_version_type,
-                   get_player_additional_data(player).max_rfl_version);*/
+            if (g_dedicated_launched_from_ads) {
+                print_player_info(alpine_player, true);
+            }
+        }
     },
 };
 
@@ -994,7 +996,7 @@ CodeInjection process_join_req_injection{
 CodeInjection process_join_req_injection2 {
     0x0047ADAB,
     [](auto& regs) {
-        if (!g_joining_player_is_alpine && g_additional_server_config.reject_non_alpine_clients) {
+        if (!g_joining_player_is_alpine && g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients) {
             regs.eax = 8; // uses string 874 as join rejection message
         }
     },
@@ -1176,7 +1178,7 @@ FunHook<void()> tracker_do_broadcast_server_hook{
     0x00483130,
     []() {
         tracker_do_broadcast_server_hook.call_target();
-        if (g_additional_server_config.upnp_enabled) {
+        if (g_alpine_server_config.upnp_enabled) {
             // Auto forward server port using UPnP (in background thread)
             std::thread upnp_thread{try_to_auto_forward_port, rf::net_port};
             upnp_thread.detach();

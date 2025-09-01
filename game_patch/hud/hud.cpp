@@ -18,7 +18,6 @@
 #include "../rf/weapon.h"
 #include "../rf/gameseq.h"
 #include "multi_spectate.h"
-#include "hud_weapon_bar.h"
 
 int g_target_player_name_font = -1;
 
@@ -121,87 +120,7 @@ void hud_setup_positions(int width)
                 dst_pt.y = src_pt.y + height - 768;
         }
     }
-
-    // Apply HUD offsets after setting up base positions
-    hud_apply_offsets();
 }
-
-void hud_apply_offsets()
-{
-    // Apply health HUD offset - move as a group maintaining relative positions
-    if (g_alpine_game_config.health_hud_offset.x != -1 || g_alpine_game_config.health_hud_offset.y != -1) {
-        // Health elements: health icon, health text, armor icon, armor text
-        rf::HudItem health_elements[] = {
-            rf::hud_health,
-            rf::hud_health_value_ul_corner,
-            rf::hud_envirosuit,
-            rf::hud_envirosuit_value_ul_corner
-        };
-        
-        // Use health icon as the reference point for the group
-        rf::HudPoint reference_original = rf::hud_coords[rf::hud_health];
-        rf::HudPoint reference_new = {
-            g_alpine_game_config.health_hud_offset.x != -1 ? g_alpine_game_config.health_hud_offset.x : reference_original.x,
-            g_alpine_game_config.health_hud_offset.y != -1 ? g_alpine_game_config.health_hud_offset.y : reference_original.y
-        };
-        
-        // Calculate offset from original position
-        int offset_x = reference_new.x - reference_original.x;
-        int offset_y = reference_new.y - reference_original.y;
-        
-        // Apply offset to all health elements
-        for (auto element : health_elements) {
-            if (g_alpine_game_config.health_hud_offset.x != -1) {
-                rf::hud_coords[element].x += offset_x;
-            }
-            if (g_alpine_game_config.health_hud_offset.y != -1) {
-                rf::hud_coords[element].y += offset_y;
-            }
-        }
-    }
-
-    // Apply ammo HUD offset - move as a group maintaining relative positions
-    if (g_alpine_game_config.ammo_hud_offset.x != -1 || g_alpine_game_config.ammo_hud_offset.y != -1) {
-        // Ammo elements: bar, signal, icon, text positions
-        rf::HudItem ammo_elements[] = {
-            rf::hud_ammo_bar,
-            rf::hud_ammo_signal,
-            rf::hud_ammo_icon,
-            rf::hud_ammo_in_clip_text_ul_region_coord,
-            rf::hud_ammo_in_inv_text_ul_region_coord,
-            rf::hud_ammo_bar_position_no_clip,
-            rf::hud_ammo_signal_position_no_clip,
-            rf::hud_ammo_icon_position_no_clip,
-            rf::hud_ammo_in_inv_ul_region_coord_no_clip,
-            rf::hud_ammo_in_clip_ul_coord
-        };
-        
-        // Use ammo bar as the reference point for the group
-        rf::HudPoint reference_original = rf::hud_coords[rf::hud_ammo_bar];
-        rf::HudPoint reference_new = {
-            g_alpine_game_config.ammo_hud_offset.x != -1 ? g_alpine_game_config.ammo_hud_offset.x : reference_original.x,
-            g_alpine_game_config.ammo_hud_offset.y != -1 ? g_alpine_game_config.ammo_hud_offset.y : reference_original.y
-        };
-        
-        // Calculate offset from original position
-        int offset_x = reference_new.x - reference_original.x;
-        int offset_y = reference_new.y - reference_original.y;
-        
-        // Apply offset to all ammo elements
-        for (auto element : ammo_elements) {
-            if (g_alpine_game_config.ammo_hud_offset.x != -1) {
-                rf::hud_coords[element].x += offset_x;
-            }
-            if (g_alpine_game_config.ammo_hud_offset.y != -1) {
-                rf::hud_coords[element].y += offset_y;
-            }
-        }
-    }
-
-    // Timer offset is handled in multi_hud.cpp for multiplayer
-    // The hud_countdown_timer coordinate is for singleplayer, not multiplayer
-}
-
 FunHook hud_setup_positions_hook{0x004377C0, hud_setup_positions};
 
 void set_big_countdown_counter(bool is_big)
@@ -223,7 +142,7 @@ void set_big_hud(bool is_big)
     weapon_select_set_big(is_big);
     multi_scoreboard_set_big(is_big);
     multi_hud_set_big(is_big);
-    rf::hud_text_font_num = hud_get_messages_font();
+    rf::hud_text_font_num = hud_get_default_font();
     g_target_player_name_font = hud_get_default_font();
 
     hud_setup_positions(rf::gr::screen_width());
@@ -257,173 +176,6 @@ ConsoleCommand2 ui_realarmor_cmd{
     },
     "Toggle whether armor is displayed on HUD using real values (1:1 armor to effective health) or classic (2:1 - default).",
     "ui_realarmor",
-};
-
-ConsoleCommand2 ui_hudscale_cmd{
-    "ui_hudscale",
-    [](std::string element, std::optional<float> scale_opt) {
-        if (element == "health") {
-            if (scale_opt) {
-                g_alpine_game_config.set_health_hud_scale(scale_opt.value());
-                hud_status_update_scale();
-            }
-            rf::console::print("Health HUD scale: {:.2f}", g_alpine_game_config.health_hud_scale);
-        }
-        else if (element == "ammo") {
-            if (scale_opt) {
-                g_alpine_game_config.set_ammo_hud_scale(scale_opt.value());
-                hud_weapons_update_scale();
-            }
-            rf::console::print("Ammo HUD scale: {:.2f}", g_alpine_game_config.ammo_hud_scale);
-        }
-        else if (element == "powerup") {
-            if (scale_opt) {
-                g_alpine_game_config.set_powerup_hud_scale(scale_opt.value());
-            }
-            rf::console::print("Powerup HUD scale: {:.2f}", g_alpine_game_config.powerup_hud_scale);
-        }
-        else if (element == "weaponselect") {
-            if (scale_opt) {
-                g_alpine_game_config.set_weaponselect_hud_scale(scale_opt.value());
-            }
-            rf::console::print("Weapon selection HUD scale: {:.2f}", g_alpine_game_config.weaponselect_hud_scale);
-        }
-        else {
-            rf::console::print("Invalid element '{}'. Valid elements: health, ammo, powerup, weaponselect", element);
-            rf::console::print("Usage: ui_hudscale <element> <multiplier>");
-        }
-    },
-    "Scale HUD elements. Valid elements: health (health & armor icons), ammo (ammo bar and icons), powerup (powerup bar), weaponselect (weapon selection bar)",
-    "ui_hudscale <element> <multiplier>",
-};
-
-ConsoleCommand2 ui_hudoffset_cmd{
-    "ui_hudoffset",
-    [](std::string element, std::optional<int> x_opt, std::optional<int> y_opt) {
-        auto apply_offset = [&](AlpineGameSettings::HudOffset& offset, const std::string& name) {
-            if (x_opt && y_opt) {
-                offset.x = x_opt.value();
-                offset.y = y_opt.value();
-                // Reapply HUD positions
-                hud_setup_positions(rf::gr::screen_width());
-                // Update scaling for ALL elements to prevent misalignment
-                // This fixes the bug where modifying one element would break ammo alignment
-                hud_status_update_scale();  // Always update health scaling
-                hud_weapons_update_scale(); // Always update ammo scaling
-            }
-            
-            if (offset.x == -1 && offset.y == -1) {
-                rf::console::print("{} HUD offset: default position", name);
-            } else {
-                rf::console::print("{} HUD offset: X={}, Y={}", name, 
-                    offset.x == -1 ? "default" : std::to_string(offset.x),
-                    offset.y == -1 ? "default" : std::to_string(offset.y));
-            }
-        };
-        
-        if (element == "health") {
-            apply_offset(g_alpine_game_config.health_hud_offset, "Health");
-        }
-        else if (element == "ammo") {
-            apply_offset(g_alpine_game_config.ammo_hud_offset, "Ammo");
-        }
-        else if (element == "timer") {
-            apply_offset(g_alpine_game_config.timer_hud_offset, "Timer");
-        }
-        else if (element == "fps") {
-            apply_offset(g_alpine_game_config.fps_hud_offset, "FPS");
-        }
-        else if (element == "ping") {
-            apply_offset(g_alpine_game_config.ping_hud_offset, "Ping");
-        }
-        else if (element == "weaponbar") {
-            apply_offset(g_alpine_game_config.weapon_bar_hud_offset, "Weapon bar");
-        }
-        else if (element == "powerup") {
-            apply_offset(g_alpine_game_config.powerup_hud_offset, "Powerup");
-        }
-        else if (element == "weaponselect") {
-            apply_offset(g_alpine_game_config.weaponselect_hud_offset, "Weapon selection");
-        }
-        else {
-            rf::console::print("Invalid element '{}'. Valid elements: health, ammo, timer, fps, ping, weaponbar, powerup, weaponselect", element);
-            rf::console::print("Usage: ui_hudoffset <element> <X> <Y>");
-            rf::console::print("Use -1 for X or Y to keep default positioning for that axis");
-        }
-    },
-    "Set HUD element positions. Valid elements: health, ammo, timer, fps, ping, weaponbar, powerup, weaponselect",
-    "ui_hudoffset <element> <X> <Y>",
-};
-
-ConsoleCommand2 ui_fontsize_cmd{
-    "ui_fontsize",
-    [](std::string element, std::optional<int> size_opt) {
-        if (element == "chat") {
-            if (size_opt) {
-                g_alpine_game_config.chat_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("Chat font size: {}", g_alpine_game_config.chat_font_size);
-        }
-
-        else if (element == "scoreboard") {
-            if (size_opt) {
-                g_alpine_game_config.scoreboard_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("Scoreboard font size: {}", g_alpine_game_config.scoreboard_font_size);
-        }
-        else if (element == "health") {
-            if (size_opt) {
-                g_alpine_game_config.health_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("Health font size: {}", g_alpine_game_config.health_font_size);
-        }
-        else if (element == "ammo") {
-            if (size_opt) {
-                g_alpine_game_config.ammo_font_size = std::clamp(size_opt.value(), 8, 72);
-                // Update the ammo font with new size
-                extern void hud_weapons_update_ammo_font();
-                hud_weapons_update_ammo_font();
-            }
-            rf::console::print("Ammo font size: {}", g_alpine_game_config.ammo_font_size);
-        }
-        else if (element == "timer") {
-            if (size_opt) {
-                g_alpine_game_config.timer_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("Timer font size: {}", g_alpine_game_config.timer_font_size);
-        }
-        else if (element == "fps") {
-            if (size_opt) {
-                g_alpine_game_config.fps_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("FPS font size: {}", g_alpine_game_config.fps_font_size);
-        }
-        else if (element == "ping") {
-            if (size_opt) {
-                g_alpine_game_config.ping_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("Ping font size: {}", g_alpine_game_config.ping_font_size);
-        }
-        else if (element == "messages") {
-            if (size_opt) {
-                g_alpine_game_config.hud_messages_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("HUD messages font size: {}", g_alpine_game_config.hud_messages_font_size);
-        }
-        else if (element == "weaponbar") {
-            if (size_opt) {
-                g_alpine_game_config.weapon_bar_font_size = std::clamp(size_opt.value(), 8, 72);
-            }
-            rf::console::print("Weapon bar font size: {}", g_alpine_game_config.weapon_bar_font_size);
-        }
-        else {
-            rf::console::print("Invalid element '{}'. Valid elements: chat, scoreboard, health, ammo, timer, fps, ping, messages, weaponbar", element);
-            rf::console::print("Usage: ui_fontsize <element> <size>");
-            rf::console::print("Font size range: 8-72 points");
-        }
-    },
-    "Set font sizes for HUD elements. Valid elements: chat, scoreboard, health, ammo, timer, fps, ping, messages, weaponbar",
-    "ui_fontsize <element> <size>",
 };
 
 #ifndef NDEBUG
@@ -553,19 +305,10 @@ const char* hud_get_small_font_name(bool big)
 
 const char* hud_get_default_font_name(bool big)
 {
-    // Always use TTF fonts by default, but check for custom .vf files for mod compatibility
-    static std::string font_name;
-    
     if (big) {
-        // For big HUD, use larger console font size
-        int font_size = static_cast<int>(g_alpine_game_config.console_font_size * 1.2f);
-        font_name = std::format("regularfont.ttf:{}", font_size);
-    } else {
-        // For normal HUD, use regular console font size
-        font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.console_font_size);
+        return "regularfont.ttf:17";
     }
-    
-    return font_name.c_str();
+    return "rfpc-medium.vf";
 }
 
 const char* hud_get_bold_font_name(bool big)
@@ -608,91 +351,6 @@ int hud_get_default_font()
     return font;
 }
 
-// Specific font functions for different HUD elements
-int hud_get_chat_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.chat_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.chat_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.chat_font_size;
-    }
-    return font;
-}
-
-int hud_get_health_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.health_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.health_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.health_font_size;
-    }
-    return font;
-}
-
-int hud_get_ammo_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.ammo_font_size) {
-        std::string font_name = std::format("boldfont.ttf:{}", g_alpine_game_config.ammo_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.ammo_font_size;
-    }
-    return font;
-}
-
-int hud_get_timer_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.timer_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.timer_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.timer_font_size;
-    }
-    return font;
-}
-
-int hud_get_fps_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.fps_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.fps_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.fps_font_size;
-    }
-    return font;
-}
-
-int hud_get_ping_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.ping_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.ping_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.ping_font_size;
-    }
-    return font;
-}
-
-int hud_get_messages_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.hud_messages_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.hud_messages_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.hud_messages_font_size;
-    }
-    return font;
-}
-
 int hud_get_large_font()
 {
     if (g_alpine_game_config.big_hud) {
@@ -721,9 +379,6 @@ FunHook<void()> hud_init_hook{
             if (!g_alpine_game_config.big_hud || !is_screen_resolution_too_low_for_big_hud()) {
                 set_big_hud(g_alpine_game_config.big_hud);
             }
-            // Initialize custom ammo font
-            extern void hud_weapons_update_ammo_font();
-            hud_weapons_update_ammo_font();
         }
     },
 };
@@ -744,9 +399,6 @@ void hud_render_00437BC0()
 
     // Render spectate mode UI under scoreboard
     multi_spectate_render();
-
-    // Render weapon bar
-    render_weapon_bar();
 
     auto& cc = rf::local_player->settings.controls;
     bool scoreboard_control_pressed = rf::control_config_check_pressed(&cc, rf::CC_ACTION_MP_STATS, nullptr);
@@ -772,9 +424,6 @@ void hud_apply_patches()
     // Other commands
     bighud_cmd.register_cmd();
     ui_realarmor_cmd.register_cmd();
-    ui_hudscale_cmd.register_cmd();
-    ui_hudoffset_cmd.register_cmd();
-    ui_fontsize_cmd.register_cmd();
 #ifndef NDEBUG
     hud_coords_cmd.register_cmd();
 #endif
@@ -798,27 +447,4 @@ void hud_apply_patches()
     multi_hud_apply_patches();
     message_log_apply_patch();
     hud_world_apply_patch();
-    hud_weapon_bar_apply_patches();
-}
-
-int hud_get_scoreboard_font()
-{
-    static int font = -2;
-    static int last_size = -1;
-    if (font == -2 || last_size != g_alpine_game_config.scoreboard_font_size) {
-        std::string font_name = std::format("regularfont.ttf:{}", g_alpine_game_config.scoreboard_font_size);
-        font = rf::gr::load_font(font_name.c_str());
-        last_size = g_alpine_game_config.scoreboard_font_size;
-    }
-    return font;
-}
-
-int hud_get_console_font()
-{
-    static int font = -2;
-    if (font == -2) {
-        // Use legacy .vf font for console to maintain original console appearance
-        font = rf::gr::load_font("rfpc-medium.vf");
-    }
-    return font;
 }

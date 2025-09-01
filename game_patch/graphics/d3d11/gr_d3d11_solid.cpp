@@ -299,11 +299,8 @@ namespace df::gr::d3d11
         for (GFace& face : room->face_list) {
             add_face(&face, solid);
         }
-        if (room->is_sky) {
-            for (GRoom* detail_room : room->detail_rooms) {
-                add_room(detail_room, solid);
-            }
-            // TODO: sort
+        for (GRoom* detail_room : room->detail_rooms) {
+            add_room(detail_room, solid);
         }
     }
 

@@ -434,6 +434,7 @@ extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
     object_do_patch();
     misc_init();
     server_init();
+    dedi_cfg_init();
     mouse_apply_patch();
     key_apply_patch();
 #if !defined(NDEBUG) && defined(HAS_EXPERIMENTAL)

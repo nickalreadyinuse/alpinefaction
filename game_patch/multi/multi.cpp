@@ -9,6 +9,7 @@
 #include "multi.h"
 #include "endgame_votes.h"
 #include "multi_private.h"
+#include "alpine_packets.h"
 #include "server_internal.h"
 #include "../hud/hud.h"
 #include "../rf/file/file.h"
@@ -177,8 +178,8 @@ FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hoo
             // Nothing to do
             return;
         }
-        if (g_additional_server_config.gungame.enabled && !((ep->ai.current_primary_weapon == 1 && weapon_type == 0) ||
-                                                            (ep->ai.current_primary_weapon == 0 && weapon_type == 1))) {
+        if (g_alpine_server_config_active_rules.gungame.enabled &&
+            !((ep->ai.current_primary_weapon == 1 && weapon_type == 0) || (ep->ai.current_primary_weapon == 0 && weapon_type == 1))) {
             //send_chat_line_packet("Weapon switch denied. In GunGame, you get new weapons by getting frags.", pp);
             return;
         }
@@ -550,14 +551,6 @@ DcCommandAlias mapm_cmd{
     levelm_cmd,
 };
 
-ConsoleCommand2 connected_clients_cmd{
-    "sv_connectedclients",
-    []() {
-        print_all_player_info();
-    },
-    "Shows client and maximum RFL version information for connected players",
-};
-
 ConsoleCommand2 mapver_cmd{
     "dbg_mapver",
     [](std::string filename) {
@@ -600,6 +593,24 @@ ConsoleCommand2 mapver_cmd{
     "dbg_mapver <filename>",
 };
 
+void mp_send_handicap_request(bool force) {
+    if (force || g_alpine_game_config.desired_handicap > 0) {
+        af_send_handicap_request(static_cast<uint8_t>(g_alpine_game_config.desired_handicap));
+    }
+}
+
+ConsoleCommand2 set_handicap_cmd{
+    "mp_handicap",
+    [](std::optional<int> new_handicap) {
+        if (new_handicap) {
+            g_alpine_game_config.set_desired_handicap(new_handicap.value());
+            mp_send_handicap_request(true);
+        }
+        rf::console::print("Your desired damage reduction handicap is {}. It will only be applied in servers that support this feature.", g_alpine_game_config.desired_handicap);
+    },
+    "Set desired multiplayer damage reduction handicap",
+};
+
 CallHook<float(int, float, int, int, int, rf::PCollisionOut*, int, bool)> obj_apply_damage_lava_hook{
     {
         0x004212A1,
@@ -631,10 +642,6 @@ void multi_do_patch()
     multi_limbo_init.install();
     multi_start_injection.install();
 
-    // Allow server to customize dropped flag return timer in ms
-    AsmWriter{0x00473B88}.push(g_additional_server_config.ctf_flag_return_time_ms); // blue flag
-    AsmWriter{0x00473B28}.push(g_additional_server_config.ctf_flag_return_time_ms); // red flag
-
     // Fix CTF flag not returning to the base if the other flag was returned when the first one was waiting
     ctf_flag_return_fix.install();
 
@@ -665,9 +672,9 @@ void multi_do_patch()
 
     // console commands
     levelm_cmd.register_cmd();
-    connected_clients_cmd.register_cmd();
     mapver_cmd.register_cmd();
     mapm_cmd.register_cmd();
+    set_handicap_cmd.register_cmd();
 }
 
 void multi_after_full_game_init()

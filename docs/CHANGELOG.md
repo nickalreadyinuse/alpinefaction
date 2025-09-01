@@ -4,6 +4,8 @@
 Version 1.2.0 (Willow): Not yet released
 --------------------------------
 ### Major features
+[@GooberRF](https://github.com/GooberRF)
+- Implement TOML-based `ADS` configuration for dedicated servers
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -15,15 +17,48 @@ Version 1.2.0 (Willow): Not yet released
 - Add `-afs FILENAME` command line argument to specify a settings file when launching
 - Add `Suppress autoswitch` control bind (if held while picking up a weapon, autoswitch is suppressed)
 - Add `SuppressAutoswitchBindAlias` setting to `alpine_settings.ini`
-- Add `$Flag Captures While Stolen` dedicated server config option
+- Add `Flag Captures While Stolen` dedicated server config option
+- Add damage reduction handicap feature
+- Add `mp_handicap` command to configure your damage reduction handicap (0 - 99%)
+- Add `DesiredHandicap` setting to `alpine_settings.ini`
+- Add `cl_autoswitchfirewait` command to suppress autoswitch during and immediately after weapon fire
+- Add `AutoswitchFireWait` setting to `alpine_settings.ini`
+- Maintain third person camera view between level loads after `camera3` command entered
+- Add `cl_autoswitchempty` command to always autoswitch empty weapons even if autoswitch is turned off
+- Add `AlwaysAutoswitchEmpty` setting to `alpine_settings.ini`
+- Bump RFL version to 302
+- Add support for custom AlpineLevelProperties chunk in rfl files
+- Add handling for `Legacy Cyclic_Timers` option in level files in editor and game
+- Add "ignore nonvoters" option to dedicated server vote configs
+- Reformatted output of `info` command to contain more useful info
+- Deprecate `sv_connectedclients` command as all info is now in the output of `info`
+- Updated new player joining message printed to ADS server console to include socket, client info, and max RFL version
+- Support weapon stay exemption functionality for any weapons, including stock fusion behaviour and weapons from TC mods
+- Deprecate `$Max FOV` dedicated server setting
+- Support GunGame configuration using weapon names (from `weapons.tbl`) rather than weapon indices
+- Restrict overtime configuration to match mode
+- Add support for custom weapon loadouts in dedicated servers
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled
+- Fix DX11 renderer not properly rendering detail brushes in skyboxes
+- Fix super powerups applying in SP in non-Alpine levels
+- Fix `Cyclic_Timer` event activating twice on initial activation (unless `Legacy Cyclic_Timers` is on)
+- Fix broken rendering of particle emitter 23616 on community level `dm-birthday.rfl`
+- Fix `NAME has been kicked` not being printed to server console when players kicked due to inactivity
+- Fix `Advertise AF` sometimes sending the wrong advert to players running old Alpine versions
+- Fix inactivity incorrectly being tracked when endgame scoreboard is displayed
+- Fix very niche case where server could crash if gungame is on and a weapon type is invalid
+- Fix overtime initiating even if no match is active
+- Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
 
-### Imports from other repos
+### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
 - Add support for Dash Level Properties chunk and full lightmap depth setting (commit f90f81a)
+
+### Imported libraries
+- [toml++](https://github.com/marzer/tomlplusplus) by Mark Gillard
 
 Version 1.1.0 (Tamarack): Released Apr-19-2025
 --------------------------------
