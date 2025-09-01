@@ -96,6 +96,24 @@ struct AlpineFactionServerInfo
     bool location_pinging = false;
 };
 
+enum ClientVersion
+{
+    unknown = 0,
+    browser = 1,
+    pure_faction = 2,
+    dash_faction = 3,
+    alpine_faction = 4
+};
+
+enum class AlpineRestrictVerdict : uint8_t
+{
+    ok = 0,
+    need_alpine = 1,
+    need_release = 2,
+    need_update = 3
+};
+
+bool version_is_older(int aMaj, int aMin, int bMaj, int bMin);
 void multi_level_download_update();
 void multi_do_patch();
 void multi_after_full_game_init();

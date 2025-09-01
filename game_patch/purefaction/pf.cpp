@@ -38,7 +38,7 @@ static void send_pf_announce_player_packet(rf::Player* player, pf_pure_status pu
     announce_packet.version = pf_announce_player_packet_version;
     announce_packet.player_id = player->net_data->player_id;
     announce_packet.is_pure = static_cast<uint8_t>(
-        get_player_additional_data(player).is_browser ? pf_pure_status::rfsb : pure_status
+        get_player_additional_data(player).client_version == ClientVersion::browser ? pf_pure_status::rfsb : pure_status
     );
 
     auto player_list = SinglyLinkedList(rf::player_list);
@@ -107,7 +107,7 @@ void send_pf_player_stats_packet(rf::Player* player)
         out_stats.player_id = current_player.net_data->player_id;
         const pf_pure_status pure_status = pf_ac_get_pure_status(&current_player);
         out_stats.is_pure = static_cast<uint8_t>(
-            get_player_additional_data(&current_player).is_browser ? pf_pure_status::rfsb : pure_status
+            get_player_additional_data(&current_player).client_version == ClientVersion::browser ? pf_pure_status::rfsb : pure_status
         );
         out_stats.accuracy = static_cast<uint8_t>(player_stats.calc_accuracy() * 100.f);
         out_stats.streak_max = player_stats.max_streak;

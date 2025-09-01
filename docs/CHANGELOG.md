@@ -38,6 +38,10 @@ Version 1.2.0 (Willow): Not yet released
 - Support GunGame configuration using weapon names (from `weapons.tbl`) rather than weapon indices
 - Restrict overtime configuration to match mode
 - Add support for custom weapon loadouts in dedicated servers
+- Identify Alpine Faction and Dash Faction players in server console on join and when `info` command is run
+- Log player join request rejection reason to server console on attempted join
+- Log accepted and rejected `rcon` commands to server console
+- Log accepted and rejected `rcon_request` commands to server console
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

@@ -55,7 +55,7 @@ enum class ParsePass
 
 struct SpawnProtectionConfig
 {
-    bool enabled = true;
+    bool enabled = false;
     int duration = 1500;
     bool use_powerup = false;
 
@@ -63,7 +63,7 @@ struct SpawnProtectionConfig
 
     void set_duration(float in_time)
     {
-        duration = static_cast<int>(std::clamp(in_time * 1000.0f, 0.0f, 3600000.0f) + 0.5f);
+        duration = static_cast<int>(std::clamp(in_time * 1000.0f, 0.0f, 3600000.0f));
     }
 };
 
@@ -79,15 +79,15 @@ struct InactivityConfig
     
     void set_new_player_grace(float in_time)
     {
-        new_player_grace_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+        new_player_grace_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f));
     }
     void set_allowed_inactive(float in_time)
     {
-        allowed_inactive_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+        allowed_inactive_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f));
     }
     void set_warning_duration(float in_time)
     {
-        warning_duration_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+        warning_duration_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f));
     }
 };
 
@@ -101,7 +101,7 @@ struct VoteConfig
     
     void set_time_limit_seconds(float in_time)
     {
-        time_limit_seconds = static_cast<int>(std::max(in_time, 1.0f) + 0.5f);
+        time_limit_seconds = static_cast<int>(std::max(in_time, 1.0f));
     }
 };
 
@@ -555,7 +555,7 @@ struct AlpineServerConfigRules
     }
     void set_flag_return_time(float in_time)
     {
-        ctf_flag_return_time_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f) + 0.5f);
+        ctf_flag_return_time_ms = static_cast<int>(std::max(in_time * 1000.0f, 1000.0f));
     }
     void set_pvp_damage_modifier(float modifier)
     {

@@ -152,6 +152,14 @@ namespace rf
         VArray_String<String> levels;
     };
 
+    struct JoinRequest
+    {
+        String password;
+        String name;
+        int entity_type;
+        int ac_info[4];
+    };
+
     enum class ChatMsgColor
     {
         red_white = 0,
