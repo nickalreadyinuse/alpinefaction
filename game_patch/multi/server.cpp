@@ -1392,7 +1392,7 @@ void player_idle_check(rf::Player* player)
     }
 }
 
-inline bool version_is_older(int aMaj, int aMin, int bMaj, int bMin)
+bool version_is_older(int aMaj, int aMin, int bMaj, int bMin)
 {
     if (aMaj != bMaj)
         return aMaj < bMaj;
