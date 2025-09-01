@@ -520,10 +520,21 @@ CallHook<void(int, int, int, rf::gr::Mode)> hud_render_power_ups_gr_bitmap_hook{
         0x0047FFFD,
     },
     [](int bm_handle, int x, int y, rf::gr::Mode mode) {
-        float scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
+        float base_scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
+        float scale = base_scale * g_alpine_game_config.powerup_hud_scale;
+        
         x = hud_transform_value(x, 640, rf::gr::clip_width());
         x = hud_scale_value(x, rf::gr::clip_width(), scale);
         y = hud_scale_value(y, rf::gr::clip_height(), scale);
+        
+        // Apply custom powerup offset if specified
+        if (g_alpine_game_config.powerup_hud_offset.x != -1) {
+            x = g_alpine_game_config.powerup_hud_offset.x;
+        }
+        if (g_alpine_game_config.powerup_hud_offset.y != -1) {
+            y = g_alpine_game_config.powerup_hud_offset.y;
+        }
+        
         hud_scaled_bitmap(bm_handle, x, y, scale, mode);
     },
 };
@@ -932,8 +943,17 @@ FunHook<void()> multi_hud_render_time_left_hook{
         }
     }
 
-    std::string time_left_string = std::format("{}{:02}:{:02}:{:02}", time_left_string_format,
-        rf::time_left_hours, rf::time_left_minutes, rf::time_left_seconds);
+    // Choose format based on minimal timer setting
+    std::string time_left_string;
+    if (g_alpine_game_config.verbose_time_left_display) {
+        // Verbose mode: show hours, minutes, seconds
+        time_left_string = std::format("{}{:02}:{:02}:{:02}", time_left_string_format,
+            rf::time_left_hours, rf::time_left_minutes, rf::time_left_seconds);
+    } else {
+        // Minimal timer mode: hide hours, show only minutes and seconds
+        time_left_string = std::format("{}{:02}:{:02}", time_left_string_format,
+            rf::time_left_minutes, rf::time_left_seconds);
+    }
 
     // set timer color, including alpha adjustment for fade in
     rf::gr::set_color(
@@ -942,10 +962,21 @@ FunHook<void()> multi_hud_render_time_left_hook{
         std::get<2>(time_left_string_color),
         static_cast<int>(std::get<3>(time_left_string_color) * (rf::time_left_alpha / 255.0f)));
 
-    int x_pos = rf::gr::clip_width() - time_left_string_x_pos_offset;
-    int y_pos = rf::gr::clip_height() - time_left_string_y_pos_offset;
+    // Use custom offset if specified, otherwise use default positioning
+    int x_pos, y_pos;
+    if (g_alpine_game_config.timer_hud_offset.x != -1) {
+        x_pos = g_alpine_game_config.timer_hud_offset.x;
+    } else {
+        x_pos = rf::gr::clip_width() - time_left_string_x_pos_offset;
+    }
+    
+    if (g_alpine_game_config.timer_hud_offset.y != -1) {
+        y_pos = g_alpine_game_config.timer_hud_offset.y;
+    } else {
+        y_pos = rf::gr::clip_height() - time_left_string_y_pos_offset;
+    }
 
-    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, x_pos, y_pos, time_left_string.c_str(), 0, rf::gr::text_2d_mode);
+    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, x_pos, y_pos, time_left_string.c_str(), hud_get_timer_font(), rf::gr::text_2d_mode);
     },
 };
 
@@ -967,7 +998,7 @@ void build_time_left_string_format() {
 
     rf::gr::gr_get_string_size(&format_text_width, &format_text_height, 
                                time_left_string_format.c_str(),
-                               time_left_string_format.size(), 0);
+                               time_left_string_format.size(), hud_get_timer_font());
 
     time_left_string_x_pos_offset = 135 + format_text_width;
     time_left_string_y_pos_offset = 21;

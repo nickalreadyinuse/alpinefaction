@@ -335,6 +335,166 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_reticle_scale(std::stof(settings["ReticleScale"]));
         processed_keys.insert("ReticleScale");
     }
+    if (settings.count("HealthHUDScale")) {
+        g_alpine_game_config.set_health_hud_scale(std::stof(settings["HealthHUDScale"]));
+        processed_keys.insert("HealthHUDScale");
+        // Apply the loaded scale immediately
+        extern void hud_status_update_scale();
+        hud_status_update_scale();
+    }
+    if (settings.count("AmmoHUDScale")) {
+        g_alpine_game_config.set_ammo_hud_scale(std::stof(settings["AmmoHUDScale"]));
+        processed_keys.insert("AmmoHUDScale");
+        // Apply the loaded scale immediately
+        extern void hud_weapons_update_scale();
+        hud_weapons_update_scale();
+    }
+    
+    if (settings.count("PowerupHUDScale")) {
+        g_alpine_game_config.set_powerup_hud_scale(std::stof(settings["PowerupHUDScale"]));
+        processed_keys.insert("PowerupHUDScale");
+    }
+    
+    if (settings.count("WeaponSelectHUDScale")) {
+        g_alpine_game_config.set_weaponselect_hud_scale(std::stof(settings["WeaponSelectHUDScale"]));
+        processed_keys.insert("WeaponSelectHUDScale");
+    }
+    
+    // Load HUD offsets
+    if (settings.count("HealthHUDOffsetX")) {
+        g_alpine_game_config.health_hud_offset.x = std::stoi(settings["HealthHUDOffsetX"]);
+        processed_keys.insert("HealthHUDOffsetX");
+    }
+    if (settings.count("HealthHUDOffsetY")) {
+        g_alpine_game_config.health_hud_offset.y = std::stoi(settings["HealthHUDOffsetY"]);
+        processed_keys.insert("HealthHUDOffsetY");
+    }
+    if (settings.count("AmmoHUDOffsetX")) {
+        g_alpine_game_config.ammo_hud_offset.x = std::stoi(settings["AmmoHUDOffsetX"]);
+        processed_keys.insert("AmmoHUDOffsetX");
+    }
+    if (settings.count("AmmoHUDOffsetY")) {
+        g_alpine_game_config.ammo_hud_offset.y = std::stoi(settings["AmmoHUDOffsetY"]);
+        processed_keys.insert("AmmoHUDOffsetY");
+    }
+    if (settings.count("TimerHUDOffsetX")) {
+        g_alpine_game_config.timer_hud_offset.x = std::stoi(settings["TimerHUDOffsetX"]);
+        processed_keys.insert("TimerHUDOffsetX");
+    }
+    if (settings.count("TimerHUDOffsetY")) {
+        g_alpine_game_config.timer_hud_offset.y = std::stoi(settings["TimerHUDOffsetY"]);
+        processed_keys.insert("TimerHUDOffsetY");
+    }
+    if (settings.count("FPSHUDOffsetX")) {
+        g_alpine_game_config.fps_hud_offset.x = std::stoi(settings["FPSHUDOffsetX"]);
+        processed_keys.insert("FPSHUDOffsetX");
+    }
+    if (settings.count("FPSHUDOffsetY")) {
+        g_alpine_game_config.fps_hud_offset.y = std::stoi(settings["FPSHUDOffsetY"]);
+        processed_keys.insert("FPSHUDOffsetY");
+    }
+    if (settings.count("PingHUDOffsetX")) {
+        g_alpine_game_config.ping_hud_offset.x = std::stoi(settings["PingHUDOffsetX"]);
+        processed_keys.insert("PingHUDOffsetX");
+    }
+    if (settings.count("PingHUDOffsetY")) {
+        g_alpine_game_config.ping_hud_offset.y = std::stoi(settings["PingHUDOffsetY"]);
+        processed_keys.insert("PingHUDOffsetY");
+    }
+    if (settings.count("PowerupHUDOffsetX")) {
+        g_alpine_game_config.powerup_hud_offset.x = std::stoi(settings["PowerupHUDOffsetX"]);
+        processed_keys.insert("PowerupHUDOffsetX");
+    }
+    if (settings.count("PowerupHUDOffsetY")) {
+        g_alpine_game_config.powerup_hud_offset.y = std::stoi(settings["PowerupHUDOffsetY"]);
+        processed_keys.insert("PowerupHUDOffsetY");
+    }
+    if (settings.count("WeaponSelectHUDOffsetX")) {
+        g_alpine_game_config.weaponselect_hud_offset.x = std::stoi(settings["WeaponSelectHUDOffsetX"]);
+        processed_keys.insert("WeaponSelectHUDOffsetX");
+    }
+    if (settings.count("WeaponSelectHUDOffsetY")) {
+        g_alpine_game_config.weaponselect_hud_offset.y = std::stoi(settings["WeaponSelectHUDOffsetY"]);
+        processed_keys.insert("WeaponSelectHUDOffsetY");
+    }
+    
+    // Load font sizes
+    if (settings.count("ChatFontSize")) {
+        g_alpine_game_config.chat_font_size = std::clamp(std::stoi(settings["ChatFontSize"]), 8, 72);
+        processed_keys.insert("ChatFontSize");
+    }
+    if (settings.count("ConsoleFontSize")) {
+        g_alpine_game_config.console_font_size = std::clamp(std::stoi(settings["ConsoleFontSize"]), 8, 72);
+        processed_keys.insert("ConsoleFontSize");
+    }
+    if (settings.count("ScoreboardFontSize")) {
+        g_alpine_game_config.scoreboard_font_size = std::clamp(std::stoi(settings["ScoreboardFontSize"]), 8, 72);
+        processed_keys.insert("ScoreboardFontSize");
+    }
+    if (settings.count("HealthFontSize")) {
+        g_alpine_game_config.health_font_size = std::clamp(std::stoi(settings["HealthFontSize"]), 8, 72);
+        processed_keys.insert("HealthFontSize");
+    }
+    if (settings.count("AmmoFontSize")) {
+        g_alpine_game_config.ammo_font_size = std::clamp(std::stoi(settings["AmmoFontSize"]), 8, 72);
+        processed_keys.insert("AmmoFontSize");
+    }
+    if (settings.count("TimerFontSize")) {
+        g_alpine_game_config.timer_font_size = std::clamp(std::stoi(settings["TimerFontSize"]), 8, 72);
+        processed_keys.insert("TimerFontSize");
+    }
+    if (settings.count("FPSFontSize")) {
+        g_alpine_game_config.fps_font_size = std::clamp(std::stoi(settings["FPSFontSize"]), 8, 72);
+        processed_keys.insert("FPSFontSize");
+    }
+    if (settings.count("PingFontSize")) {
+        g_alpine_game_config.ping_font_size = std::clamp(std::stoi(settings["PingFontSize"]), 8, 72);
+        processed_keys.insert("PingFontSize");
+    }
+    if (settings.count("HUDMessagesFontSize")) {
+        g_alpine_game_config.hud_messages_font_size = std::clamp(std::stoi(settings["HUDMessagesFontSize"]), 8, 72);
+        processed_keys.insert("HUDMessagesFontSize");
+    }
+    
+    // Load weapon bar settings
+    if (settings.count("WeaponBarEnabled")) {
+        g_alpine_game_config.weapon_bar_enabled = std::stoi(settings["WeaponBarEnabled"]);
+        processed_keys.insert("WeaponBarEnabled");
+    }
+    if (settings.count("WeaponBarHUDOffsetX")) {
+        g_alpine_game_config.weapon_bar_hud_offset.x = std::stoi(settings["WeaponBarHUDOffsetX"]);
+        processed_keys.insert("WeaponBarHUDOffsetX");
+    }
+    if (settings.count("WeaponBarHUDOffsetY")) {
+        g_alpine_game_config.weapon_bar_hud_offset.y = std::stoi(settings["WeaponBarHUDOffsetY"]);
+        processed_keys.insert("WeaponBarHUDOffsetY");
+    }
+    if (settings.count("WeaponBarFontSize")) {
+        g_alpine_game_config.weapon_bar_font_size = std::clamp(std::stoi(settings["WeaponBarFontSize"]), 8, 72);
+        processed_keys.insert("WeaponBarFontSize");
+    }
+
+    
+    // Apply HUD offsets after loading them
+    extern void hud_apply_offsets();
+    hud_apply_offsets();
+    
+    // Update font settings after loading them
+    extern void hud_weapons_update_ammo_font();
+    hud_weapons_update_ammo_font();
+    
+    // Also update scaling which will trigger coordinate recalculation if needed
+    bool has_health_offset = (g_alpine_game_config.health_hud_offset.x != -1 || g_alpine_game_config.health_hud_offset.y != -1);
+    bool has_ammo_offset = (g_alpine_game_config.ammo_hud_offset.x != -1 || g_alpine_game_config.ammo_hud_offset.y != -1);
+    
+    if (has_health_offset) {
+        extern void hud_status_update_scale();
+        hud_status_update_scale();
+    }
+    if (has_ammo_offset) {
+        extern void hud_weapons_update_scale();
+        hud_weapons_update_scale();
+    }
     if (settings.count("ShowGlares")) {
         g_alpine_game_config.show_glares = std::stoi(settings["ShowGlares"]);
         processed_keys.insert("ShowGlares");
@@ -738,12 +898,10 @@ void alpine_player_settings_save(rf::Player* player)
     file << "TextureDetailLevel=" << player->settings.textures_resolution_level << "\n";
     file << "HorizontalFOV=" << g_alpine_game_config.horz_fov << "\n";
     file << "FPGunFOVScale=" << g_alpine_game_config.fpgun_fov_scale << "\n";
-    file << "BigHUD=" << g_alpine_game_config.big_hud << "\n";
     file << "DisableWeaponShake=" << g_alpine_game_config.try_disable_weapon_shake << "\n";
     file << "FullbrightCharacters=" << g_alpine_game_config.try_fullbright_characters << "\n";
     file << "DisableTextures=" << g_alpine_game_config.try_disable_textures << "\n";
     file << "DisableMuzzleFlashLights=" << g_alpine_game_config.try_disable_muzzle_flash_lights << "\n";
-    file << "ReticleScale=" << g_alpine_game_config.reticle_scale << "\n";
     file << "ShowGlares=" << g_alpine_game_config.show_glares << "\n";
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
     file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
@@ -754,6 +912,76 @@ void alpine_player_settings_save(rf::Player* player)
     file << "SimulationDistance=" << g_alpine_game_config.entity_sim_distance << "\n";
     file << "FullRangeLighting=" << g_alpine_game_config.full_range_lighting << "\n";
     file << "AlwaysClampOfficialLightmaps=" << g_alpine_game_config.always_clamp_official_lightmaps << "\n";
+
+    // HUD
+    file << "\n[HUDSettings]\n";
+    file << "BigHUD=" << g_alpine_game_config.big_hud << "\n";
+    file << "ReticleScale=" << g_alpine_game_config.reticle_scale << "\n";
+    file << "HealthHUDScale=" << g_alpine_game_config.health_hud_scale << "\n";
+    file << "AmmoHUDScale=" << g_alpine_game_config.ammo_hud_scale << "\n";
+    file << "PowerupHUDScale=" << g_alpine_game_config.powerup_hud_scale << "\n";
+    file << "WeaponSelectHUDScale=" << g_alpine_game_config.weaponselect_hud_scale << "\n";
+
+    // HUD offsets (only non-default values)
+    if (g_alpine_game_config.health_hud_offset.x != -1) {
+        file << "HealthHUDOffsetX=" << g_alpine_game_config.health_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.health_hud_offset.y != -1) {
+        file << "HealthHUDOffsetY=" << g_alpine_game_config.health_hud_offset.y << "\n";
+    }
+    if (g_alpine_game_config.ammo_hud_offset.x != -1) {
+        file << "AmmoHUDOffsetX=" << g_alpine_game_config.ammo_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.ammo_hud_offset.y != -1) {
+        file << "AmmoHUDOffsetY=" << g_alpine_game_config.ammo_hud_offset.y << "\n";
+    }
+    if (g_alpine_game_config.timer_hud_offset.x != -1) {
+        file << "TimerHUDOffsetX=" << g_alpine_game_config.timer_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.timer_hud_offset.y != -1) {
+        file << "TimerHUDOffsetY=" << g_alpine_game_config.timer_hud_offset.y << "\n";
+    }
+    if (g_alpine_game_config.fps_hud_offset.x != -1) {
+        file << "FPSHUDOffsetX=" << g_alpine_game_config.fps_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.fps_hud_offset.y != -1) {
+        file << "FPSHUDOffsetY=" << g_alpine_game_config.fps_hud_offset.y << "\n";
+    }
+    if (g_alpine_game_config.ping_hud_offset.x != -1) {
+        file << "PingHUDOffsetX=" << g_alpine_game_config.ping_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.ping_hud_offset.y != -1) {
+        file << "PingHUDOffsetY=" << g_alpine_game_config.ping_hud_offset.y << "\n";
+    }
+    if (g_alpine_game_config.powerup_hud_offset.x != -1) {
+        file << "PowerupHUDOffsetX=" << g_alpine_game_config.powerup_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.powerup_hud_offset.y != -1) {
+        file << "PowerupHUDOffsetY=" << g_alpine_game_config.powerup_hud_offset.y << "\n";
+    }
+    if (g_alpine_game_config.weaponselect_hud_offset.x != -1) {
+        file << "WeaponSelectHUDOffsetX=" << g_alpine_game_config.weaponselect_hud_offset.x << "\n";
+    }
+    if (g_alpine_game_config.weaponselect_hud_offset.y != -1) {
+        file << "WeaponSelectHUDOffsetY=" << g_alpine_game_config.weaponselect_hud_offset.y << "\n";
+    }
+
+    // font sizes
+    file << "ChatFontSize=" << g_alpine_game_config.chat_font_size << "\n";
+    file << "ConsoleFontSize=" << g_alpine_game_config.console_font_size << "\n";
+    file << "ScoreboardFontSize=" << g_alpine_game_config.scoreboard_font_size << "\n";
+    file << "HealthFontSize=" << g_alpine_game_config.health_font_size << "\n";
+    file << "AmmoFontSize=" << g_alpine_game_config.ammo_font_size << "\n";
+    file << "TimerFontSize=" << g_alpine_game_config.timer_font_size << "\n";
+    file << "FPSFontSize=" << g_alpine_game_config.fps_font_size << "\n";
+    file << "PingFontSize=" << g_alpine_game_config.ping_font_size << "\n";
+    file << "HUDMessagesFontSize=" << g_alpine_game_config.hud_messages_font_size << "\n";
+
+    // weapon bar
+    file << "WeaponBarEnabled=" << g_alpine_game_config.weapon_bar_enabled << "\n";
+    file << "WeaponBarHUDOffsetX=" << g_alpine_game_config.weapon_bar_hud_offset.x << "\n";
+    file << "WeaponBarHUDOffsetY=" << g_alpine_game_config.weapon_bar_hud_offset.y << "\n";
+    file << "WeaponBarFontSize=" << g_alpine_game_config.weapon_bar_font_size << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
