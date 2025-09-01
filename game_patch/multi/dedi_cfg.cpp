@@ -1447,9 +1447,14 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
 
     evaluate_mandatory_alpine_restrict(); // force alpine restrict on if rules are configured which need it
 
-    print_alpine_dedicated_server_config_info(!g_ads_minimal_server_info);
+    if (g_alpine_server_config.dynamic_rotation) {
+        shuffle_level_array();
+    }
+    else {
+        rebuild_rotation_from_cfg();
+    }
 
-    rebuild_rotation_from_cfg();
+    print_alpine_dedicated_server_config_info(!g_ads_minimal_server_info);
 }
 
 void apply_rules_for_current_level()

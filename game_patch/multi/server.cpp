@@ -145,8 +145,8 @@ void on_dedicated_server_launch_post() {
     initialize_game_info_server_flags(); // build global flags var used in game_info packets
     set_server_window_title();
 
-    // shuffle maplist
-    if (g_alpine_server_config.dynamic_rotation) {
+    // shuffle maplist on legacy server config (ADS shuffle is handled when rotation is built)
+    if (!g_dedicated_launched_from_ads && g_alpine_server_config.dynamic_rotation) {
         shuffle_level_array();
     }
 }
