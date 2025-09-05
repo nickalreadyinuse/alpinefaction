@@ -320,8 +320,9 @@ FunHook<MultiIoPacketHandler> process_game_info_packet_hook{
 CodeInjection process_game_info_packet_game_type_bounds_patch{
     0x0047B30B,
     [](auto& regs) {
-        // Valid game types are between 0 and 2
-        regs.ecx = std::clamp<int>(regs.ecx, 0, 2);
+        // Valid game types are between 0 and 3
+        // 3 = KOTH
+        regs.ecx = std::clamp<int>(regs.ecx, 0, 3);
     },
 };
 
@@ -756,6 +757,46 @@ std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_bytes(const std::b
     return {std::move(out), len + add_len};
 }
 
+struct AfGiReqSeen
+{
+    uint8_t ver = 0; // game_info_req version: 1 is current, pre-Alpine v1.2 never sends a version
+    int last_seen_ms = 0;
+};
+
+static std::unordered_map<uint64_t, AfGiReqSeen> g_af_gi_req_seen;
+
+static inline uint64_t addr_key(const rf::NetAddr& a)
+{
+    return (uint64_t(a.ip_addr) << 16) | (uint64_t(a.port) & 0xFFFF);
+}
+
+// find game_type field inside a game_info packet
+static uint8_t* locate_game_type_field(uint8_t* pkt, size_t len)
+{
+    if (!pkt || len < sizeof(RF_GamePacketHeader) + 1)
+        return nullptr;
+
+    const auto* gh = reinterpret_cast<const RF_GamePacketHeader*>(pkt);
+    const size_t pkt_payload_len = gh->size;
+    if (len < sizeof(*gh) + pkt_payload_len)
+        return nullptr;
+
+    uint8_t* payload = pkt + sizeof(*gh);
+    uint8_t* end = payload + pkt_payload_len;
+
+    // game_type follows version and server name
+    if (payload >= end)
+        return nullptr;
+    uint8_t* p = payload + 1;       // skip version
+    while (p < end && *p != 0) ++p; // scan server name
+    if (p >= end)
+        return nullptr;
+    ++p; // skip NUL
+    if (p >= end)
+        return nullptr;
+    return p; // p = game_type
+}
+
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook{
     0x0047B287,
     [](const rf::NetAddr* addr, std::byte* data, size_t len) {
@@ -786,6 +827,45 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook
             tail.insert(tail.end(), fname, fname + fname_len);
 
         auto [buf, new_len] = extend_packet_bytes(data, len, tail.data(), tail.size());
+
+        // Only send new gametype IDs to compatible clients
+        // legacy clients will crash when they receive a game_info packet with
+        // gametype ID > 2. If the server is running a new gametype, we lie and tell
+        // legacy clients that it is gametype 2 (TDM) to avoid crashing them
+
+        // if recipient sent an AF game_info_req within 20 sec, consider it compatible
+        // there is a very small risk here that if the server is running a new gametype,
+        // a legacy client will crash if the user polled a server list on AF v1.2+ from
+        // the same port within this window, but that is extremely unlikely
+
+        // purge stale recorded Alpine client game_info_req entries
+        constexpr int seen_ttl_ms = 20000;
+        const uint64_t key = addr_key(*addr);
+        const int now = rf::timer_get(1000);
+
+        for (auto it = g_af_gi_req_seen.begin(); it != g_af_gi_req_seen.end();) {
+            if (now - it->second.last_seen_ms > seen_ttl_ms)
+                it = g_af_gi_req_seen.erase(it);
+            else
+                ++it;
+        }
+
+        // check if a fresh Alpine client game_info_req entry was from this socket
+        bool is_af_capable = false;
+        if (auto it = g_af_gi_req_seen.find(key); it != g_af_gi_req_seen.end()) {
+            is_af_capable = (it->second.ver >= 1);
+        }
+
+        // game_info_req was from a legacy client, fall back to game_type 2 to avoid accidentally crashing them
+        if (!is_af_capable) {
+            if (uint8_t* gt = locate_game_type_field(reinterpret_cast<uint8_t*>(buf.get()), new_len)) {
+                if (*gt > 2) {
+                    xlog::warn("Legacy GI reply to {:x}:{}: mapping game_type {} -> 2", addr->ip_addr, addr->port, int(*gt));
+                    *gt = 2;
+                }
+            }
+        }
+
         return send_game_info_packet_hook.call_target(addr, buf.get(), new_len);
     },
 };
@@ -849,6 +929,12 @@ struct AFJoinReq_v2 // af v1.1+
     uint32_t flags;
 };
 
+struct AFGameInfoReq // af v1.2+
+{
+    uint32_t signature;
+    uint8_t gi_req_ext_ver;
+};
+
 static constexpr uint32_t AF_FOOTER_MAGIC = 0x52544641u; // AFTR (LE)
 
 struct AFFooter
@@ -883,6 +969,39 @@ struct AlpineFactionJoinReqPacketExt // used for stashed data during join proces
 };
 template<>
 struct EnableEnumBitwiseOperators<AlpineFactionJoinReqPacketExt::Flags> : std::true_type {};
+
+std::pair<std::unique_ptr<std::byte[]>, size_t> append_af_tail(const std::byte* pkt, size_t len, const void* core, size_t core_len)
+{
+    if (!core || core_len == 0) {
+        // passthrough
+        return extend_packet_bytes(pkt, len, nullptr, 0);
+    }
+
+    // tail = [core][footer]
+    AFFooter f{};
+    f.total_len = static_cast<uint16_t>(core_len);
+    f.magic = AF_FOOTER_MAGIC;
+
+    std::vector<uint8_t> tail;
+    tail.reserve(core_len + sizeof(f));
+    tail.insert(tail.end(),
+        reinterpret_cast<const uint8_t*>(core),
+        reinterpret_cast<const uint8_t*>(core) + core_len);
+    const uint8_t* fptr = reinterpret_cast<const uint8_t*>(&f);
+    tail.insert(tail.end(), fptr, fptr + sizeof(f));
+
+    return extend_packet_bytes(pkt, len, tail.data(), tail.size());
+}
+
+CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_req_packet_hook{
+    0x0047B470,
+    [](const rf::NetAddr* addr, std::byte* data, size_t len) {
+        AFGameInfoReq core{ALPINE_FACTION_SIGNATURE, 1};
+        // version 1 of gi_req extension, only used to identify non-legacy clients, unlikely this will need to increment
+        auto [buf, new_len] = append_af_tail(data, len, &core, sizeof(core));
+        return send_game_info_req_packet_hook.call_target(addr, buf.get(), new_len);
+    },
+};
 
 std::pair<std::unique_ptr<std::byte[]>, size_t> append_af_v3_tail(
     const std::byte* pkt, size_t len, const AFJoinReq_v2& core_af_ext, const std::vector<uint8_t>& tlvs)
@@ -1672,6 +1791,48 @@ static void process_custom_packet([[maybe_unused]] void* data, [[maybe_unused]] 
     af_process_packet(data, len, addr, player);
 }
 
+static bool parse_af_gi_req_tail(const uint8_t* pkt, size_t datalen, uint8_t& out_ver)
+{
+    out_ver = 0;
+
+    if (!pkt || datalen < sizeof(RF_GamePacketHeader))
+        return false;
+
+    RF_GamePacketHeader gh{};
+    std::memcpy(&gh, pkt, sizeof(gh));
+    if (gh.type != RF_GPT_GAME_INFO_REQUEST)
+        return false;
+
+    const uint8_t* payload = pkt + sizeof(gh);
+    const size_t plen = gh.size;
+    if (datalen < sizeof(gh) + plen)
+        return false;
+    if (plen < sizeof(AFFooter))
+        return false;
+
+    const uint8_t* end = payload + plen;
+    const auto* foot = reinterpret_cast<const AFFooter*>(end - sizeof(AFFooter));
+    if (foot->magic != AF_FOOTER_MAGIC)
+        return false;
+
+    const uint16_t total_len = foot->total_len;
+    if (total_len < sizeof(AFGameInfoReq))
+        return false;
+    if (total_len > plen - sizeof(AFFooter))
+        return false;
+
+    const uint8_t* af_start = end - sizeof(AFFooter) - total_len;
+    if (af_start < payload)
+        return false;
+
+    const auto* core = reinterpret_cast<const AFGameInfoReq*>(af_start);
+    if (core->signature != ALPINE_FACTION_SIGNATURE)
+        return false;
+
+    out_ver = core->gi_req_ext_ver;
+    return true;
+}
+
 CodeInjection multi_io_process_packets_injection{
     0x0047918D,
     [](auto& regs) {
@@ -1686,14 +1847,31 @@ CodeInjection multi_io_process_packets_injection{
             process_custom_packet(data + offset, len, addr, player);
             regs.eip = 0x00479194;
         }
-        // stash the join req packet so we can analyze it if the player successfully joins
-        if (rf::is_dedicated_server && packet_type == static_cast<int>(RF_GamePacketType::RF_GPT_JOIN_REQUEST)) {
-            const uint8_t* base = static_cast<const uint8_t*>(regs.ecx);
-            auto stack_frame = regs.esp + 0x1C;
-            auto& addr = *addr_as_ref<rf::NetAddr*>(stack_frame + 0xC);
-            const int off = regs.ebp;
-            const int len = regs.edi;
-            g_join_request_stashed = {addr, base + off, size_t(len), uint8_t(packet_type)};
+        if (rf::is_dedicated_server || (rf::is_server && !rf::is_dedicated_server)) {
+            // stash the join req packet so we can analyze it if the player successfully joins
+            if (packet_type == static_cast<int>(RF_GamePacketType::RF_GPT_JOIN_REQUEST)) {
+                const uint8_t* base = static_cast<const uint8_t*>(regs.ecx);
+                auto stack_frame = regs.esp + 0x1C;
+                auto& addr = *addr_as_ref<rf::NetAddr*>(stack_frame + 0xC);
+                const int off = regs.ebp;
+                const int len = regs.edi;
+                g_join_request_stashed = {addr, base + off, size_t(len), uint8_t(packet_type)};
+            }
+            // analyze the game_info_req packet so we can adjust the response if needed
+            if (packet_type == static_cast<int>(RF_GamePacketType::RF_GPT_GAME_INFO_REQUEST)) {
+                const uint8_t* base = static_cast<const uint8_t*>(regs.ecx);
+                auto stack_frame = regs.esp + 0x1C;
+                const auto& addr = *addr_as_ref<rf::NetAddr*>(stack_frame + 0xC);
+                const int off = regs.ebp;
+                const int len = regs.edi;
+
+                uint8_t ver = 0;
+                if (parse_af_gi_req_tail(base + off, size_t(len), ver)) {
+                    const int now = rf::timer_get(1000);
+                    g_af_gi_req_seen[addr_key(addr)] = AfGiReqSeen{ver, now};
+                    xlog::warn("AF GI-REQ detected from {:x}:{} (ver={})", addr.ip_addr, addr.port, ver);
+                }
+            }
         }
     },
 };
@@ -1845,8 +2023,9 @@ void network_init()
     // Make sure tracker packets come from configured tracker
     net_get_tracker_hook.install();
 
-    // Add Alpine Faction signature to game_info, join_req, join_accept packets
+    // Add Alpine Faction signature to game_info, game_info_req, join_req, join_accept packets
     send_game_info_packet_hook.install();
+    send_game_info_req_packet_hook.install();
     send_join_req_packet_hook.install();
     process_join_req_packet_hook.install();
     process_join_req_injection.install();
