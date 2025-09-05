@@ -126,6 +126,8 @@ set(SRCS
     multi/dedi_cfg.cpp
     multi/multi.h
     multi/multi.cpp
+    multi/gametype.h
+    multi/gametype.cpp
     multi/kill.cpp
     multi/network.cpp
     multi/level_download.cpp
