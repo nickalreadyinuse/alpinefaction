@@ -909,6 +909,9 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
         if (ng_type == RF_GT_CTF) {
             return string_starts_with_ignore_case(filename, "ctf") || string_starts_with_ignore_case(filename, "pctf");
         }
+        else if (ng_type == RF_GT_KOTH) {
+            return string_starts_with_ignore_case(filename, "koth");
+        }
         return string_starts_with_ignore_case(filename, "dm") || string_starts_with_ignore_case(filename, "pdm");
     },
 };
