@@ -7,6 +7,7 @@
 #include <patch_common/AsmWriter.h>
 #include <common/version/version.h>
 #include "multi.h"
+#include "gametype.h"
 #include "endgame_votes.h"
 #include "multi_private.h"
 #include "alpine_packets.h"
@@ -679,6 +680,7 @@ void multi_do_patch()
 
 void multi_after_full_game_init()
 {
+    populate_gametype_table();
     handle_url_param();
     handle_levelm_param();
 }

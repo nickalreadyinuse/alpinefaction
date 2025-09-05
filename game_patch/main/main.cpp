@@ -27,6 +27,7 @@
 #include "../hud/multi_spectate.h"
 #include "../object/object.h"
 #include "../multi/multi.h"
+#include "../multi/gametype.h"
 #include "../multi/server.h"
 #include "../multi/server_internal.h"
 #include "../misc/misc.h"
@@ -428,6 +429,7 @@ extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
     hud_apply_patches();
     multi_do_patch();
     multi_scoreboard_apply_patch();
+    gametype_do_patch();
     vpackfile_apply_patches();
     multi_spectate_appy_patch();
     high_fps_init();
