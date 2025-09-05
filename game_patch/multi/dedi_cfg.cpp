@@ -98,10 +98,12 @@ void evaluate_mandatory_alpine_restrict() {
 
 static rf::NetGameType parse_game_type(const std::string& s)
 {
-    if (s == "TDM")
+    if (s == "TDM" || s == "TeamDM")
         return rf::NetGameType::NG_TYPE_TEAMDM;
     if (s == "CTF")
         return rf::NetGameType::NG_TYPE_CTF;
+    if (s == "KOTH")
+        return rf::NetGameType::NG_TYPE_KOTH;
     return rf::NetGameType::NG_TYPE_DM;
 }
 
@@ -865,6 +867,9 @@ std::string get_game_type_string(rf::NetGameType game_type) {
          case rf::NetGameType::NG_TYPE_CTF:
             out_string = "CTF";
             break;
+         case rf::NetGameType::NG_TYPE_KOTH:
+             out_string = "KOTH";
+             break;
          default:
              out_string = "DM";
              break;

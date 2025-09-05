@@ -115,6 +115,7 @@ namespace rf
         NG_TYPE_DM = 0,
         NG_TYPE_CTF = 1,
         NG_TYPE_TEAMDM = 2,
+        NG_TYPE_KOTH = 3, // as of AF v1.2
     };
 
     enum NetGameFlags
