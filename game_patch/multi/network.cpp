@@ -197,7 +197,9 @@ enum packet_type : uint8_t {
     af_damage_notify       = 0x52,
     af_obj_update          = 0x53,
     af_client_req          = 0x55,
-    af_just_spawned_info   = 0x56
+    af_just_spawned_info   = 0x56,
+    af_koth_hill_state     = 0x57,
+    af_koth_hill_captured  = 0x58,
 };
 
 // client -> server
@@ -274,7 +276,9 @@ std::array g_client_side_packet_whitelist{
     af_ping_location,
     af_damage_notify,
     af_obj_update,
-    af_just_spawned_info
+    af_just_spawned_info,
+    af_koth_hill_state,
+    af_koth_hill_captured
 };
 // clang-format on
 

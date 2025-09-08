@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <variant>
 #include <common/rfproto.h>
+#include "gametype.h"
 #include "../rf/multi.h"
 
 #pragma pack(push, 1)
@@ -25,6 +26,8 @@ enum class af_packet_type : uint8_t
     af_obj_update = 0x53,               // Alpine 1.1
     af_client_req = 0x55,               // Alpine 1.2
     af_just_spawned_info = 0x56,        // Alpine 1.2
+    af_koth_hill_state = 0x57,          // Alpine 1.2
+    af_koth_hill_captured = 0x58,       // Alpine 1.2
 };
 
 struct af_ping_location_req_packet
@@ -100,6 +103,29 @@ struct af_just_spawned_info_packet
     uint8_t data[];     // type-specific payload
 };
 
+struct af_koth_hill_state_packet // todo: send to new player on join
+{
+    RF_GamePacketHeader header;
+    uint8_t hill_uid;
+    uint8_t ownership;
+    uint8_t steal_dir;
+    uint8_t state;
+    uint8_t capture_progress;
+    uint8_t num_red_players;
+    uint8_t num_blue_players;
+    uint16_t red_score;
+    uint16_t blue_score;
+};
+
+struct af_koth_hill_captured_packet
+{
+    RF_GamePacketHeader header;
+    uint8_t hill_uid;
+    uint8_t ownership;
+    uint8_t num_new_owner_players;
+    //uint8_t new_owner_player_ids[]; // appended on the wire
+};
+
 #pragma pack(pop)
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
@@ -117,6 +143,11 @@ void af_send_client_req_packet(const af_client_req_packet& packet);
 static void af_process_client_req_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_just_spawned_loadout(rf::Player* to_player, std::vector<WeaponLoadoutEntry> loadout);
 static void af_process_just_spawned_info_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_koth_hill_state_packet(rf::Player* player, const HillInfo& h, const Presence& pres);
+void af_send_koth_hill_state_packet_to_all(const HillInfo& h, const Presence& pres);
+static void af_process_koth_hill_state_packet(const void* data, size_t len, const rf::NetAddr&);
+void af_send_koth_hill_captured_packet_to_all(uint8_t hill_uid, HillOwner owner, const std::vector<uint8_t>& new_owner_player_ids);
+static void af_process_koth_hill_captured_packet(const void* data, size_t len, const rf::NetAddr&);
 
 // client requests
 void af_send_handicap_request(uint8_t amount);

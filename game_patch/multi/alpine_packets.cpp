@@ -68,6 +68,12 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         case af_packet_type::af_just_spawned_info:
             af_process_just_spawned_info_packet(data, len, addr);
             break;
+        case af_packet_type::af_koth_hill_state:
+            af_process_koth_hill_state_packet(data, static_cast<size_t>(len), addr);
+            return true;
+        case af_packet_type::af_koth_hill_captured:
+            af_process_koth_hill_captured_packet(data, static_cast<size_t>(len), addr);
+            return true;
         default:
             return false; // ignore if unrecognized
     }
@@ -628,4 +634,225 @@ static void af_process_just_spawned_info_packet(const void* data, size_t len, co
         default: // ignore unknown info types
             break;
     }
+}
+
+void af_send_koth_hill_state_packet(rf::Player* player, const HillInfo& h, const Presence& pres)
+{
+    // Send: server -> client
+    assert(rf::is_server);
+
+    if (!player) {
+        xlog::error("af_koth_state_packet: Attempted to send to an invalid player");
+        return;
+    }
+
+    af_koth_hill_state_packet pkt{};
+    pkt.header.type = static_cast<uint8_t>(af_packet_type::af_koth_hill_state);
+    pkt.header.size = static_cast<uint16_t>(sizeof(af_koth_hill_state_packet) - sizeof(RF_GamePacketHeader));
+
+    pkt.hill_uid = static_cast<uint8_t>(std::clamp(h.hill_uid, 0, 255));
+    pkt.ownership = static_cast<uint8_t>(h.ownership);
+    pkt.steal_dir = static_cast<uint8_t>(h.steal_dir);
+    pkt.state = static_cast<uint8_t>(h.state);
+    pkt.capture_progress = h.capture_progress;
+    pkt.num_red_players = static_cast<uint8_t>(std::clamp(pres.red, 0, 255));
+    pkt.num_blue_players = static_cast<uint8_t>(std::clamp(pres.blue, 0, 255));
+    pkt.red_score = static_cast<uint16_t>(std::clamp(g_koth_info.red_team_score, 0, 0xFFFF));
+    pkt.blue_score = static_cast<uint16_t>(std::clamp(g_koth_info.blue_team_score, 0, 0xFFFF));
+
+    std::byte buf[rf::max_packet_size];
+    const size_t wire_sz = sizeof(pkt);
+    if (wire_sz > rf::max_packet_size) {
+        xlog::error("af_koth_state: packet too large ({}>{})", wire_sz, rf::max_packet_size);
+        return;
+    }
+    std::memcpy(buf, &pkt, wire_sz);
+    af_send_packet(player, buf, wire_sz, true);
+}
+
+void af_send_koth_hill_state_packet_to_all(const HillInfo& h, const Presence& pres)
+{
+    auto plist = SinglyLinkedList{rf::player_list};
+    for (auto& pl : plist) {
+        if (!pl.net_data)
+            continue; // Skip invalid player
+
+        af_send_koth_hill_state_packet(&pl, h, pres);
+    }
+}
+
+static void af_process_koth_hill_state_packet(const void* data, size_t len, const rf::NetAddr&)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server)
+        return;
+    if (len < sizeof(RF_GamePacketHeader))
+        return;
+
+    RF_GamePacketHeader hdr{};
+    std::memcpy(&hdr, data, sizeof(hdr));
+    if (sizeof(RF_GamePacketHeader) + hdr.size > len) {
+        xlog::warn("koth_state: truncated (declared={}, len={})", hdr.size, len);
+        return;
+    }
+
+    if (len < sizeof(af_koth_hill_state_packet)) {
+        xlog::warn("koth_state: short packet ({}<{})", len, sizeof(af_koth_hill_state_packet));
+        return;
+    }
+
+    af_koth_hill_state_packet pkt{};
+    std::memcpy(&pkt, data, sizeof(pkt));
+
+    const size_t expected_payload = sizeof(af_koth_hill_state_packet) - sizeof(RF_GamePacketHeader);
+    if (pkt.header.size != expected_payload) {
+        xlog::warn("koth_state: bad payload size {} (expected {})", pkt.header.size, expected_payload);
+        return;
+    }
+
+    HillInfo* h = koth_find_hill_by_uid(pkt.hill_uid);
+    if (!h) {
+        xlog::warn("koth_state: unknown hill uid {}", pkt.hill_uid);
+        return;
+    }
+
+    // Apply authoritative state
+    h->ownership = static_cast<HillOwner>(pkt.ownership);
+    h->steal_dir = static_cast<HillOwner>(pkt.steal_dir);
+    h->state = static_cast<HillState>(pkt.state);
+    h->capture_progress = pkt.capture_progress;
+    h->capture_milli = std::clamp<int>(h->capture_progress, 0, 100) * 1000;
+
+    // Snapshot presence for client-side prediction (optional fields you track)
+    h->net_last_red = pkt.num_red_players;
+    h->net_last_blue = pkt.num_blue_players;
+    h->net_last_state = h->state;
+    h->net_last_dir = h->steal_dir;
+    h->net_last_prog_bucket = static_cast<uint8_t>(h->capture_progress / 5);
+    h->client_hold_ms_accum = 0; // reset prediction accumulator
+
+    // Scores are authoritative
+    multi_koth_set_red_team_score(pkt.red_score);
+    multi_koth_set_blue_team_score(pkt.blue_score);
+}
+
+void af_send_koth_hill_captured_packet(rf::Player* player, uint8_t hill_uid, HillOwner owner, const std::vector<uint8_t>& new_owner_player_ids)
+{
+    // Send: server -> client
+    assert(rf::is_server);
+
+    if (!player) {
+        xlog::error("af_koth_hill_captured_packet: Attempted to send to an invalid player");
+        return;
+    }
+
+    const size_t id_count = std::min<size_t>(new_owner_player_ids.size(), 255);
+    const size_t payload_size = (sizeof(af_koth_hill_captured_packet) - sizeof(RF_GamePacketHeader)) + id_count;
+    const size_t wire_size = sizeof(RF_GamePacketHeader) + payload_size;
+
+    if (wire_size > rf::max_packet_size) {
+        xlog::error("af_koth_hill_captured: packet too large ({} > {})", wire_size, rf::max_packet_size);
+        return;
+    }
+
+    std::byte packet_buf[rf::max_packet_size];
+
+    af_koth_hill_captured_packet af_koth_hill_captured_packet{};
+    af_koth_hill_captured_packet.header.type = static_cast<uint8_t>(af_packet_type::af_koth_hill_captured);
+    af_koth_hill_captured_packet.header.size = static_cast<uint16_t>(payload_size);
+    af_koth_hill_captured_packet.hill_uid = hill_uid;
+    af_koth_hill_captured_packet.ownership = static_cast<uint8_t>(owner);
+    af_koth_hill_captured_packet.num_new_owner_players = static_cast<uint8_t>(id_count);
+
+    size_t off = 0;
+    std::memcpy(packet_buf + off, &af_koth_hill_captured_packet, sizeof(af_koth_hill_captured_packet));
+    off += sizeof(af_koth_hill_captured_packet);
+
+    // append variable-length id array
+    if (id_count) {
+        std::memcpy(packet_buf + off, new_owner_player_ids.data(), id_count);
+        off += id_count;
+    }
+
+    af_send_packet(player, packet_buf, off, true);
+}
+
+void af_send_koth_hill_captured_packet_to_all(uint8_t hill_uid, HillOwner owner, const std::vector<uint8_t>& new_owner_player_ids)
+{
+    if (rf::is_server && !rf::is_dedicated_server) {
+        if (HillInfo* h = koth_find_hill_by_uid(hill_uid)) {
+            koth_local_announce_hill_captured_vector(h, owner, new_owner_player_ids);
+        }
+    }
+
+    SinglyLinkedList<rf::Player> linked_player_list{rf::player_list};
+    for (auto& player : linked_player_list) {
+        if (!&player)
+            continue; // Skip invalid player
+
+        af_send_koth_hill_captured_packet(&player, hill_uid, owner, new_owner_player_ids);
+    }
+}
+
+static void af_process_koth_hill_captured_packet(const void* data, size_t len, const rf::NetAddr&)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server)
+        return;
+    if (len < sizeof(RF_GamePacketHeader))
+        return;
+
+    RF_GamePacketHeader hdr{};
+    std::memcpy(&hdr, data, sizeof(hdr));
+    if (sizeof(RF_GamePacketHeader) + hdr.size > len) {
+        xlog::warn("koth_captured: truncated (declared={}, len={})", hdr.size, len);
+        return;
+    }
+
+    if (len < sizeof(af_koth_hill_captured_packet)) {
+        xlog::warn("koth_captured: short packet ({}<{})", len, sizeof(af_koth_hill_captured_packet));
+        return;
+    }
+
+    af_koth_hill_captured_packet pkt{};
+    std::memcpy(&pkt, data, sizeof(pkt));
+
+    const size_t base_payload = sizeof(af_koth_hill_captured_packet) - sizeof(RF_GamePacketHeader);
+    if (pkt.header.size < base_payload) {
+        xlog::warn("koth_captured: bad payload size {}", pkt.header.size);
+        return;
+    }
+
+    const size_t ids_len = pkt.header.size - base_payload; // number of ID bytes
+    const size_t expected_wire = sizeof(RF_GamePacketHeader) + base_payload + ids_len;
+    if (expected_wire > len) {
+        xlog::warn("koth_captured: truncated tail ({}>{})", expected_wire, len);
+        return;
+    }
+
+    HillInfo* h = koth_find_hill_by_uid(pkt.hill_uid);
+    if (!h) {
+        xlog::warn("koth_captured: unknown hill uid {}", pkt.hill_uid);
+        return;
+    }
+
+    const HillOwner new_owner = static_cast<HillOwner>(pkt.ownership);
+
+    // Apply capture locally
+    h->ownership = new_owner;
+    h->steal_dir = HillOwner::HO_Neutral;
+    h->state = HillState::HS_Idle;
+    h->capture_milli = 0;
+    h->capture_progress = 0;
+    h->hold_ms_accum = 0;
+    h->client_hold_ms_accum = 0;
+
+    const uint8_t* ids = reinterpret_cast<const uint8_t*>(data) + sizeof(af_koth_hill_captured_packet);
+
+    // Local announce
+    koth_local_announce_hill_captured(h, new_owner, ids, ids_len);
+
+    // Seed presence snapshot for prediction
+    h->net_last_red = (new_owner == HillOwner::HO_Red) ? static_cast<uint8_t>(ids_len) : 0;
+    h->net_last_blue = (new_owner == HillOwner::HO_Blue) ? static_cast<uint8_t>(ids_len) : 0;
 }
