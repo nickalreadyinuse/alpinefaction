@@ -12,6 +12,24 @@ struct WorldHUDAssets
     int flag_red_s;
     int flag_blue_s;
     int mp_respawn;
+    int koth_neutral;
+    int koth_red;
+    int koth_blue;
+    int koth_fill_red;
+    int koth_fill_blue;
+    int koth_ring_fade;
+};
+
+struct KothHudTuning
+{
+    float fill_vs_ring_scale = 1.0f;
+    float icon_base_scale = 1.0f;
+};
+
+struct WorldHUDView
+{
+    rf::Vector3 pos; // includes possible push due to fog level
+    float dist_factor; // clamped to >= 1 / ref
 };
 
 struct WorldHUDRender
@@ -24,6 +42,7 @@ struct WorldHUDRender
     static constexpr float fog_dist_multi = 0.85f;
     static constexpr float fog_dist_min = 5.0f;
     static constexpr float fog_dist_max = 100.0f;
+    static constexpr float koth_hill_offset = 0.0f;
 };
 
 enum class WorldHUDRenderMode : int
