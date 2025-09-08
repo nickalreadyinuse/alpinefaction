@@ -75,24 +75,47 @@ void handle_min_param()
 // check if we need to force the server to be restricted to Alpine clients
 // prevents legacy clients from connecting to servers that require features they don't support
 void evaluate_mandatory_alpine_restrict() {
+    auto& cfg = g_alpine_server_config;
+
+    if (cfg.alpine_restricted_config.clients_require_alpine &&
+        cfg.alpine_restricted_config.alpine_server_version_enforce_min &&
+        cfg.alpine_restricted_config.reject_non_alpine_clients) {
+        return; // everything is already enforced, no need to evaluate
+    }
+
     bool require_alpine = false;
     bool require_min_version = false;
+    bool reject_non_alpine = false;
 
     // loadouts require min server version
     if (loadouts_in_use) { // added in 1.2.0
-        rf::console::print("Clients require min AF server version has been turned on because loadouts were configured\n");
+        rf::console::print("Loadouts are configured, so 'clients require Alpine', and 'enforce min server version' have been turned on\n");
         require_min_version = true;
     }
+
+    // KOTH requires min server version and rejecting non-alpine clients
+    if (cfg.game_type == rf::NetGameType::NG_TYPE_KOTH) { // added in 1.2.0
+        rf::console::print("Gametype is KOTH, so 'clients require Alpine', 'enforce min server version', and 'reject non-Alpine clients' have been turned on\n");
+        require_min_version = true;
+        reject_non_alpine = true;
+    }
+
 
     // evaluate if we need to require min server version
     if (require_min_version) {
         require_alpine = true;
-        g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
+        cfg.alpine_restricted_config.alpine_server_version_enforce_min = true;
+    }
+
+    // evaluate if we need to reject non-alpine clients
+    if (reject_non_alpine) {
+        require_alpine = true;
+        cfg.alpine_restricted_config.reject_non_alpine_clients = true;
     }
 
     // evaluate if we need to turn on base alpine restriction
     if (require_alpine) {
-        g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
+        cfg.alpine_restricted_config.clients_require_alpine = true;
     }
 }
 
@@ -1531,7 +1554,7 @@ void launch_alpine_dedicated_server() {
 
     load_and_print_alpine_dedicated_server_config(g_ads_config_name, true);
 
-    if (netgame.levels.size() < 1) {
+    if (netgame.levels.size() <= 0) {
         rf::console::print("----> No valid level files were specified!\n");
         rf::console::print("----> Launching server on Glass House...\n\n");
         netgame.levels.add("glass_house.rfl");
