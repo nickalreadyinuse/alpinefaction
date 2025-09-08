@@ -397,6 +397,7 @@ namespace rf::gr
     static auto& gr_string_3d = addr_as_ref<void(Vector3* pos, Matrix3* orient, float scale, const char* string, int font_num, Mode mode)>(0x00520020);
     static auto& gr_3d_bitmap = addr_as_ref<void(Vector3* pos, Matrix3* orient, float scale, Mode mode)>(0x00515B10);
     static auto& gr_3d_bitmap_angle = addr_as_ref<void(Vector3* pos, float angle, float scale, Mode mode)>(0x00515B40);
+    static auto& gr_3d_bitmap_angle_wh = addr_as_ref<void(Vector3* pos, float angle, float width, float height, Mode mode)>(0x00555B20);
 
     inline void set_color(ubyte r, ubyte g, ubyte b, ubyte a = screen.current_color.alpha)
     {

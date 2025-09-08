@@ -43,6 +43,9 @@ void load_world_hud_assets() {
     g_world_hud_assets.koth_neutral = rf::bm::load("af_wh_koth_base_neutral.tga", -1, true);
     g_world_hud_assets.koth_red = rf::bm::load("af_wh_koth_base_red.tga", -1, true);
     g_world_hud_assets.koth_blue = rf::bm::load("af_wh_koth_base_blue.tga", -1, true);
+    g_world_hud_assets.koth_neutral_c = rf::bm::load("af_wh_koth_cont_neutral.tga", -1, true);
+    g_world_hud_assets.koth_red_c = rf::bm::load("af_wh_koth_cont_red.tga", -1, true);
+    g_world_hud_assets.koth_blue_c = rf::bm::load("af_wh_koth_cont_blue.tga", -1, true);
     g_world_hud_assets.koth_fill_red = rf::bm::load("af_wh_koth_fill_red.tga", -1, true);
     g_world_hud_assets.koth_fill_blue = rf::bm::load("af_wh_koth_fill_blue.tga", -1, true);
     g_world_hud_assets.koth_ring_fade = rf::bm::load("af_wh_koth_ring_fade.tga", -1, true);
@@ -315,6 +318,21 @@ static inline void koth_owner_color(HillOwner owner, rf::ubyte& r, rf::ubyte& g,
     }
 }
 
+static inline rf::Vector3 camera_right()
+{
+    if (auto* cam = rf::local_player ? rf::local_player->cam : nullptr)
+        return rf::camera_get_orient(cam).rvec;
+    
+    return rf::Vector3{1.f, 0.f, 0.f};
+}
+
+static inline rf::Vector3 camera_up()
+{
+    if (auto* cam = rf::local_player ? rf::local_player->cam : nullptr)
+        return rf::camera_get_orient(cam).uvec;
+    return rf::Vector3{0.f, 1.f, 0.f};
+}
+
 static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
 {
     if (!h.trigger)
@@ -324,28 +342,41 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
     const WorldHUDView view = make_world_hud_view(world_pos, true);
 
     const float ring_base = g_koth_hud_tuning.icon_base_scale;
-    float ring_scale = ring_base * view.dist_factor;
-    ring_scale = std::clamp(ring_scale, WorldHUDRender::min_scale, WorldHUDRender::max_scale);
+    float ring_scale = std::clamp(ring_base * view.dist_factor, WorldHUDRender::min_scale, WorldHUDRender::max_scale);
 
-    int ring_bmp = g_world_hud_assets.koth_neutral;
+    bool contested = h.steal_dir != HillOwner::HO_Neutral && h.capture_progress > 0;
+
+    // Choose ring bitmap by owner
+    int ring_bmp = contested ? g_world_hud_assets.koth_neutral_c : g_world_hud_assets.koth_neutral;
     if (h.ownership == HillOwner::HO_Red)
-        ring_bmp = g_world_hud_assets.koth_red;
+        ring_bmp = contested ? g_world_hud_assets.koth_red_c : g_world_hud_assets.koth_red;
     if (h.ownership == HillOwner::HO_Blue)
-        ring_bmp = g_world_hud_assets.koth_blue;
+        ring_bmp = contested ? g_world_hud_assets.koth_blue_c : g_world_hud_assets.koth_blue;
 
-    // fill icon
-    if (h.steal_dir != HillOwner::HO_Neutral && h.capture_progress > 0) {
-        const float t = std::clamp(h.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
-        const float rel = g_koth_hud_tuning.fill_vs_ring_scale * static_cast<float>(std::pow(t, 0.65)); // attempt to visually match linear growth rate
-        const float fill_scale = ring_scale * rel;
+    //capture progress bar
+    if (contested) {
+        const float t_raw = std::clamp(h.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
+        const float t = std::pow(t_raw, 0.65f);
 
-        const int fill_bmp = (h.steal_dir == HillOwner::HO_Red) ? g_world_hud_assets.koth_fill_red : g_world_hud_assets.koth_fill_blue;
+        const float track_w = (2.0f * ring_scale) * g_koth_hud_tuning.fill_vs_ring_scale;
+        const float bar_h = ring_scale * 0.44f;
 
-        rf::gr::set_texture(fill_bmp, -1);
-        rf::gr::gr_3d_bitmap_angle(&const_cast<rf::Vector3&>(view.pos), 0.0f, fill_scale, bitmap_mode_from(rm));
+        const float cur_w = std::max(track_w * t, 1e-4f);
+        if (cur_w > 1e-4f && bar_h > 1e-4f) {
+            const rf::Vector3 right = camera_right();
+            const rf::Vector3 up = camera_up();
+
+            const float bar_y_offset = -0.7f * ring_scale;
+            rf::Vector3 bar_pos = view.pos + up * bar_y_offset + right * (-0.5f * track_w + 0.5f * cur_w);
+
+            const int fill_bmp = (h.steal_dir == HillOwner::HO_Red) ? g_world_hud_assets.koth_fill_red
+                                                                    : g_world_hud_assets.koth_fill_blue;
+            rf::gr::set_texture(fill_bmp, -1);
+
+            rf::gr::gr_3d_bitmap_angle_wh(&bar_pos, 0.0f, cur_w, bar_h, bitmap_mode_from(rm));
+        }
     }
 
-    // outer icon
     rf::gr::set_texture(ring_bmp, -1);
     rf::gr::gr_3d_bitmap_angle(&const_cast<rf::Vector3&>(view.pos), 0.0f, ring_scale, bitmap_mode_from(rm));
 }

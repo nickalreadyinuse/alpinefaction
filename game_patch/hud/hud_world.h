@@ -15,6 +15,9 @@ struct WorldHUDAssets
     int koth_neutral;
     int koth_red;
     int koth_blue;
+    int koth_neutral_c;
+    int koth_red_c;
+    int koth_blue_c;
     int koth_fill_red;
     int koth_fill_blue;
     int koth_ring_fade;
@@ -22,7 +25,7 @@ struct WorldHUDAssets
 
 struct KothHudTuning
 {
-    float fill_vs_ring_scale = 1.0f;
+    float fill_vs_ring_scale = 0.975f;
     float icon_base_scale = 1.0f;
 };
 
