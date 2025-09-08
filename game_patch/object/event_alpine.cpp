@@ -82,6 +82,7 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"Light_State", 134},
                 {"World_HUD_Sprite", 135},
                 {"Set_Light_Color", 136},
+                {"Capture_Point_Handler", 137},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -144,6 +145,7 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {134, []() { return new rf::EventLightState(); }},
                 {135, []() { return new rf::EventWorldHUDSprite(); }},
                 {136, []() { return new rf::EventSetLightColor(); }},
+                {137, []() { return new rf::EventCapturePointHandler(); }},
             };
 
             // find type and allocate
@@ -210,6 +212,7 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {134, [](rf::Event* e) { delete static_cast<rf::EventLightState*>(e); }},
                 {135, [](rf::Event* e) { delete static_cast<rf::EventWorldHUDSprite*>(e); }},
                 {136, [](rf::Event* e) { delete static_cast<rf::EventSetLightColor*>(e); }},
+                {137, [](rf::Event* e) { delete static_cast<rf::EventCapturePointHandler*>(e); }},
             };
 
             // find type and deallocate
@@ -250,7 +253,8 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Set_Entity_Flag,
         rf::EventType::Light_State,
         rf::EventType::World_HUD_Sprite,
-        rf::EventType::Set_Light_Color
+        rf::EventType::Set_Light_Color,
+        rf::EventType::Capture_Point_Handler
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
@@ -636,6 +640,20 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             if (event) {
                 event->light_color = params.str1;
                 event->randomize = params.bool1;
+            }
+            return event;
+        }
+    },
+    // Capture_Point_Handler
+    {
+        rf::EventType::Capture_Point_Handler, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Capture_Point_Handler));
+            auto* event = dynamic_cast<rf::EventCapturePointHandler*>(base_event);
+            if (event) {
+                event->name = params.str1;
+                event->trigger_uid = params.int1;
+                event->outline_offset = params.float1;
+                event->sphere_to_cylinder = params.bool1;
             }
             return event;
         }

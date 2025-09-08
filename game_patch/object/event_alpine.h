@@ -2076,5 +2076,35 @@ namespace rf
         }
     };
 
+    // id 137
+    struct EventCapturePointHandler : Event
+    {
+        std::string name = "";
+        int trigger_uid = -1;
+        float outline_offset = 0.0f;
+        bool sphere_to_cylinder = false;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->name = value;
+            };
+
+            handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->outline_offset = std::stof(value);
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->sphere_to_cylinder = (value == "true");
+            };
+        }
+    };
+
 } // namespace rf
 
