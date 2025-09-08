@@ -496,6 +496,7 @@ struct AlpineServerConfigRules
     int individual_kill_limit = 30;
     int team_kill_limit = 100;
     int cap_limit = 5;
+    int koth_score_limit = 100;
     int geo_limit = 64;
     bool team_damage = false;
     bool fall_damage = false;
