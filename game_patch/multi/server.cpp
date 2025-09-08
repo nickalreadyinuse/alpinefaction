@@ -531,7 +531,7 @@ void shuffle_level_array()
     if (g_dedicated_launched_from_ads) {
         auto& cfg = g_alpine_server_config;
 
-        if (cfg.levels.size() <= 1)
+        if (cfg.levels.size() <= 0)
             return;
 
         std::ranges::shuffle(cfg.levels, g_rng);
@@ -1696,6 +1696,9 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_TEAMDM: {
         return rf::multi_tdm_get_red_team_score() == rf::multi_tdm_get_blue_team_score();
     }
+    case rf::NG_TYPE_KOTH: {
+        return multi_koth_get_red_team_score() == multi_koth_get_blue_team_score();
+    }
     default:
         return false;
     }
@@ -1737,6 +1740,13 @@ FunHook<void()> multi_check_for_round_end_hook{
             case rf::NG_TYPE_TEAMDM: {
                 if (rf::multi_tdm_get_red_team_score() >= rf::multi_kill_limit ||
                     rf::multi_tdm_get_blue_team_score() >= rf::multi_kill_limit) {
+                    round_over = true;
+                }
+                break;
+            }
+            case rf::NG_TYPE_KOTH: {
+                if (multi_koth_get_red_team_score() >= g_alpine_server_config_active_rules.koth_score_limit ||
+                    multi_koth_get_blue_team_score() >= g_alpine_server_config_active_rules.koth_score_limit) {
                     round_over = true;
                 }
                 break;
