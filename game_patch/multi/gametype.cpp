@@ -819,6 +819,8 @@ static int koth_build_hills_from_capture_point_events()
 
 void koth_level_init()
 {
+    clear_koth_name_textures(); // clear hill labels
+
     if (!rf::is_multi || !gt_is_koth())
         return;
 

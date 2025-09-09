@@ -27,6 +27,7 @@
 
 WorldHUDAssets g_world_hud_assets;
 static KothHudTuning g_koth_hud_tuning{};
+static std::unordered_map<int, NameLabelTex> g_koth_name_labels;
 bool draw_mp_spawn_world_hud = false;
 std::unordered_set<rf::EventWorldHUDSprite*> world_hud_sprite_events;
 std::vector<EphemeralWorldHUDSprite> ephemeral_world_hud_sprites;
@@ -318,6 +319,13 @@ static inline void koth_owner_color(HillOwner owner, rf::ubyte& r, rf::ubyte& g,
     }
 }
 
+static inline int hill_key(const HillInfo& h)
+{
+    if (h.trigger)
+        return h.trigger->uid;
+    return h.trigger_uid; // fallback if trigger is broken somehow (should never happen)
+}
+
 static inline rf::Vector3 camera_right()
 {
     if (auto* cam = rf::local_player ? rf::local_player->cam : nullptr)
@@ -331,6 +339,54 @@ static inline rf::Vector3 camera_up()
     if (auto* cam = rf::local_player ? rf::local_player->cam : nullptr)
         return rf::camera_get_orient(cam).uvec;
     return rf::Vector3{0.f, 1.f, 0.f};
+}
+
+static NameLabelTex& ensure_hill_name_tex(const HillInfo& h, int font)
+{
+    const int key = hill_key(h);
+    auto& slot = g_koth_name_labels[key];
+
+    if (slot.bm == -1 || slot.text != h.name || slot.font != font) {
+        int tw = 0, th = 0;
+        rf::gr::gr_get_string_size(&tw, &th, h.name.c_str(), (int)h.name.size(), font);
+
+        const int pad = 2;
+        const int bw = std::max(1, tw + pad * 2);
+        const int bh = std::max(1, th + pad * 2);
+
+        if (slot.bm != -1) {
+            rf::bm::release(slot.bm);
+            slot.bm = -1;
+        }
+
+        slot.bm = rf::bm::create(rf::bm::FORMAT_4444_ARGB, bw, bh);
+
+        // keep resident
+        rf::bm::texture_add_ref(slot.bm);
+
+        // clear on GPU path
+        rf::bm::clear_user_bitmap(slot.bm);
+
+        // render name text
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::gr_render_string_into_bitmap(pad, pad, slot.bm, h.name.c_str(), font);
+
+        slot.w_px = bw;
+        slot.h_px = bh;
+        slot.text = h.name;
+        slot.font = font;
+    }
+
+    return slot;
+}
+
+void clear_koth_name_textures()
+{
+    for (auto& kv : g_koth_name_labels) {
+        if (kv.second.bm != -1)
+            rf::bm::release(kv.second.bm);
+    }
+    g_koth_name_labels.clear();
 }
 
 static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
@@ -377,6 +433,23 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
         }
     }
 
+    // hill name label
+    const int font = !g_alpine_game_config.world_hud_big_text;
+    NameLabelTex& lbl = ensure_hill_name_tex(h, font);
+
+    const float text_h_world = ring_scale * 0.55f;
+    const float aspect = (lbl.w_px > 0 && lbl.h_px > 0) ? float(lbl.w_px) / float(lbl.h_px) : 1.0f;
+    const float text_w_world = text_h_world * aspect;
+
+    const rf::Vector3 up = camera_up();
+    const float margin = ring_scale * -0.4f;
+    const rf::Vector3 text_pos = view.pos + up * (ring_scale + margin + 0.5f * text_h_world);
+
+    rf::gr::set_color(255, 255, 255, 255);
+    rf::gr::set_texture(lbl.bm, -1);
+    rf::gr::gr_3d_bitmap_angle_wh(&const_cast<rf::Vector3&>(text_pos), 0.0f, text_w_world, text_h_world, bitmap_mode_from(rm));
+
+    // icon ring
     rf::gr::set_texture(ring_bmp, -1);
     rf::gr::gr_3d_bitmap_angle(&const_cast<rf::Vector3&>(view.pos), 0.0f, ring_scale, bitmap_mode_from(rm));
 }

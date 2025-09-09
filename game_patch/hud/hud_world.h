@@ -80,8 +80,18 @@ struct EphemeralWorldHUDString
     float wind_phase_offset = 0.0f;
 };
 
+struct NameLabelTex
+{
+    int bm = -1; // handle
+    int w_px = 0;
+    int h_px = 0;
+    std::string text;
+    int font = 0;
+};
+
 void hud_world_do_frame();
 void load_world_hud_assets();
+void clear_koth_name_textures();
 void populate_world_hud_sprite_events();
 void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name, int player_id);
 void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_id, uint16_t damage, bool died);
