@@ -48,6 +48,33 @@ CallHook<char*(const char*, const char*)> listen_server_map_list_filename_contai
     },
 };
 
+bool multi_game_type_is_team_type(rf::NetGameType game_type)
+{
+    switch (game_type) {
+        case rf::NG_TYPE_CTF:
+        case rf::NG_TYPE_TEAMDM:
+        case rf::NG_TYPE_KOTH:
+            return true;
+        default: // DM
+            return false;
+    }
+}
+
+bool multi_game_type_has_hills(rf::NetGameType game_type)
+{
+    switch (game_type) {
+        case rf::NG_TYPE_KOTH:
+            return true;
+        default: // DM, CTF, TDM
+            return false;
+    }
+}
+
+bool multi_is_team_game_type()
+{
+    return multi_game_type_is_team_type(rf::multi_get_game_type());
+}
+
 int multi_koth_get_red_team_score()
 {
     return g_koth_info.red_team_score;
@@ -75,9 +102,10 @@ void multi_koth_reset_scores()
     g_koth_info.red_team_score = 0;
     g_koth_info.blue_team_score = 0;
 }
+
 bool gt_is_koth()
 {
-    return rf::netgame.type == rf::NetGameType::NG_TYPE_KOTH;
+    return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_KOTH;
 }
 
 HillInfo* koth_find_hill_by_uid(uint8_t uid)
@@ -829,9 +857,8 @@ void koth_level_init()
 CodeInjection send_team_score_server_do_frame_patch{
     0x0046E5B4,
     [](auto& regs) {
-        auto game_type = rf::multi_get_game_type();
-        if (game_type == rf::NetGameType::NG_TYPE_KOTH) {
-            regs.eip = 0x0046E5C3; // send team_scores packet
+        if (multi_is_team_game_type()) {
+            regs.eip = 0x0046E5C3; // if any team mode, send team_scores packet
         }
     },
 };
@@ -841,13 +868,15 @@ CodeInjection send_team_score_state_info_patch{
     0x0048183F,
     [](auto& regs) {
         auto game_type = rf::multi_get_game_type();
-        if (game_type == rf::NetGameType::NG_TYPE_KOTH) {
-            rf::Player* pp = regs.edi;
-            for (auto& h : g_koth_info.hills) {
-                const Presence pres = sample_presence(h);
-                af_send_koth_hill_state_packet(pp, h, pres);
+        if (multi_game_type_is_team_type(game_type)) {
+            if (multi_game_type_has_hills(game_type)) { // send hill state packet on join
+                rf::Player* pp = regs.edi;
+                for (auto& h : g_koth_info.hills) {
+                    const Presence pres = sample_presence(h);
+                    af_send_koth_hill_state_packet(pp, h, pres);
+                }
             }
-            regs.eip = 0x00481859; // send team_scores packet
+            regs.eip = 0x00481859; // if any team mode, send team_scores packet
         }
     },
 };
@@ -856,9 +885,8 @@ CodeInjection send_team_score_state_info_patch{
 CodeInjection send_team_score_change_level_patch{
     0x0047BF97,
     [](auto& regs) {
-        auto game_type = rf::multi_get_game_type();
-        if (game_type == rf::NetGameType::NG_TYPE_KOTH) {
-            regs.eip = 0x0047BFA6; // send team_scores packet
+        if (multi_is_team_game_type()) {
+            regs.eip = 0x0047BFA6; // if any team mode, send team_scores packet
         }
     },
 };
@@ -867,8 +895,7 @@ CodeInjection send_team_score_change_level_patch{
 CodeInjection send_team_score_patch{
     0x00472151,
     [](auto& regs) {
-        auto game_type = rf::multi_get_game_type();
-        if (game_type == rf::NetGameType::NG_TYPE_KOTH) {
+        if (gt_is_koth()) {
             // both int16_t on the wire
             const uint16_t red_score = (uint16_t)std::clamp(multi_koth_get_red_team_score(), 0, 0xFFFF);
             const uint16_t blue_score = (uint16_t)std::clamp(multi_koth_get_blue_team_score(), 0, 0xFFFF);
@@ -883,8 +910,7 @@ CodeInjection send_team_score_patch{
 CodeInjection process_team_score_patch{
     0x0047221D,
     [](auto& regs) {
-        auto game_type = rf::multi_get_game_type();
-        if (game_type == rf::NetGameType::NG_TYPE_KOTH) {
+        if (gt_is_koth()) {
             // both int16_t on the wire
             int red_score = regs.esi;
             int blue_score = regs.edi;
@@ -897,16 +923,23 @@ CodeInjection process_team_score_patch{
 CodeInjection player_fpgun_load_meshes_patch{
     0x004AE5CD,
     [](auto& regs) {
-        auto game_type = rf::multi_get_game_type();
-        if (game_type == rf::NetGameType::NG_TYPE_KOTH) {
+        if (multi_is_team_game_type()) {
             regs.eip = 0x004AE5E3; // set team for fpgun load
+        }
+    },
+};
+
+CodeInjection player_create_entity_team_skins_patch{
+    0x004A44E1,
+    [](auto& regs) {
+        if (multi_is_team_game_type()) {
+            regs.eip = 0x004A44F7; // set team for player entity create
         }
     },
 };
 
 void gametype_do_patch()
 {
-    // todo: fp arm team skin for koth mode
     // index rfl files for new gamemodes when opening listen server create menu
     listen_server_map_list_filename_contains_hook.install();
 
@@ -934,4 +967,8 @@ void gametype_do_patch()
 
     // load team coloured fpgun arms in new team gametypes
     player_fpgun_load_meshes_patch.install();
+
+    // fix bug where team fpgun skins not loaded for listen server hosts if a
+    // custom gamemode is the first loaded mode after game launch
+    player_create_entity_team_skins_patch.install();
 }

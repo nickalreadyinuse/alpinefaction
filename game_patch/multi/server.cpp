@@ -1515,11 +1515,6 @@ static float get_weapon_shot_stats_delta(rf::Weapon* wp)
     return 1.0f / num_projectiles;
 }
 
-static bool multi_is_team_game_type()
-{
-    return rf::multi_get_game_type() != rf::NG_TYPE_DM;
-}
-
 static void maybe_increment_weapon_hits_stat(int hit_obj_handle, rf::Weapon *wp)
 {
     rf::Entity* attacker_ep = rf::entity_from_handle(wp->parent_handle);

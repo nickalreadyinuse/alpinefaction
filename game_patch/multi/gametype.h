@@ -130,6 +130,9 @@ static inline bool hostile_progress_present_server(const HillInfo& h)
 
 extern KothInfo g_koth_info;
 
+bool multi_game_type_is_team_type(rf::NetGameType game_type);
+bool multi_game_type_has_hills(rf::NetGameType game_type);
+bool multi_is_team_game_type();
 int multi_koth_get_red_team_score();
 int multi_koth_get_blue_team_score();
 void multi_koth_set_red_team_score(int score);
