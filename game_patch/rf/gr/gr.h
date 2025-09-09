@@ -383,7 +383,7 @@ namespace rf::gr
     static auto& lighting_enabled = addr_as_ref<bool()>(0x004DB8B0);
     static auto& cull_bounding_box = addr_as_ref<bool (const Vector3& mn, const Vector3& mx)>(0x00518750);
     static auto& poly = addr_as_ref<bool (int num, Vertex **vertices, TMapperFlags vertex_attributes, Mode mode, bool constant_sw, float sw)>(0x005159A0);
-    static auto& rotate_vertex = addr_as_ref<ubyte (Vertex *vertex_out, const Vector3& vec_in)>(0x00518360);
+    static auto& rotate_vertex = addr_as_ref<ubyte (Vertex *vertex_out, const Vector3* vec_in)>(0x00518360);
     static auto& world_poly = addr_as_ref<bool (int bm_handle, int n_verts, const Vector3* verts, const Vector2* uvs, Mode mode, const Color& color)>(0x00517110);
     static auto& start_instance = addr_as_ref<void(const Vector3& pos, const Matrix3& orient)>(0x00517F00);
     static auto& stop_instance = addr_as_ref<void()>(0x00517F20);

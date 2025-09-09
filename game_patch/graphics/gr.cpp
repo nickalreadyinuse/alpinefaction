@@ -57,6 +57,46 @@ CodeInjection gr_init_injection{
     },
 };
 
+static inline void set_uv(rf::gr::Vertex& v, float u, float w)
+{
+    v.u1 = u;
+    v.v1 = w;
+    v.u2 = u;
+    v.v2 = w;
+}
+
+bool gr_3d_bitmap_oriented_wh(const rf::Vector3* pnt, const rf::Matrix3* M, float half_w, float half_h, rf::gr::Mode mode)
+{
+    if (half_w <= 1e-5f || half_h <= 1e-5f)
+        return false;
+
+    const rf::Vector3& R = M->rvec;
+    const rf::Vector3& U = M->uvec;
+
+    rf::gr::Vertex va{}; // (-w,+h)
+    rf::gr::Vertex vb{}; // (+w,+h)
+    rf::gr::Vertex vc{}; // (+w,-h)
+    rf::gr::Vertex vd{}; // (-w,-h)
+
+    auto prep = [](rf::gr::Vertex& out, const rf::Vector3& pos, float u, float v) {
+        rf::Vector3 tmp = pos;
+        rf::gr::rotate_vertex(&out, &tmp);
+        set_uv(out, u, v);
+        // keep colors sane
+        out.r = out.g = out.b = out.a = 255;
+    };
+
+    // build corners
+    prep(va, *pnt + (R * -half_w) + (U * +half_h), 1.f, 0.f);
+    prep(vb, *pnt + (R * +half_w) + (U * +half_h), 0.f, 0.f);
+    prep(vc, *pnt + (R * +half_w) + (U * -half_h), 0.f, 1.f);
+    prep(vd, *pnt + (R * -half_w) + (U * -half_h), 1.f, 1.f);
+
+    // winding
+    rf::gr::Vertex* verts[4] = {&vd, &vc, &vb, &va};
+    return rf::gr::poly(4, verts, rf::gr::TMapperFlags::TMAP_FLAG_TEXTURED, mode, 0, 0.0f);
+}
+
 float gr_scale_fov_hor_plus(float horizontal_fov)
 {
     // Use Hor+ FOV scaling method to improve user experience for wide screens

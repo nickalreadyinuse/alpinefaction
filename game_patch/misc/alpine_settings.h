@@ -173,6 +173,18 @@ struct AlpineGameSettings
     {
         desired_handicap = std::clamp(value, 0, 99);
     }
+
+    float control_point_outline_height = 5.0f;
+    void set_control_point_outline_height(float scale)
+    {
+        control_point_outline_height = std::clamp(scale, 0.0f, 1000.0f);
+    }
+
+    int control_point_outline_segments = 32;
+    void set_control_point_outline_segments(int segments)
+    {
+        control_point_outline_segments = std::clamp(segments, 3, 256);
+    }
 };
 
 extern AlpineGameSettings g_alpine_game_config;

@@ -7,6 +7,7 @@
 #include "hud_internal.h"
 #include "hud_world.h"
 #include "multi_spectate.h"
+#include "../graphics/gr.h"
 #include "../object/event_alpine.h"
 #include "../multi/server.h"
 #include "../multi/gametype.h"
@@ -243,7 +244,7 @@ void render_string_3d_pos_new(const rf::Vector3& pos, const std::string& text, i
     rf::gr::Vertex dest;
 
     // Transform the position to screen space
-    if (!rf::gr::rotate_vertex(&dest, pos))
+    if (!rf::gr::rotate_vertex(&dest, &pos))
     {
         rf::gr::project_vertex(&dest);
 
@@ -628,52 +629,32 @@ static inline void face_camera(const rf::Vector3& cam_pos, const rf::Vector3& qu
     }
 }
 
-static void draw_edge_oriented_tiled_bottom(const rf::Vector3& a, const rf::Vector3& b, float tile_w, const rf::Vector3& up_exact, WorldHUDRenderMode mode)
+static void draw_edge_oriented_single_bottom(const rf::Vector3& a, const rf::Vector3& b, float thickness, const rf::Vector3& up_exact, WorldHUDRenderMode mode)
 {
     rf::Vector3 x = b - a;
     const float len = x.len();
-    if (len <= 1e-4f || tile_w <= 1e-5f)
+    if (len <= 1e-4f || thickness <= 1e-5f)
         return;
 
-    x *= (1.0f / len); // normalize
+    x *= (1.0f / len);
 
     rf::Camera* cam = rf::local_player ? rf::local_player->cam : nullptr;
     const rf::Vector3 cam_pos = cam ? rf::camera_get_pos(cam) : rf::Vector3{0, 0, 0};
 
+    rf::Matrix3 M{};
+    make_onb_edge_with_up(x, up_exact, M);
+
+    const float height_scale = std::max(0.0f, g_alpine_game_config.control_point_outline_height);
+    const float half_h = 0.5f * thickness * height_scale;
+    const float half_w = 0.5f * len;
+
+    // align quad with bottom edge
+    rf::Vector3 center = (a + b) * 0.5f + M.uvec * half_h;
+
+    face_camera(cam_pos, center, M);
+
     rf::gr::set_texture(g_world_hud_assets.koth_ring_fade, -1);
-
-    const float half = tile_w * 1.0f;
-    const float gap = tile_w;
-    const float step = tile_w + gap;
-
-    // start and end flush to the corners
-    const float first_center = half;
-    const float last_center = len - half;
-
-    if (first_center > last_center) {
-        rf::Vector3 mid = (a + b) * 0.5f;
-
-        rf::Matrix3 M{};
-        make_onb_edge_with_up(x, up_exact, M);
-        face_camera(cam_pos, mid, M);
-
-        rf::Vector3 center = mid + M.uvec * half;
-
-        rf::gr::gr_3d_bitmap(&center, &M, half, bitmap_mode_from(mode));
-        return;
-    }
-
-    for (float t = first_center; t <= last_center + 1e-5f; t += step) {
-        rf::Vector3 mid = a + x * t;
-
-        rf::Matrix3 M{};
-        make_onb_edge_with_up(x, up_exact, M);
-        face_camera(cam_pos, mid, M);
-
-        rf::Vector3 center = mid + M.uvec * half;
-
-        rf::gr::gr_3d_bitmap(&center, &M, half, bitmap_mode_from(mode));
-    }
+    gr_3d_bitmap_oriented_wh(&center, &M, half_w, half_h, bitmap_mode_from(mode));
 }
 
 static void draw_box_trigger_bottom_outline_colored(const rf::Trigger* t, float thickness, WorldHUDRenderMode mode,
@@ -686,7 +667,6 @@ static void draw_box_trigger_bottom_outline_colored(const rf::Trigger* t, float 
     const auto& o = t->orient;
     const rf::Vector3 he = t->box_size * 0.5f;
 
-    // bottom corners at -uvec
     const rf::Vector3 base00 = c + o.rvec * (-he.x) + o.uvec * (-he.y) + o.fvec * (-he.z);
     const rf::Vector3 base01 = c + o.rvec * (-he.x) + o.uvec * (-he.y) + o.fvec * (+he.z);
     const rf::Vector3 base11 = c + o.rvec * (+he.x) + o.uvec * (-he.y) + o.fvec * (+he.z);
@@ -700,16 +680,15 @@ static void draw_box_trigger_bottom_outline_colored(const rf::Trigger* t, float 
     const rf::Vector3 p10 = base10 + offset;
 
     rf::gr::set_color(r, g, b, a);
-
     const rf::Vector3 up_exact = o.uvec;
 
-    draw_edge_oriented_tiled_bottom(p00, p01, thickness, up_exact, mode);
-    draw_edge_oriented_tiled_bottom(p01, p11, thickness, up_exact, mode);
-    draw_edge_oriented_tiled_bottom(p11, p10, thickness, up_exact, mode);
-    draw_edge_oriented_tiled_bottom(p10, p00, thickness, up_exact, mode);
+    draw_edge_oriented_single_bottom(p00, p01, thickness, up_exact, mode);
+    draw_edge_oriented_single_bottom(p01, p11, thickness, up_exact, mode);
+    draw_edge_oriented_single_bottom(p11, p10, thickness, up_exact, mode);
+    draw_edge_oriented_single_bottom(p10, p00, thickness, up_exact, mode);
 }
 
-static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plane, const rf::Vector3& axis_u, float radius, float thickness,
+static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plane, const rf::Vector3& axis_u_in, float radius, float thickness,
     WorldHUDRenderMode mode, rf::ubyte r, rf::ubyte g, rf::ubyte b, rf::ubyte a, float lift_along_u)
 {
     if (radius <= 0.f || thickness <= 0.f)
@@ -718,27 +697,34 @@ static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plan
     rf::gr::set_color(r, g, b, a);
     rf::gr::set_texture(g_world_hud_assets.koth_ring_fade, -1);
 
+    rf::Vector3 axis_u = axis_u_in;
+    axis_u.normalize_safe();
+
+    // Orthonormal basis on the plane of the ring
     rf::Vector3 r0 = std::fabs(axis_u.dot_prod({0, 1, 0})) < 0.95f ? rf::Vector3{0, 1, 0}.cross(axis_u)
                                                                    : rf::Vector3{1, 0, 0}.cross(axis_u);
     r0.normalize_safe();
     rf::Vector3 f0 = axis_u.cross(r0);
     f0.normalize_safe();
 
-    // segmentation
-    const float desired_tile = std::max(thickness * 4.0f, 1e-5f);
-    const float ratio = std::clamp(desired_tile / (2.0f * radius), 0.02f, 0.98f);
-    int segs = std::max(4, (int)std::round(3.14159265f / std::asin(ratio)));
-    if (segs & 1)
-        ++segs;
+    // Use configured segment count (no fallback)
+    int segs = g_alpine_game_config.control_point_outline_segments;
 
-    const float dth = (2.0f * 3.14159265f) / segs;
+    const float dth = (2.0f * 3.14159265f) / float(segs);
     const float th0 = 0.5f * dth;
 
     auto circle_pt = [&](float th) {
         return center_on_plane + r0 * (radius * std::cos(th)) + f0 * (radius * std::sin(th));
     };
 
+    // Height scaling
+    const float height_scale = std::max(0.0f, g_alpine_game_config.control_point_outline_height);
+    const float half_h = 0.5f * thickness * height_scale;
+    if (half_h <= 1e-5f)
+        return;
+
     rf::Vector3 prev = circle_pt(th0);
+
     for (int i = 1; i <= segs; ++i) {
         const float th = th0 + i * dth;
         rf::Vector3 cur = circle_pt(th);
@@ -746,29 +732,28 @@ static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plan
         rf::Matrix3 M{};
         M.rvec = (cur - prev);
         const float chord_len = M.rvec.len();
-        if (chord_len <= 1e-5f) {
-            prev = cur;
-            continue;
+        if (chord_len > 1e-5f) {
+            M.rvec *= (1.0f / chord_len);
+            M.uvec = axis_u;
+            M.fvec = M.rvec.cross(M.uvec);
+            M.fvec.normalize_safe();
+            M.uvec = M.fvec.cross(M.rvec);
+            M.uvec.normalize_safe();
+
+            const float half_w = 0.5f * chord_len; // width along the ring segment
+            const rf::Vector3 mid = (prev + cur) * 0.5f;
+
+            // place on the plane + any extra lift, then raise by half_h so bottom sits on plane
+            rf::Vector3 center = mid + M.uvec * (lift_along_u + half_h);
+
+            if (rf::Camera* cam = rf::local_player ? rf::local_player->cam : nullptr) {
+                const rf::Vector3 cam_pos = rf::camera_get_pos(cam);
+                face_camera(cam_pos, center, M);
+            }
+
+            gr_3d_bitmap_oriented_wh(&center, &M, half_w, half_h, bitmap_mode_from(mode));
         }
-        M.rvec *= (1.0f / chord_len);
-        M.uvec = axis_u;
-        M.fvec = M.rvec.cross(M.uvec);
-        M.fvec.normalize_safe();
-        M.uvec = M.fvec.cross(M.rvec);
-        M.uvec.normalize_safe();
 
-        const float half_sz = 0.5f * chord_len;
-        const rf::Vector3 mid = (prev + cur) * 0.5f;
-
-        // align tiles to base of trigger + any offset
-        rf::Vector3 center = mid + M.uvec * (half_sz + lift_along_u);
-
-        if (rf::Camera* cam = rf::local_player ? rf::local_player->cam : nullptr) {
-            const rf::Vector3 cam_pos = rf::camera_get_pos(cam);
-            face_camera(cam_pos, center, M);
-        }
-
-        rf::gr::gr_3d_bitmap(&center, &M, half_sz, bitmap_mode_from(mode));
         prev = cur;
     }
 }
@@ -1028,6 +1013,30 @@ ConsoleCommand2 worldhudmpspawns_cmd{
     "dbg_wh_mpspawns",
 };
 
+ConsoleCommand2 set_cp_outline_height_cmd{
+    "cl_outlineheightscale",
+    [](std::optional<float> new_height) {
+        if (new_height) {
+            g_alpine_game_config.set_control_point_outline_height(new_height.value());
+        }
+        rf::console::print("Control point outline height scale is {:.2f}.", g_alpine_game_config.control_point_outline_height);
+    },
+    "Set control point outline height scale",
+    "cl_outlineheightscale <scale>",
+};
+
+ConsoleCommand2 set_cp_outline_segments_cmd{
+    "cl_outlinesegments",
+    [](std::optional<int> new_segments) {
+        if (new_segments) {
+            g_alpine_game_config.set_control_point_outline_segments(new_segments.value());
+        }
+        rf::console::print("Control point outline rings segments is set to {}.", g_alpine_game_config.control_point_outline_segments);
+    },
+    "Set number of segments for control point outline rings",
+    "cl_outlinesegments <segments>",
+};
+
 void hud_world_apply_patch()
 {
     // register commands
@@ -1039,4 +1048,6 @@ void hud_world_apply_patch()
     worldhudspectateplayerlabels_cmd.register_cmd();
     worldhudteamplayerlabels_cmd.register_cmd();
     worldhudmpspawns_cmd.register_cmd();
+    set_cp_outline_height_cmd.register_cmd();
+    set_cp_outline_segments_cmd.register_cmd();
 }
