@@ -445,8 +445,7 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
             const float bar_y_offset = -0.7f * ring_scale;
             rf::Vector3 bar_pos = view.pos + up * bar_y_offset + right * (-0.5f * track_w + 0.5f * cur_w);
 
-            const int fill_bmp = (h.steal_dir == HillOwner::HO_Red) ? g_world_hud_assets.koth_fill_red
-                                                                    : g_world_hud_assets.koth_fill_blue;
+            const int fill_bmp = (h.steal_dir == HillOwner::HO_Red) ? g_world_hud_assets.koth_fill_red : g_world_hud_assets.koth_fill_blue;
             rf::gr::set_texture(fill_bmp, -1);
 
             rf::gr::gr_3d_bitmap_angle_wh(&bar_pos, 0.0f, cur_w, bar_h, bitmap_mode_from(rm));
@@ -701,8 +700,7 @@ static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plan
     axis_u.normalize_safe();
 
     // Orthonormal basis on the plane of the ring
-    rf::Vector3 r0 = std::fabs(axis_u.dot_prod({0, 1, 0})) < 0.95f ? rf::Vector3{0, 1, 0}.cross(axis_u)
-                                                                   : rf::Vector3{1, 0, 0}.cross(axis_u);
+    rf::Vector3 r0 = std::fabs(axis_u.dot_prod({0, 1, 0})) < 0.95f ? rf::Vector3{0, 1, 0}.cross(axis_u) : rf::Vector3{1, 0, 0}.cross(axis_u);
     r0.normalize_safe();
     rf::Vector3 f0 = axis_u.cross(r0);
     f0.normalize_safe();
@@ -1031,7 +1029,7 @@ ConsoleCommand2 set_cp_outline_segments_cmd{
         if (new_segments) {
             g_alpine_game_config.set_control_point_outline_segments(new_segments.value());
         }
-        rf::console::print("Control point outline rings segments is set to {}.", g_alpine_game_config.control_point_outline_segments);
+        rf::console::print("Control point outline ring segments is set to {}.", g_alpine_game_config.control_point_outline_segments);
     },
     "Set number of segments for control point outline rings",
     "cl_outlinesegments <segments>",

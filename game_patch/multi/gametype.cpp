@@ -298,9 +298,7 @@ void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, c
         names_csv = "unknown";
     }
 
-    const char* team_name = (new_owner == HillOwner::HO_Red)    ? "RED"
-                            : (new_owner == HillOwner::HO_Blue) ? "BLUE"
-                                                                : "NEUTRAL";
+    const char* team_name = (new_owner == HillOwner::HO_Red) ? "RED" : (new_owner == HillOwner::HO_Blue) ? "BLUE" : "NEUTRAL";
 
     const std::string msg_str =
         std::format("{} was captured by {} for the {} team", h->name.empty() ? "Hill" : h->name, names_csv, team_name);
@@ -496,12 +494,10 @@ void update_hill_server(HillInfo& h, int dt_ms)
         };
 
         if (red_only) {
-            clear_then_grow(HillOwner::HO_Blue, HillOwner::HO_Red, HillState::HS_LeanBlueShrinking,
-                            HillState::HS_LeanRedGrowing);
+            clear_then_grow(HillOwner::HO_Blue, HillOwner::HO_Red, HillState::HS_LeanBlueShrinking, HillState::HS_LeanRedGrowing);
         }
         else if (blue_only) {
-            clear_then_grow(HillOwner::HO_Red, HillOwner::HO_Blue, HillState::HS_LeanRedShrinking,
-                            HillState::HS_LeanBlueGrowing);
+            clear_then_grow(HillOwner::HO_Red, HillOwner::HO_Blue, HillState::HS_LeanRedShrinking, HillState::HS_LeanBlueGrowing);
         }
 
         emit_change_logs();
@@ -629,12 +625,10 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
         };
 
         if (red_only) {
-            clear_then_grow(HillOwner::HO_Blue, HillOwner::HO_Red, HillState::HS_LeanBlueShrinking,
-                            HillState::HS_LeanRedGrowing);
+            clear_then_grow(HillOwner::HO_Blue, HillOwner::HO_Red, HillState::HS_LeanBlueShrinking, HillState::HS_LeanRedGrowing);
         }
         else if (blue_only) {
-            clear_then_grow(HillOwner::HO_Red, HillOwner::HO_Blue, HillState::HS_LeanRedShrinking,
-                            HillState::HS_LeanBlueGrowing);
+            clear_then_grow(HillOwner::HO_Red, HillOwner::HO_Blue, HillState::HS_LeanRedShrinking, HillState::HS_LeanBlueGrowing);
         }
         return;
     }
@@ -690,9 +684,7 @@ static void koth_client_predict_tick(int dt_ms)
             continue;
         }
 
-        const bool opp_on = (h.ownership == HillOwner::HO_Red)    ? (h.net_last_blue > 0)
-                            : (h.ownership == HillOwner::HO_Blue) ? (h.net_last_red > 0)
-                                                                  : false;
+        const bool opp_on = (h.ownership == HillOwner::HO_Red) ? (h.net_last_blue > 0) : (h.ownership == HillOwner::HO_Blue) ? (h.net_last_red > 0) : false;
 
         const HillOwner attackers = opposite(h.ownership);
         const bool hostile_progress = (h.steal_dir == attackers) && (h.capture_progress > 0);
