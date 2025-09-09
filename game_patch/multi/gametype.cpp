@@ -196,8 +196,7 @@ bool player_inside_hill_trigger(const HillInfo& h, const rf::Player& p)
         return false;
 
     if (h.trigger->type == 0 && h.handler->sphere_to_cylinder) {
-        return trigger_sphere_as_full_cylinder_check_if_activated(
-            h.trigger, ent, g_koth_info.rules.half_cyl_use_trigger_up);
+        return trigger_sphere_as_full_cylinder_check_if_activated(h.trigger, ent, g_koth_info.rules.cyl_use_trigger_up);
     }
 
     if (h.trigger->type == 1 && h.handler->sphere_to_cylinder) {

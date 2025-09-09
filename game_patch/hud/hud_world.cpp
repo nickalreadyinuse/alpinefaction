@@ -813,8 +813,7 @@ static void build_koth_hill_outlines()
 
         if (trig->type == 0 && h.handler && h.handler->sphere_to_cylinder) {
             // sphere to cylinder with base ring
-            draw_sphere_as_cylinder_base_outline(trig, 0.08f, mode, r, g, b, a, h.outline_offset,
-                                                 g_koth_info.rules.half_cyl_use_trigger_up);
+            draw_sphere_as_cylinder_base_outline(trig, 0.08f, mode, r, g, b, a, h.outline_offset, g_koth_info.rules.cyl_use_trigger_up);
         }
         else if (trig->type == 1 && h.handler && h.handler->sphere_to_cylinder) {
             // box to cylinder with base ring
