@@ -340,6 +340,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.set_team_kill_limit(*v);
     if (auto v = t["cap_limit"].value<int>())
         o.set_cap_limit(*v);
+    if (auto v = t["koth_score_limit"].value<int>())
+        o.set_koth_score_limit(*v);
     if (auto v = t["geo_limit"].value<int>())
         o.set_geo_limit(*v);
 
@@ -1006,6 +1008,10 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     case rf::NetGameType::NG_TYPE_CTF:
         if (base || rules.cap_limit != b.cap_limit)
             rf::console::print("  Flag capture limit:                    {}\n", rules.cap_limit);
+        break;
+    case rf::NetGameType::NG_TYPE_KOTH:
+        if (base || rules.koth_score_limit != b.koth_score_limit)
+            rf::console::print("  KOTH score limit:                      {}\n", rules.koth_score_limit);
         break;
     default:
         if (base || rules.individual_kill_limit != b.individual_kill_limit)

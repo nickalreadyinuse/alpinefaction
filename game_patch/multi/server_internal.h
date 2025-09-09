@@ -546,6 +546,10 @@ struct AlpineServerConfigRules
     {
         cap_limit = std::clamp(count, 1, 65535);
     }
+    void set_koth_score_limit(int count)
+    {
+        koth_score_limit = std::clamp(count, 1, 65535);
+    }
     void set_geo_limit(int count)
     {
         geo_limit = std::clamp(count, 0, 128);
