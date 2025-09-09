@@ -6,6 +6,10 @@ Version 1.2.0 (Willow): Not yet released
 ### Major features
 [@GooberRF](https://github.com/GooberRF)
 - Implement TOML-based `ADS` configuration for dedicated servers
+    - Per-level rules configuration for server hosts
+    - On-demand loading of changed settings without server needing restart
+    - Support for configuring player loadouts
+- Add `King of the Hill` (KOTH) multiplayer game type
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -42,6 +46,13 @@ Version 1.2.0 (Willow): Not yet released
 - Log player join request rejection reason to server console on attempted join
 - Log accepted and rejected `rcon` commands to server console
 - Log accepted and rejected `rcon_request` commands to server console
+- Add support for control points as game type objectives
+- Report custom gamemodes to legacy clients as TDM to avoid unintentionally crashing them when they ping server list
+- Add `Control_Point_Handler` event
+- Add `cl_outlineheightscale` command to scale height of control point outlines
+- Add `CPOutlineHeightScale` setting to `alpine_settings.ini`
+- Add `cl_outlinesegments` command to set segment count for control point outline rings
+- Add `CPOutlineSegments` setting to `alpine_settings.ini`
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
