@@ -6,7 +6,6 @@
 #include "../rf/trigger.h"
 #include "../rf/os/string.h"
 
-
 static const char* const multi_rfl_prefixes[] = {
     // "m_",
     // "dm",

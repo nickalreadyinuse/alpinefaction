@@ -11,6 +11,7 @@
 #include "../misc/misc.h"
 #include "../misc/level.h"
 #include "../misc/achievements.h"
+#include "../multi/gametype.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
 #include "../rf/entity.h"
@@ -654,7 +655,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
                 event->trigger_uid = params.int1;
                 event->outline_offset = params.float1;
                 event->sphere_to_cylinder = params.bool1;
-                event->initial_owner = static_cast<rf::CapturePointHandlerInitialOwner>(params.int2);
+                event->initial_owner = params.int2;
             }
             return event;
         }

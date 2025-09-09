@@ -823,7 +823,7 @@ static int koth_build_hills_from_capture_point_events()
         h.trigger = trig;
         h.outline_offset = cp->outline_offset;
         h.handler = cp;
-        h.ownership = static_cast<HillOwner>(std::clamp(static_cast<int>(cp->initial_owner), 0, 2));
+        h.ownership = static_cast<HillOwner>(cp->initial_owner);
         h.state = HillState::HS_Idle;
         h.capture_progress = 0;
         h.capture_milli = 0;

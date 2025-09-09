@@ -139,13 +139,6 @@ namespace rf
         blue_team
     };
 
-    enum class CapturePointHandlerInitialOwner : int
-    {
-        neutral,
-        red,
-        blue
-    };
-
     // start alpine event structs
     // id 100
     struct EventSetVar : Event
@@ -1347,28 +1340,7 @@ namespace rf
 
         void turn_on() override
         {
-            if (!is_multi) {
-                return;
-            }
-
-            bool pass = false;
-            switch (gametype) {
-            case NG_TYPE_DM:
-                pass = (multi_get_game_type() == NG_TYPE_DM);
-                break;
-            case NG_TYPE_TEAMDM:
-                pass = (multi_get_game_type() == NG_TYPE_TEAMDM);
-                break;
-            case NG_TYPE_CTF:
-                pass = (multi_get_game_type() == NG_TYPE_CTF);
-                break;
-            default:
-                xlog::error("Unknown gametype '{}' for EventGametypeGate UID {}",
-                    static_cast<int>(gametype), this->uid);
-                return;
-            }
-
-            if (pass) {
+            if (is_multi && gametype == multi_get_game_type()) {
                 activate_links(this->trigger_handle, this->triggered_by_handle, true);
             }
         }
@@ -2090,7 +2062,7 @@ namespace rf
         int trigger_uid = -1;
         float outline_offset = 0.0f;
         bool sphere_to_cylinder = false;
-        CapturePointHandlerInitialOwner initial_owner = CapturePointHandlerInitialOwner::neutral;
+        int initial_owner = 0; // HillOwner
 
         void register_variable_handlers() override
         {
@@ -2114,7 +2086,7 @@ namespace rf
 
             handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventCapturePointHandler*>(event);
-                this_event->initial_owner = static_cast<CapturePointHandlerInitialOwner>(std::stoi(value));
+                this_event->initial_owner = std::stoi(value);
             };
         }
     };
