@@ -20,6 +20,7 @@
 #include "../rf/multi.h"
 #include "../rf/gameseq.h"
 #include "../rf/level.h"
+#include "../rf/os/timer.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/localize.h"
@@ -389,6 +390,25 @@ void clear_koth_name_textures()
     g_koth_name_labels.clear();
 }
 
+bool hill_vis_contested(HillInfo& h)
+{
+    const int now = rf::timer_get(1000);
+    const int enter = 500;
+    const int exit = 200;
+
+    // desired
+    const bool desired = (h.steal_dir != HillOwner::HO_Neutral) && (h.capture_milli >= (h.vis_contested ? exit : enter));
+
+    if (desired != h.vis_contested) {
+        if (now - h.vis_last_flip_ms >= 120) {
+            h.vis_contested = desired;
+            h.vis_last_flip_ms = now;
+        }
+        // ignore this transient flip
+    }
+    return h.vis_contested;
+}
+
 static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
 {
     if (!h.trigger)
@@ -399,8 +419,7 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
 
     const float ring_base = g_koth_hud_tuning.icon_base_scale;
     float ring_scale = std::clamp(ring_base * view.dist_factor, WorldHUDRender::min_scale, WorldHUDRender::max_scale);
-
-    bool contested = h.steal_dir != HillOwner::HO_Neutral && h.capture_progress > 0;
+    const bool contested = hill_vis_contested(const_cast<HillInfo&>(h));
 
     // Choose ring bitmap by owner
     int ring_bmp = contested ? g_world_hud_assets.koth_neutral_c : g_world_hud_assets.koth_neutral;
@@ -409,7 +428,7 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
     if (h.ownership == HillOwner::HO_Blue)
         ring_bmp = contested ? g_world_hud_assets.koth_blue_c : g_world_hud_assets.koth_blue;
 
-    //capture progress bar
+    // capture progress bar
     if (contested) {
         const float t_raw = std::clamp(h.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
         const float t = std::pow(t_raw, 0.65f);

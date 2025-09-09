@@ -78,8 +78,11 @@ struct HillInfo
     HillOwner net_last_dir = HillOwner::HO_Neutral;
     HillState net_last_state = HillState::HS_Idle;
     uint8_t net_last_prog_bucket = 255;
-
     int client_hold_ms_accum = 0;
+
+    // clientside visual smoothing
+    bool vis_contested = false;
+    int vis_last_flip_ms = 0;
 };
 
 struct KothRules
