@@ -654,6 +654,7 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
                 event->trigger_uid = params.int1;
                 event->outline_offset = params.float1;
                 event->sphere_to_cylinder = params.bool1;
+                event->initial_owner = static_cast<rf::CapturePointHandlerInitialOwner>(params.int2);
             }
             return event;
         }

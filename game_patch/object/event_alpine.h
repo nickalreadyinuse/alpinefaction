@@ -139,6 +139,13 @@ namespace rf
         blue_team
     };
 
+    enum class CapturePointHandlerInitialOwner : int
+    {
+        neutral,
+        red,
+        blue
+    };
+
     // start alpine event structs
     // id 100
     struct EventSetVar : Event
@@ -2083,6 +2090,7 @@ namespace rf
         int trigger_uid = -1;
         float outline_offset = 0.0f;
         bool sphere_to_cylinder = false;
+        CapturePointHandlerInitialOwner initial_owner = CapturePointHandlerInitialOwner::neutral;
 
         void register_variable_handlers() override
         {
@@ -2102,6 +2110,11 @@ namespace rf
             handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventCapturePointHandler*>(event);
                 this_event->sphere_to_cylinder = (value == "true");
+            };
+
+            handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->initial_owner = static_cast<CapturePointHandlerInitialOwner>(std::stoi(value));
             };
         }
     };
