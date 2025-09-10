@@ -864,7 +864,7 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook
         if (!is_af_capable) {
             if (uint8_t* gt = locate_game_type_field(reinterpret_cast<uint8_t*>(buf.get()), new_len)) {
                 if (*gt > 2) {
-                    xlog::warn("Legacy GI reply to {:x}:{}: mapping game_type {} -> 2", addr->ip_addr, addr->port, int(*gt));
+                    xlog::debug("Legacy GI reply to {:x}:{}: mapping game_type {} -> 2", addr->ip_addr, addr->port, int(*gt));
                     *gt = 2;
                 }
             }
@@ -1873,7 +1873,7 @@ CodeInjection multi_io_process_packets_injection{
                 if (parse_af_gi_req_tail(base + off, size_t(len), ver)) {
                     const int now = rf::timer_get(1000);
                     g_af_gi_req_seen[addr_key(addr)] = AfGiReqSeen{ver, now};
-                    xlog::warn("AF GI-REQ detected from {:x}:{} (ver={})", addr.ip_addr, addr.port, ver);
+                    xlog::debug("AF GI-REQ detected from {:x}:{} (ver={})", addr.ip_addr, addr.port, ver);
                 }
             }
         }
