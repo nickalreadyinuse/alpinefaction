@@ -53,6 +53,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `CPOutlineHeightScale` setting to `alpine_settings.ini`
 - Add `cl_outlinesegments` command to set segment count for control point outline rings
 - Add `CPOutlineSegments` setting to `alpine_settings.ini`
+- Add `King of the Hill` game type selection for `Gametype_Gate` event
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
