@@ -143,7 +143,7 @@ void af_send_client_req_packet(const af_client_req_packet& packet);
 static void af_process_client_req_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_just_spawned_loadout(rf::Player* to_player, std::vector<WeaponLoadoutEntry> loadout);
 static void af_process_just_spawned_info_packet(const void* data, size_t len, const rf::NetAddr& addr);
-void af_send_koth_hill_state_packet(rf::Player* player, const HillInfo& h, const Presence& pres);
+void af_send_koth_hill_state_packet(rf::Player* player, const HillInfo& h, const Presence& pres); // sent to new joiners
 void af_send_koth_hill_state_packet_to_all(const HillInfo& h, const Presence& pres);
 static void af_process_koth_hill_state_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_koth_hill_captured_packet_to_all(uint8_t hill_uid, HillOwner owner, const std::vector<uint8_t>& new_owner_player_ids);

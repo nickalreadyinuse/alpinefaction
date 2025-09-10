@@ -723,7 +723,7 @@ static void af_process_koth_hill_state_packet(const void* data, size_t len, cons
     h->capture_progress = pkt.capture_progress;
     h->capture_milli = std::clamp<int>(h->capture_progress, 0, 100) * 1000;
 
-    // Snapshot presence for client-side prediction (optional fields you track)
+    // Snapshot presence for clientside prediction
     h->net_last_red = pkt.num_red_players;
     h->net_last_blue = pkt.num_blue_players;
     h->net_last_state = h->state;
