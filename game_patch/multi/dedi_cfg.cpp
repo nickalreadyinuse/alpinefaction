@@ -89,26 +89,31 @@ void evaluate_mandatory_alpine_restrict() {
 
     // loadouts require min server version
     if (loadouts_in_use) { // added in 1.2.0
-        rf::console::print("Loadouts are configured, so 'clients require Alpine', and 'enforce min server version' have been turned on\n");
+        rf::console::print("Loadouts are configured, so these settings have been turned on:\n");
+
+        rf::console::print("  Clients require Alpine\n");
         require_min_version = true;
     }
 
     // KOTH requires min server version and rejecting non-alpine clients
     if (cfg.game_type == rf::NetGameType::NG_TYPE_KOTH) { // added in 1.2.0
-        rf::console::print("Gametype is KOTH, so 'clients require Alpine', 'enforce min server version', and 'reject non-Alpine clients' have been turned on\n");
+        rf::console::print("Gametype is KOTH, so these settings have been turned on:\n");
+
+        rf::console::print("  Clients require Alpine\n");
         require_min_version = true;
         reject_non_alpine = true;
     }
 
-
     // evaluate if we need to require min server version
     if (require_min_version) {
+        rf::console::print("    Enforce min server version\n");
         require_alpine = true;
         cfg.alpine_restricted_config.alpine_server_version_enforce_min = true;
     }
 
     // evaluate if we need to reject non-alpine clients
     if (reject_non_alpine) {
+        rf::console::print("    Reject non-Alpine clients\n");
         require_alpine = true;
         cfg.alpine_restricted_config.reject_non_alpine_clients = true;
     }
@@ -1545,17 +1550,13 @@ void launch_alpine_dedicated_server() {
 
     if (!rf::lan_only_cmd_line_param.found()) {
         rf::console::print("Public game tracker:                     {}\n", g_alpine_game_config.multiplayer_tracker);
-        rf::console::print("Attempt auto-forward via UPnP:           {}\n", cfg.upnp_enabled);
-        if ((netgame.flags & rf::NG_FLAG_NOT_LAN_ONLY) != 0) {
-            rf::console::print("Server was successfully registered with public game tracker.\n");
-        }
-        else {
-            rf::console::print("----> Failed to register server with public game tracker. Did you forward the port?\n");
-            rf::console::print("----> Visit alpinefaction.com/help for help resources.\n");
-        }
+        rf::console::print("Attempt auto-forward via UPnP:           {}\n\n", cfg.upnp_enabled);
+
+        rf::console::print("Attempting to register server with public game tracker...\n");
+        rf::console::print("If it's not visible, visit alpinefaction.com/help for resources.\n\n");
     }
     else {
-        rf::console::print("Not attempting to register server with public game tracker.\n");
+        rf::console::print("Not attempting to register server with public game tracker.\n\n");
     }
 
     load_and_print_alpine_dedicated_server_config(g_ads_config_name, true);
