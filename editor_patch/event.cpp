@@ -35,7 +35,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 38; // must be 1 higher than actual count
+constexpr int new_event_count = 39; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -78,6 +78,7 @@ const char* additional_event_names[new_event_count] = {
     "Light_State",
     "World_HUD_Sprite",
     "Set_Light_Color",
+    "Capture_Point_Handler",
     "_dummy"
 };
 
@@ -457,7 +458,7 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         },
         {
             {FIELD_INT1,
-            {"Deathmatch", "Capture the Flag", "Team Deathmatch"}}
+            {"Deathmatch", "Capture the Flag", "Team Deathmatch", "King of the Hill"}}
         },
         {
             {FIELD_INT1, true}
@@ -579,6 +580,23 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         {
             {FIELD_STR1, "Light color (str1):"},
             {FIELD_BOOL1, "Random color instead (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Capture_Point_Handler, {
+        {FIELD_INT1, FIELD_STR1, FIELD_FLOAT1, FIELD_INT2, FIELD_BOOL1},
+        {
+            {FIELD_INT1, "Trigger UID:"},
+            {FIELD_STR1, "Name (str1):"},
+            {FIELD_FLOAT1, "Outline offset (float1):"},
+            {FIELD_INT2, "Initial owner (int2):"},
+            {FIELD_BOOL1, "Cylindrical trigger (bool1):"}
+        },
+        {
+            {FIELD_INT2,
+            {"Neutral", "Red", "Blue"}}
+        },
+        {
+            {FIELD_INT2, true}
         }
     }},
 };

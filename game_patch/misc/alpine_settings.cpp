@@ -502,6 +502,14 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_desired_handicap(std::stoi(settings["DesiredHandicap"]));
         processed_keys.insert("DesiredHandicap");
     }
+    if (settings.count("CPOutlineHeightScale")) {
+        g_alpine_game_config.set_control_point_outline_height(std::stof(settings["CPOutlineHeightScale"]));
+        processed_keys.insert("CPOutlineHeightScale");
+    }
+    if (settings.count("CPOutlineSegments")) {
+        g_alpine_game_config.set_control_point_outline_segments(std::stoi(settings["CPOutlineSegments"]));
+        processed_keys.insert("CPOutlineSegments");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -789,6 +797,8 @@ void alpine_player_settings_save(rf::Player* player)
     file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
     file << "WorldHUDAltDamageIndicators=" << g_alpine_game_config.world_hud_alt_damage_indicators << "\n";
     file << "DesiredHandicap=" << g_alpine_game_config.desired_handicap << "\n";
+    file << "CPOutlineHeightScale=" << g_alpine_game_config.control_point_outline_height << "\n";
+    file << "CPOutlineSegments=" << g_alpine_game_config.control_point_outline_segments << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

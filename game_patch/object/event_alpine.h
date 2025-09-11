@@ -1340,28 +1340,7 @@ namespace rf
 
         void turn_on() override
         {
-            if (!is_multi) {
-                return;
-            }
-
-            bool pass = false;
-            switch (gametype) {
-            case NG_TYPE_DM:
-                pass = (multi_get_game_type() == NG_TYPE_DM);
-                break;
-            case NG_TYPE_TEAMDM:
-                pass = (multi_get_game_type() == NG_TYPE_TEAMDM);
-                break;
-            case NG_TYPE_CTF:
-                pass = (multi_get_game_type() == NG_TYPE_CTF);
-                break;
-            default:
-                xlog::error("Unknown gametype '{}' for EventGametypeGate UID {}",
-                    static_cast<int>(gametype), this->uid);
-                return;
-            }
-
-            if (pass) {
+            if (is_multi && gametype == multi_get_game_type()) {
                 activate_links(this->trigger_handle, this->triggered_by_handle, true);
             }
         }
@@ -2073,6 +2052,42 @@ namespace rf
             catch (const std::exception& e) {
                 xlog::error("Set_Light_Color ({}) failed to set light color: {}", this->uid, e.what());
             }
+        }
+    };
+
+    // id 137
+    struct EventCapturePointHandler : Event
+    {
+        std::string name = "";
+        int trigger_uid = -1;
+        float outline_offset = 0.0f;
+        bool sphere_to_cylinder = false;
+        int initial_owner = 0; // HillOwner
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::str1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->name = value;
+            };
+
+            handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->outline_offset = std::stof(value);
+            };
+
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->sphere_to_cylinder = (value == "true");
+            };
+
+            handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->initial_owner = std::stoi(value);
+            };
         }
     };
 

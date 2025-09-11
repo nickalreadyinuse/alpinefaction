@@ -49,6 +49,11 @@ namespace df::gr::d3d11
         renderer.emplace(hwnd);
         rf::os_add_msg_handler(msg_handler);
 
+        // set these here to prevent a crash during realtime creation or clearing of bitmaps
+        // stock game sets these in gr_d3d_init_device
+        rf::bm::max_d3d_texture_resolution_h = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        rf::bm::max_d3d_texture_resolution_w = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+
         // Switch FPU to single-precision mode for backward compatibility
         // Direct3D 8/9 does it automatically unless D3DCREATE_FPU_PRESERVE flag is used,
         // but Direct3D 11 no longer does it.

@@ -75,33 +75,63 @@ void handle_min_param()
 // check if we need to force the server to be restricted to Alpine clients
 // prevents legacy clients from connecting to servers that require features they don't support
 void evaluate_mandatory_alpine_restrict() {
+    auto& cfg = g_alpine_server_config;
+
+    if (cfg.alpine_restricted_config.clients_require_alpine &&
+        cfg.alpine_restricted_config.alpine_server_version_enforce_min &&
+        cfg.alpine_restricted_config.reject_non_alpine_clients) {
+        return; // everything is already enforced, no need to evaluate
+    }
+
     bool require_alpine = false;
     bool require_min_version = false;
+    bool reject_non_alpine = false;
 
     // loadouts require min server version
     if (loadouts_in_use) { // added in 1.2.0
-        rf::console::print("Clients require min AF server version has been turned on because loadouts were configured\n");
+        rf::console::print("Loadouts are configured, so these settings have been turned on:\n");
+
+        rf::console::print("  Clients require Alpine\n");
         require_min_version = true;
+    }
+
+    // KOTH requires min server version and rejecting non-alpine clients
+    if (cfg.game_type == rf::NetGameType::NG_TYPE_KOTH) { // added in 1.2.0
+        rf::console::print("Gametype is KOTH, so these settings have been turned on:\n");
+
+        rf::console::print("  Clients require Alpine\n");
+        require_min_version = true;
+        reject_non_alpine = true;
     }
 
     // evaluate if we need to require min server version
     if (require_min_version) {
+        rf::console::print("    Enforce min server version\n");
         require_alpine = true;
-        g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
+        cfg.alpine_restricted_config.alpine_server_version_enforce_min = true;
+    }
+
+    // evaluate if we need to reject non-alpine clients
+    if (reject_non_alpine) {
+        rf::console::print("    Reject non-Alpine clients\n");
+        require_alpine = true;
+        cfg.alpine_restricted_config.reject_non_alpine_clients = true;
     }
 
     // evaluate if we need to turn on base alpine restriction
     if (require_alpine) {
-        g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
+        cfg.alpine_restricted_config.clients_require_alpine = true;
     }
 }
 
 static rf::NetGameType parse_game_type(const std::string& s)
 {
-    if (s == "TDM")
+    if (s == "TDM" || s == "TeamDM")
         return rf::NetGameType::NG_TYPE_TEAMDM;
     if (s == "CTF")
         return rf::NetGameType::NG_TYPE_CTF;
+    if (s == "KOTH")
+        return rf::NetGameType::NG_TYPE_KOTH;
     return rf::NetGameType::NG_TYPE_DM;
 }
 
@@ -315,6 +345,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.set_team_kill_limit(*v);
     if (auto v = t["cap_limit"].value<int>())
         o.set_cap_limit(*v);
+    if (auto v = t["koth_score_limit"].value<int>())
+        o.set_koth_score_limit(*v);
     if (auto v = t["geo_limit"].value<int>())
         o.set_geo_limit(*v);
 
@@ -865,6 +897,9 @@ std::string get_game_type_string(rf::NetGameType game_type) {
          case rf::NetGameType::NG_TYPE_CTF:
             out_string = "CTF";
             break;
+         case rf::NetGameType::NG_TYPE_KOTH:
+             out_string = "KOTH";
+             break;
          default:
              out_string = "DM";
              break;
@@ -978,6 +1013,10 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     case rf::NetGameType::NG_TYPE_CTF:
         if (base || rules.cap_limit != b.cap_limit)
             rf::console::print("  Flag capture limit:                    {}\n", rules.cap_limit);
+        break;
+    case rf::NetGameType::NG_TYPE_KOTH:
+        if (base || rules.koth_score_limit != b.koth_score_limit)
+            rf::console::print("  KOTH score limit:                      {}\n", rules.koth_score_limit);
         break;
     default:
         if (base || rules.individual_kill_limit != b.individual_kill_limit)
@@ -1511,22 +1550,18 @@ void launch_alpine_dedicated_server() {
 
     if (!rf::lan_only_cmd_line_param.found()) {
         rf::console::print("Public game tracker:                     {}\n", g_alpine_game_config.multiplayer_tracker);
-        rf::console::print("Attempt auto-forward via UPnP:           {}\n", cfg.upnp_enabled);
-        if ((netgame.flags & rf::NG_FLAG_NOT_LAN_ONLY) != 0) {
-            rf::console::print("Server was successfully registered with public game tracker.\n");
-        }
-        else {
-            rf::console::print("----> Failed to register server with public game tracker. Did you forward the port?\n");
-            rf::console::print("----> Visit alpinefaction.com/help for help resources.\n");
-        }
+        rf::console::print("Attempt auto-forward via UPnP:           {}\n\n", cfg.upnp_enabled);
+
+        rf::console::print("Attempting to register server with public game tracker...\n");
+        rf::console::print("If it's not visible, visit alpinefaction.com/help for resources.\n\n");
     }
     else {
-        rf::console::print("Not attempting to register server with public game tracker.\n");
+        rf::console::print("Not attempting to register server with public game tracker.\n\n");
     }
 
     load_and_print_alpine_dedicated_server_config(g_ads_config_name, true);
 
-    if (netgame.levels.size() < 1) {
+    if (netgame.levels.size() <= 0) {
         rf::console::print("----> No valid level files were specified!\n");
         rf::console::print("----> Launching server on Glass House...\n\n");
         netgame.levels.add("glass_house.rfl");

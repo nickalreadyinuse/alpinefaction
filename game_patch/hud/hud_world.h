@@ -12,6 +12,27 @@ struct WorldHUDAssets
     int flag_red_s;
     int flag_blue_s;
     int mp_respawn;
+    int koth_neutral;
+    int koth_red;
+    int koth_blue;
+    int koth_neutral_c;
+    int koth_red_c;
+    int koth_blue_c;
+    int koth_fill_red;
+    int koth_fill_blue;
+    int koth_ring_fade;
+};
+
+struct KothHudTuning
+{
+    float fill_vs_ring_scale = 0.975f;
+    float icon_base_scale = 1.0f;
+};
+
+struct WorldHUDView
+{
+    rf::Vector3 pos; // includes possible push due to fog level
+    float dist_factor; // clamped to >= 1 / ref
 };
 
 struct WorldHUDRender
@@ -24,6 +45,7 @@ struct WorldHUDRender
     static constexpr float fog_dist_multi = 0.85f;
     static constexpr float fog_dist_min = 5.0f;
     static constexpr float fog_dist_max = 100.0f;
+    static constexpr float koth_hill_offset = 0.0f;
 };
 
 enum class WorldHUDRenderMode : int
@@ -58,8 +80,18 @@ struct EphemeralWorldHUDString
     float wind_phase_offset = 0.0f;
 };
 
+struct NameLabelTex
+{
+    int bm = -1; // handle
+    int w_px = 0;
+    int h_px = 0;
+    std::string text;
+    int font = 0;
+};
+
 void hud_world_do_frame();
 void load_world_hud_assets();
+void clear_koth_name_textures();
 void populate_world_hud_sprite_events();
 void add_location_ping_world_hud_sprite(rf::Vector3 pos, std::string player_name, int player_id);
 void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_id, uint16_t damage, bool died);

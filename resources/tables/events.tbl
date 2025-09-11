@@ -464,3 +464,14 @@ $Event Name:      "When_Picked_Up"
 $RFE Level1:      "AF_Catalysts"
 
 #End
+
+// ------------------------------------------------
+// Gameplay Logic Events in Alpine Faction
+// ------------------------------------------------
+
+#AplineGameplay
+
+$Event Name:      "Capture_Point_Handler"
+$RFE Level1:      "AF_Gameplay"
+
+#End

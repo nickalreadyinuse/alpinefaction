@@ -6,6 +6,10 @@ Version 1.2.0 (Willow): Not yet released
 ### Major features
 [@GooberRF](https://github.com/GooberRF)
 - Implement TOML-based `ADS` configuration for dedicated servers
+    - Per-level rules configuration for server hosts
+    - On-demand loading of changed settings without server needing restart
+    - Support for configuring player loadouts
+- Add `King of the Hill` (KOTH) multiplayer game type
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -42,6 +46,16 @@ Version 1.2.0 (Willow): Not yet released
 - Log player join request rejection reason to server console on attempted join
 - Log accepted and rejected `rcon` commands to server console
 - Log accepted and rejected `rcon_request` commands to server console
+- Log all chat messages to server console
+- Add support for control points as game type objectives
+- Report custom gamemodes to legacy clients as TDM for compatibility
+- Add `Control_Point_Handler` event
+- Add `cl_outlineheightscale` command to scale height of control point outlines
+- Add `CPOutlineHeightScale` setting to `alpine_settings.ini`
+- Add `cl_outlinesegments` command to set segment count for control point outline rings
+- Add `CPOutlineSegments` setting to `alpine_settings.ini`
+- Add `King of the Hill` game type selection for `Gametype_Gate` event
+- Print vote initiation alerts to dedicated server console
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
@@ -56,6 +70,10 @@ Version 1.2.0 (Willow): Not yet released
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
 - Fix overtime initiating even if no match is active
 - Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
+- Fix DX11 renderer crashing when generating realtime bitmaps
+- Fix DX11 renderer not rendering dynamic lighting on skeletal meshes
+- Fix static meshes appearing much darker than expected on DX11 renderer
+- Fix `r_fullbright` not working properly on DX11 renderer
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

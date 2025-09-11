@@ -38,6 +38,9 @@ namespace rf
         static const auto &deathmatch = array[974];
         static const auto &capture_the_flag = array[975];
         static const auto &team_deathmatch = array[976];
+        static const auto &dm = array[723];
+        static const auto &ctf = array[724];
+        static const auto &teamdm = array[725];
 
         // dedi config lookups
         static const auto& dedi_header = array[855];

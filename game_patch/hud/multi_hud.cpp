@@ -4,6 +4,7 @@
 #include <patch_common/CallHook.h>
 #include <xlog/xlog.h>
 #include "../multi/multi.h"
+#include "../multi/gametype.h"
 #include "../input/input.h"
 #include "../rf/input.h"
 #include "../rf/hud.h"
@@ -469,7 +470,7 @@ void hud_render_team_scores()
         }
     }
 
-    if (game_type == rf::NG_TYPE_CTF || game_type == rf::NG_TYPE_TEAMDM) {
+    if (game_type == rf::NG_TYPE_CTF || game_type == rf::NG_TYPE_TEAMDM || game_type == rf::NG_TYPE_KOTH) {
         float miniflag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
         rf::gr::set_color(255, 255, 255, 255);
         if (rf::local_player) {
@@ -500,6 +501,10 @@ void hud_render_team_scores()
         red_score = rf::multi_tdm_get_red_team_score();
         blue_score = rf::multi_tdm_get_blue_team_score();
     }
+    else if (game_type == rf::NG_TYPE_KOTH) {
+        red_score = multi_koth_get_red_team_score();
+        blue_score = multi_koth_get_blue_team_score();
+    }
     else {
         red_score = 0;
         blue_score = 0;
@@ -512,6 +517,15 @@ void hud_render_team_scores()
     rf::gr::get_string_size(&str_w, &str_h, blue_score_str.c_str(), -1, font_id);
     rf::gr::string(box_x + box_w - 5 - str_w, blue_miniflag_label_y, blue_score_str.c_str(), font_id);
 }
+
+CodeInjection hud_render_team_scores_new_gamemodes_patch {
+    0x00476DEB,
+    [](auto& regs) {
+        if (rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_KOTH) {
+            regs.eip = 0x00476E06; // multi_hud_render_team_scores
+        }
+    }
+};
 
 CallHook<void(int, int, int, rf::gr::Mode)> hud_render_power_ups_gr_bitmap_hook{
     {
@@ -1007,6 +1021,7 @@ void multi_hud_apply_patches()
 {
     hud_render_patch_alpine.install();
     AsmWriter{0x00477790}.jmp(hud_render_team_scores);
+    hud_render_team_scores_new_gamemodes_patch.install();
     hud_render_power_ups_gr_bitmap_hook.install();
     render_level_info_hook.install();
     multi_hud_init_hook.install();

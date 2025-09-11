@@ -27,6 +27,7 @@
 #include "../hud/multi_spectate.h"
 #include "../object/object.h"
 #include "../multi/multi.h"
+#include "../multi/gametype.h"
 #include "../multi/server.h"
 #include "../multi/server_internal.h"
 #include "../misc/misc.h"
@@ -122,6 +123,7 @@ FunHook<int()> rf_do_frame_hook{
         rf::os_poll();
         high_fps_update();
         server_do_frame();
+        koth_do_frame();
         int result = rf_do_frame_hook.call_target();
         maybe_autosave();
         debug_do_frame_post();
@@ -188,6 +190,7 @@ FunHook<void(bool)> level_init_post_hook{
         process_queued_spawn_points_from_items();
         populate_world_hud_sprite_events();
         reset_achievement_state_info();
+        koth_level_init();
 
         if (!rf::is_dedicated_server) {
             evaluate_fullbright_meshes();
@@ -211,7 +214,7 @@ FunHook<void(bool)> level_init_post_hook{
             }
         }
 
-        if (rf::is_server) {        
+        if (rf::is_dedicated_server || rf::is_server) {
             if (g_match_info.match_active) {
                 send_chat_line_packet("=========== MATCH LIVE ===========", nullptr);
             }
@@ -428,6 +431,7 @@ extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
     hud_apply_patches();
     multi_do_patch();
     multi_scoreboard_apply_patch();
+    gametype_do_patch();
     vpackfile_apply_patches();
     multi_spectate_appy_patch();
     high_fps_init();

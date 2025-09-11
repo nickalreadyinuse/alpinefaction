@@ -531,7 +531,7 @@ void shuffle_level_array()
     if (g_dedicated_launched_from_ads) {
         auto& cfg = g_alpine_server_config;
 
-        if (cfg.levels.size() <= 1)
+        if (cfg.levels.size() <= 0)
             return;
 
         std::ranges::shuffle(cfg.levels, g_rng);
@@ -908,6 +908,9 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
     [](const char *filename, int ng_type) {
         if (ng_type == RF_GT_CTF) {
             return string_starts_with_ignore_case(filename, "ctf") || string_starts_with_ignore_case(filename, "pctf");
+        }
+        else if (ng_type == RF_GT_KOTH) {
+            return string_starts_with_ignore_case(filename, "koth");
         }
         return string_starts_with_ignore_case(filename, "dm") || string_starts_with_ignore_case(filename, "pdm");
     },
@@ -1512,11 +1515,6 @@ static float get_weapon_shot_stats_delta(rf::Weapon* wp)
     return 1.0f / num_projectiles;
 }
 
-static bool multi_is_team_game_type()
-{
-    return rf::multi_get_game_type() != rf::NG_TYPE_DM;
-}
-
 static void maybe_increment_weapon_hits_stat(int hit_obj_handle, rf::Weapon *wp)
 {
     rf::Entity* attacker_ep = rf::entity_from_handle(wp->parent_handle);
@@ -1693,6 +1691,9 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_TEAMDM: {
         return rf::multi_tdm_get_red_team_score() == rf::multi_tdm_get_blue_team_score();
     }
+    case rf::NG_TYPE_KOTH: {
+        return multi_koth_get_red_team_score() == multi_koth_get_blue_team_score();
+    }
     default:
         return false;
     }
@@ -1734,6 +1735,13 @@ FunHook<void()> multi_check_for_round_end_hook{
             case rf::NG_TYPE_TEAMDM: {
                 if (rf::multi_tdm_get_red_team_score() >= rf::multi_kill_limit ||
                     rf::multi_tdm_get_blue_team_score() >= rf::multi_kill_limit) {
+                    round_over = true;
+                }
+                break;
+            }
+            case rf::NG_TYPE_KOTH: {
+                if (multi_koth_get_red_team_score() >= g_alpine_server_config_active_rules.koth_score_limit ||
+                    multi_koth_get_blue_team_score() >= g_alpine_server_config_active_rules.koth_score_limit) {
                     round_over = true;
                 }
                 break;

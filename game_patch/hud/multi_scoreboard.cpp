@@ -6,6 +6,7 @@
 #include "../input/input.h"
 #include "../multi/endgame_votes.h"
 #include "../multi/multi.h"
+#include "../multi/gametype.h"
 #include "../misc/alpine_options.h"
 #include "../misc/alpine_settings.h"
 #include "../rf/player/control_config.h"
@@ -63,9 +64,21 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
         std::string player_count_str =
             " | " + std::to_string(num_players) + (num_players > 1 ? " PLAYERS" : " PLAYER");
 
-        std::string game_type_name = (game_type == rf::NG_TYPE_DM)    ? rf::strings::deathmatch
-                                     : (game_type == rf::NG_TYPE_CTF) ? rf::strings::capture_the_flag
-                                                                      : rf::strings::team_deathmatch;
+        std::string game_type_name;
+        switch (game_type) {
+            case rf::NG_TYPE_TEAMDM:
+                game_type_name = rf::strings::team_deathmatch;
+                break;
+            case rf::NG_TYPE_CTF:
+                game_type_name = rf::strings::capture_the_flag;
+                break;
+            case rf::NG_TYPE_KOTH:
+                game_type_name = "KING OF THE HILL";
+                break;
+            default:
+                game_type_name = rf::strings::deathmatch;
+                break;
+        }
 
         game_type_name += player_count_str;
 
@@ -126,6 +139,16 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
             else if (game_type == rf::NG_TYPE_TEAMDM) {
                 red_score = rf::multi_tdm_get_red_team_score();
                 blue_score = rf::multi_tdm_get_blue_team_score();
+            }
+            else if (game_type == rf::NG_TYPE_KOTH) { // todo: new HUD icons for koth
+                static int hud_flag_red_bm = rf::bm::load("hud_flag_red.tga", -1, true);
+                static int hud_flag_blue_bm = rf::bm::load("hud_flag_blue.tga", -1, true);
+                int flag_bm_w, flag_bm_h;
+                rf::bm::get_dimensions(hud_flag_red_bm, &flag_bm_w, &flag_bm_h);
+                rf::gr::bitmap(hud_flag_red_bm, x + w * 2 / 6 - flag_bm_w / 2, cur_y);
+                rf::gr::bitmap(hud_flag_blue_bm, x + w * 4 / 6 - flag_bm_w / 2, cur_y);
+                red_score = multi_koth_get_red_team_score();
+                blue_score = multi_koth_get_blue_team_score();
             }
             rf::gr::set_color(0xD0, 0x20, 0x20, 0xFF);
             int team_scores_font = rf::scoreboard_big_font;
