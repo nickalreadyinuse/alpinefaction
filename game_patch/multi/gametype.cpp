@@ -87,12 +87,18 @@ int multi_koth_get_blue_team_score()
 
 void multi_koth_set_red_team_score(int score)
 {
+    if (rf::is_server || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
+        return;
+
     g_koth_info.red_team_score = score;
     return;
 }
 
 void multi_koth_set_blue_team_score(int score)
 {
+    if (rf::is_server || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
+        return;
+
     g_koth_info.blue_team_score = score;
     return;
 }
