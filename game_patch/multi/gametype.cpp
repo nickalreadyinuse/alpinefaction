@@ -937,6 +937,16 @@ CodeInjection player_create_entity_team_skins_patch{
     },
 };
 
+CodeInjection multi_hud_render_target_name_color_patch{
+    0x0047806F,
+    [](auto& regs) {
+        // base game logic path draws name green if mode != CTF AND != TDM
+        if (multi_is_team_game_type()) {
+            regs.eip = 0x0047807E; // draw team colored name
+        }
+    },
+};
+
 void gametype_do_patch()
 {
     // index rfl files for new gamemodes when opening listen server create menu
@@ -970,4 +980,7 @@ void gametype_do_patch()
     // fix bug where team fpgun skins not loaded for listen server hosts if a
     // custom gamemode is the first loaded mode after game launch
     player_create_entity_team_skins_patch.install();
+
+    // colour target player names in new team gametypes
+    multi_hud_render_target_name_color_patch.install();
 }
