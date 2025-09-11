@@ -388,7 +388,13 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             if (!src_player)
                 return; // shouldnt happen (protected in rf::multi_io_process_packets)
 
+            const uint8_t team_msg = static_cast<uint8_t>(data[1]);
             char* msg = data + 2;
+
+            if (team_msg && rf::is_dedicated_server) {
+                rf::multi_chat_add_msg(src_player, msg, true);
+            }
+
             if (check_server_chat_command(msg, src_player))
                 return;
         }

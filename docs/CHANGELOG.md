@@ -46,8 +46,9 @@ Version 1.2.0 (Willow): Not yet released
 - Log player join request rejection reason to server console on attempted join
 - Log accepted and rejected `rcon` commands to server console
 - Log accepted and rejected `rcon_request` commands to server console
+- Log all chat messages to server console
 - Add support for control points as game type objectives
-- Report custom gamemodes to legacy clients as TDM to avoid unintentionally crashing them when they ping server list
+- Report custom gamemodes to legacy clients as TDM for compatibility
 - Add `Control_Point_Handler` event
 - Add `cl_outlineheightscale` command to scale height of control point outlines
 - Add `CPOutlineHeightScale` setting to `alpine_settings.ini`
