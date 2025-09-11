@@ -173,6 +173,9 @@ protected:
         // Notify the player who started the vote
         send_chat_line_packet(base_msg.c_str(), source);
 
+        // print to server console
+        rf::console::printf(base_msg.c_str()); 
+
         // Prepare messages for other players
         std::string msg_non_alpine = "\n=============== VOTE STARTING ===============\n" + base_msg +
                                      "Send message \"/vote yes\" or \"/vote no\" to participate.";
