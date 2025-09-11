@@ -93,6 +93,10 @@ namespace rf::bm
     static auto& lock = addr_as_ref<Format(int handle, ubyte **data, ubyte **pal)>(0x00510780);
     static auto& unlock = addr_as_ref<void(int)>(0x00511700);
 
+    // required for realtime bitmap generation, set in gr_d3d_init_device for DX8/9
+    static auto& max_d3d_texture_resolution_h = addr_as_ref<int>(0x017C7C00);
+    static auto& max_d3d_texture_resolution_w = addr_as_ref<int>(0x017C7BFC);
+
     static auto& bm_set_resolution_level_for_all = addr_as_ref<void(int level)>(0x0050EF10);
 
     static auto& bitmaps = addr_as_ref<BitmapEntry*>(0x017C80C4);
