@@ -55,6 +55,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `cl_outlinesegments` command to set segment count for control point outline rings
 - Add `CPOutlineSegments` setting to `alpine_settings.ini`
 - Add `King of the Hill` game type selection for `Gametype_Gate` event
+- Print vote initiation alerts to dedicated server console
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
@@ -69,6 +70,10 @@ Version 1.2.0 (Willow): Not yet released
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
 - Fix overtime initiating even if no match is active
 - Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
+- Fix DX11 renderer crashing when generating realtime bitmaps
+- Fix DX11 renderer not rendering dynamic lighting on skeletal meshes
+- Fix static meshes appearing much darker than expected on DX11 renderer
+- Fix `r_fullbright` not working properly on DX11 renderer
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
