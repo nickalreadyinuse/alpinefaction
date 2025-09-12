@@ -901,8 +901,9 @@ CodeInjection send_team_score_change_level_patch{
         if (multi_game_type_is_team_type(game_type)) {
             // send a hill state update on match end to ensure all players have accurate scores
             if (multi_game_type_has_hills(game_type)) {
-                rf::Player* pp = regs.eax;                
-                send_koth_hill_state_packet_to_player(pp);
+                rf::Player* pp = regs.eax;
+                if (pp)
+                    send_koth_hill_state_packet_to_player(pp);
             }
 
             //regs.eip = 0x0047BFA6; // continue to send team_scores packet (unnecessary, not processed by clients)
