@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <common/error/d3d-error.h>
 #include <common/utils/list-utils.h>
 #include <common/utils/os-utils.h>
@@ -178,6 +179,32 @@ ConsoleCommand2 gamma_cmd{
     },
     "Sets gamma.",
     "gamma [value]",
+};
+
+ConsoleCommand2 colorblind_cmd{
+    "r_colorblind",
+    [](std::optional<std::string> mode_opt) {
+        static const char* names[] = {"off", "protanopia", "deuteranopia", "tritanopia"};
+        if (!mode_opt) {
+            rf::console::print("Colorblind mode: {} (Direct3D 11 mode only)", names[g_alpine_game_config.colorblind_mode]);
+            return;
+        }
+        std::string mode = mode_opt.value();
+        std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c) { return std::tolower(c); });
+        int new_mode = g_alpine_game_config.colorblind_mode;
+        if (mode == "off" || mode == "0") new_mode = 0;
+        else if (mode == "protanopia" || mode == "1") new_mode = 1;
+        else if (mode == "deuteranopia" || mode == "2") new_mode = 2;
+        else if (mode == "tritanopia" || mode == "3") new_mode = 3;
+        else {
+            rf::console::print("Usage: r_colorblind <off|protanopia|deuteranopia|tritanopia>");
+            return;
+        }
+        g_alpine_game_config.colorblind_mode = new_mode;
+        rf::console::print("Colorblind mode set to {} (Direct3D 11 mode only)", names[new_mode]);
+    },
+    "Configure colorblind mode rendering filter (Direct3D 11 mode only)",
+    "r_colorblind <off|protanopia|deuteranopia|tritanopia>",
 };
 
 void evaluate_lightmaps_only()
@@ -404,4 +431,5 @@ void gr_apply_patch()
     windowed_cmd.register_cmd();
     nearest_texture_filtering_cmd.register_cmd();
     lod_distance_scale_cmd.register_cmd();
+    colorblind_cmd.register_cmd();
 }

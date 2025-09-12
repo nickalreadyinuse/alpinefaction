@@ -8,6 +8,7 @@
 #include "gr_d3d11_shader.h"
 #include "gr_d3d11_texture.h"
 #include "gr_d3d11_state.h"
+#include "../../misc/alpine_settings.h"
 
 namespace df::gr::d3d11
 {
@@ -83,10 +84,12 @@ namespace df::gr::d3d11
         {
             bool alpha_test = mode.get_zbuffer_type() == gr::ZBUFFER_TYPE_FULL_ALPHA_TEST;
             bool fog_allowed = mode.get_fog_type() != gr::FOG_NOT_ALLOWED;
-            if (force_update_ || current_alpha_test_ != alpha_test || current_fog_allowed_ != fog_allowed || current_color_ != color) {
+            int colorblind_mode = g_alpine_game_config.colorblind_mode;
+            if (force_update_ || current_alpha_test_ != alpha_test || current_fog_allowed_ != fog_allowed || current_color_ != color || current_colorblind_mode_ != colorblind_mode) {
                 current_alpha_test_ = alpha_test;
                 current_fog_allowed_ = fog_allowed;
                 current_color_ = color;
+                current_colorblind_mode_ = colorblind_mode;
                 force_update_ = false;
                 update_buffer(device_context);
             }
@@ -112,6 +115,7 @@ namespace df::gr::d3d11
         bool current_fog_allowed_ = false;
         bool force_update_ = true;
         rf::Color current_color_{255, 255, 255};
+        int current_colorblind_mode_ = 0;
     };
 
     class PerFrameBuffer

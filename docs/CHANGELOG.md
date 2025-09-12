@@ -10,6 +10,7 @@ Version 1.2.0 (Willow): Not yet released
     - On-demand loading of changed settings without server needing restart
     - Support for configuring player loadouts
 - Add `King of the Hill` (KOTH) multiplayer game type
+- Add colorblind mode rendering filter (Direct3D 11 renderer only)
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -57,11 +58,13 @@ Version 1.2.0 (Willow): Not yet released
 - Add `King of the Hill` game type selection for `Gametype_Gate` event
 - Print vote initiation alerts to dedicated server console
 - Add `reject_incompatible_clients` ADS setting
+- Add `r_colorblind` command for configuring colorblind mode rendering filter
+- Add `ColorblindMode` setting to `alpine_settings.ini`
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix very niche case where armor values were displayed differently when Big HUD was enabled
-- Fix DX11 renderer not properly rendering detail brushes in skyboxes
+- Fix Direct3D 11 renderer not properly rendering detail brushes in skyboxes
 - Fix super powerups applying in SP in non-Alpine levels
 - Fix `Cyclic_Timer` event activating twice on initial activation (unless `Legacy Cyclic_Timers` is on)
 - Fix broken rendering of particle emitter 23616 on community level `dm-birthday.rfl`
@@ -71,10 +74,10 @@ Version 1.2.0 (Willow): Not yet released
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
 - Fix overtime initiating even if no match is active
 - Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
-- Fix DX11 renderer crashing when generating realtime bitmaps
-- Fix DX11 renderer not rendering dynamic lighting on skeletal meshes
-- Fix static meshes appearing much darker than expected on DX11 renderer
-- Fix `r_fullbright` not working properly on DX11 renderer
+- Fix Direct3D 11 renderer crashing when generating realtime bitmaps
+- Fix Direct3D 11 renderer not rendering dynamic lighting on skeletal meshes
+- Fix static meshes appearing much darker than expected on Direct3D 11 renderer
+- Fix `r_fullbright` not working properly on Direct3D 11 renderer
 - Fix `Winner` and `Game Over` sounds played at the end of a match usually being wrong
 - Fix `Try Avoid Players` behaviour for spawn point selection not working properly
 

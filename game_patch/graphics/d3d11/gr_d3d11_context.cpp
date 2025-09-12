@@ -239,7 +239,8 @@ namespace df::gr::d3d11
         std::array<float, 4> current_color;
         float alpha_test;
         float fog_far;
-        float pad0[2];
+        float colorblind_mode;
+        float pad0;
         std::array<float, 3> fog_color;
         float pad1;
     };
@@ -278,6 +279,8 @@ namespace df::gr::d3d11
                 static_cast<float>(gr::screen.fog_color.blue) / 255.0f,
             };
         }
+        data.colorblind_mode = static_cast<float>(current_colorblind_mode_);
+        data.pad0 = 0.0f;
 
         D3D11_MAPPED_SUBRESOURCE mapped_subres;
         DF_GR_D3D11_CHECK_HR(
