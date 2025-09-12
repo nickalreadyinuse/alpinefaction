@@ -1936,7 +1936,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         else if (config.try_avoid_players) {
             // Weighted RNG to favor further spawns
             std::uniform_real_distribution<double> real_dist(0.0, 1.0);
-            selected_index = static_cast<int>(std::sqrt(real_dist(g_rng)) * (eligible_points.size() - 1) + 0.5);
+            selected_index = static_cast<int>((1 - std::sqrt(real_dist(g_rng))) * eligible_points.size());
         }
         else {
             // Full RNG if we don't care about player distance
