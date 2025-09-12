@@ -103,7 +103,7 @@ struct af_just_spawned_info_packet
     uint8_t data[];     // type-specific payload
 };
 
-struct af_koth_hill_state_packet // todo: send to new player on join
+struct af_koth_hill_state_packet
 {
     RF_GamePacketHeader header;
     uint8_t hill_uid;

@@ -868,30 +868,44 @@ CodeInjection send_team_score_server_do_frame_patch{
     },
 };
 
+void send_koth_hill_state_packet_to_player(rf::Player* pp)
+{
+    for (auto& h : g_koth_info.hills) {
+        const Presence pres = sample_presence(h);
+        af_send_koth_hill_state_packet(pp, h, pres);
+    }
+}
+
 // sync hill state(s) and scores for late joiners
 CodeInjection send_team_score_state_info_patch{
     0x0048183F,
     [](auto& regs) {
         auto game_type = rf::multi_get_game_type();
         if (multi_game_type_is_team_type(game_type)) {
-            if (multi_game_type_has_hills(game_type)) { // send hill state packet on join
+            // send hill state packet on join
+            if (multi_game_type_has_hills(game_type)) {
                 rf::Player* pp = regs.edi;
-                for (auto& h : g_koth_info.hills) {
-                    const Presence pres = sample_presence(h);
-                    af_send_koth_hill_state_packet(pp, h, pres);
-                }
+                send_koth_hill_state_packet_to_player(pp);
             }
+
             regs.eip = 0x00481859; // if any team mode, send team_scores packet
         }
     },
 };
 
-// sync scores on level change
+// sync hill state(s) and scores on level change
 CodeInjection send_team_score_change_level_patch{
     0x0047BF97,
     [](auto& regs) {
-        if (multi_is_team_game_type()) {
-            regs.eip = 0x0047BFA6; // if any team mode, send team_scores packet
+        auto game_type = rf::multi_get_game_type();
+        if (multi_game_type_is_team_type(game_type)) {
+            // send a hill state update on match end to ensure all players have accurate scores
+            if (multi_game_type_has_hills(game_type)) {
+                rf::Player* pp = regs.eax;                
+                send_koth_hill_state_packet_to_player(pp);
+            }
+
+            //regs.eip = 0x0047BFA6; // continue to send team_scores packet (unnecessary, not processed by clients)
         }
     },
 };
