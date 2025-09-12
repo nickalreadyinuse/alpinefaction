@@ -1346,6 +1346,34 @@ FunHook<int(rf::NetAddr*, rf::JoinRequest*)> check_access_for_new_player_hook {
 
 static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict_status(ClientVersion cv, const AlpineFactionJoinReqPacketExt& info)
 {
+    // reject join reqs from clients that are not compatible with the current level
+    if (g_alpine_server_config.alpine_restricted_config.reject_incompatible_clients) {
+        int level_version = get_level_file_version(rf::level.filename.c_str());
+
+        if (level_version > info.max_rfl_version && cv != ClientVersion::browser) {
+            std::string client_name = "";
+            switch (cv) {
+                case ClientVersion::alpine_faction:
+                    client_name = std::format("Alpine Faction {}.{}.{}-{}",
+                        info.version_major, info.version_minor, info.version_patch, info.version_type);
+                    break;
+                case ClientVersion::dash_faction:
+                    client_name = std::format("Dash Faction {}.{}{}",
+                        info.version_major, info.version_minor, info.version_type == VERSION_TYPE_BETA ? "-m" : "");
+                    break;
+                case ClientVersion::pure_faction:
+                    client_name = "Pure Faction";
+                    break;
+                default:
+                    client_name = "Legacy Client";
+                    break;
+            }
+            return {AlpineRestrictVerdict::need_update,
+                    std::format("{} max RFL ver {}, {} is {}",
+                        client_name, info.max_rfl_version, rf::level.filename.c_str(), level_version)};
+        }
+    }
+
     const auto& cfg = g_alpine_server_config.alpine_restricted_config;
     const bool require_alpine = cfg.clients_require_alpine && cfg.reject_non_alpine_clients;
 
@@ -1357,7 +1385,7 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
         switch (cv) {
             case ClientVersion::dash_faction:
                 return {AlpineRestrictVerdict::need_alpine,
-                    std::format("unsupported client - Dash Faction v{}.{}", info.version_major, info.version_minor)};
+                        std::format("unsupported client - Dash Faction {}.{}", info.version_major, info.version_minor)};
             case ClientVersion::browser:
                 return {AlpineRestrictVerdict::need_alpine, "unsupported client - Server Browser"};
             case ClientVersion::pure_faction:
@@ -1370,7 +1398,7 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
     // require af release build
     if (cfg.alpine_require_release_build && info.version_type != VERSION_TYPE_RELEASE) {
         return {AlpineRestrictVerdict::need_release,
-                std::format("incompatible Alpine Faction client v{}.{}.{} non-stable",
+                std::format("incompatible Alpine Faction client {}.{}.{} non-stable",
                     info.version_major, info.version_minor, info.version_patch)};
     }
 
@@ -1378,7 +1406,7 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
     if (cfg.alpine_server_version_enforce_min) {
         if (version_is_older(info.version_major, info.version_minor, VERSION_MAJOR, VERSION_MINOR)) {
             return {AlpineRestrictVerdict::need_update,
-                    std::format("incompatible Alpine Faction client v{}.{}.{}-{}",
+                    std::format("incompatible Alpine Faction client {}.{}.{}-{}",
                         info.version_major, info.version_minor, info.version_patch, info.version_type)};
         }
     }

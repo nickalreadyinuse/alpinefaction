@@ -370,12 +370,15 @@ struct WeaponStayExemptionConfig
 
 struct AlpineRestrictConfig
 {
+    bool advertise_alpine = true;
+    bool reject_incompatible_clients = true;
     bool clients_require_alpine = false;
+
+    // below options are only used if clients_require_alpine = true
     bool reject_non_alpine_clients = false;
     bool alpine_server_version_enforce_min = false;
     bool alpine_require_release_build = false;
     bool only_welcome_alpine = false;
-    bool advertise_alpine = true;
     bool no_player_collide = false;
     bool location_pinging = true;
     VoteConfig vote_match;

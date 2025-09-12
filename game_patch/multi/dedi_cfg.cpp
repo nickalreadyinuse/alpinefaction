@@ -549,6 +549,8 @@ static AlpineRestrictConfig parse_alpine_restrict_config(const toml::table &t)
     AlpineRestrictConfig o;
     if (auto v = t["advertise_alpine"].value<bool>())
         o.advertise_alpine = *v;
+    if (auto v = t["reject_incompatible"].value<bool>())
+        o.reject_incompatible_clients = *v;
     if (auto v = t["clients_require_alpine"].value<bool>())
         o.clients_require_alpine = *v;
 
@@ -1355,6 +1357,7 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
 
     // alpine restrict
     rf::console::print("  Advertise Alpine:                      {}\n", cfg.alpine_restricted_config.advertise_alpine);
+    rf::console::print("  Reject incompatible clients:           {}\n", cfg.alpine_restricted_config.reject_incompatible_clients);
     rf::console::print("  Clients require Alpine:                {}\n", cfg.alpine_restricted_config.clients_require_alpine);
     if (cfg.alpine_restricted_config.clients_require_alpine) {
         rf::console::print("    Reject non-Alpine clients:           {}\n", cfg.alpine_restricted_config.reject_non_alpine_clients);

@@ -56,6 +56,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `CPOutlineSegments` setting to `alpine_settings.ini`
 - Add `King of the Hill` game type selection for `Gametype_Gate` event
 - Print vote initiation alerts to dedicated server console
+- Add `reject_incompatible_clients` ADS setting
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

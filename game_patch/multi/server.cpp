@@ -516,14 +516,47 @@ static void send_private_message_with_stats(rf::Player* player)
 
 static void notify_for_upcoming_level_version_incompatible(rf::Player* player)
 {
-    auto client_msg = std::format(
-        "\xA6 Your client is not able to load the next level. To continue playing, upgrade to the latest version of Alpine Faction by visiting alpinefaction.com");
-    send_chat_line_packet(client_msg.c_str(), player);
+    std::string client_msg1 = "================== IMPORTANT ==================";
+    std::string client_msg2 = "\xA6 Your client is NOT compatible with the next level!";
+    std::string client_msg3 = "\xA6 To continue playing, upgrade at www.alpinefaction.com";
+    send_chat_line_packet(client_msg1.c_str(), player);
+    send_chat_line_packet(client_msg2.c_str(), player);
+    send_chat_line_packet(client_msg3.c_str(), player);
 
-    auto server_msg = std::format("{} cannot load the upcoming level. The maximum RFL version they are able to load is {}.",
+    auto server_msg = std::format("{} cannot load the upcoming level. The maximum RFL version they can load is {}.",
                     player->name, get_player_additional_data(player).max_rfl_version);    
     rf::console::printf(server_msg.c_str());
 }
+
+CodeInjection multi_limbo_leave_pre_patch{
+    0x0047C497,
+    [](auto& regs) {
+        if (rf::is_server && g_alpine_server_config.alpine_restricted_config.reject_incompatible_clients) {
+            const int ver = get_level_file_version(rf::level_filename_to_load);
+            std::vector<rf::Player*> to_kick;
+
+            auto plist = SinglyLinkedList{rf::player_list};
+            for (auto& p : plist) {
+                if (&p == rf::local_player)
+                    continue;
+
+                auto& pad = get_player_additional_data(&p);
+                if (static_cast<int>(pad.max_rfl_version) < ver) {
+                    auto server_msg = std::format("{} was kicked because they cannot load the upcoming level.", p.name);
+                    rf::console::printf(server_msg.c_str());
+
+                    // queue for kick
+                    to_kick.push_back(&p);
+                }
+            }
+
+            // kick anyone queued for kick
+            for (auto* p : to_kick) {
+                rf::multi_kick_player(p);
+            }
+        }
+    },
+};
 
 void shuffle_level_array()
 {
@@ -2290,8 +2323,9 @@ void server_init()
     // Item replacements
     item_lookup_type_hook.install();
 
-    // Item respawn time overrides
-    // item_create_hook.install();
+    // Kick players when server is about to switch to a map they cannot load,
+    // so they don't spend time autodownloading it only to be told they can't play
+    multi_limbo_leave_pre_patch.install();
 
     // Default player weapon class and ammo override
     find_default_weapon_for_entity_hook.install();
@@ -2368,7 +2402,8 @@ void server_on_limbo_state_enter()
     server_vote_on_limbo_state_enter();
 
     auto player_list = SinglyLinkedList{rf::player_list};
-    auto upcoming_rfl_version = static_cast<uint32_t>(get_level_file_version(rf::level_filename_to_load));
+
+    const int ver = get_level_file_version(rf::level_filename_to_load);
 
     // Clear save data for all players
     for (auto& player : player_list) {
@@ -2380,7 +2415,7 @@ void server_on_limbo_state_enter()
         if (g_alpine_server_config.stats_message_enabled) {
             send_private_message_with_stats(&player);
         }
-        if (&player != rf::local_player && upcoming_rfl_version > pdata.max_rfl_version) {
+        if (&player != rf::local_player && ver > pdata.max_rfl_version) {
             notify_for_upcoming_level_version_incompatible(&player);
         }
     }
