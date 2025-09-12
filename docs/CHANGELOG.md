@@ -74,6 +74,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix DX11 renderer not rendering dynamic lighting on skeletal meshes
 - Fix static meshes appearing much darker than expected on DX11 renderer
 - Fix `r_fullbright` not working properly on DX11 renderer
+- Fix `Winner` and `Game Over` sounds played at the end of a match usually being wrong
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

@@ -235,6 +235,7 @@ namespace rf
     static auto& multi_powerup_remove_all_for_player = addr_as_ref<void(Player* pp)>(0x00480310);
     static auto& send_reload_packet = addr_as_ref<void(Entity* ep, int weapon_type, int clip_ammo, int ammo)>(0x00485B50);
     static auto& send_obj_kill_packet = addr_as_ref<void(Entity* killed_entity, Item* item, int* a3)>(0x0047E8C0);
+    static auto& multi_limbo_timer = addr_as_ref<Timestamp>(0x006D6138);
 
 
     static auto& set_in_mp_flag = addr_as_ref<void()>(0x0046ED50);

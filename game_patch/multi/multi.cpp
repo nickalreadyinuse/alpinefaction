@@ -21,6 +21,7 @@
 #include "../rf/os/os.h"
 #include "../rf/gameseq.h"
 #include "../rf/os/timer.h"
+#include "../rf/player/camera.h"
 #include "../rf/multi.h"
 #include "../rf/os/console.h"
 #include "../rf/weapon.h"
@@ -96,11 +97,24 @@ void handle_levelm_param()
 FunHook<void()> multi_limbo_init{
     0x0047C280,
     []() {
-        multi_limbo_init.call_target();
+        int limbo_time = 10000;
+
         if (rf::is_server) {
             server_on_limbo_state_enter();
             multi_player_set_can_endgame_vote(false); // servers can't endgame vote
+
+            if (g_match_info.match_active) {
+                send_chat_line_packet("\xA6 Match complete!", nullptr);
+                g_match_info.reset();
+            }
+            else if (g_match_info.pre_match_active && g_match_info.everyone_ready) {
+                limbo_time = 5000; // reduce limbo time to 5 sec on match start (will always be a restart of the current map)
+                g_match_info.match_active = g_match_info.everyone_ready;
+                g_match_info.everyone_ready = false;
+                g_match_info.pre_match_active = false;
+            }
         }
+
         // don't let clients vote if the map has been played for less than 1 min
         else if(rf::level.time >= 60.0f) {
             multi_player_set_can_endgame_vote(true);
@@ -111,6 +125,69 @@ FunHook<void()> multi_limbo_init{
             remove_hud_vote_notification();
             set_local_pre_match_active(false);
         }
+
+        if (!rf::player_list) {
+            xlog::trace("Wait between levels shortened because server is empty");
+            limbo_time = 100;
+        }
+
+        rf::multi_limbo_timer.set(limbo_time);
+
+        if (!rf::local_player)
+            return;
+
+        rf::camera_enter_random_fixed_pos();
+        rf::camera_enter_fixed(rf::local_player->cam);
+        rf::local_screen_flash(rf::local_player, 0xFF, 0xFF, 0xFF, 0x01);
+
+        const auto gt = rf::multi_get_game_type();
+        bool we_win = false;
+
+        if (gt == rf::NG_TYPE_DM) {
+            // need at least 2 players to possibly win
+            if (rf::multi_num_players() >= 2) {
+                int my_score = 0;
+                int max_score = 0;
+
+                if (rf::local_player->stats)
+                    my_score = rf::local_player->stats->score;
+
+                for (auto& p : SinglyLinkedList{rf::player_list}) {
+                    if (p.stats && p.stats->score > max_score)
+                        max_score = p.stats->score;
+                }
+
+                we_win = (my_score >= max_score); // count it as a win if tied for win
+            }
+        }
+        else {
+            int red = 0, blue = 0;
+            switch (gt) {
+            case rf::NG_TYPE_CTF: {
+                red = rf::multi_ctf_get_red_team_score();
+                blue = rf::multi_ctf_get_blue_team_score();
+                break;
+            }
+            case rf::NG_TYPE_TEAMDM: {
+                red = rf::multi_tdm_get_red_team_score();
+                blue = rf::multi_tdm_get_blue_team_score();
+                break;
+            }
+            case rf::NG_TYPE_KOTH: {
+                red = multi_koth_get_red_team_score();
+                blue = multi_koth_get_blue_team_score();
+                break;
+            }
+            default:
+                break;
+            }
+            if (rf::local_player->team == 0)
+                we_win = (red > blue);
+            else if (rf::local_player->team == 1)
+                we_win = (blue > red);
+        }
+
+        rf::snd_play(we_win ? 80 : 78, 0, 0.0f, 1.0f);
     },
 };
 

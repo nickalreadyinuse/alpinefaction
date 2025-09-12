@@ -1600,33 +1600,6 @@ void server_reliable_socket_ready(rf::Player* player)
     }
 }
 
-CodeInjection multi_limbo_init_injection{
-    0x0047C286,
-    [](auto& regs) {
-        if (!rf::player_list) {
-            xlog::trace("Wait between levels shortened because server is empty");
-            addr_as_ref<int>(regs.esp) = 100;
-        }
-        else {
-            auto player_list = SinglyLinkedList{rf::player_list};
-            for (auto& player : player_list) {
-                update_player_active_status(&player);
-            }
-        }
-
-        if (g_match_info.match_active) {
-            send_chat_line_packet("\xA6 Match complete!", nullptr);
-            g_match_info.reset();
-        }
-        else if (g_match_info.pre_match_active && g_match_info.everyone_ready) {
-            addr_as_ref<int>(regs.esp) = 5000;
-            g_match_info.match_active = g_match_info.everyone_ready;
-            g_match_info.everyone_ready = false;
-            g_match_info.pre_match_active = false;
-        }
-    },
-};
-
 CodeInjection multi_level_init_injection{
     0x0046E450,
     [](auto& regs) {
@@ -2370,9 +2343,6 @@ void server_init()
     // Set lower bound of server max players clamp range to 1 (instead of 2)
     write_mem<i8>(0x0046DD4F + 1, 1);
 
-    // Reduce limbo duration if server is empty
-    multi_limbo_init_injection.install();
-
     // Shuffle rotation when the last map in the list is loaded
     multi_level_init_injection.install();
 
@@ -2402,6 +2372,8 @@ void server_on_limbo_state_enter()
 
     // Clear save data for all players
     for (auto& player : player_list) {
+        update_player_active_status(&player);
+
         auto& pdata = get_player_additional_data(&player);
         pdata.saves.clear();
         pdata.last_teleport_timestamp.invalidate();
