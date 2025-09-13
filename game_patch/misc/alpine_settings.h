@@ -128,6 +128,12 @@ struct AlpineGameSettings
     int suppress_autoswitch_alias = -1;
     bool always_autoswitch_empty = true;
 
+    int picmip = 0;
+    void set_picmip(int value)
+    {
+        picmip = std::clamp(value, 0, 10);
+    }
+
     int suppress_autoswitch_fire_wait = 0;
     void set_suppress_autoswitch_fire_wait(int value)
     {

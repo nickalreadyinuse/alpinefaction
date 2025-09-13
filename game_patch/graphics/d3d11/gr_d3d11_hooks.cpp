@@ -151,6 +151,13 @@ namespace df::gr::d3d11
         renderer->texture_remove_ref(bm_handle);
     }
 
+    void update_texture_filtering()
+    {
+        if (renderer) {
+            renderer->reset_sampler_states();
+        }
+    }
+
     void render_solid(rf::GSolid* solid, rf::GRoom** rooms, int num_rooms)
     {
         renderer->render_solid(solid, rooms, num_rooms);

@@ -64,6 +64,7 @@ namespace df::gr::d3d11
                 break;
         }
 
+        desc.MipLODBias = static_cast<FLOAT>(g_alpine_game_config.picmip);
         if (g_alpine_game_config.nearest_texture_filtering) {
             desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
         }

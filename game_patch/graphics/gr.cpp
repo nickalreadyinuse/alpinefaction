@@ -26,6 +26,7 @@
 #include "gr.h"
 #include "gr_internal.h"
 #include "legacy/gr_d3d.h"
+#include "d3d11/gr_d3d11_hooks.h"
 
 namespace df::gr::d3d11
 {
@@ -302,7 +303,10 @@ void gr_set_window_mode(rf::gr::WindowMode window_mode)
 void gr_update_texture_filtering()
 {
     if (rf::gr::screen.mode == rf::gr::DIRECT3D) {
-        if (g_game_config.renderer != GameConfig::Renderer::d3d11) {
+        if (g_game_config.renderer == GameConfig::Renderer::d3d11) {
+            df::gr::d3d11::update_texture_filtering();
+        }
+        else {
             gr_d3d_update_texture_filtering();
         }
     }
@@ -330,6 +334,19 @@ ConsoleCommand2 nearest_texture_filtering_cmd{
         rf::console::print("Nearest texture filtering is {}", g_alpine_game_config.nearest_texture_filtering ? "enabled" : "disabled");
     },
     "Toggle nearest texture filtering",
+};
+
+ConsoleCommand2 picmip_cmd{
+    "r_picmip",
+    [](std::optional<int> picmip_opt) {
+        if (picmip_opt) {
+            g_alpine_game_config.set_picmip(picmip_opt.value());
+            gr_update_texture_filtering();
+        }
+        rf::console::print("Texture mip level offset is set to {} (Direct3D 11 mode only)", g_alpine_game_config.picmip);
+    },
+    "Sets texture mip level offset (Direct3D 11 mode only)",
+    "r_picmip <mip level>",
 };
 
 ConsoleCommand2 lod_distance_scale_cmd{
@@ -431,5 +448,6 @@ void gr_apply_patch()
     windowed_cmd.register_cmd();
     nearest_texture_filtering_cmd.register_cmd();
     lod_distance_scale_cmd.register_cmd();
+    picmip_cmd.register_cmd();
     colorblind_cmd.register_cmd();
 }
