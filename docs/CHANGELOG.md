@@ -60,6 +60,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `reject_incompatible_clients` ADS setting
 - Add `r_colorblind` command for configuring colorblind mode rendering filter
 - Add `ColorblindMode` setting to `alpine_settings.ini`
+- Add `r_picmip` command to set texture mip level offset
+- Add `Picmip` setting to `alpine_settings.ini`
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
