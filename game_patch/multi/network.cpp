@@ -1276,7 +1276,18 @@ static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
         }
     }
 
-    // couldn not match a known tail
+    // assume v1.2 retail client if no tail found
+    // could also be PF, but no way implemented yet to detect that
+    g_joining_client_version = ClientVersion::unknown;
+    g_joining_player_info.af_signature = 0u;
+    g_joining_player_info.version_major = 1u;
+    g_joining_player_info.version_minor = 2u;
+    g_joining_player_info.version_patch = 0u;
+    g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+    g_joining_player_info.max_rfl_version = 200u;
+    g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+
+    // could not match a known tail
     return false;
 }
 
