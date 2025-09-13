@@ -79,7 +79,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix Direct3D 11 renderer crashing when generating realtime bitmaps
 - Fix Direct3D 11 renderer not rendering dynamic lighting on skeletal meshes
 - Fix static meshes appearing much darker than expected on Direct3D 11 renderer
-- Fix `r_fullbright` not working properly on Direct3D 11 renderer
+- Fix `r_fullbright`, `r_lightmaps`, and `r_nearest` not working properly on Direct3D 11 renderer
 - Fix `Winner` and `Game Over` sounds played at the end of a match usually being wrong
 - Fix `Try Avoid Players` behaviour for spawn point selection not working properly
 

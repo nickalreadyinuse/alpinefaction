@@ -14,6 +14,7 @@ cbuffer RenderModeBuffer : register(b0)
     float alpha_test;
     float fog_far;
     float colorblind_mode;
+    float disable_textures;
     float3 fog_color;
 };
 

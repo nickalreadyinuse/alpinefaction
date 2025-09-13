@@ -9,6 +9,7 @@
 #include "gr_d3d11_texture.h"
 #include "gr_d3d11_state.h"
 #include "../../misc/alpine_settings.h"
+#include "../../rf/gr/gr.h"
 
 namespace df::gr::d3d11
 {
@@ -80,16 +81,17 @@ namespace df::gr::d3d11
     public:
         RenderModeBuffer(ID3D11Device* device);
 
-        void update(gr::Mode mode, rf::Color color, ID3D11DeviceContext* device_context)
+        void update(gr::Mode mode, rf::Color color, bool lightmap_only, ID3D11DeviceContext* device_context)
         {
             bool alpha_test = mode.get_zbuffer_type() == gr::ZBUFFER_TYPE_FULL_ALPHA_TEST;
             bool fog_allowed = mode.get_fog_type() != gr::FOG_NOT_ALLOWED;
             int colorblind_mode = g_alpine_game_config.colorblind_mode;
-            if (force_update_ || current_alpha_test_ != alpha_test || current_fog_allowed_ != fog_allowed || current_color_ != color || current_colorblind_mode_ != colorblind_mode) {
+            if (force_update_ || current_alpha_test_ != alpha_test || current_fog_allowed_ != fog_allowed || current_color_ != color || current_colorblind_mode_ != colorblind_mode || current_lightmap_only_ != lightmap_only) {
                 current_alpha_test_ = alpha_test;
                 current_fog_allowed_ = fog_allowed;
                 current_color_ = color;
                 current_colorblind_mode_ = colorblind_mode;
+                current_lightmap_only_ = lightmap_only;
                 force_update_ = false;
                 update_buffer(device_context);
             }
@@ -116,6 +118,7 @@ namespace df::gr::d3d11
         bool force_update_ = true;
         rf::Color current_color_{255, 255, 255};
         int current_colorblind_mode_ = 0;
+        bool current_lightmap_only_ = false;
     };
 
     class PerFrameBuffer
@@ -167,9 +170,9 @@ namespace df::gr::d3d11
             }
         }
 
-        void set_mode(gr::Mode mode, rf::Color color = {255, 255, 255, 255})
+        void set_mode(gr::Mode mode, rf::Color color = {255, 255, 255, 255}, bool lightmap_only = false)
         {
-            render_mode_cbuffer_.update(mode, color, device_context_);
+            render_mode_cbuffer_.update(mode, color, lightmap_only, device_context_);
             if (!current_mode_ || current_mode_.value() != mode) {
                 if (!current_mode_ || current_mode_.value().get_texture_source() != mode.get_texture_source()) {
                     std::array<ID3D11SamplerState*, 2> sampler_states = {

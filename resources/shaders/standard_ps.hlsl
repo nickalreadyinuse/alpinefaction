@@ -14,6 +14,7 @@ cbuffer RenderModeBuffer : register(b0)
     float alpha_test;
     float fog_far;
     float colorblind_mode;
+    float disable_textures;
     float3 fog_color;
 };
 
@@ -67,19 +68,22 @@ float3 apply_colorblind(float3 color)
 
 float4 main(VsOutput input) : SV_TARGET
 {
-    float4 tex0_color = tex0.Sample(samp0, input.uv0);
+    float4 tex0_color = disable_textures > 0.5f ? float4(1.0, 1.0, 1.0, 1.0) : tex0.Sample(samp0, input.uv0);
     float4 target = input.color * tex0_color * current_color;
 
     clip(target.a - alpha_test);
 
-    float3 light_color = 2 * tex1.Sample(samp1, input.uv1).rgb;
-    for (int i = 0; i < num_point_lights; ++i) {
-        float3 light_vec = point_lights[i].pos - input.world_pos_and_depth.xyz;
-        float3 light_dir = normalize(light_vec);
-        float dist = length(light_vec);
-        float atten = saturate(dist / point_lights[i].radius);
-        float intensity = (1 - atten) * saturate(dot(input.norm, light_dir));
-        light_color += point_lights[i].color * intensity;
+    float3 light_color = tex1.Sample(samp1, input.uv1).rgb;
+    if (disable_textures < 0.5f) {
+        light_color *= 2;
+        for (int i = 0; i < num_point_lights; ++i) {
+            float3 light_vec = point_lights[i].pos - input.world_pos_and_depth.xyz;
+            float3 light_dir = normalize(light_vec);
+            float dist = length(light_vec);
+            float atten = saturate(dist / point_lights[i].radius);
+            float intensity = (1 - atten) * saturate(dot(input.norm, light_dir));
+            light_color += point_lights[i].color * intensity;
+        }
     }
 
     target.rgb *= light_color;

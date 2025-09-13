@@ -240,9 +240,9 @@ namespace df::gr::d3d11
         float alpha_test;
         float fog_far;
         float colorblind_mode;
-        float pad0;
+        float disable_textures;
         std::array<float, 3> fog_color;
-        float pad1;
+        float pad0;
     };
     static_assert(sizeof(RenderModeBufferData) % 16 == 0);
 
@@ -280,6 +280,7 @@ namespace df::gr::d3d11
             };
         }
         data.colorblind_mode = static_cast<float>(current_colorblind_mode_);
+        data.disable_textures = current_lightmap_only_ ? 1.0f : 0.0f;
         data.pad0 = 0.0f;
 
         D3D11_MAPPED_SUBRESOURCE mapped_subres;
