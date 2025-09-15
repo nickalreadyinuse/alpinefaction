@@ -298,6 +298,17 @@ static std::string& get_log_file_path_name()
                 dedicated_server_name.resize(std::wcslen(next_arg));
                 std::wcstombs(dedicated_server_name.data(), next_arg, dedicated_server_name.size());
             }
+            else if (!std::wcscmp(argv[i], L"-ads") && i + 1 < argc) {
+                LPWSTR next_arg = argv[i + 1];
+                dedicated_server_name.resize(std::wcslen(next_arg));
+                std::wcstombs(dedicated_server_name.data(), next_arg, dedicated_server_name.size());
+                size_t slash_pos = dedicated_server_name.find_last_of("/\\");
+                if (slash_pos != std::string::npos)
+                    dedicated_server_name.erase(0, slash_pos + 1);
+                size_t dot_pos = dedicated_server_name.find_last_of('.');
+                if (dot_pos != std::string::npos)
+                    dedicated_server_name.erase(dot_pos);
+            }
         }
         LocalFree(argv);
 
