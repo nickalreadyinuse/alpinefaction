@@ -200,8 +200,6 @@ CodeInjection sort_clutter_patch{
 FunHook<rf::VMesh*(rf::Object*, const char*, rf::VMeshType)> obj_create_mesh_hook{
     0x00489FE0,
     [](rf::Object* objp, const char* name, rf::VMeshType type) {
-
-        // handle per-map mesh replacements
         auto level_it = g_alpine_level_info_config.mesh_replacements.find(rf::level.filename);
         if (level_it != g_alpine_level_info_config.mesh_replacements.end()) {
             const auto& mesh_map = level_it->second;
@@ -222,6 +220,20 @@ FunHook<rf::VMesh*(rf::Object*, const char*, rf::VMeshType)> obj_create_mesh_hoo
         }
         
         return mesh;
+    },
+};
+
+CodeInjection obj_create_mesh_check_valid{
+    0x0048A070,
+    [](auto& regs) {
+
+        rf::VMesh* mesh = regs.eax;
+        const char* filename = regs.ebx;
+
+        if (!mesh) {
+            xlog::warn("Failed to load mesh '{}'", filename ? filename : "(null)");
+        }
+
     },
 };
 
@@ -435,9 +447,12 @@ void object_do_patch()
     // Sort objects by mesh name to improve rendering performance
     sort_clutter_patch.install();
 
-    // Calculate lighting when object mesh is changed
+    // Calculate lighting when object mesh is changed, handle per-map mesh replacements
     obj_create_mesh_hook.install();
     obj_delete_mesh_hook.install();
+
+    // Print a warning to console when an invalid mesh would have been loaded
+    obj_create_mesh_check_valid.install();
 
     // Optimize Object::find_room function
     object_find_room_optimization.install();
