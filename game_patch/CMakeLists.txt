@@ -131,6 +131,7 @@ set(SRCS
     multi/gametype.cpp
     multi/kill.cpp
     multi/network.cpp
+    multi/network.h
     multi/level_download.cpp
     multi/server.h
     multi/server.cpp

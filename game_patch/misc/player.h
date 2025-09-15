@@ -26,6 +26,7 @@ struct PlayerAdditionalData
     ClientVersion client_version = ClientVersion::unknown;
     uint8_t client_version_major = 0;
     uint8_t client_version_minor = 0;
+    uint8_t client_version_patch = 0;
     uint8_t client_version_type = 0;
     uint32_t max_rfl_version = 200;
     std::optional<pf_pure_status> received_ac_status{};

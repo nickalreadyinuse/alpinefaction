@@ -22,6 +22,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/ShortTypes.h>
+#include "network.h"
 #include "multi.h"
 #include "alpine_packets.h"
 #include "server.h"
@@ -54,6 +55,11 @@
 int g_update_rate = 30; // client netfps
 
 ClientVersion g_joining_client_version = ClientVersion::unknown;
+AlpineFactionJoinReqPacketExt g_joining_player_info;
+StashedPacket g_join_request_stashed;
+static const uint8_t* g_rx_base = nullptr;
+static size_t g_rx_len = 0;
+
 std::optional<int> g_desired_multiplayer_character; // caches local mp character when forced by server
 
 using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
@@ -708,25 +714,6 @@ CallHook<int(void*, int, int, rf::NetAddr&, int)> net_get_tracker_hook{
     },
 };
 
-constexpr uint32_t ALPINE_FACTION_SIGNATURE = 0x4E4C5246;
-constexpr uint32_t DASH_FACTION_SIGNATURE = 0xDA58FAC7;
-
-// Appended to game_info packets
-struct af_sign_packet_ext
-{
-    uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
-    uint8_t version_major = VERSION_MAJOR;
-    uint8_t version_minor = VERSION_MINOR;
-    uint8_t version_patch = VERSION_PATCH;
-    uint8_t version_type = VERSION_TYPE;
-    uint32_t af_flags = 0;
-
-    void set_flags(const AFGameInfoFlags& flags)
-    {
-        af_flags = flags.game_info_flags_to_uint32();
-    }
-};
-
 std::pair<std::unique_ptr<std::byte[]>, size_t> extend_packet_bytes(const std::byte* data, size_t len, const void* add, size_t add_len)
 {
     auto passthrough = [&](const char* why) {
@@ -879,106 +866,6 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_game_info_packet_hook
         return send_game_info_packet_hook.call_target(addr, buf.get(), new_len);
     },
 };
-
-struct AlpineFactionJoinAcceptPacketExt
-{
-    uint32_t af_signature = ALPINE_FACTION_SIGNATURE;
-    uint8_t version_major = VERSION_MAJOR;
-    uint8_t version_minor = VERSION_MINOR;
-
-    enum class Flags : uint32_t {
-        none                = 0,
-        saving_enabled      = 1 << 0,
-        max_fov             = 1 << 1,
-        allow_fb_mesh       = 1 << 2,
-        allow_lmap          = 1 << 3,
-        allow_no_ss         = 1 << 4,
-        no_player_collide   = 1 << 5,
-        allow_no_mf         = 1 << 6,
-        click_limit         = 1 << 7,
-        unlimited_fps       = 1 << 8,
-        gaussian_spread     = 1 << 9,
-        location_pinging    = 1 << 10,
-    } flags = Flags::none;
-
-    float max_fov;
-    int semi_auto_cooldown;
-
-};
-template<>
-struct EnableEnumBitwiseOperators<AlpineFactionJoinAcceptPacketExt::Flags> : std::true_type {};
-
-#pragma pack(push, 1)
-struct DFJoinReq_v1 // df
-{
-    uint32_t signature;
-    uint8_t version_major;
-    uint8_t version_minor;
-    uint8_t padding1;
-    uint8_t padding2;
-};
-
-struct AFJoinReq_v1 // af v1.0
-{
-    uint32_t signature;
-    uint8_t version_major;
-    uint8_t version_minor;
-    uint8_t padding1;
-    uint8_t padding2;
-    uint32_t flags;
-};
-
-struct AFJoinReq_v2 // af v1.1+
-{
-    uint32_t signature;
-    uint8_t version_major;
-    uint8_t version_minor;
-    uint8_t version_patch;
-    uint8_t version_type;
-    uint32_t max_rfl_version;
-    uint32_t flags;
-};
-
-struct AFGameInfoReq // af v1.2+
-{
-    uint32_t signature;
-    uint8_t gi_req_ext_ver;
-};
-
-static constexpr uint32_t AF_FOOTER_MAGIC = 0x52544641u; // AFTR (LE)
-
-struct AFFooter
-{
-    uint16_t total_len; // bytes from start of AF block up to start of this footer
-    uint32_t magic;
-};
-#pragma pack(pop)
-
-struct StashedPacket
-{
-    rf::NetAddr addr; // source
-    const uint8_t* pkt;
-    size_t len;
-    uint8_t type;
-};
-
-struct AlpineFactionJoinReqPacketExt // used for stashed data during join process
-{
-    enum class Flags : uint32_t
-    {
-        none = 0,
-    };
-
-    uint32_t af_signature = 0u;
-    uint8_t version_major = 0u;
-    uint8_t version_minor = 0u;
-    uint8_t version_patch = 0u;
-    uint8_t version_type = 0u;
-    uint32_t max_rfl_version = 0u;
-    Flags flags = Flags::none;
-};
-template<>
-struct EnableEnumBitwiseOperators<AlpineFactionJoinReqPacketExt::Flags> : std::true_type {};
 
 std::pair<std::unique_ptr<std::byte[]>, size_t> append_af_tail(const std::byte* pkt, size_t len, const void* core, size_t core_len)
 {
@@ -1142,9 +1029,6 @@ CodeInjection process_join_accept_injection{
     },
 };
 
-AlpineFactionJoinReqPacketExt g_joining_player_info;
-StashedPacket g_join_request_stashed;
-
 static bool parse_af_tail_v3(const uint8_t* payload, size_t payload_len, const AFJoinReq_v2*& out_prefix, const uint8_t*& tlv_begin, const uint8_t*& tlv_end)
 {
     if (payload_len < sizeof(AFFooter))
@@ -1175,12 +1059,11 @@ static bool parse_af_tail_v3(const uint8_t* payload, size_t payload_len, const A
     return true;
 }
 
-static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
+static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen, size_t rawlen)
 {
     g_joining_client_version = ClientVersion::unknown;
     g_joining_player_info = {};
-
-    if (!pkt || datalen < sizeof(RF_GamePacketHeader))
+    if (!pkt || datalen < sizeof(RF_GamePacketHeader) || rawlen < sizeof(RF_GamePacketHeader))
         return false;
 
     RF_GamePacketHeader gh{};
@@ -1188,6 +1071,66 @@ static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
     if (gh.type != RF_GPT_JOIN_REQUEST)
         return false;
 
+    const size_t rf_payload_end = sizeof(RF_GamePacketHeader) + gh.size;
+
+    // is it a browser?
+    // Note: RFSB appends its tail after the boundary of the RF header size field
+    if (rawlen >= rf_payload_end + sizeof(SBJoinReq_v5_1)) { // rfsb 5.1.4
+        SBJoinReq_v5_1 t{};
+        std::memcpy(&t, pkt + rf_payload_end, sizeof(t));
+
+        const bool is_rfsb =
+            t.sig == 0xEB &&
+            t.c1 == 0x05 &&
+            t.c2 == 0x00 &&
+            t.c3 == 0x01 &&
+            t.c4 == 0x03 &&
+            t.c5 == 0x8B &&
+            t.c6 == 0x05 &&
+            t.c7 == 0x01 &&
+            t.c8 == 0xBD;
+
+        if (is_rfsb) {
+            g_joining_client_version = ClientVersion::browser;
+            g_joining_player_info.af_signature = t.sig;
+            g_joining_player_info.version_major = 5u;
+            g_joining_player_info.version_minor = 1u;
+            g_joining_player_info.version_patch = 4u;
+            g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+            g_joining_player_info.max_rfl_version = MAXIMUM_RFL_VERSION;
+            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+            return true;
+        }
+    }
+
+    if (rawlen >= rf_payload_end + sizeof(SBJoinReq_v5_0)) { // rfsb 5.0.1
+        SBJoinReq_v5_0 t{};
+        std::memcpy(&t, pkt + rf_payload_end, sizeof(t));
+
+        const bool is_rfsb =
+            t.sig == 0xEB &&
+            t.c0 == 0x05 &&
+            t.c1 == 0x00 &&
+            t.c2 == 0x01 &&
+            t.c3 == 0x03 &&
+            t.c4 == 0x8B &&
+            t.c5 == 0x05 &&
+            t.c6 == 0x00;
+
+        if (is_rfsb) {
+            g_joining_client_version = ClientVersion::browser;
+            g_joining_player_info.af_signature = t.sig;
+            g_joining_player_info.version_major = 5u;
+            g_joining_player_info.version_minor = 0u;
+            g_joining_player_info.version_patch = 1u;
+            g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+            g_joining_player_info.max_rfl_version = MAXIMUM_RFL_VERSION;
+            g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+            return true;
+        }
+    }
+
+    // not a browser, is it a Alpine or Dash client?
     const uint8_t* payload = pkt + sizeof(gh);
     const size_t plen = gh.size;
     if (datalen < sizeof(gh) + plen)
@@ -1276,7 +1219,7 @@ static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen)
         }
     }
 
-    // assume v1.2 retail client if no tail found
+    // not Alpine or Dash, assume it's a v1.2 retail client
     // could also be PF, but no way implemented yet to detect that
     g_joining_client_version = ClientVersion::unknown;
     g_joining_player_info.af_signature = 0u;
@@ -1297,12 +1240,15 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
         process_join_req_packet_hook.call_target(pPacket, addr);
 
         if (rf::Player* valid_player = rf::multi_find_player_by_addr(*addr)) { // player successfully joined
-            if (g_joining_client_version == ClientVersion::alpine_faction || g_joining_client_version == ClientVersion::dash_faction) {
+            if (g_joining_client_version == ClientVersion::alpine_faction ||
+                g_joining_client_version == ClientVersion::dash_faction ||
+                g_joining_client_version == ClientVersion::browser) {
                 auto& pdata = get_player_additional_data(valid_player);
 
                 pdata.client_version = g_joining_client_version;
                 pdata.client_version_major = g_joining_player_info.version_major;
                 pdata.client_version_minor = g_joining_player_info.version_minor;
+                pdata.client_version_patch = g_joining_player_info.version_patch;
                 pdata.client_version_type = g_joining_player_info.version_type;
                 pdata.max_rfl_version = g_joining_player_info.max_rfl_version;
 
@@ -1428,7 +1374,7 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
 CodeInjection process_join_req_injection{
     0x0047ADAB,
     [](auto& regs) {
-        bool found_tail = parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len);
+        bool found_tail = parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len, g_join_request_stashed.rx_len);
         g_join_request_stashed = {};
 
         const auto [verdict, reason] = check_join_request_restrict_status(g_joining_client_version, g_joining_player_info);
@@ -1904,7 +1850,15 @@ CodeInjection multi_io_process_packets_injection{
                 auto& addr = *addr_as_ref<rf::NetAddr*>(stack_frame + 0xC);
                 const int off = regs.ebp;
                 const int len = regs.edi;
-                g_join_request_stashed = {addr, base + off, size_t(len), uint8_t(packet_type)};
+
+                // UDP datagram
+                size_t rx_len = 0;
+                if (g_rx_base && g_rx_len && base + off >= g_rx_base && base + off <= g_rx_base + g_rx_len) {
+                    rx_len = (g_rx_base + g_rx_len) - (base + off);
+                }
+
+                // join req stash for later analysis
+                g_join_request_stashed = {addr, base + off, size_t(len), rx_len, uint8_t(packet_type)};
             }
             // analyze the game_info_req packet so we can adjust the response if needed
             if (packet_type == static_cast<int>(RF_GamePacketType::RF_GPT_GAME_INFO_REQUEST)) {
@@ -1928,10 +1882,22 @@ CodeInjection multi_io_process_packets_injection{
 CallHook<void(const void*, size_t, const rf::NetAddr&, rf::Player*)> process_unreliable_game_packets_hook{
     0x00479244,
     [](const void* data, size_t len, const rf::NetAddr& addr, rf::Player* player) {
+        // stash full UDP datagram
+        if (rf::is_server) {
+            g_rx_base = static_cast<const uint8_t*>(data);
+            g_rx_len = len;
+        }
+
         if (pf_process_raw_unreliable_packet(data, len, addr)) {
             return;
         }
         rf::multi_io_process_packets(data, len, addr, player);
+
+        // clear UDP datagram stash after parsing
+        if (rf::is_server) {
+            g_rx_base = nullptr;
+            g_rx_len = 0;
+        }
     },
 };
 

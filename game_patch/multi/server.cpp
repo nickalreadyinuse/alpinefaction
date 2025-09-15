@@ -224,15 +224,16 @@ void print_player_info(rf::Player* player, bool new_join) {
 
     std::string client_info;
     if (pdata.client_version == ClientVersion::alpine_faction) {
-        client_info = std::format("Alpine Faction {}.{}-{}", pdata.client_version_major, pdata.client_version_minor,
-            pdata.client_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
+        client_info = std::format("Alpine Faction {}.{}-{}",
+            pdata.client_version_major, pdata.client_version_minor, pdata.client_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
     }
     else if (pdata.client_version == ClientVersion::dash_faction) {
-        client_info = std::format("Dash Faction {}.{}{}", pdata.client_version_major, pdata.client_version_minor,
-                                  pdata.client_version_type == VERSION_TYPE_BETA ? "-m" : "");
+        client_info = std::format("Dash Faction {}.{}{}",
+            pdata.client_version_major, pdata.client_version_minor, pdata.client_version_type == VERSION_TYPE_BETA ? "-m" : "");
     }
     else if (pdata.client_version == ClientVersion::browser) {
-        client_info = std::format("Server Browser");
+        client_info = std::format("RF Server Browser {}.{}.{}",
+            pdata.client_version_major, pdata.client_version_minor, pdata.client_version_patch);
     }
     else {
         client_info = std::format("Legacy Client");
@@ -541,7 +542,7 @@ CodeInjection multi_limbo_leave_pre_patch{
                     continue;
 
                 auto& pad = get_player_additional_data(&p);
-                if (static_cast<int>(pad.max_rfl_version) < ver) {
+                if (static_cast<int>(pad.max_rfl_version) < ver && pad.client_version != ClientVersion::browser) {
                     auto server_msg = std::format("{} was kicked because they cannot load the upcoming level.", p.name);
                     rf::console::printf(server_msg.c_str());
 
@@ -726,20 +727,6 @@ CodeInjection spawn_protection_duration_patch{
         *static_cast<int*>(regs.esp) = g_alpine_server_config_active_rules.spawn_protection.enabled
 			? g_alpine_server_config_active_rules.spawn_protection.duration
 			: 0;
-    },
-};
-
-CodeInjection detect_browser_player_patch{
-    0x0047AFFB,
-    [](auto& regs) {
-        rf::Player* player = regs.esi;
-        int conn_rate = regs.eax;
-        if (conn_rate == 1 || conn_rate == 256) {
-            auto& pdata = get_player_additional_data(player);
-            pdata.client_version = ClientVersion::browser;
-        }
-
-        update_player_active_status(player); // active pulse on join
     },
 };
 
@@ -1004,6 +991,11 @@ CodeInjection send_ping_time_wrap_fix{
 CodeInjection multi_on_new_player_injection{
     0x0047B013,
     [](auto& regs) {
+        rf::Player* player = regs.esi;
+        if (player) {
+            update_player_active_status(player); // active pulse on join
+        }
+
         // ADS version is in handled in process_join_req_packet_hook in network.cpp
         if (!g_dedicated_launched_from_ads) {
             rf::Player* player = regs.esi;
@@ -2314,9 +2306,6 @@ void server_init()
     // Apply customized spawn protection duration
     spawn_protection_duration_patch.install();
 
-    // Detect if player joining to the server is a browser
-    detect_browser_player_patch.install();
-
     // Critical hits and hit sounds
     entity_damage_hook.install();
 
@@ -2415,7 +2404,7 @@ void server_on_limbo_state_enter()
         if (g_alpine_server_config.stats_message_enabled) {
             send_private_message_with_stats(&player);
         }
-        if (&player != rf::local_player && ver > pdata.max_rfl_version) {
+        if (&player != rf::local_player && ver > pdata.max_rfl_version && pdata.client_version != ClientVersion::browser) {
             notify_for_upcoming_level_version_incompatible(&player);
         }
     }
