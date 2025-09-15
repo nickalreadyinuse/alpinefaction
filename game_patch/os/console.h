@@ -16,6 +16,7 @@ void console_init();
 void console_apply_patches();
 void console_register_command(rf::console::Command* cmd);
 rf::Player* find_best_matching_player(const char* name);
+void console_start_server_log();
 
 class DcInvalidArgTypeError : public std::exception
 {};

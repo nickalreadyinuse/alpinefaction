@@ -17,11 +17,60 @@
 #include <algorithm>
 #include <cassert>
 #include <xlog/xlog.h>
+#include <fstream>
+#include <filesystem>
+#include <chrono>
+#include <ctime>
+#include <string_view>
 
 // ConsoleDrawClientConsole uses 200 bytes long buffer for: "] ", user input and '\0'
 constexpr int max_cmd_line_len = 200 - 2 - 1;
 
 rf::console::Command* g_commands_buffer[CMD_LIMIT];
+
+static std::ofstream g_console_log;
+static std::string g_console_log_path;
+
+static void console_log_write(std::string_view text)
+{
+    if (!g_console_log.is_open())
+        return;
+
+    for (size_t i = 0; i < text.size(); ++i) {
+        char c = text[i];
+        if (c == '\r') {
+            if (i + 1 < text.size() && text[i + 1] == '\n')
+                continue; // skip CR in CRLF pair, newline added next
+            g_console_log.put('\n');
+        }
+        else {
+            g_console_log.put(c);
+        }
+    }
+
+    g_console_log.flush();
+}
+
+void console_start_server_log()
+{
+    if (g_console_log.is_open())
+        return;
+
+    namespace fs = std::filesystem;
+    fs::create_directories("logs");
+
+    auto now = std::chrono::system_clock::now();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm;
+    localtime_s(&tm, &t);
+    char buf[64];
+    std::strftime(buf, sizeof(buf), "logs\\AlpineFaction-console-%Y%m%d-%H%M%S.log", &tm);
+    g_console_log_path = buf;
+    g_console_log.open(g_console_log_path, std::ios::out | std::ios::trunc);
+    if (!g_console_log) {
+        xlog::warn("Failed to open console log file {}", g_console_log_path);
+    }
+}
 
 rf::Player* find_best_matching_player(const char* name)
 {
@@ -103,6 +152,12 @@ static FunHook<void(const char*, const rf::Color*)> console_output_hook{
         }
         else {
             console_output_hook.call_target(text, color);
+        }
+        std::string_view text_view{text};
+        console_log_write(text_view);
+        if (g_console_log.is_open() && (text_view.empty() || (text_view.back() != '\n' && text_view.back() != '\r'))) {
+            g_console_log.put('\n');
+            g_console_log.flush();
         }
     },
 };

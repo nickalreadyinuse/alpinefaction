@@ -64,6 +64,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Picmip` setting to `alpine_settings.ini`
 - Identify known server browser clients in server console on join and when `info` command is run
 - Log a warning to console when trying to load a mesh file that doesn't exist
+- Add `-min` command line argument to launch ADS servers with minimal console logging
+- Add `-log` command line argument to log full console output from ADS servers
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

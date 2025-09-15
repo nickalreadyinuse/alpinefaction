@@ -130,6 +130,7 @@ CodeInjection rf_process_command_line_dedicated_server_patch{
             g_dedicated_launched_from_ads = true;
             g_ads_config_name = ads_filename;
             handle_min_param(); // check if -min switch was used
+            handle_log_param(); // check if -log switch was used
         }
     },
 };
@@ -2375,6 +2376,7 @@ void server_init()
     // initialize -ads and -min switches
     get_ads_cmd_line_param();
     get_min_cmd_line_param();
+    get_log_cmd_line_param();
 }
 
 void server_do_frame()

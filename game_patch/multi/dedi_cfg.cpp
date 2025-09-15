@@ -48,7 +48,8 @@
 
 bool g_dedicated_launched_from_ads = false; // was the server launched from an ads file?
 std::string g_ads_config_name = "";
-bool g_ads_minimal_server_info = false; // print only minimal server info when launching
+bool g_ads_minimal_server_info = false;     // print only minimal server info when launching
+bool g_ads_full_console_log = false;        // log full console output to file
 int g_ads_loaded_version = ADS_VERSION;
 
 bool loadouts_in_use = false;
@@ -66,10 +67,21 @@ rf::CmdLineParam& get_min_cmd_line_param()
     return min_param;
 }
 
+// print full server console log to file
+rf::CmdLineParam& get_log_cmd_line_param()
+{
+    static rf::CmdLineParam log_param{"-log", "", false};
+    return log_param;
+}
+
 void handle_min_param()
 {
     g_ads_minimal_server_info = get_min_cmd_line_param().found();
-    //rf::console::print("checking min switch... {}", g_ads_minimal_server_info);
+}
+
+void handle_log_param()
+{
+    g_ads_full_console_log = get_log_cmd_line_param().found();
 }
 
 // check if we need to force the server to be restricted to Alpine clients
@@ -1542,11 +1554,14 @@ void init_alpine_dedicated_server() {
 }
 
 void launch_alpine_dedicated_server() {
+    if (g_ads_full_console_log) {
+        console_start_server_log();
+    }
     rf::console::print("==================================================================\n");
     rf::console::print("================  Alpine Faction Dedicated Server ================\n");
     rf::console::print("==================================================================\n\n");
 
-    auto& netgame = rf::netgame;    
+    auto& netgame = rf::netgame;
 
     load_ads_server_config(g_ads_config_name);
     const auto& cfg = g_alpine_server_config;
