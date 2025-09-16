@@ -340,13 +340,20 @@ ConsoleCommand2 picmip_cmd{
     "r_picmip",
     [](std::optional<int> picmip_opt) {
         if (picmip_opt) {
-            g_alpine_game_config.set_picmip(picmip_opt.value());
+            int divisor = picmip_opt.value();
+            if (divisor < 1) {
+                divisor = 1;
+            }
+            g_alpine_game_config.set_picmip(divisor);
             gr_update_texture_filtering();
         }
-        rf::console::print("Texture mip level offset is set to {} (Direct3D 11 mode only)", g_alpine_game_config.picmip);
+        rf::console::print(
+            "Texture resolution divisor is set to {} (Direct3D 11 mode only, 1 = full resolution)",
+            g_alpine_game_config.picmip
+        );
     },
-    "Sets texture mip level offset (Direct3D 11 mode only)",
-    "r_picmip <mip level>",
+    "Sets the global texture resolution divisor (Direct3D 11 mode only)",
+    "r_picmip <divisor>",
 };
 
 ConsoleCommand2 lod_distance_scale_cmd{

@@ -1,3 +1,4 @@
+#include <cmath>
 #include "gr_d3d11.h"
 #include "gr_d3d11_state.h"
 #include "../../main/main.h"
@@ -64,7 +65,12 @@ namespace df::gr::d3d11
                 break;
         }
 
-        desc.MipLODBias = static_cast<FLOAT>(g_alpine_game_config.picmip);
+        desc.MipLODBias = 0.0f;
+        int divisor = g_alpine_game_config.picmip;
+        if (divisor < 1) {
+            divisor = 1;
+        }
+        desc.MinLOD = divisor > 1 ? std::log2(static_cast<float>(divisor)) : 0.0f;
         if (g_alpine_game_config.nearest_texture_filtering) {
             desc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
         }

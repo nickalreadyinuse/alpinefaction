@@ -58,9 +58,9 @@ Version 1.2.0 (Willow): Not yet released
 - Add `King of the Hill` game type selection for `Gametype_Gate` event
 - Print vote initiation alerts to dedicated server console
 - Add `reject_incompatible_clients` ADS setting
-- Add `r_colorblind` command for configuring colorblind mode rendering filter
+- Add `r_colorblind` command for configuring colorblind mode rendering filter (Direct3D 11 renderer only)
 - Add `ColorblindMode` setting to `alpine_settings.ini`
-- Add `r_picmip` command to set texture mip level offset
+- Add `r_picmip` command to configure texture resolution divisor (Direct3D 11 renderer only)
 - Add `Picmip` setting to `alpine_settings.ini`
 - Identify known server browser clients in server console on join and when `info` command is run
 - Log a warning to console when trying to load a mesh file that doesn't exist
