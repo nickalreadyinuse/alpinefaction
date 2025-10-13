@@ -753,7 +753,7 @@ namespace rf
             int* goal_count_ptr = nullptr;
             int* goal_initial_ptr = nullptr;
             if (named_event) {
-                goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]); // 11 in original code
+                goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]);
                 goal_initial_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[0]);
             }
 
@@ -912,7 +912,7 @@ namespace rf
             }
 
             if (named_event) {
-                goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]); // 11 in original code
+                goal_count_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[8]);
                 goal_initial_ptr = reinterpret_cast<int*>(&named_event->event_specific_data[0]);
             }
 

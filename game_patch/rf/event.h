@@ -165,11 +165,12 @@ namespace rf
 
     };
     static_assert(sizeof(Event) == 0x2B5);
-#pragma pack(pop)
+
     struct GenericEvent : Event
     {
-        char event_specific_data[24];
+        // in original code Event is aligned to 1 byte and size 0x2B5, but GenericEvent is aligned to 4 bytes
         char padding[3];
+        char event_specific_data[24];
     };
     static_assert(sizeof(GenericEvent) == 0x2D0);
 
@@ -180,6 +181,7 @@ namespace rf
         int count;
     };
     static_assert(sizeof(PersistentGoalEvent) == 0x10);
+#pragma pack(pop)
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
