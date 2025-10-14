@@ -119,21 +119,48 @@ static void af_process_ping_location_req_packet(const void* data, size_t len, co
         return;
     }
 
+    if (len < sizeof(RF_GamePacketHeader)) {
+        xlog::warn("af_process_ping_location_req_packet: packet too short for header (len={})", len);
+        return;
+    }
+
+    const auto* header = static_cast<const RF_GamePacketHeader*>(data);
+    if (header->type != static_cast<uint8_t>(af_packet_type::af_ping_location_req)) {
+        xlog::warn("af_process_ping_location_req_packet: unexpected type {}", header->type);
+        return;
+    }
+
+    const size_t expected_payload_size = sizeof(af_ping_location_req_packet) - sizeof(RF_GamePacketHeader);
+    const size_t expected_wire_size = sizeof(RF_GamePacketHeader) + expected_payload_size;
+    if (header->size != expected_payload_size) {
+        xlog::warn("af_process_ping_location_req_packet: payload size mismatch ({} != {})", header->size, expected_payload_size);
+        return;
+    }
+
+    if (len < expected_wire_size) {
+        xlog::warn("af_process_ping_location_req_packet: truncated packet ({} < {})", len, expected_wire_size);
+        return;
+    }
+
     af_ping_location_req_packet ping_location_req_packet{};
     ping_location_req_packet.header.type = static_cast<uint8_t>(af_packet_type::af_ping_location_req);
     ping_location_req_packet.header.size = sizeof(ping_location_req_packet) - sizeof(ping_location_req_packet.header);
 
-    int packet_len = sizeof(ping_location_req_packet);
-
     rf::Player* player = rf::multi_find_player_by_addr(addr);
+
+    if (!player || !player->net_data) {
+        xlog::warn("af_process_ping_location_req_packet: no valid player for addr");
+        return;
+    }
 
     std::memcpy(&ping_location_req_packet, data, sizeof(ping_location_req_packet));
 
-    rf::Vector3 pos = {
-        pos.x = ping_location_req_packet.pos.x,
-        pos.y = ping_location_req_packet.pos.y,
-        pos.z = ping_location_req_packet.pos.z
+    rf::Vector3 pos{
+        ping_location_req_packet.pos.x,
+        ping_location_req_packet.pos.y,
+        ping_location_req_packet.pos.z
     };
+
     af_send_ping_location_packet_to_team(&pos, player->net_data->player_id, player->team);
 }
 
@@ -193,10 +220,10 @@ static void af_process_ping_location_packet(const void* data, size_t len, const 
         return;
     }
 
-    rf::Vector3 pos = {
-        pos.x = ping_location_packet.pos.x,
-        pos.y = ping_location_packet.pos.y,
-        pos.z = ping_location_packet.pos.z
+    rf::Vector3 pos{
+        ping_location_packet.pos.x,
+        ping_location_packet.pos.y,
+        ping_location_packet.pos.z
     };
 
     add_location_ping_world_hud_sprite(pos, player->name, ping_location_packet.player_id);
@@ -477,8 +504,25 @@ static void af_process_client_req_packet(const void* data, size_t len, const rf:
         return;
     }
 
-    if (len < sizeof(RF_GamePacketHeader) + sizeof(uint8_t)) {
-        xlog::warn("af_process_client_req_packet: packet too short");
+    if (len < sizeof(RF_GamePacketHeader)) {
+        xlog::warn("af_process_client_req_packet: packet too short for header (len={})", len);
+        return;
+    }
+
+    const auto* header = static_cast<const RF_GamePacketHeader*>(data);
+    if (header->type != static_cast<uint8_t>(af_packet_type::af_client_req)) {
+        xlog::warn("af_process_client_req_packet: unexpected type {}", header->type);
+        return;
+    }
+
+    const size_t expected_wire_size = sizeof(RF_GamePacketHeader) + header->size;
+    if (expected_wire_size > len) {
+        xlog::warn("af_process_client_req_packet: truncated packet ({} > {})", expected_wire_size, len);
+        return;
+    }
+
+    if (header->size < sizeof(uint8_t)) {
+        xlog::warn("af_process_client_req_packet: payload too small ({})", header->size);
         return;
     }
 
@@ -486,6 +530,11 @@ static void af_process_client_req_packet(const void* data, size_t len, const rf:
     size_t offset = sizeof(RF_GamePacketHeader); // skip header
 
     rf::Player* player = rf::multi_find_player_by_addr(addr);
+
+    if (!player || !player->net_data) {
+        xlog::warn("af_process_client_req_packet: no valid player for addr");
+        return;
+    }
 
     af_client_req_type req_type = static_cast<af_client_req_type>(bytes[offset++]);
     af_client_req_packet packet;
