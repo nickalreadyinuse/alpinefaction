@@ -9,6 +9,7 @@
 #include "../rf/player/player.h"
 #include "../rf/weapon.h"
 #include "multi.h"
+#include "network.h"
 #include "server_internal.h"
 #include "../hud/hud_world.h"
 #include "alpine_packets.h"
@@ -47,6 +48,14 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
 
     std::memcpy(&header, data, sizeof(header));
     auto packet_type = static_cast<af_packet_type>(header.type);
+
+    if (!packet_check_whitelist(static_cast<int>(packet_type))) {
+        xlog::warn("Ignoring packet 0x{:x}", static_cast<int>(packet_type));
+        return false;
+    }
+    else {
+        xlog::trace("Processing packet 0x{:x}", static_cast<int>(packet_type));
+    }
 
     switch (packet_type)
     {

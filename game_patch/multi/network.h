@@ -148,3 +148,5 @@ struct AlpineFactionJoinReqPacketExt // used for stashed data during join proces
 };
 template<>
 struct EnableEnumBitwiseOperators<AlpineFactionJoinReqPacketExt::Flags> : std::true_type {};
+
+bool packet_check_whitelist(int packet_type);

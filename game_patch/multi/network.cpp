@@ -290,20 +290,24 @@ std::array g_client_side_packet_whitelist{
 
 std::optional<AlpineFactionServerInfo> g_df_server_info;
 
+bool packet_check_whitelist(int packet_type) {
+    bool allowed = false;
+    if (rf::is_server) {
+        auto& whitelist = g_server_side_packet_whitelist;
+        allowed = std::find(whitelist.begin(), whitelist.end(), packet_type) != whitelist.end();
+    }
+    else {
+        auto& whitelist = g_client_side_packet_whitelist;
+        allowed = std::find(whitelist.begin(), whitelist.end(), packet_type) != whitelist.end();
+    }
+    return allowed;
+}
+
 CodeInjection process_game_packet_whitelist_filter{
     0x0047918D,
     [](auto& regs) {
-        bool allowed = false;
         int packet_type = regs.esi;
-        if (rf::is_server) {
-            auto& whitelist = g_server_side_packet_whitelist;
-            allowed = std::find(whitelist.begin(), whitelist.end(), packet_type) != whitelist.end();
-        }
-        else {
-            auto& whitelist = g_client_side_packet_whitelist;
-            allowed = std::find(whitelist.begin(), whitelist.end(), packet_type) != whitelist.end();
-        }
-        if (!allowed) {
+        if (!packet_check_whitelist(packet_type)) {
             xlog::warn("Ignoring packet 0x{:x}", packet_type);
             regs.eip = 0x00479194;
         }
