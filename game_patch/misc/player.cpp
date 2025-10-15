@@ -558,7 +558,7 @@ CallHook<void(rf::VMesh*, rf::Vector3*, rf::Matrix3*, void*)> player_cockpit_vme
         rf::Matrix3 new_orient = *orient;
 
         if (string_equals_ignore_case(rf::vmesh_get_name(vmesh), "driller01.vfx")) {
-            float m = static_cast<float>(rf::gr::screen_width()) / static_cast<float>(rf::gr::screen_height()) / (4.0 / 3.0);
+            float m = static_cast<float>(rf::gr::screen_width()) / static_cast<float>(rf::gr::screen_height()) / (4.0f / 3.0f);
             new_orient.rvec *= m;
         }
 
