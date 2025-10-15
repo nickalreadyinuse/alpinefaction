@@ -86,6 +86,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix `r_fullbright`, `r_lightmaps`, and `r_nearest` not working properly on Direct3D 11 renderer
 - Fix `Winner` and `Game Over` sounds played at the end of a match usually being wrong
 - Fix `Try Avoid Players` behaviour for spawn point selection not working properly
+- Fix rare crash when rapidly switching between players in first person spectate mode
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

@@ -1,4 +1,5 @@
 #include <patch_common/AsmWriter.h>
+#include <patch_common/CodeInjection.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
 #include "../main/main.h"
@@ -116,6 +117,17 @@ ConsoleCommand2 force_disable_camerashake_cmd{
     "Forcefully disable all forms of camera shake. Only applies to single player.",
 };
 
+CodeInjection footsteps_get_camera_mode_patch{
+    0x0048A967,
+    [](auto& regs) {
+        rf::Camera* cp = regs.ecx;
+        if (!cp) {
+            regs.eax = 0; // use 2d footsteps
+            regs.eip = 0x0048A96C;
+        }
+    },
+};
+
 void camera_do_patch()
 {
     // Fix crash when executing camera2 command in main menu
@@ -126,6 +138,9 @@ void camera_do_patch()
 
     // Fix screen shake caused by some weapons (eg. Assault Rifle)
     write_mem_ptr(0x0040DBCC + 2, &g_camera_shake_factor);
+
+    // Fix crash when camera is invalid in footstep emit sound function
+    footsteps_get_camera_mode_patch.install();
 
     // handle turning off screen shake
     disable_weaphake_cmd.register_cmd();
