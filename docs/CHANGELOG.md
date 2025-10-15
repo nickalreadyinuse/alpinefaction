@@ -11,6 +11,7 @@ Version 1.2.0 (Willow): Not yet released
     - Support for configuring player loadouts
 - Add `King of the Hill` (KOTH) multiplayer game type
 - Add colorblind mode rendering filter (Direct3D 11 renderer only)
+- Add configurable settings to control application of weapon auto switch
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
