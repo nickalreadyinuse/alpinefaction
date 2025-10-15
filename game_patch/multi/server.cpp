@@ -1499,6 +1499,14 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             return;
         }
 
+        // if a respawn timer has been set by the server, enforce it
+        if (pad.respawn_timer.valid() && !pad.respawn_timer.elapsed()) {
+            float spawn_delay_left = std::max(static_cast<float>(pad.respawn_timer.time_until()) / 1000.0f, 0.001f); // at least 1ms
+            std::string msg = std::format("\xA6 Respawn delay: {} seconds left until you can respawn.", spawn_delay_left);
+            send_chat_line_packet(msg.c_str(), player);
+            return;
+        }
+
         multi_spawn_player_server_side_hook.call_target(player);
 
         if (player) {
@@ -2170,6 +2178,19 @@ CodeInjection entity_maybe_die_patch{
             if (ep) {
                 rf::Player* player = rf::player_from_entity_handle(ep->handle);
 
+                if (g_alpine_server_config_active_rules.spawn_delay.enabled) {
+                    rf::Player* player = rf::player_from_entity_handle(ep->handle);
+                    auto& pad = get_player_additional_data(player);
+                    pad.respawn_timer.set(g_alpine_server_config_active_rules.spawn_delay.base_value);
+                    bool respawn_allowed = true; // nothing currently disables respawns
+                    bool force_respawn = (rf::multi_server_flags & rf::NetGameFlags::NG_FLAG_FORCE_RESPAWN) != 0;
+
+                    if (rf::is_server) {
+                        set_local_spawn_delay(respawn_allowed, force_respawn, static_cast<uint16_t>(pad.respawn_timer.time_until()));
+                    }
+                    af_send_just_died_info_packet(player, respawn_allowed, force_respawn, static_cast<uint16_t>(pad.respawn_timer.time_until()));
+                }
+
                 if (g_alpine_server_config_active_rules.drop_amps) {
                     if (rf::multi_powerup_has_player(player, 1)) {
                         int amp_count = 0;
@@ -2453,6 +2474,11 @@ bool server_no_player_collide()
 bool server_location_pinging()
 {
     return g_alpine_server_config.alpine_restricted_config.clients_require_alpine && g_alpine_server_config.alpine_restricted_config.location_pinging;
+}
+
+bool server_delayed_spawns()
+{
+    return g_alpine_server_config_active_rules.spawn_delay.enabled;
 }
 
 bool server_allow_disable_muzzle_flash()

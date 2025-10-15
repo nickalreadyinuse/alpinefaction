@@ -19,6 +19,7 @@ bool server_allow_lightmaps_only();
 bool server_allow_disable_screenshake();
 bool server_no_player_collide();
 bool server_location_pinging();
+bool server_delayed_spawns();
 bool server_allow_disable_muzzle_flash();
 bool server_apply_click_limiter();
 bool server_allow_unlimited_fps();

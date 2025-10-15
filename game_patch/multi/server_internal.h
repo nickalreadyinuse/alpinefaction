@@ -398,6 +398,20 @@ struct SpawnLifeConfig
     }
 };
 
+struct SpawnDelayConfig
+{
+    bool enabled = false;
+    int base_value = 5000;
+
+    // =============================================
+
+    void set_base_value(float in_value)
+    {
+        int value_int = static_cast<int>(in_value * 1000);
+        base_value = std::clamp(value_int, 250, 60000);
+    }
+};
+
 struct ForceCharacterConfig
 {
     bool enabled = false;
@@ -516,6 +530,7 @@ struct AlpineServerConfigRules
     DefaultPlayerWeaponConfig default_player_weapon;
     SpawnLifeConfig spawn_life;
     SpawnLifeConfig spawn_armour;
+    SpawnDelayConfig spawn_delay;
     WeaponLoadoutConfig spawn_loadout;
     SpawnProtectionConfig spawn_protection;
     NewSpawnLogicConfig spawn_logic;

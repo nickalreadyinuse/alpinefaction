@@ -53,6 +53,7 @@ bool g_ads_full_console_log = false;        // log full console output to file
 int g_ads_loaded_version = ADS_VERSION;
 
 bool loadouts_in_use = false;
+rf::NetGameType upcoming_game_type = rf::NetGameType::NG_TYPE_DM; // set during toml read, used to load gametype default settings
 
 rf::CmdLineParam& get_ads_cmd_line_param()
 {
@@ -173,6 +174,20 @@ static SpawnLifeConfig parse_spawn_life_config(const toml::table& t, SpawnLifeCo
 
     return c;
 }
+
+static SpawnDelayConfig parse_spawn_delay_config(const toml::table& t, SpawnDelayConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["base_seconds"].value<float>())
+            c.set_base_value(*v);
+    }
+
+    return c;
+}
+
 
 static ForceCharacterConfig parse_force_character_config(const toml::table& t, ForceCharacterConfig c)
 {
@@ -400,14 +415,31 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     if (auto sub = t["spawn_armor"].as_table())
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
 
+    // if KOTH, default spawn delay to on before parsing config
+    if (upcoming_game_type == rf::NetGameType::NG_TYPE_KOTH)
+        o.spawn_delay.enabled = true;
+
+    if (auto sub = t["spawn_delay"].as_table())
+        o.spawn_delay = parse_spawn_delay_config(*sub, o.spawn_delay);
+
     // add default loadout
     int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
     o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
 
+    // if KOTH, give an AR and remote charges by default
+    if (upcoming_game_type == rf::NetGameType::NG_TYPE_KOTH) {
+        o.spawn_loadout.add("Remote Charge", 3, false, true);
+        o.default_player_weapon.set_weapon("Assault Rifle");
+
+        // loadouts are always used in KOTH
+        loadouts_in_use = true;
+        o.spawn_loadout.loadouts_active = true;
+    }
+
+    // add default weapon to loadout
     if (o.default_player_weapon.index >= 0) {
         int default_ammo = rf::weapon_types[o.default_player_weapon.index].clip_size_multi * o.default_player_weapon.num_clips;
         o.spawn_loadout.add(o.default_player_weapon.weapon_name, default_ammo, false, true);
-        
     }
 
     if (auto arr = t["spawn_loadout"].as_array()) {
@@ -607,8 +639,11 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
             cfg.server_name = *v;
     }
     else if (key == "game_type") {
-        if (auto v = node.value<std::string>())
-            cfg.game_type = parse_game_type(*v);
+        if (auto v = node.value<std::string>()) {
+            auto gt = parse_game_type(*v);
+            cfg.game_type = gt;
+            upcoming_game_type = gt;
+        }
     }
     else if (key == "max_players") {
         if (auto v = node.value<int>())
@@ -802,6 +837,11 @@ static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::tab
         const std::string& key = e.key;
         const toml::node& v = *e.node;
 
+        // Single keys
+        if (pass == ParsePass::Core) {
+            apply_known_key_in_order(cfg, key, v);
+        }
+
         if (is_include_key(key)) {
             auto load_one = [&](const std::string& inc) {
                 fs::path child = fs::weakly_canonical(base_dir / inc);
@@ -863,11 +903,6 @@ static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::tab
             }
 
             continue;
-        }
-
-        // Single keys
-        if (pass == ParsePass::Core) {
-            apply_known_key_in_order(cfg, key, v);
         }
     }
 }
@@ -1106,6 +1141,15 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("  Custom spawn armor:                    {}\n", rules.spawn_armour.enabled);
         if (rules.spawn_armour.enabled) {
             rf::console::print("    Value:                               {}\n", rules.spawn_armour.value);
+        }
+    }
+
+    // spawn delay
+    if (base || rules.spawn_delay.enabled != b.spawn_delay.enabled ||
+        (rules.spawn_delay.enabled && rules.spawn_delay.base_value != b.spawn_delay.base_value)) {
+        rf::console::print("  Spawn delay:                           {}\n", rules.spawn_delay.enabled);
+        if (rules.spawn_delay.enabled) {
+            rf::console::print("    Base seconds:                        {} sec\n", rules.spawn_delay.base_value / 1000.0f);
         }
     }
 

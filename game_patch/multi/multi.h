@@ -94,6 +94,7 @@ struct AlpineFactionServerInfo
     bool unlimited_fps = false;
     bool gaussian_spread = false;
     bool location_pinging = false;
+    bool delayed_spawns = false;
 };
 
 enum ClientVersion

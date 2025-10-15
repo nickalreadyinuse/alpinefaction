@@ -206,6 +206,7 @@ enum packet_type : uint8_t {
     af_just_spawned_info   = 0x56,
     af_koth_hill_state     = 0x57,
     af_koth_hill_captured  = 0x58,
+    af_just_died_info      = 0x59,
 };
 
 // client -> server
@@ -284,11 +285,12 @@ std::array g_client_side_packet_whitelist{
     af_obj_update,
     af_just_spawned_info,
     af_koth_hill_state,
-    af_koth_hill_captured
+    af_koth_hill_captured,
+    af_just_died_info
 };
 // clang-format on
 
-std::optional<AlpineFactionServerInfo> g_df_server_info;
+std::optional<AlpineFactionServerInfo> g_af_server_info;
 
 bool packet_check_whitelist(int packet_type) {
     bool allowed = false;
@@ -986,6 +988,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_location_pinging()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::location_pinging;
         }
+        if (server_delayed_spawns()) {
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::delayed_spawns;
+        }
         auto [buf, new_len] = extend_packet_bytes(data, len, &ext_data, sizeof(ext_data));
         //auto [new_data, new_len] = extend_packet_fixed(data, len, ext_data);
         return send_join_accept_packet_hook.call_target(addr, buf.get(), new_len);
@@ -1017,6 +1022,7 @@ CodeInjection process_join_accept_injection{
             server_info.unlimited_fps = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::unlimited_fps);
             server_info.gaussian_spread = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::gaussian_spread);
             server_info.location_pinging = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::location_pinging);
+            server_info.delayed_spawns = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::delayed_spawns);
 
             constexpr float default_fov = 90.0f;
             if (!!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::max_fov) && ext_data.max_fov >= default_fov) {
@@ -1025,10 +1031,10 @@ CodeInjection process_join_accept_injection{
             if (!!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::click_limit)) {
                 server_info.semi_auto_cooldown = ext_data.semi_auto_cooldown;
             }
-            g_df_server_info = std::optional{server_info};
+            g_af_server_info = std::optional{server_info};
         }
         else {
-            g_df_server_info.reset();
+            g_af_server_info.reset();
         }
     },
 };
@@ -1651,7 +1657,7 @@ FunHook<void()> tracker_do_broadcast_server_hook{
 FunHook<void()> multi_stop_hook{
     0x0046E2C0,
     []() {
-        g_df_server_info.reset(); // Clear server info when leaving
+        g_af_server_info.reset(); // Clear server info when leaving
         set_local_pre_match_active(false); // clear pre-match state when leaving
         multi_stop_hook.call_target();
         if (rf::local_player) {
@@ -1662,7 +1668,7 @@ FunHook<void()> multi_stop_hook{
 
 const std::optional<AlpineFactionServerInfo>& get_df_server_info()
 {
-    return g_df_server_info;
+    return g_af_server_info;
 }
 
 void send_chat_line_packet(const char* msg, rf::Player* target, rf::Player* sender, bool is_team_msg)
