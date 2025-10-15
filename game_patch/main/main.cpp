@@ -200,7 +200,8 @@ FunHook<void(bool)> level_init_post_hook{
             }
             else {
                 toggle_chat_menu(ChatMenuType::None);
-                build_chat_menu_comms_messages();
+                player_multi_level_post_init();
+                multi_hud_level_init();
             }
 
             if (g_alpine_game_config.try_disable_textures) {

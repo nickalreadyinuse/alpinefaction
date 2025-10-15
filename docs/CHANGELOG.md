@@ -8,10 +8,11 @@ Version 1.2.0 (Willow): Not yet released
 - Implement TOML-based `ADS` configuration for dedicated servers
     - Per-level rules configuration for server hosts
     - On-demand loading of changed settings without server needing restart
-    - Support for configuring player loadouts
 - Add `King of the Hill` (KOTH) multiplayer game type
 - Add colorblind mode rendering filter (Direct3D 11 renderer only)
-- Add configurable settings to control application of weapon auto switch
+- Add client-configurable settings to control application of weapon auto switch
+- Add server-configurable weapon loadouts for players in multiplayer
+- Add server-configurable respawn delay for players in multiplayer
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)

@@ -32,6 +32,8 @@ static bool g_draw_vote_notification = false;
 static std::string g_active_vote_type = "";
 static bool g_draw_ready_notification = false;
 bool g_pre_match_active = false;
+static bool g_draw_respawn_timer_notification = false;
+static bool g_draw_respawn_timer_can_respawn = false;
 static std::string time_left_string_format = "";
 static int time_left_string_x_pos_offset = 135;
 static int time_left_string_y_pos_offset = 21;
@@ -563,6 +565,27 @@ FunHook<void()> multi_hud_init_hook{
     },
 };
 
+void hud_render_respawn_timer_notification()
+{
+    auto notif_string = build_local_spawn_string(g_draw_respawn_timer_can_respawn);
+    rf::gr::set_color(255, 255, 255, 225);
+    int center_x = rf::gr::screen_width() / 2;
+    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.925f);
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, notif_string.c_str(), 0);
+}
+
+void stop_draw_respawn_timer_notification()
+{
+    g_draw_respawn_timer_notification = false;
+    g_draw_respawn_timer_can_respawn = false;
+}
+
+void draw_respawn_timer_notification(bool can_respawn, bool force_respawn, int spawn_delay)
+{
+    g_draw_respawn_timer_notification = true;
+    g_draw_respawn_timer_can_respawn = can_respawn;
+}
+
 void hud_render_ready_notification()
 {
     std::string ready_key_text =
@@ -579,7 +602,7 @@ void hud_render_ready_notification()
 
 void draw_hud_ready_notification(bool draw)
 {
-    draw ? g_draw_ready_notification = true : g_draw_ready_notification = false;
+    g_draw_ready_notification = draw;
 }
 
 void set_local_pre_match_active(bool set_active) {
@@ -629,6 +652,10 @@ CodeInjection hud_render_patch_alpine {
             hud_render_ready_notification();
         }
 
+        if (g_draw_respawn_timer_notification) {
+            hud_render_respawn_timer_notification();
+        }
+
         if (g_chat_menu_active != ChatMenuType::None) {
             hud_render_draw_chat_menu();
 
@@ -639,7 +666,10 @@ CodeInjection hud_render_patch_alpine {
     }
 };
 
-void build_chat_menu_comms_messages() {
+void multi_hud_level_init() {
+    g_draw_respawn_timer_notification = false;
+    g_draw_respawn_timer_can_respawn = false;
+
     level_menu = ChatMenuList{
         .display_string = "MAP MESSAGES",
         .type = ChatMenuListType::Map,

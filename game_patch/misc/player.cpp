@@ -18,9 +18,11 @@
 #include "../misc/alpine_options.h"
 #include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
+#include "../input/input.h"
 #include "../multi/multi.h"
 #include "../multi/server_internal.h"
 #include "../hud/multi_spectate.h"
+#include "../hud/hud.h"
 #include "../multi/alpine_packets.h"
 #include "../hud/hud_world.h"
 #include <common/utils/list-utils.h>
@@ -78,6 +80,112 @@ bool is_server_minimum_af_version(int version_major, int version_minor) {
     return server_info->version_major >= version_major && server_info->version_minor >= version_minor;
 }
 
+std::string build_local_spawn_string(bool can_respawn) {
+    std::string respawn_timer_notification_text = "";
+    if (!can_respawn) {
+        respawn_timer_notification_text = "You are not allowed to spawn right now";
+    }
+    else if (!g_respawn_timer_local.valid() || g_respawn_timer_local.elapsed()) {
+        if (g_local_queued_delayed_spawn) {
+            respawn_timer_notification_text = "Spawning...";
+        }
+        else {
+            std::string respawn_key_text = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_SECONDARY_ATTACK);
+            respawn_timer_notification_text = "Press " + respawn_key_text + " to spawn";
+        }
+    }
+    else {
+        int ms_left = g_respawn_timer_local.time_until();
+
+        int tenths = (ms_left > 0) ? ((ms_left + 99) / 100) : 0;
+
+        if (tenths > 0) {
+            int whole = tenths / 10;
+            int frac = tenths % 10;
+            bool singular = (tenths == 10);
+            respawn_timer_notification_text =
+                std::format("{} in {}.{} second{}", g_local_queued_delayed_spawn ? "Spawning" : "You can spawn", whole, frac, singular ? "" : "s");
+        }
+        else {
+            respawn_timer_notification_text.clear();
+        }
+    }
+    return respawn_timer_notification_text;
+}
+
+void set_local_spawn_delay(bool can_respawn, bool force_respawn, int spawn_delay) {
+    // only called by Alpine packet handler when ADS server has configured spawn delay
+    if (!rf::is_multi || rf::is_dedicated_server) {
+        return; // safety, should never happen
+    }    
+
+    g_local_queued_delayed_spawn = can_respawn && force_respawn;
+    g_respawn_timer_local.set(spawn_delay);
+    //xlog::warn("setting delay {}, {}", spawn_delay, g_respawn_timer_local.time_until());
+    draw_respawn_timer_notification(can_respawn, force_respawn, spawn_delay);
+}
+
+void attempt_spawn_local_player(rf::Player* pp) {
+    if (!g_respawn_timer_local.valid() || g_respawn_timer_local.elapsed()) {
+        // allow immediate retry after local delay timer resets, only used for click spawning
+        // avoids niche case delays where you click with <1 sec remaining and death anim is still playing
+        rf::local_spawn_attempt_timer.set(1);
+
+        if (rf::is_server) { // listen server hosts
+            rf::multi_spawn_player_server_side(pp);
+        }
+        else if (pp && pp->net_data) {
+            rf::send_respawn_req_packet(pp->settings.multi_character, pp->net_data->player_id);
+        }
+        else {
+            xlog::warn("Local delayed spawn was attempted but failed");
+            return;
+        }
+        g_local_queued_delayed_spawn = false;
+        return;
+    }
+    return;
+}
+
+void local_delayed_spawn_do_frame() {
+    if (!g_local_queued_delayed_spawn) {
+        return; // no delayed spawn queued
+    }
+
+    if (!rf::is_multi || rf::is_dedicated_server) {
+        return; // safety, should never happen
+    }
+
+    attempt_spawn_local_player(rf::local_player);
+}
+
+void reset_local_delayed_spawn() {
+    stop_draw_respawn_timer_notification();
+    g_respawn_timer_local.invalidate();
+}
+
+CodeInjection player_execute_action_respawn_req_patch{ // click to spawn
+    0x004A678B,
+    [](auto& regs) {
+        if ((get_df_server_info().has_value() && get_df_server_info()->delayed_spawns) ||
+            (rf::is_server && g_alpine_server_config_active_rules.spawn_delay.enabled)) {
+            g_local_queued_delayed_spawn = true;
+            regs.eip = 0x004A67BB;
+        }
+    }
+};
+
+CodeInjection player_dying_frame_respawn_req_patch{ // force respawn
+    0x004A6DCA,
+    [](auto& regs) {
+        if ((get_df_server_info().has_value() && get_df_server_info()->delayed_spawns) ||
+            (rf::is_server && g_alpine_server_config_active_rules.spawn_delay.enabled)) {
+            g_local_queued_delayed_spawn = true;
+            regs.eip = 0x004A6DF8;
+        }
+    }
+};
+
 FunHook<rf::Player*(bool)> player_create_hook{
     0x004A3310,
     [](bool is_local) {
@@ -112,6 +220,7 @@ FunHook<rf::Entity*(rf::Player*, int, const rf::Vector3*, const rf::Matrix3*, in
             rf::Vector3 cam_pos = rf::camera_get_pos(pp->cam);
             rf::Matrix3 cam_orient = rf::camera_get_orient(pp->cam);
             rf::snd_update_sounds(cam_pos, rf::zero_vector, cam_orient);
+            reset_local_delayed_spawn();
         }
         return ep;
     },
@@ -308,6 +417,9 @@ FunHook<void()> players_do_frame_hook{
         if (multi_spectate_is_spectating()) {
             rf::hud_do_frame(multi_spectate_get_target_player());
         }
+        else {
+            local_delayed_spawn_do_frame(); // try to spawn if a delayed spawn is queued
+        }
     },
 };
 
@@ -486,6 +598,10 @@ CodeInjection player_move_flashlight_light_patch {
     },
 };
 
+void player_multi_level_post_init() {
+    g_local_queued_delayed_spawn = false;
+}
+
 // called on game start and during each level post init
 void update_player_flashlight() {
 
@@ -574,6 +690,10 @@ void player_do_patch()
     // general hooks
     player_create_hook.install();
     player_destroy_hook.install();
+
+    // Support spawn delays in ADS servers
+    player_execute_action_respawn_req_patch.install();
+    player_dying_frame_respawn_req_patch.install();
 
     // Allow swapping Assault Rifle primary and alternate fire controls
     player_fire_primary_weapon_hook.install();
