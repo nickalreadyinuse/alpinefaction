@@ -1,5 +1,10 @@
+#include <patch_common/FunHook.h>
+#include <patch_common/CallHook.h>
+#include <patch_common/AsmWriter.h>
 #include <common/config/BuildConfig.h>
 #include <common/version/version.h>
+#include <common/utils/list-utils.h>
+#include <algorithm>
 #include "console.h"
 #include "../misc/alpine_options.h"
 #include "../misc/alpine_settings.h"
@@ -13,12 +18,6 @@
 #include "../rf/character.h"
 #include "../misc/misc.h"
 #include "../misc/vpackfile.h"
-#include <common/utils/list-utils.h>
-#include <algorithm>
-#include <patch_common/FunHook.h>
-#include <patch_common/CallHook.h>
-#include <patch_common/FunHook.h>
-#include <patch_common/AsmWriter.h>
 
 ConsoleCommand2 dot_cmd{
     ".",
