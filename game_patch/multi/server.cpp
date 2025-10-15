@@ -1501,11 +1501,6 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
 
         multi_spawn_player_server_side_hook.call_target(player);
 
-        if (g_alpine_server_config_active_rules.gungame.enabled && player) {
-            gungame_on_player_spawn(player);
-            //multi_update_gungame_weapon(player, true);
-        }
-
         if (player) {
             if (auto* ep = rf::entity_from_handle(player->entity_handle)) {
                 if (g_alpine_server_config_active_rules.spawn_life.enabled) {
@@ -1514,13 +1509,28 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
                 if (g_alpine_server_config_active_rules.spawn_armour.enabled) {
                     ep->armor = g_alpine_server_config_active_rules.spawn_armour.value;
                 }
+                if (g_alpine_server_config_active_rules.gungame.enabled) {
+                    gungame_on_player_spawn(player);
+                }
             }
 
             // inform newly spawned players of their loadout
             if (rf::is_dedicated_server &&
-                (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
+                (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active &&
                 !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
                 ) {
+
+                // Add each weapon in the loadout to the player on the server
+                for (auto const& e : g_alpine_server_config_active_rules.spawn_loadout.red_weapons) {
+                    rf::player_add_weapon(player, e.index, e.reserve_ammo);
+
+                    // if remote charge, we also need to add the detonator
+                    if (e.index == rf::remote_charge_weapon_type) {
+                        if (auto ep = rf::entity_from_handle(player->entity_handle))
+                            rf::ai_add_weapon(&ep->ai, rf::remote_charge_det_weapon_type, 0);
+                    }
+                }
+                
                 af_send_just_spawned_loadout(player, g_alpine_server_config_active_rules.spawn_loadout.red_weapons);
             }
         }
@@ -1636,6 +1646,7 @@ CodeInjection multi_level_init_injection{
             }    
     },
 };
+
 bool round_is_tied(rf::NetGameType game_type)
 {
     if (rf::multi_num_players() <= 1) {
@@ -2153,29 +2164,31 @@ void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
 CodeInjection entity_maybe_die_patch{
     0x00420600,
     [](auto& regs) {
-        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server) && g_alpine_server_config_active_rules.drop_amps) {
+        if (rf::is_multi && (rf::is_server || rf::is_dedicated_server)) {
             rf::Entity* ep = regs.esi;
 
             if (ep) {
                 rf::Player* player = rf::player_from_entity_handle(ep->handle);
 
-                if (rf::multi_powerup_has_player(player, 1)) {
-                    int amp_count = 0;
-                    int time_left = rf::multi_powerup_get_time_until(player, 1);
-                    amp_count = time_left >= 1000 ? time_left : 0;
+                if (g_alpine_server_config_active_rules.drop_amps) {
+                    if (rf::multi_powerup_has_player(player, 1)) {
+                        int amp_count = 0;
+                        int time_left = rf::multi_powerup_get_time_until(player, 1);
+                        amp_count = time_left >= 1000 ? time_left : 0;
 
-                    if (amp_count >= 1000) { // only drop if at least 1 second left
-                        entity_drop_powerup(ep, 1, amp_count / 1000); // item_touch_multi_amp multiplies by 1000
+                        if (amp_count >= 1000) { // only drop if at least 1 second left
+                            entity_drop_powerup(ep, 1, amp_count / 1000); // item_touch_multi_amp multiplies by 1000
+                        }
                     }
-                }
 
-                if (rf::multi_powerup_has_player(player, 0)) {
-                    int invuln_count = 0;
-                    int time_left = rf::multi_powerup_get_time_until(player, 0);
-                    invuln_count = time_left >= 1000 ? time_left : 0;
+                    if (rf::multi_powerup_has_player(player, 0)) {
+                        int invuln_count = 0;
+                        int time_left = rf::multi_powerup_get_time_until(player, 0);
+                        invuln_count = time_left >= 1000 ? time_left : 0;
 
-                    if (invuln_count >= 1000) { // only drop if at least 1 second left
-                        entity_drop_powerup(ep, 0, invuln_count / 1000); // item_touch_multi_amp multiplies by 1000
+                        if (invuln_count >= 1000) { // only drop if at least 1 second left
+                            entity_drop_powerup(ep, 0, invuln_count / 1000); // item_touch_multi_amp multiplies by 1000
+                        }
                     }
                 }
             }

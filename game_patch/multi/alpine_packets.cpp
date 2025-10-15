@@ -687,6 +687,11 @@ static void af_process_just_spawned_info_packet(const void* data, size_t len, co
 
                 // add weapon locally
                 rf::player_add_weapon(rf::local_player, weapon_idx, ammo);
+
+                // if remote charge, we also need to add the detonator
+                if (weapon_idx == rf::remote_charge_weapon_type && rf::local_player_entity) {
+                    rf::ai_add_weapon(&rf::local_player_entity->ai, rf::remote_charge_det_weapon_type, 0);
+                }
             }
         } break;
 
