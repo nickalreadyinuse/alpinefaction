@@ -83,6 +83,9 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         case af_packet_type::af_koth_hill_captured:
             af_process_koth_hill_captured_packet(data, static_cast<size_t>(len), addr);
             return true;
+        case af_packet_type::af_just_died_info:
+            af_process_just_died_info_packet(data, static_cast<size_t>(len), addr);
+            return true;
         default:
             return false; // ignore if unrecognized
     }
@@ -919,4 +922,65 @@ static void af_process_koth_hill_captured_packet(const void* data, size_t len, c
     // Seed presence snapshot for prediction
     h->net_last_red = (new_owner == HillOwner::HO_Red) ? static_cast<uint8_t>(ids_len) : 0;
     h->net_last_blue = (new_owner == HillOwner::HO_Blue) ? static_cast<uint8_t>(ids_len) : 0;
+}
+
+void af_send_just_died_info_packet(rf::Player* to_player, bool respawn_allowed, bool force_respawn, uint16_t spawn_delay_ms)
+{
+    // Send: server -> client
+    assert(rf::is_server);
+
+    if (!to_player || !to_player->net_data) {
+        xlog::error("af_just_died_info: Attempted to send to an invalid player");
+        return;
+    }
+
+    af_just_died_info_packet pkt{};
+    pkt.header.type = static_cast<uint8_t>(af_packet_type::af_just_died_info);
+    pkt.header.size = static_cast<uint16_t>(sizeof(af_just_died_info_packet) - sizeof(RF_GamePacketHeader));
+
+    uint8_t flags = 0;
+    if (respawn_allowed) flags |= JDI_RESPAWN_ALLOWED;
+    if (force_respawn)   flags |= JDI_FORCE_RESPAWN;
+
+    pkt.flags = flags;
+    pkt.spawn_delay = spawn_delay_ms;
+
+    // send reliable
+    std::byte buf[sizeof(pkt)];
+    std::memcpy(buf, &pkt, sizeof(pkt));
+    af_send_packet(to_player, buf, static_cast<int>(sizeof(pkt)), true);
+}
+
+static void af_process_just_died_info_packet(const void* data, size_t len, const rf::NetAddr&)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server)
+        return;
+
+    if (len < sizeof(af_just_died_info_packet)) {
+        xlog::warn("just_died_info: short packet ({}<{})", len, sizeof(af_just_died_info_packet));
+        return;
+    }
+
+    af_just_died_info_packet pkt{};
+    std::memcpy(&pkt, data, sizeof(pkt));
+
+    const size_t expected_payload = sizeof(af_just_died_info_packet) - sizeof(RF_GamePacketHeader);
+    if (pkt.header.size != expected_payload) {
+        xlog::warn("just_died_info: bad payload size {} (expected {})", pkt.header.size, expected_payload);
+        return;
+    }
+
+    if (!get_df_server_info().has_value() || !get_df_server_info()->delayed_spawns) {
+        xlog::warn("just_died_info: delayed spawns are not enabled in this server");
+        return; // delayed spawns are disabled in this server, how did you get this packet?
+    }
+
+    const bool respawn_allowed = (pkt.flags & JDI_RESPAWN_ALLOWED) != 0;
+    const bool force_respawn = (pkt.flags & JDI_FORCE_RESPAWN) != 0;
+    const uint16_t spawn_delay = pkt.spawn_delay;
+
+    //xlog::warn("just_died_info: allowed={}, force={}, delay_ms={}", respawn_allowed, force_respawn, static_cast<int>(spawn_delay));
+
+    set_local_spawn_delay(respawn_allowed, force_respawn, static_cast<int>(spawn_delay));
 }

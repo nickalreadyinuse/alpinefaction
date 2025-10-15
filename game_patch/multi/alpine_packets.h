@@ -28,6 +28,7 @@ enum class af_packet_type : uint8_t
     af_just_spawned_info = 0x56,        // Alpine 1.2
     af_koth_hill_state = 0x57,          // Alpine 1.2
     af_koth_hill_captured = 0x58,       // Alpine 1.2
+    af_just_died_info = 0x59,           // Alpine 1.2
 };
 
 struct af_ping_location_req_packet
@@ -126,6 +127,19 @@ struct af_koth_hill_captured_packet
     //uint8_t new_owner_player_ids[]; // appended on the wire
 };
 
+enum af_just_died_info_flags
+{
+    JDI_RESPAWN_ALLOWED = 0x1,
+    JDI_FORCE_RESPAWN = 0x2
+};
+
+struct af_just_died_info_packet
+{
+    RF_GamePacketHeader header;
+    uint8_t flags;
+    uint16_t spawn_delay;
+};
+
 #pragma pack(pop)
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
@@ -148,6 +162,8 @@ void af_send_koth_hill_state_packet_to_all(const HillInfo& h, const Presence& pr
 static void af_process_koth_hill_state_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_koth_hill_captured_packet_to_all(uint8_t hill_uid, HillOwner owner, const std::vector<uint8_t>& new_owner_player_ids);
 static void af_process_koth_hill_captured_packet(const void* data, size_t len, const rf::NetAddr&);
+void af_send_just_died_info_packet(rf::Player* to_player, bool respawn_allowed, bool force_respawn, uint16_t spawn_delay);
+static void af_process_just_died_info_packet(const void* data, size_t len, const rf::NetAddr& addr);
 
 // client requests
 void af_send_handicap_request(uint8_t amount);
