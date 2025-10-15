@@ -115,7 +115,8 @@ static void af_process_ping_location_req_packet(const void* data, size_t len, co
     }
 
     // ignore ping_location_req packets if location pinging is configured off
-    if (!server_get_alpine_config().alpine_restricted_config.location_pinging) {
+    if (!(g_alpine_server_config.alpine_restricted_config.clients_require_alpine &&
+          g_alpine_server_config.alpine_restricted_config.location_pinging)) {
         return;
     }
 

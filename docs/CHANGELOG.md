@@ -87,6 +87,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix `Winner` and `Game Over` sounds played at the end of a match usually being wrong
 - Fix `Try Avoid Players` behaviour for spawn point selection not working properly
 - Fix rare crash when rapidly switching between players in first person spectate mode
+- Fix server processing `af_ping_location_req` packets when feature was turned off
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
