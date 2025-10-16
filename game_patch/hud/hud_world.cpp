@@ -643,7 +643,7 @@ static void draw_edge_oriented_single_bottom(const rf::Vector3& a, const rf::Vec
     rf::Matrix3 M{};
     make_onb_edge_with_up(x, up_exact, M);
 
-    const float height_scale = std::max(0.0f, g_alpine_game_config.control_point_outline_height);
+    const float height_scale = std::max(0.0f, g_alpine_game_config.control_point_outline_height_scale);
     const float half_h = 0.5f * thickness * height_scale;
     const float half_w = 0.5f * len;
 
@@ -705,7 +705,7 @@ static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plan
     rf::Vector3 f0 = axis_u.cross(r0);
     f0.normalize_safe();
 
-    // Use configured segment count (no fallback)
+    // Use configured segment count
     int segs = g_alpine_game_config.control_point_outline_segments;
 
     const float dth = (2.0f * 3.14159265f) / float(segs);
@@ -716,7 +716,7 @@ static void draw_ring_outline_on_plane_colored(const rf::Vector3& center_on_plan
     };
 
     // Height scaling
-    const float height_scale = std::max(0.0f, g_alpine_game_config.control_point_outline_height);
+    const float height_scale = std::max(0.0f, g_alpine_game_config.control_point_outline_height_scale);
     const float half_h = 0.5f * thickness * height_scale;
     if (half_h <= 1e-5f)
         return;
@@ -796,6 +796,109 @@ static inline void draw_box_as_cylinder_base_outline(const rf::Trigger* t, float
     draw_ring_outline_on_plane_colored(base_center, u, radius, thickness, mode, r, g, b, a, outline_offset);
 }
 
+// Use trigger to determine base center
+static inline bool koth_base_and_axis_for_hill(const HillInfo& h, const rf::Trigger* t, rf::Vector3& base_center, rf::Vector3& axis_u, float offset)
+{
+    if (!t)
+        return false;
+
+    // determine axis
+    axis_u = g_koth_info.rules.cyl_use_trigger_up ? t->orient.uvec : rf::Vector3{0.f, 1.f, 0.f};
+    axis_u.normalize_safe();
+    if (axis_u.len() <= 1e-5f)
+        axis_u = {0.f, 1.f, 0.f};
+
+    // decide base center from trigger type
+    if (t->type == 1) { // box: bottom face center
+        const rf::Vector3 he = t->box_size * 0.5f;
+        base_center = t->pos + t->orient.uvec * (-he.y);
+    }
+    else { // sphere: center plane
+        base_center = t->pos - axis_u * t->radius;
+    }
+
+    base_center += axis_u * offset;
+
+    return true;
+}
+
+// Use handler position to determine column height above base plane
+static inline float koth_column_height_for_hill(const HillInfo& h, const rf::Vector3& base_center, const rf::Vector3& axis_u)
+{
+    if (h.handler) {
+        const rf::Vector3 delta = h.handler->pos - base_center;
+        const float along = (delta.dot_prod(axis_u) / 3.0f) * g_alpine_game_config.control_point_column_height_scale;
+        return std::max(along, 0.0f);
+    }
+    
+    return 0.0f; // should never happen
+}
+
+// Draw light column at center of control point
+static void draw_ring_light_column_colored(const rf::Vector3& base_center, const rf::Vector3& axis_u_in,
+    float radius, float height, WorldHUDRenderMode mode, rf::ubyte r, rf::ubyte g, rf::ubyte b, rf::ubyte a)
+{
+    if (radius <= 1e-6f || height <= 1e-6f)
+        return;
+
+    rf::Vector3 axis_u = axis_u_in;
+    axis_u.normalize_safe();
+
+    rf::gr::set_color(r, g, b, a);
+    rf::gr::set_texture(g_world_hud_assets.koth_ring_fade, -1);
+
+    // orthonormal basis on the ring plane
+    rf::Vector3 r0 = std::fabs(axis_u.dot_prod({0, 1, 0})) < 0.95f ? rf::Vector3{0, 1, 0}.cross(axis_u) : rf::Vector3{1, 0, 0}.cross(axis_u);
+    r0.normalize_safe();
+    rf::Vector3 f0 = axis_u.cross(r0);
+    f0.normalize_safe();
+
+    const int segs = g_alpine_game_config.control_point_column_segments;
+    const float dth = (2.0f * 3.14159265f) / float(segs);
+    const float th0 = 0.5f * dth;
+
+    auto circle_pt = [&](float th) {
+        return base_center + r0 * (radius * std::cos(th)) + f0 * (radius * std::sin(th));
+    };
+
+    rf::Vector3 prev = circle_pt(th0);
+
+    const float half_h = 0.5f * height; // center at half height
+    const float lift = 0.0f; // start at base
+
+    for (int i = 1; i <= segs; ++i) {
+        const float th = th0 + i * dth;
+        rf::Vector3 cur = circle_pt(th);
+
+        rf::Matrix3 M{};
+        M.rvec = (cur - prev);
+        const float chord_len = M.rvec.len();
+        if (chord_len > 1e-5f) {
+            M.rvec *= (1.0f / chord_len);
+            M.uvec = axis_u;
+            M.fvec = M.rvec.cross(M.uvec);
+            M.fvec.normalize_safe();
+            M.uvec = M.fvec.cross(M.rvec);
+            M.uvec.normalize_safe();
+
+            const float half_w = 0.5f * chord_len;
+            const rf::Vector3 mid = (prev + cur) * 0.5f;
+
+            rf::Vector3 center = mid + M.uvec * (lift + half_h);
+
+            if (rf::Camera* cam = rf::local_player ? rf::local_player->cam : nullptr) {
+                const rf::Vector3 cam_pos = rf::camera_get_pos(cam);
+                face_camera(cam_pos, center, M);
+            }
+
+            // gradient fades vertically
+            gr_3d_bitmap_oriented_wh(&center, &M, half_w, half_h, bitmap_mode_from(mode));
+        }
+
+        prev = cur;
+    }
+}
+
 static void build_koth_hill_outlines()
 {
     if (!rf::is_multi || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
@@ -811,6 +914,7 @@ static void build_koth_hill_outlines()
         rf::ubyte r, g, b, a;
         koth_owner_color(h.ownership, r, g, b, a);
 
+        // outline
         if (trig->type == 0 && h.handler && h.handler->sphere_to_cylinder) {
             // sphere to cylinder with base ring
             draw_sphere_as_cylinder_base_outline(trig, 0.08f, mode, r, g, b, a, h.outline_offset, g_koth_info.rules.cyl_use_trigger_up);
@@ -826,6 +930,16 @@ static void build_koth_hill_outlines()
         else {
             // sphere ring (mid plane)
             draw_sphere_ring_outline(trig, 0.08f, mode, r, g, b, a, h.outline_offset);
+        }
+
+        // light column
+        rf::Vector3 base_center{}, axis_u{};
+        if (koth_base_and_axis_for_hill(h, trig, base_center, axis_u, h.outline_offset)) {
+            const float cheight = koth_column_height_for_hill(h, base_center, axis_u);
+            const float cradius = 1.0f; // maybe make configurable on handler event?
+            if (cheight > 0.02f) {
+                draw_ring_light_column_colored(base_center, axis_u, cradius, cheight, mode, r, g, b, a);
+            }
         }
     }
 }
@@ -1014,9 +1128,9 @@ ConsoleCommand2 set_cp_outline_height_cmd{
     "cl_outlineheightscale",
     [](std::optional<float> new_height) {
         if (new_height) {
-            g_alpine_game_config.set_control_point_outline_height(new_height.value());
+            g_alpine_game_config.set_control_point_outline_height_scale(new_height.value());
         }
-        rf::console::print("Control point outline height scale is {:.2f}.", g_alpine_game_config.control_point_outline_height);
+        rf::console::print("Control point outline height scale is {:.2f}.", g_alpine_game_config.control_point_outline_height_scale);
     },
     "Set control point outline height scale",
     "cl_outlineheightscale <scale>",
@@ -1034,6 +1148,30 @@ ConsoleCommand2 set_cp_outline_segments_cmd{
     "cl_outlinesegments <segments>",
 };
 
+ConsoleCommand2 set_cp_column_segments_cmd{
+    "cl_columnsegments",
+    [](std::optional<int> new_segments) {
+        if (new_segments) {
+            g_alpine_game_config.set_control_point_column_segments(new_segments.value());
+        }
+        rf::console::print("Control point column ring segments is set to {}.", g_alpine_game_config.control_point_column_segments);
+    },
+    "Set number of segments for control point light columns",
+    "cl_columnsegments <segments>",
+};
+
+ConsoleCommand2 set_cp_column_height_scale_cmd{
+    "cl_columnheightscale",
+    [](std::optional<float> new_height) {
+        if (new_height) {
+            g_alpine_game_config.set_control_point_column_height_scale(new_height.value());
+        }
+        rf::console::print("Control point light column height scale is {:.2f}.", g_alpine_game_config.control_point_column_height_scale);
+    },
+    "Set control point light column height scale",
+    "cl_columnheightscale <scale>",
+};
+
 void hud_world_apply_patch()
 {
     // register commands
@@ -1047,4 +1185,6 @@ void hud_world_apply_patch()
     worldhudmpspawns_cmd.register_cmd();
     set_cp_outline_height_cmd.register_cmd();
     set_cp_outline_segments_cmd.register_cmd();
+    set_cp_column_segments_cmd.register_cmd();
+    set_cp_column_height_scale_cmd.register_cmd();
 }

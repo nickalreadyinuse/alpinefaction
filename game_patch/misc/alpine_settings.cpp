@@ -513,12 +513,20 @@ bool alpine_player_settings_load(rf::Player* player)
         processed_keys.insert("DesiredHandicap");
     }
     if (settings.count("CPOutlineHeightScale")) {
-        g_alpine_game_config.set_control_point_outline_height(std::stof(settings["CPOutlineHeightScale"]));
+        g_alpine_game_config.set_control_point_outline_height_scale(std::stof(settings["CPOutlineHeightScale"]));
         processed_keys.insert("CPOutlineHeightScale");
     }
     if (settings.count("CPOutlineSegments")) {
         g_alpine_game_config.set_control_point_outline_segments(std::stoi(settings["CPOutlineSegments"]));
         processed_keys.insert("CPOutlineSegments");
+    }
+    if (settings.count("CPColumnSegments")) {
+        g_alpine_game_config.set_control_point_column_segments(std::stoi(settings["CPColumnSegments"]));
+        processed_keys.insert("CPColumnSegments");
+    }
+    if (settings.count("CPColumnHeightScale")) {
+        g_alpine_game_config.set_control_point_column_height_scale(std::stof(settings["CPColumnHeightScale"]));
+        processed_keys.insert("CPColumnHeightScale");
     }
 
     // Load input settings
@@ -809,8 +817,10 @@ void alpine_player_settings_save(rf::Player* player)
     file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
     file << "WorldHUDAltDamageIndicators=" << g_alpine_game_config.world_hud_alt_damage_indicators << "\n";
     file << "DesiredHandicap=" << g_alpine_game_config.desired_handicap << "\n";
-    file << "CPOutlineHeightScale=" << g_alpine_game_config.control_point_outline_height << "\n";
+    file << "CPOutlineHeightScale=" << g_alpine_game_config.control_point_outline_height_scale << "\n";
     file << "CPOutlineSegments=" << g_alpine_game_config.control_point_outline_segments << "\n";
+    file << "CPColumnSegments=" << g_alpine_game_config.control_point_column_segments << "\n";
+    file << "CPColumnHeightScale=" << g_alpine_game_config.control_point_column_height_scale << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 
