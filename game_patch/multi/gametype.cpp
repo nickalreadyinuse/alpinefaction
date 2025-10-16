@@ -824,7 +824,8 @@ static int koth_build_hills_from_capture_point_events()
 
         HillInfo h{};
         h.hill_uid = ++idx;
-        h.name = cp->name.empty() ? std::format("Hill {}", idx) : cp->name; // fallback name
+        // use name if set by mapper, if not name it "Hill" with an index if multiple
+        h.name = cp->name.empty() ? (events.size() <= 1 ? "Hill" : std::format("Hill {}", idx)) : cp->name;
         h.trigger_uid = cp->trigger_uid;
         h.trigger = trig;
         h.outline_offset = cp->outline_offset;
