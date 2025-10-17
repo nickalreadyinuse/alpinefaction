@@ -9,6 +9,9 @@
 #include "gametype.h"
 #include "multi.h"
 #include "alpine_packets.h"
+#include "../hud/multi_spectate.h"
+#include "../sound/sound.h"
+#include "../rf/os/timestamp.h"
 #include "../object/event_alpine.h"
 #include "../rf/gameseq.h"
 #include "../rf/localize.h"
@@ -19,6 +22,10 @@ static char koth_name[] = "KOTH";
 static char* koth_slot = koth_name;
 
 KothInfo g_koth_info;
+rf::Timestamp g_local_contest_alarm_cooldown;
+static bool g_local_cap_gain_sfx_playing = false;
+static int g_local_cap_gain_sfx_handle = -1;
+static int g_koth_alarm_sound_id = -1;
 
 void populate_gametype_table() {
     g_af_gametype_names[0] = &rf::strings::dm;
@@ -301,7 +308,7 @@ inline int capture_sfx_for_local(HillOwner owner)
 {
     if (owner == HillOwner::HO_Neutral)
         return -1; // do not play a sound
-    return local_player_on_owner_team(owner) ? 67 : 65;
+    return local_player_on_owner_team(owner) ? 63 : 67;
 }
 
 void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, const uint8_t* ids, size_t ids_len)
@@ -750,7 +757,7 @@ void koth_do_frame() // fires every frame on both server and client
     if (!rf::is_multi || !gt_is_koth())
         return;
 
-    // ---- SERVER TICK ----
+    // server tick
     if (rf::is_dedicated_server || rf::is_server) {
         static int last_srv = rf::timer_get(1000);
         const int now_srv = rf::timer_get(1000);
@@ -769,7 +776,7 @@ void koth_do_frame() // fires every frame on both server and client
         }
     }
 
-    // ---- CLIENT PREDICTION TICK ----
+    // client prediction tick
     if (!rf::is_server && !rf::is_dedicated_server) {
         static int last_cli = rf::timer_get(1000);
         const int now_cli = rf::timer_get(1000);
@@ -778,6 +785,61 @@ void koth_do_frame() // fires every frame on both server and client
             last_cli = now_cli;
             const int dt_ms = std::clamp(dt_cli, 0, 250);
             koth_client_predict_tick(dt_ms);
+        }
+    }
+
+    // play progress sounds locally
+    if (!rf::is_dedicated_server) {
+        bool any_local_owned_enemy_progress = false;
+        bool should_play_cap_gain = false;
+
+        if (rf::local_player && !multi_spectate_is_spectating() && gt_is_koth() && rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
+            const bool local_is_blue = (rf::local_player->team != 0);
+            const HillOwner local_team_owner = local_is_blue ? HillOwner::HO_Blue : HillOwner::HO_Red;
+            const HillState enemy_growing_state = local_is_blue ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
+            const HillState my_growing_state = local_is_blue ? HillState::HS_LeanBlueGrowing : HillState::HS_LeanRedGrowing;
+
+            for (auto& h : g_koth_info.hills) {
+                if (h.hill_uid < 0)
+                    continue;
+
+                // decide if play capture hum
+                if (h.state == my_growing_state && h.capture_milli < 100000) {
+                    should_play_cap_gain = true;
+                }
+
+                // decide if play alarm
+                const bool ours_or_neutral =
+                    (h.ownership == local_team_owner) || (h.ownership == HillOwner::HO_Neutral);
+                if (ours_or_neutral && h.state == enemy_growing_state) {
+                    any_local_owned_enemy_progress = true;
+                }
+            }
+        }
+
+        // play alarm if enemy is capturing our owned hill
+        if (any_local_owned_enemy_progress) {
+            if (!g_local_contest_alarm_cooldown.valid() || g_local_contest_alarm_cooldown.elapsed()) {
+                rf::snd_play(g_koth_alarm_sound_id, 0, 0.0, 1.0);
+                g_local_contest_alarm_cooldown.set(950);
+            }
+        }
+        else if (g_local_contest_alarm_cooldown.valid() && g_local_contest_alarm_cooldown.elapsed()) {
+            g_local_contest_alarm_cooldown.invalidate();
+        }
+
+        // play hum while gaining capture progress for our team
+        if (should_play_cap_gain) {
+            if (!g_local_cap_gain_sfx_playing) {
+                g_local_cap_gain_sfx_handle = rf::snd_play(get_custom_sound_id(4), 0, 0.0, 0.75);
+                g_local_cap_gain_sfx_playing = true;
+            }
+        }
+        else {
+            if (g_local_cap_gain_sfx_playing && g_local_cap_gain_sfx_handle > -1) {
+                rf::snd_stop(g_local_cap_gain_sfx_handle);
+                g_local_cap_gain_sfx_playing = false;
+            }
         }
     }
 }
@@ -846,6 +908,8 @@ static int koth_build_hills_from_capture_point_events()
 void koth_level_init()
 {
     clear_koth_name_textures(); // clear hill labels
+    g_local_cap_gain_sfx_handle = -1;
+    g_local_cap_gain_sfx_playing = false;
 
     if (!rf::is_multi || !gt_is_koth())
         return;
@@ -855,6 +919,8 @@ void koth_level_init()
     multi_koth_reset_scores();
 
     const int n = koth_build_hills_from_capture_point_events();
+
+    g_koth_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
 
     //xlog::warn("KOTH: {} capture points found in this map", n);
 }

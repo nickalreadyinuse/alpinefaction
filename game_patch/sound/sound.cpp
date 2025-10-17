@@ -17,8 +17,8 @@
 
 static int g_cutscene_bg_sound_sig = -1;
 static int g_custom_sound_entry_start = -1;
-static int g_radmsg_sound_start = -1;
 static int g_taunt_sound_start = -1;
+static int g_radmsg_sound_start = -1;
 #ifdef DEBUG
 int g_sound_test = 0;
 #endif
@@ -463,6 +463,7 @@ void gamesound_parse_custom_sounds()
         {"af_pinglocation1.wav", 10.0f, 1.0f, 1.0f},    // 1
         {"af_hitsound1.wav", 10.0f, 1.0f, 1.0f},        // 2
         {"af_killsound1.wav", 10.0f, 1.0f, 1.0f},       // 3
+        {"Console_Large_03.wav", 10.0f, 1.0f, 1.0f},
         {"af_radmsg_000.ogg", 10.0f, 1.0f, 1.0f},
         {"af_radmsg_001.ogg", 10.0f, 1.0f, 1.0f},
         {"af_radmsg_002.ogg", 10.0f, 1.0f, 1.0f},
