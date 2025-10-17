@@ -62,6 +62,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `-log` command line argument to log full console output from ADS servers
 - Add `cl_columnsegments` command to set segment count for control point light columns
 - Add `cl_columnheightscale` command to scale height of control point light columns
+- Support `levelm` and `Play (Multi)` in RED launching KOTH maps with KOTH gamemode
+- Set default gamemode settings when starting a listen server
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

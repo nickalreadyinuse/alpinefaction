@@ -578,35 +578,74 @@ CodeInjection multi_powerup_remove_all_for_player_nano_patch {
     },
 };
 
+void configure_custom_gametype_listen_server_settings() {
+    // reset to defaults
+    g_alpine_server_config = AlpineServerConfig{};
+    g_alpine_server_config_active_rules = AlpineServerConfigRules{};
+
+    // KOTH gamemode defaults
+    if (rf::netgame.type == rf::NetGameType::NG_TYPE_KOTH) {
+        // KOTH requires Alpine clients
+        g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
+        g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
+
+        // KOTH uses spawn delay and custom loadout
+        // The same settings are set in dedi_cfg.cpp for dedicated servers
+        g_alpine_server_config_active_rules.spawn_delay.enabled = true;
+        g_alpine_server_config_active_rules.spawn_loadout.loadouts_active = true;
+        int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
+        g_alpine_server_config_active_rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
+        g_alpine_server_config_active_rules.spawn_loadout.add("Remote Charge", 3, false, true);
+        g_alpine_server_config_active_rules.default_player_weapon.set_weapon("Assault Rifle");
+
+        if (g_alpine_server_config_active_rules.default_player_weapon.index >= 0) {
+            int default_ammo =
+                rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
+                g_alpine_server_config_active_rules.default_player_weapon.num_clips;
+            g_alpine_server_config_active_rules.spawn_loadout.add(
+                g_alpine_server_config_active_rules.default_player_weapon.weapon_name, default_ammo, false, true);
+        }
+
+        // So maps don't end while being tested
+        g_alpine_server_config_active_rules.set_koth_score_limit(3600);
+    }
+}
+
 void start_level_in_multi(std::string filename) {
 
     auto [is_valid, valid_filename] = is_level_name_valid(filename);
 
     if (is_valid) {
-        rf::VArray_String<rf::String>* levels_ptr = reinterpret_cast<rf::VArray_String<rf::String>*>(0x0064EC68);
-
-        if (levels_ptr) {
-            levels_ptr->add(valid_filename.c_str());
-        }
+        rf::netgame.levels.add(valid_filename.c_str());
 
         rf::set_in_mp_flag();
         rf::multi_start(0,0);
 
-        *reinterpret_cast<float*>(0x0064EC4C) = 3600.0f;                            // time limit
-        *reinterpret_cast<int*>(0x0064EC50) = 30;                                   // kill limit
-        *reinterpret_cast<int*>(0x0064EC58) = 5;                                    // cap limit
-        *reinterpret_cast<int*>(0x0064EC54) = 64;                                   // geo limit
-        *reinterpret_cast<int*>(0x0064EC40) = 0;                                    // server options flags (team damage, fall damage, etc.)
-        *reinterpret_cast<rf::String*>(0x0064EC28) = "Alpine Faction Test Server";  // server name
-        //*reinterpret_cast<rf::String*>(0x0064EC30) = "password";                    // password
-        *reinterpret_cast<int*>(0x0064EC3C) = string_starts_with_ignore_case(filename, "ctf") ? 1 : 0; // game type
-        *reinterpret_cast<int*>(0x0064EC40) &= 0xFFFFFBFF;                          // do not broadcast to tracker
+        rf::netgame.max_time_seconds = 3600.0f;
+        rf::netgame.max_kills = 30;
+        rf::netgame.geomod_limit = 64;
+        rf::netgame.max_captures = 5;
+        rf::netgame.flags = 0; // no broadcast to tracker
+        rf::netgame.type = string_starts_with_ignore_case(filename, "ctf") ? rf::NetGameType::NG_TYPE_CTF
+            : string_starts_with_ignore_case(filename, "koth") ? rf::NetGameType::NG_TYPE_KOTH
+            : rf::NetGameType::NG_TYPE_DM;
+        rf::netgame.name = "Alpine Faction Test Server";
+        rf::netgame.password = "password";
+
+        configure_custom_gametype_listen_server_settings();
 
         rf::multi_hud_clear_chat();
         rf::multi_load_next_level();
         rf::multi_init_server();
     }
 }
+
+CodeInjection multi_customize_listen_server_settings_patch {
+    0x0044E485,
+    [](auto& regs) {
+        configure_custom_gametype_listen_server_settings();
+    },
+};
 
 ConsoleCommand2 levelm_cmd{
     "levelm",
@@ -731,6 +770,9 @@ void multi_do_patch()
 
     // Make sure CTF flag does not spin in new level if it was dropped in the previous level
     multi_ctf_level_init_hook.install();
+
+    // Set custom listen server settings based on gametype
+    multi_customize_listen_server_settings_patch.install();
 
     multi_kill_do_patch();
     faction_files_do_patch();

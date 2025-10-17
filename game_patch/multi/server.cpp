@@ -915,7 +915,7 @@ CallHook<void(rf::Player*, int, int)> give_default_weapon_ammo_hook{
     0x004A4414,
     [](rf::Player* player, int weapon_type, int ammo) {
         // if not using loadouts, this adjusts spawn weapon reserve ammo to match our clip config
-        if (rf::is_dedicated_server && !g_alpine_server_config_active_rules.spawn_loadout.loadouts_active) {
+        if (rf::is_server && !g_alpine_server_config_active_rules.spawn_loadout.loadouts_active) {
             ammo = rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
                    g_alpine_server_config_active_rules.default_player_weapon.num_clips;
         }
@@ -941,7 +941,7 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
 CodeInjection player_create_entity_default_weapon_injection {
     0x004A43F6,
     [](auto& regs) {
-        if (rf::is_dedicated_server &&
+        if (rf::is_server &&
             g_alpine_server_config_active_rules.spawn_loadout.loadouts_active &&
             !g_alpine_server_config_active_rules.gungame.enabled // no loadouts when gungame is on
             ) {
@@ -1523,7 +1523,7 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
             }
 
             // inform newly spawned players of their loadout
-            if (rf::is_dedicated_server &&
+            if (rf::is_server &&
                 (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active &&
                 !g_alpine_server_config_active_rules.gungame.enabled) // no loadouts when gungame is on
                 ) {
