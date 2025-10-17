@@ -23,16 +23,12 @@ Version 1.2.0 (Willow): Not yet released
 - Add `ui_realarmor` command to toggle real armor display on HUD (1:1 with health instead of the 2:1 default)
 - Add `-afs FILENAME` command line argument to specify a settings file when launching
 - Add `Suppress autoswitch` control bind (if held while picking up a weapon, autoswitch is suppressed)
-- Add `SuppressAutoswitchBindAlias` setting to `alpine_settings.ini`
 - Add `Flag Captures While Stolen` dedicated server config option
 - Add damage reduction handicap feature
 - Add `mp_handicap` command to configure your damage reduction handicap (0 - 99%)
-- Add `DesiredHandicap` setting to `alpine_settings.ini`
 - Add `cl_autoswitchfirewait` command to suppress autoswitch during and immediately after weapon fire
-- Add `AutoswitchFireWait` setting to `alpine_settings.ini`
 - Maintain third person camera view between level loads after `camera3` command entered
 - Add `cl_autoswitchempty` command to always autoswitch empty weapons even if autoswitch is turned off
-- Add `AlwaysAutoswitchEmpty` setting to `alpine_settings.ini`
 - Bump RFL version to 302
 - Add support for custom AlpineLevelProperties chunk in rfl files
 - Add handling for `Legacy Cyclic_Timers` option in level files in editor and game
@@ -54,20 +50,18 @@ Version 1.2.0 (Willow): Not yet released
 - Report custom gamemodes to legacy clients as TDM for compatibility
 - Add `Control_Point_Handler` event
 - Add `cl_outlineheightscale` command to scale height of control point outlines
-- Add `CPOutlineHeightScale` setting to `alpine_settings.ini`
 - Add `cl_outlinesegments` command to set segment count for control point outline rings
-- Add `CPOutlineSegments` setting to `alpine_settings.ini`
 - Add `King of the Hill` game type selection for `Gametype_Gate` event
 - Print vote initiation alerts to dedicated server console
 - Add `reject_incompatible_clients` ADS setting
 - Add `r_colorblind` command for configuring colorblind mode rendering filter (Direct3D 11 renderer only)
-- Add `ColorblindMode` setting to `alpine_settings.ini`
 - Add `r_picmip` command to configure texture resolution divisor (Direct3D 11 renderer only)
-- Add `Picmip` setting to `alpine_settings.ini`
 - Identify known server browser clients in server console on join and when `info` command is run
 - Log a warning to console when trying to load a mesh file that doesn't exist
 - Add `-min` command line argument to launch ADS servers with minimal console logging
 - Add `-log` command line argument to log full console output from ADS servers
+- Add `cl_columnsegments` command to set segment count for control point light columns
+- Add `cl_columnheightscale` command to scale height of control point light columns
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
