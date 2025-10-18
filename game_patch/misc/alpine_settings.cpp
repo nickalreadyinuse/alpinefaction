@@ -415,6 +415,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.static_bomb_code = std::stoi(settings["StaticBombCode"]);
         processed_keys.insert("StaticBombCode");
     }
+    if (settings.count("ExposureDamage")) {
+        g_alpine_game_config.apply_exposure_damage = std::stoi(settings["ExposureDamage"]);
+        processed_keys.insert("ExposureDamage");
+    }
 
     // Load multiplayer settings
     if (settings.count("MultiplayerCharacter")) {
@@ -791,6 +795,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableAllCameraShake=" << g_alpine_game_config.screen_shake_force_off << "\n";
     file << "Autosave=" << g_alpine_game_config.autosave << "\n";
     file << "StaticBombCode=" << g_alpine_game_config.static_bomb_code << "\n";
+    file << "ExposureDamage=" << g_alpine_game_config.apply_exposure_damage << "\n";
 
     // Multiplayer
     file << "\n[MultiplayerSettings]\n";

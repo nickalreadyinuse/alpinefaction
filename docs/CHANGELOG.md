@@ -64,6 +64,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `cl_columnheightscale` command to scale height of control point light columns
 - Support `levelm` and `Play (Multi)` in RED launching KOTH maps with KOTH gamemode
 - Set default gamemode settings when starting a listen server
+- Add `sp_exposuredamage` command to control exposure damage when outside without armor
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

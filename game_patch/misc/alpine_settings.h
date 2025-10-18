@@ -127,6 +127,7 @@ struct AlpineGameSettings
     int colorblind_mode = 0; // 0=off,1=protanopia,2=deuteranopia,3=tritanopia
     int suppress_autoswitch_alias = -1;
     bool always_autoswitch_empty = true;
+    bool apply_exposure_damage = true;
 
     int picmip = 1;
     void set_picmip(int value)
