@@ -256,7 +256,6 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
                     std::vector<std::string> prefixes = {
                     "RAMPAGE",
                     "UNSTOPPABLE",
-                    "HOLY SHIT",
                     "KILLING SPREE",
                     "SQUEEGEE TIME",
                     "DOMINATION"
