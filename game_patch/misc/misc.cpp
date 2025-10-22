@@ -58,6 +58,18 @@ bool g_in_mp_game = false;
 bool g_jump_to_multi_server_list = false;
 std::optional<JoinMpGameData> g_join_mp_game_seq_data;
 std::optional<std::string> g_levelm_filename;
+std::optional<rf::NetGameType> g_local_pending_game_type; // used for pending gt received from server. I don't like this being here, todo: refactor
+std::optional<int> g_local_pending_win_condition;
+
+void set_local_pending_game_type(rf::NetGameType game_type, int win_condition) {
+    g_local_pending_game_type = game_type;
+    g_local_pending_win_condition = win_condition;
+}
+
+void reset_local_pending_game_type() {
+    g_local_pending_game_type.reset();
+    g_local_pending_win_condition.reset();
+}
 
 bool tc_mod_is_loaded()
 {
@@ -414,7 +426,37 @@ CodeInjection game_set_file_paths_injection{
 CallHook level_init_pre_console_output_hook{
     0x00435ABB,
     []() {
-        rf::console::print("-- Level Initializing: {} --", rf::level_filename_to_load);
+        // server delayed gametype swap
+        if (rf::is_server) {
+            apply_game_type_for_current_level();
+            rf::netgame.type = get_upcoming_game_type();
+        }
+
+        // local client delayed gametype swap
+        if (!rf::is_server) {
+            if (g_local_pending_game_type.has_value()) {
+                rf::netgame.type = g_local_pending_game_type.value();
+
+                if (g_local_pending_win_condition.has_value() && get_af_server_info_mutable().has_value()) {
+                    auto server_info = get_af_server_info_mutable().value();
+                    switch (rf::netgame.type) {
+                        case rf::NetGameType::NG_TYPE_CTF:
+                            rf::netgame.max_captures = g_local_pending_win_condition.value();
+                            break;
+                        case rf::NetGameType::NG_TYPE_KOTH:
+                            server_info.koth_score_limit = g_local_pending_win_condition.value();
+                            break;
+                        default:
+                            rf::netgame.max_kills = g_local_pending_win_condition.value();
+                            break;
+                    }
+                }
+            }
+
+            reset_local_pending_game_type();
+        }
+
+        rf::console::print("-- Level Initializing: {} ({}) --", rf::level_filename_to_load, get_game_type_string(rf::netgame.type));
         apply_rules_for_current_level();
     },
 };

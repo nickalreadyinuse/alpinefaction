@@ -1,4 +1,5 @@
 #pragma once
+#include "../rf/multi.h"
 
 // Forward declarations
 namespace rf
@@ -10,7 +11,10 @@ namespace rf
 
 void server_init();
 void dedi_cfg_init();
+bool apply_game_type_for_current_level();
 void apply_rules_for_current_level();
+std::string get_game_type_string(rf::NetGameType game_type);
+std::string get_game_type_string_long(rf::NetGameType game_type);
 void server_do_frame();
 bool check_server_chat_command(const char* msg, rf::Player* sender);
 bool server_is_saving_enabled();

@@ -86,6 +86,9 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         case af_packet_type::af_just_died_info:
             af_process_just_died_info_packet(data, static_cast<size_t>(len), addr);
             return true;
+        case af_packet_type::af_server_info:
+            af_process_server_info_packet(data, static_cast<size_t>(len), addr);
+            return true;
         default:
             return false; // ignore if unrecognized
     }
@@ -983,4 +986,200 @@ static void af_process_just_died_info_packet(const void* data, size_t len, const
     //xlog::warn("just_died_info: allowed={}, force={}, delay_ms={}", respawn_allowed, force_respawn, static_cast<int>(spawn_delay));
 
     set_local_spawn_delay(respawn_allowed, force_respawn, static_cast<int>(spawn_delay));
+}
+
+static void build_af_server_info_packet(af_server_info_packet& pkt)
+{
+    pkt = {};
+    pkt.header.type = static_cast<uint8_t>(af_packet_type::af_server_info);
+    pkt.header.size = static_cast<uint16_t>(sizeof(af_server_info_packet) - sizeof(RF_GamePacketHeader));
+
+    // build rf_flags
+    uint32_t rf32 = 0;
+    if (rf::netgame.flags & rf::NetGameFlags::NG_FLAG_WEAPON_STAY)
+        rf32 |= static_cast<uint32_t>(rf_server_info_flags::RFSIF_WEAPON_STAY);
+    if (rf::netgame.flags & rf::NetGameFlags::NG_FLAG_FORCE_RESPAWN)
+        rf32 |= static_cast<uint32_t>(rf_server_info_flags::RFSIF_FORCE_RESPAWN);
+    if (rf::netgame.flags & rf::NetGameFlags::NG_FLAG_TEAM_DAMAGE)
+        rf32 |= static_cast<uint32_t>(rf_server_info_flags::RFSIF_TEAM_DAMAGE);
+    if (rf::netgame.flags & rf::NetGameFlags::NG_FLAG_FALL_DAMAGE)
+        rf32 |= static_cast<uint32_t>(rf_server_info_flags::RFSIF_FALL_DAMAGE);
+    if (rf::netgame.flags & rf::NetGameFlags::NG_FLAG_BALANCE_TEAMS)
+        rf32 |= static_cast<uint32_t>(rf_server_info_flags::RFSIF_BALANCE_TEAMS);
+    pkt.rf_flags = static_cast<uint8_t>(rf32);
+
+    // build af_flags
+    uint32_t af = 0;
+    if (g_alpine_server_config_active_rules.saving_enabled)
+        af |= af_server_info_flags::SIF_POSITION_SAVING;
+    if (g_alpine_server_config.allow_fullbright_meshes)
+        af |= af_server_info_flags::SIF_ALLOW_FULLBRIGHT_MESHES;
+    if (g_alpine_server_config.allow_lightmaps_only)
+        af |= af_server_info_flags::SIF_ALLOW_LIGHTMAPS_ONLY;
+    if (g_alpine_server_config.allow_disable_screenshake)
+        af |= af_server_info_flags::SIF_ALLOW_NO_SCREENSHAKE;
+    if (g_alpine_server_config.alpine_restricted_config.no_player_collide)
+        af |= af_server_info_flags::SIF_NO_PLAYER_COLLIDE;
+    if (g_alpine_server_config.allow_disable_muzzle_flash)
+        af |= af_server_info_flags::SIF_ALLOW_NO_MUZZLE_FLASH_LIGHT;
+    if (g_alpine_server_config.click_limiter_config.enabled)
+        af |= af_server_info_flags::SIF_CLICK_LIMITER;
+    if (g_alpine_server_config.allow_unlimited_fps)
+        af |= af_server_info_flags::SIF_ALLOW_UNLIMITED_FPS;
+    if (g_alpine_server_config.gaussian_spread)
+        af |= af_server_info_flags::SIF_GAUSSIAN_SPREAD;
+    if (g_alpine_server_config.alpine_restricted_config.location_pinging)
+        af |= af_server_info_flags::SIF_LOCATION_PINGING;
+    if (g_alpine_server_config_active_rules.spawn_delay.enabled)
+        af |= af_server_info_flags::SIF_DELAYED_SPAWNS;
+    pkt.af_flags = af;
+
+    // game_type
+    pkt.game_type = static_cast<uint8_t>(get_upcoming_game_type());
+
+    // build win_condition
+    switch (get_upcoming_game_type()) {
+        case rf::NetGameType::NG_TYPE_CTF:
+            pkt.win_condition = static_cast<uint32_t>(rf::netgame.max_captures);
+            break;
+        case rf::NetGameType::NG_TYPE_KOTH:
+            pkt.win_condition = static_cast<uint32_t>(g_alpine_server_config_active_rules.koth_score_limit);
+            break;
+        default:
+            pkt.win_condition = static_cast<uint32_t>(rf::netgame.max_kills);
+            break;
+    }
+
+    // semi_auto_cooldown
+    pkt.semi_auto_cooldown =
+        static_cast<uint16_t>(std::clamp(g_alpine_server_config.click_limiter_config.cooldown, 0, 0xFFFF));
+}
+
+void af_send_server_info_packet(rf::Player* player)
+{
+    // Send: server -> client
+    assert(rf::is_server);
+
+    if (!player || !player->net_data) {
+        xlog::error("af_server_info: Attempted to send to an invalid player");
+        return;
+    }
+
+    af_server_info_packet pkt{};
+    build_af_server_info_packet(pkt);
+
+    std::byte buf[sizeof(pkt)];
+    std::memcpy(buf, &pkt, sizeof(pkt));
+    af_send_packet(player, buf, static_cast<int>(sizeof(pkt)), true);
+}
+
+// todo: on join, level init, relevant svar change, sv_loadconfig
+void af_send_server_info_packet_to_all()
+{
+    // Send: server -> all clients
+    if (!rf::is_server)
+        return;
+
+    af_server_info_packet pkt{};
+    build_af_server_info_packet(pkt);
+
+    std::byte buf[sizeof(pkt)];
+    std::memcpy(buf, &pkt, sizeof(pkt));
+
+    SinglyLinkedList<rf::Player> players{rf::player_list};
+    for (auto& p : players) {
+        if (!&p || !p.net_data)
+            continue;
+        af_send_packet(&p, buf, static_cast<int>(sizeof(pkt)), true);
+    }
+}
+
+static void af_process_server_info_packet(const void* data, size_t len, const rf::NetAddr&)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server || rf::is_dedicated_server)
+        return;
+
+    if (len < sizeof(af_server_info_packet)) {
+        xlog::warn("af_server_info: short packet ({}<{})", len, sizeof(af_server_info_packet));
+        return;
+    }
+
+    af_server_info_packet pkt{};
+    std::memcpy(&pkt, data, sizeof(pkt));
+
+    const size_t expected_payload = sizeof(af_server_info_packet) - sizeof(RF_GamePacketHeader);
+    if (pkt.header.size != expected_payload) {
+        xlog::warn("af_server_info: bad payload size {} (expected {})", pkt.header.size, expected_payload);
+        return;
+    }
+
+    if (!get_af_server_info_mutable().has_value()) {
+        xlog::warn("af_server_info: missing initial server info from join");
+        return; // server info is missing, how did you get this packet?
+    }
+
+    auto server_info = get_af_server_info_mutable().value();
+
+    auto game_type = static_cast<rf::NetGameType>(pkt.game_type);
+
+    if (game_type != rf::netgame.type) {
+        set_local_pending_game_type(game_type, static_cast<int>(pkt.win_condition));
+    }
+    else {
+        switch (game_type) {
+            case rf::NetGameType::NG_TYPE_CTF:
+                rf::netgame.max_captures = static_cast<int>(pkt.win_condition);
+                break;
+            case rf::NetGameType::NG_TYPE_KOTH:
+                server_info.koth_score_limit = static_cast<int>(pkt.win_condition);
+                break;
+            default:
+                rf::netgame.max_kills = static_cast<int>(pkt.win_condition);
+                break;
+        }
+    }
+
+    // rf_flags
+    if (pkt.rf_flags & rf_server_info_flags::RFSIF_WEAPON_STAY)
+        rf::netgame.flags |= rf::NetGameFlags::NG_FLAG_WEAPON_STAY;
+    else
+        rf::netgame.flags &= ~rf::NetGameFlags::NG_FLAG_WEAPON_STAY;
+
+    if (pkt.rf_flags & rf_server_info_flags::RFSIF_FORCE_RESPAWN)
+        rf::netgame.flags |= rf::NetGameFlags::NG_FLAG_FORCE_RESPAWN;
+    else
+        rf::netgame.flags &= ~rf::NetGameFlags::NG_FLAG_FORCE_RESPAWN;
+
+    if (pkt.rf_flags & rf_server_info_flags::RFSIF_TEAM_DAMAGE)
+        rf::netgame.flags |= rf::NetGameFlags::NG_FLAG_TEAM_DAMAGE;
+    else
+        rf::netgame.flags &= ~rf::NetGameFlags::NG_FLAG_TEAM_DAMAGE;
+
+    if (pkt.rf_flags & rf_server_info_flags::RFSIF_FALL_DAMAGE)
+        rf::netgame.flags |= rf::NetGameFlags::NG_FLAG_FALL_DAMAGE;
+    else
+        rf::netgame.flags &= ~rf::NetGameFlags::NG_FLAG_FALL_DAMAGE;
+
+    if (pkt.rf_flags & rf_server_info_flags::RFSIF_BALANCE_TEAMS)
+        rf::netgame.flags |= rf::NetGameFlags::NG_FLAG_BALANCE_TEAMS;
+    else
+        rf::netgame.flags &= ~rf::NetGameFlags::NG_FLAG_BALANCE_TEAMS;
+
+    // af_flags
+    server_info.saving_enabled = (pkt.af_flags & af_server_info_flags::SIF_POSITION_SAVING) != 0;
+    server_info.allow_fb_mesh = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_FULLBRIGHT_MESHES) != 0;
+    server_info.allow_lmap = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_LIGHTMAPS_ONLY) != 0;
+    server_info.allow_no_ss = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_NO_SCREENSHAKE) != 0;
+    server_info.no_player_collide = (pkt.af_flags & af_server_info_flags::SIF_NO_PLAYER_COLLIDE) != 0;
+    server_info.allow_no_mf = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_NO_MUZZLE_FLASH_LIGHT) != 0;
+    server_info.click_limit = (pkt.af_flags & af_server_info_flags::SIF_CLICK_LIMITER) != 0;
+    server_info.unlimited_fps = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_UNLIMITED_FPS) != 0;
+    server_info.gaussian_spread = (pkt.af_flags & af_server_info_flags::SIF_GAUSSIAN_SPREAD) != 0;
+    server_info.location_pinging = (pkt.af_flags & af_server_info_flags::SIF_LOCATION_PINGING) != 0;
+    server_info.delayed_spawns = (pkt.af_flags & af_server_info_flags::SIF_DELAYED_SPAWNS) != 0;
+
+    server_info.semi_auto_cooldown = static_cast<int>(pkt.semi_auto_cooldown);
+
+    //xlog::warn("af_server_info processed - gt {}, cooldown {}", pkt.game_type, server_info.semi_auto_cooldown.value());
 }

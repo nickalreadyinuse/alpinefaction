@@ -29,6 +29,7 @@ enum class af_packet_type : uint8_t
     af_koth_hill_state = 0x57,          // Alpine 1.2
     af_koth_hill_captured = 0x58,       // Alpine 1.2
     af_just_died_info = 0x59,           // Alpine 1.2
+    af_server_info = 0x5A,              // Alpine 1.2
 };
 
 struct af_ping_location_req_packet
@@ -140,6 +141,43 @@ struct af_just_died_info_packet
     uint16_t spawn_delay;
 };
 
+enum af_server_info_flags : uint32_t
+{
+    SIF_NONE = 0x0,
+    SIF_POSITION_SAVING = 0x1,
+    SIF_UNUSED = 0x2,
+    SIF_ALLOW_FULLBRIGHT_MESHES = 0x4,
+    SIF_ALLOW_LIGHTMAPS_ONLY = 0x8,
+    SIF_ALLOW_NO_SCREENSHAKE = 0x10,
+    SIF_NO_PLAYER_COLLIDE = 0x20,
+    SIF_ALLOW_NO_MUZZLE_FLASH_LIGHT = 0x40,
+    SIF_CLICK_LIMITER = 0x80,
+    SIF_ALLOW_UNLIMITED_FPS = 0x100,
+    SIF_GAUSSIAN_SPREAD = 0x200,
+    SIF_LOCATION_PINGING = 0x400,
+    SIF_DELAYED_SPAWNS = 0x800,
+};
+
+enum rf_server_info_flags : uint8_t // subset of rf::NetGameFlags
+{
+    RFSIF_NONE = 0x0,
+    RFSIF_WEAPON_STAY = 0x1,
+    RFSIF_FORCE_RESPAWN = 0x2,
+    RFSIF_TEAM_DAMAGE = 0x4,
+    RFSIF_FALL_DAMAGE = 0x8,
+    RFSIF_BALANCE_TEAMS = 0x10,
+};
+
+struct af_server_info_packet
+{
+    RF_GamePacketHeader header;
+    uint8_t rf_flags = 0;  // subset of rf::NetGameFlags
+    uint8_t game_type = 0; // rf::NetGameType
+    uint32_t af_flags = 0;
+    uint32_t win_condition = 0; // gametype-dependent
+    uint16_t semi_auto_cooldown = 0;
+};
+
 #pragma pack(pop)
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
@@ -164,6 +202,9 @@ void af_send_koth_hill_captured_packet_to_all(uint8_t hill_uid, HillOwner owner,
 static void af_process_koth_hill_captured_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_just_died_info_packet(rf::Player* to_player, bool respawn_allowed, bool force_respawn, uint16_t spawn_delay);
 static void af_process_just_died_info_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_server_info_packet(rf::Player* player);
+void af_send_server_info_packet_to_all();
+static void af_process_server_info_packet(const void* data, size_t len, const rf::NetAddr&);
 
 // client requests
 void af_send_handicap_request(uint8_t amount);

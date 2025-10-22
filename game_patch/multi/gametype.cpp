@@ -848,6 +848,9 @@ static int koth_build_hills_from_capture_point_events()
 {
     g_koth_info.hills.clear();
 
+    if (!gt_is_koth()) // no need to search for events in other gametypes
+        return int(g_koth_info.hills.size());
+
     auto events = find_all_events_by_type(rf::EventType::Capture_Point_Handler);
     std::unordered_set<int> seen_uids;
 
@@ -910,20 +913,32 @@ void koth_level_init()
     clear_koth_name_textures(); // clear hill labels
     g_local_cap_gain_sfx_handle = -1;
     g_local_cap_gain_sfx_playing = false;
+    multi_koth_reset_scores();
+    g_koth_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
+}
 
-    if (!rf::is_multi || !gt_is_koth())
+void koth_level_init_post()
+{
+    if (!rf::is_multi)
         return;
 
-    //xlog::warn("initializing koth");
+    const int n = koth_build_hills_from_capture_point_events(); // need events to be loaded before building hills
 
-    multi_koth_reset_scores();
-
-    const int n = koth_build_hills_from_capture_point_events();
-
-    g_koth_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
-
-    //xlog::warn("KOTH: {} capture points found in this map", n);
+    //xlog::warn("KOTH: {} capture points found in this map, gt {}", n, static_cast<int>(rf::netgame.type));
 }
+
+void multi_level_init_post_gametypes()
+{
+    koth_level_init_post();
+}
+
+// pre level being loaded
+CodeInjection multi_level_init_gametypes_injection{
+    0x0046E466,
+    [](auto& regs) {
+        koth_level_init();
+    },
+};
 
 // sync scores every 5ms during gameplay to account for clientside prediction errors
 CodeInjection send_team_score_server_do_frame_patch{
@@ -1071,4 +1086,7 @@ void gametype_do_patch()
 
     // colour target player names in new team gametypes
     multi_hud_render_target_name_color_patch.install();
+
+    // initialize new gametype level settings
+    multi_level_init_gametypes_injection.install();
 }

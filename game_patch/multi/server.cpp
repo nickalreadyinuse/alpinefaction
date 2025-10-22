@@ -78,9 +78,35 @@ int current_center_item_priority = possible_central_item_names.size();
 
 AlpineServerConfig g_alpine_server_config;
 AlpineServerConfigRules g_alpine_server_config_active_rules; // currently active rules which are applied
+bool g_manually_loaded_level = false; // used to decide whether to use level-specific rules or base rules
 AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
+rf::NetGameType upcoming_game_type;
+
+const rf::NetGameType get_upcoming_game_type()
+{
+    return upcoming_game_type;
+}
+
+bool set_upcoming_game_type(rf::NetGameType gt)
+{
+    upcoming_game_type = gt;
+
+    return upcoming_game_type != rf::netgame.type;
+}
+
+const bool was_level_loaded_manually()
+{
+    return g_manually_loaded_level;
+}
+
+void set_manually_loaded_level(bool is_true)
+{
+    g_manually_loaded_level = is_true;
+    //xlog::warn("setting loaded manually - {}", g_manually_loaded_level);
+    return;
+}
 
 // Weapon stay exemption part 1: remove item when it is picked up and start respawn timer
 CodeInjection weapon_stay_remove_instance_injection{
@@ -283,6 +309,8 @@ FunHook<void ()> dcf_info_hook{
 
             auto time_line = std::format("{}:  {} {}, {}h {}m {}s\n", rf::strings::level_time, days, rf::strings::days, hours, minutes, seconds);
             rf::console::print("{}", time_line);
+
+            rf::console::print("{}: {}\n", "Game type", get_game_type_string_long(rf::netgame.type));
         }
         else {
             rf::console::print("No level loaded\n");
@@ -530,6 +558,21 @@ static void notify_for_upcoming_level_version_incompatible(rf::Player* player)
     rf::console::printf(server_msg.c_str());
 }
 
+static void notify_for_client_incompatible_with_switching_game_type(rf::Player* player)
+{
+    std::string client_msg1 = "================== IMPORTANT ==================";
+    std::string client_msg2 = "\xA6 Your client does not support changing game type.";
+    std::string client_msg3 = "\xA6 You will be kicked, but can rejoin after the level changes.";
+    std::string client_msg4 = "\xA6 To avoid this in the future, upgrade at www.alpinefaction.com";
+    send_chat_line_packet(client_msg1.c_str(), player);
+    send_chat_line_packet(client_msg2.c_str(), player);
+    send_chat_line_packet(client_msg3.c_str(), player);
+    send_chat_line_packet(client_msg4.c_str(), player);
+
+    auto server_msg = std::format("{} doesn't support changing game type. They can rejoin after the level changes.", player->name);
+    rf::console::printf(server_msg.c_str());
+}
+
 CodeInjection multi_limbo_leave_pre_patch{
     0x0047C497,
     [](auto& regs) {
@@ -545,6 +588,13 @@ CodeInjection multi_limbo_leave_pre_patch{
                 auto& pad = get_player_additional_data(&p);
                 if (static_cast<int>(pad.max_rfl_version) < ver && pad.client_version != ClientVersion::browser) {
                     auto server_msg = std::format("{} was kicked because they cannot load the upcoming level.", p.name);
+                    rf::console::printf(server_msg.c_str());
+
+                    // queue for kick
+                    to_kick.push_back(&p);
+                }
+                else if (!(pad.client_version == ClientVersion::alpine_faction && pad.client_version_minor >= 2) && pad.client_version != ClientVersion::browser) {
+                    auto server_msg = std::format("{} was kicked because their client does not support changing game type.", p.name);
                     rf::console::printf(server_msg.c_str());
 
                     // queue for kick
@@ -616,12 +666,51 @@ static void queue_level_switch_preferring_rotation(std::string_view level_name)
     if (found) {
         rf::netgame.current_level_index = idx;
         rf::level_filename_to_load = rf::netgame.levels[idx];
+        set_manually_loaded_level(false);
     }
     else {
         // Not in rotation
         rf::level_filename_to_load = normalize_level_name(level_name).c_str();
+        set_manually_loaded_level(true);
     }
 }
+
+bool multi_change_game_type(rf::NetGameType game_type) {
+    bool game_type_changed = false;
+
+    if (game_type != get_upcoming_game_type())
+        game_type_changed = set_upcoming_game_type(game_type);
+
+    return game_type_changed;
+}
+
+ConsoleCommand2 sv_game_type_cmd{
+    "sv_gametype",
+    [](std::optional<std::string> new_game_type) {
+        if (g_dedicated_launched_from_ads && rf::is_dedicated_server) {
+            if (rf::gameseq_get_state() != rf::GameState::GS_GAMEPLAY) {
+                rf::console::print("You cannot change the game type while between levels.\n");
+                return;
+            }
+
+            if (new_game_type.has_value()) {
+                rf::NetGameType parsed_game_type = parse_game_type(new_game_type.value());
+                bool changed_game_type = multi_change_game_type(parsed_game_type);
+
+                if (changed_game_type)
+                    restart_current_level();
+            }
+            else {
+                rf::console::print("Current game type: {}\n", get_game_type_string_long(rf::netgame.type));
+            }
+        }
+        else {
+            rf::console::print("This command is only available for Alpine Faction dedicated servers launched with the -ads switch.\n");
+        }
+    },
+    "Override the configured gametype. Will restart the current level on the specified gametype. Only available for ADS dedicated servers.",
+    "sv_gametype <dm|tdm|ctf|koth>",
+};
 
 void multi_change_level_alpine(const char* filename) {
     const bool have_name = (filename && filename[0] != '\0');
@@ -631,6 +720,7 @@ void multi_change_level_alpine(const char* filename) {
         rf::multi_change_level(rf::level_filename_to_load.c_str());
     }
     else {
+        set_manually_loaded_level(false);
         rf::multi_change_level(nullptr);
     }
 }
@@ -1648,10 +1738,10 @@ CodeInjection multi_level_init_injection{
     0x0046E450,
     [](auto& regs) {
         if (g_alpine_server_config.dynamic_rotation && rf::netgame.current_level_index ==
-                    rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
+            rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
                 // if this is the last level in the list and dynamic rotation is on, shuffle
                 shuffle_level_array();
-            }    
+        }
     },
 };
 
@@ -1783,6 +1873,7 @@ FunHook<void()> multi_check_for_round_end_hook{
                 send_chat_line_packet(msg.c_str(), nullptr);
             }
             else {
+                set_manually_loaded_level(false);
                 rf::multi_change_level(nullptr);
             }
         }
@@ -2411,6 +2502,9 @@ void server_init()
     get_ads_cmd_line_param();
     get_min_cmd_line_param();
     get_log_cmd_line_param();
+
+    // console commands
+    sv_game_type_cmd.register_cmd();
 }
 
 void server_do_frame()
@@ -2430,6 +2524,9 @@ void server_on_limbo_state_enter()
 
     const int ver = get_level_file_version(rf::level_filename_to_load);
 
+    apply_game_type_for_current_level();
+    af_send_server_info_packet_to_all();
+
     // Clear save data for all players
     for (auto& player : player_list) {
         update_player_active_status(&player);
@@ -2440,9 +2537,20 @@ void server_on_limbo_state_enter()
         if (g_alpine_server_config.stats_message_enabled) {
             send_private_message_with_stats(&player);
         }
+
         if (&player != rf::local_player && ver > pdata.max_rfl_version && pdata.client_version != ClientVersion::browser) {
             notify_for_upcoming_level_version_incompatible(&player);
         }
+        else if (&player != rf::local_player && !(pdata.client_version == ClientVersion::alpine_faction && pdata.client_version_minor >= 2)) {
+            // only notify them if they CAN load the map, otherwise they can't play anyway so no point
+            notify_for_client_incompatible_with_switching_game_type(&player);
+        }
+    }
+
+    if (get_upcoming_game_type() != rf::netgame.type) {
+        std::string gt_swap_notif = std::format("\xA6 Game type will switch to {} for the next level.",
+            get_game_type_string(get_upcoming_game_type()));
+        send_chat_line_packet(gt_swap_notif.c_str(), nullptr);
     }
 }
 

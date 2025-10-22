@@ -509,6 +509,7 @@ struct ClickLimiterConfig
 struct AlpineServerConfigRules
 {
     // stock game rules
+    rf::NetGameType game_type = rf::NetGameType::NG_TYPE_DM;
     float time_limit = 600.0f;
     int individual_kill_limit = 30;
     int team_kill_limit = 100;
@@ -616,7 +617,6 @@ struct AlpineServerConfigLevelEntry
 struct AlpineServerConfig
 {
     std::string server_name = "Alpine Faction Server";
-    rf::NetGameType game_type = rf::NetGameType::NG_TYPE_DM;
     int max_players = 8;
     std::string password = "";
     std::string rcon_password = "";
@@ -704,11 +704,14 @@ struct MatchInfo
 extern AlpineServerConfig g_alpine_server_config;
 extern AlpineServerConfigRules g_alpine_server_config_active_rules;
 extern bool g_dedicated_launched_from_ads;
+extern bool g_manually_loaded_level;
 extern std::string g_ads_config_name;
 extern AFGameInfoFlags g_game_info_server_flags;
 extern std::string g_prev_level;
 extern MatchInfo g_match_info;
 
+const rf::NetGameType get_upcoming_game_type();
+bool set_upcoming_game_type(rf::NetGameType gt);
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);
 void handle_player_set_handicap(rf::Player* player, uint8_t amount);
@@ -746,6 +749,7 @@ void handle_min_param();
 void handle_log_param();
 const AFGameInfoFlags& server_get_game_info_flags();
 void initialize_game_info_server_flags();
+rf::NetGameType parse_game_type(const std::string& s);
 void load_ads_server_config();
 void launch_alpine_dedicated_server();
 void load_additional_server_config(rf::Parser& parser);

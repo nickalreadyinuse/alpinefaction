@@ -140,7 +140,7 @@ HillInfo* koth_find_hill_by_uid(uint8_t uid);
 rf::Trigger* koth_resolve_trigger_from_uid(int uid);
 void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, const uint8_t* ids, size_t ids_len);
 void koth_local_announce_hill_captured_vector(const HillInfo* h, HillOwner new_owner, const std::vector<uint8_t>& ids);
-void koth_level_init();
+void multi_level_init_post_gametypes();
 void koth_do_frame();
 void gametype_do_patch();
 void populate_gametype_table();

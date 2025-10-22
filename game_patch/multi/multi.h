@@ -95,6 +95,7 @@ struct AlpineFactionServerInfo
     bool gaussian_spread = false;
     bool location_pinging = false;
     bool delayed_spawns = false;
+    int koth_score_limit = 0;
 };
 
 enum ClientVersion
@@ -114,6 +115,10 @@ enum class AlpineRestrictVerdict : uint8_t
     need_update = 3
 };
 
+void set_local_pending_game_type(rf::NetGameType game_type, int win_condition);
+void reset_local_pending_game_type();
+const bool was_level_loaded_manually();
+void set_manually_loaded_level(bool is_true);
 bool version_is_older(int aMaj, int aMin, int bMaj, int bMin);
 void multi_level_download_update();
 void multi_do_patch();
@@ -121,6 +126,7 @@ void multi_after_full_game_init();
 void multi_init_player(rf::Player* player);
 void send_chat_line_packet(const char* msg, rf::Player* target, rf::Player* sender = nullptr, bool is_team_msg = false);
 const std::optional<AlpineFactionServerInfo>& get_df_server_info();
+std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable();
 void multi_level_download_do_frame();
 void multi_level_download_abort();
 void multi_ban_apply_patch();

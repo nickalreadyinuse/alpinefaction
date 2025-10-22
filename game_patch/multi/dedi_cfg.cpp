@@ -53,7 +53,6 @@ bool g_ads_full_console_log = false;        // log full console output to file
 int g_ads_loaded_version = ADS_VERSION;
 
 bool loadouts_in_use = false;
-rf::NetGameType upcoming_game_type = rf::NetGameType::NG_TYPE_DM; // set during toml read, used to load gametype default settings
 
 rf::CmdLineParam& get_ads_cmd_line_param()
 {
@@ -109,8 +108,8 @@ void evaluate_mandatory_alpine_restrict() {
     }
 
     // KOTH requires min server version and rejecting non-alpine clients
-    if (cfg.game_type == rf::NetGameType::NG_TYPE_KOTH) { // added in 1.2.0
-        rf::console::print("Gametype is KOTH, so these settings have been turned on:\n");
+    if (cfg.base_rules.game_type == rf::NetGameType::NG_TYPE_KOTH) { // added in 1.2.0
+        rf::console::print("Gametype is KOTH, so these settings have been turned on:\n"); // todo: if KOTH is specified anywhere, turn on
 
         rf::console::print("  Clients require Alpine\n");
         require_min_version = true;
@@ -137,13 +136,14 @@ void evaluate_mandatory_alpine_restrict() {
     }
 }
 
-static rf::NetGameType parse_game_type(const std::string& s)
+rf::NetGameType parse_game_type(const std::string& s)
 {
-    if (s == "TDM" || s == "TeamDM")
+    auto s_lower = string_to_lower(s);
+    if (s_lower == "tdm" || s_lower == "teamdm" || s_lower == "2")
         return rf::NetGameType::NG_TYPE_TEAMDM;
-    if (s == "CTF")
+    if (s_lower == "ctf" || s_lower == "1")
         return rf::NetGameType::NG_TYPE_CTF;
-    if (s == "KOTH")
+    if (s_lower == "koth" || s_lower == "3")
         return rf::NetGameType::NG_TYPE_KOTH;
     return rf::NetGameType::NG_TYPE_DM;
 }
@@ -364,6 +364,11 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 {
     AlpineServerConfigRules o = base_rules;
 
+    if (auto v = t["game_type"].value<std::string>()) {
+        auto gt = parse_game_type(*v);
+        o.game_type = gt;
+        xlog::warn("set gt in cfg");
+    }
     if (auto v = t["time_limit"].value<float>())
         o.set_time_limit(*v);
     if (auto v = t["individual_kill_limit"].value<int>())
@@ -416,7 +421,7 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
 
     // if KOTH, default spawn delay to on before parsing config
-    if (upcoming_game_type == rf::NetGameType::NG_TYPE_KOTH)
+    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH)
         o.spawn_delay.enabled = true;
 
     if (auto sub = t["spawn_delay"].as_table())
@@ -427,7 +432,7 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
 
     // if KOTH, give an AR and remote charges by default
-    if (upcoming_game_type == rf::NetGameType::NG_TYPE_KOTH) {
+    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH) {
         o.spawn_loadout.add("Remote Charge", 3, false, true);
         o.default_player_weapon.set_weapon("Assault Rifle");
 
@@ -637,13 +642,6 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
     else if (key == "server_name") {
         if (auto v = node.value<std::string>())
             cfg.server_name = *v;
-    }
-    else if (key == "game_type") {
-        if (auto v = node.value<std::string>()) {
-            auto gt = parse_game_type(*v);
-            cfg.game_type = gt;
-            upcoming_game_type = gt;
-        }
     }
     else if (key == "max_players") {
         if (auto v = node.value<int>())
@@ -956,6 +954,25 @@ std::string get_game_type_string(rf::NetGameType game_type) {
     return out_string;
 }
 
+std::string get_game_type_string_long(rf::NetGameType game_type) {
+    std::string out_string;
+    switch (game_type) {
+        case rf::NetGameType::NG_TYPE_TEAMDM:
+            out_string = "Team Deathmatch";
+            break;
+         case rf::NetGameType::NG_TYPE_CTF:
+            out_string = "Capture the Flag";
+            break;
+         case rf::NetGameType::NG_TYPE_KOTH:
+             out_string = "King of the Hill";
+             break;
+         default:
+             out_string = "Deathmatch";
+             break;
+    }
+    return out_string;
+}
+
 void print_gungame(const GunGameConfig& cur, const GunGameConfig& base_cfg, bool base = true)
 {
     // helper functions
@@ -1048,6 +1065,10 @@ void print_gungame(const GunGameConfig& cur, const GunGameConfig& base_cfg, bool
 void print_rules(const AlpineServerConfigRules& rules, bool base = true)
 {
     const auto& b = g_alpine_server_config.base_rules;
+
+    // game type
+    if (base || rules.game_type != b.game_type)
+        rf::console::print("  Game type:                             {}\n", get_game_type_string(rules.game_type));
 
     // time limit
     if (base || rules.time_limit != b.time_limit)
@@ -1366,7 +1387,6 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     rf::console::print("  Password:                              {}\n", netgame.password);
     rf::console::print("  Rcon password:                         {}\n", rf::rcon_password);
     rf::console::print("  Max players:                           {}\n", netgame.max_players);
-    rf::console::print("  Game type:                             {}\n", get_game_type_string(netgame.type));
     rf::console::print("  Levels in rotation:                    {}\n", cfg.levels.size());
     rf::console::print("  Dynamic rotation:                      {}\n", cfg.dynamic_rotation);
 
@@ -1476,15 +1496,6 @@ void initialize_core_alpine_dedicated_server_settings(rf::NetGameInfo& netgame, 
     std::strncpy(rf::rcon_password, cfg.rcon_password.c_str(), sizeof(rf::rcon_password) - 1);
     rf::rcon_password[sizeof(rf::rcon_password) - 1] = '\0'; // null terminator
     
-    if (on_launch) {
-        netgame.type = cfg.game_type;
-    }
-    else {
-        if (netgame.type != cfg.game_type) {
-            rf::console::print("----> You must relaunch the server to change the gametype.\n");
-        }
-    }
-    
     netgame.max_players = cfg.max_players;
 
     // other core settings are referenced directly in the structure and do not need to be initialized here
@@ -1555,12 +1566,62 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
     print_alpine_dedicated_server_config_info(!g_ads_minimal_server_info);
 }
 
+bool apply_game_type_for_current_level() {
+    auto &netgame = rf::netgame;
+    auto &cfg     = g_alpine_server_config;
+    const int idx = netgame.current_level_index;
+    const auto upcoming = get_upcoming_game_type();
+    const bool has_already_queued_change = upcoming != netgame.type;
+    const bool manual_load = was_level_loaded_manually();
+    rf::NetGameType desired = rf::NetGameType::NG_TYPE_DM;
+
+    if (manual_load) {
+        desired = has_already_queued_change ? upcoming : cfg.base_rules.game_type;
+
+        if (!g_ads_minimal_server_info && !has_already_queued_change && desired != upcoming) {
+            rf::console::print("Applying base game type {} for manually loaded level {}...\n",
+                get_game_type_string(desired),
+                rf::level_filename_to_load);
+        }
+    }
+    else { // in rotation
+        const bool idx_valid = (idx >= 0 && idx < static_cast<int>(cfg.levels.size()));
+        const AlpineServerConfigRules& rules = (!has_already_queued_change && idx_valid)
+            ? cfg.levels[idx].rule_overrides
+            : cfg.base_rules;
+
+        desired = has_already_queued_change ? upcoming : rules.game_type;
+
+        if (!g_ads_minimal_server_info && !has_already_queued_change && desired != upcoming) {
+            std::string_view level_name = idx_valid ? std::string_view(cfg.levels[idx].level_filename) : std::string_view("UNKNOWN");
+            rf::console::print("Applying game type {} for server rotation index {} ({})...\n",
+                get_game_type_string(desired),
+                idx, level_name);
+        }
+    }
+
+    bool changed_this_call = false;
+    if (!has_already_queued_change) {
+        changed_this_call = set_upcoming_game_type(desired);
+    }
+    //else
+    //    xlog::warn("apply_game_type_for_current_level: Skipping set, upcoming GT already queued to {}", get_game_type_string(upcoming));
+
+
+    /*xlog::warn("apply_game_type_for_current_level: desired={}, upcoming={}, current={}, changed={}, alreadyQueued={}",
+                get_game_type_string(desired),
+                get_game_type_string(upcoming),
+                get_game_type_string(netgame.type),
+                changed_this_call,
+                has_already_queued_change);*/
+
+    return changed_this_call;
+}
+
 void apply_rules_for_current_level()
 {
     auto &netgame = rf::netgame;
     auto &cfg     = g_alpine_server_config;
-
-    //g_alpine_server_config_active_rules = level
 
     // prevent a crash
     if (cfg.levels.size() < 1) {
@@ -1568,27 +1629,25 @@ void apply_rules_for_current_level()
     }
 
     int idx = netgame.current_level_index;
-
-    if (!g_ads_minimal_server_info && rf::level_filename_to_load != netgame.levels[idx].c_str()) {
+    // level manually loaded
+    if (was_level_loaded_manually()) {
         g_alpine_server_config_active_rules = cfg.base_rules;
-        rf::console::print("Applying base rules for manually loaded level {}...\n", rf::level_filename_to_load, cfg.levels[idx].level_filename.c_str());
-        return;
+        if (!g_ads_minimal_server_info)
+            rf::console::print("Applying base rules for manually loaded level {}...\n", rf::level_filename_to_load, cfg.levels[idx].level_filename.c_str());
+    }
+    else { // level is in rotation
+        AlpineServerConfigRules const &override_rules =
+            (idx >= 0 && idx < (int)cfg.levels.size())
+              ? cfg.levels[idx].rule_overrides
+              : cfg.base_rules;
+
+        g_alpine_server_config_active_rules = override_rules;
+
+        if (!g_ads_minimal_server_info)
+            rf::console::print("Applying level-specific rules for server rotation index {} ({})...\n", idx, cfg.levels[idx].level_filename);
     }
 
-    AlpineServerConfigRules const &override_rules =
-        (idx >= 0 && idx < (int)cfg.levels.size())
-          ? cfg.levels[idx].rule_overrides
-          : cfg.base_rules;
-
-    if (!g_ads_minimal_server_info)
-        rf::console::print("Applying level-specific rules for server rotation index {} ({})...\n", idx, cfg.levels[idx].level_filename);
-
-    g_alpine_server_config_active_rules = override_rules;
-
-    apply_alpine_dedicated_server_rules(
-        netgame,
-        override_rules
-    );
+    apply_alpine_dedicated_server_rules(netgame, g_alpine_server_config_active_rules);
 }
 
 void init_alpine_dedicated_server() {
@@ -1652,7 +1711,7 @@ ConsoleCommand2 print_level_rules_cmd{
     "sv_printrules",
     [](std::optional<std::string> maybe_filename) {
         if (!g_dedicated_launched_from_ads) {
-            rf::console::print("This command is only available for Alpine Faction dedicated servers launched with -ads.\n");
+            rf::console::print("This command is only available for Alpine Faction dedicated servers launched with the -ads switch.\n");
             return;
         }
 
@@ -1701,16 +1760,21 @@ ConsoleCommand2 print_level_rules_cmd{
     "Print the rules for a level by filename, or the active rules for the current level if no filename specified"
 };
 
-
 ConsoleCommand2 load_server_config_cmd{
     "sv_loadconfig",
     [](std::optional<std::string> new_config) {
         if (g_dedicated_launched_from_ads) {
-            load_and_print_alpine_dedicated_server_config(new_config.value_or(g_ads_config_name), false);
-            apply_rules_for_current_level();
-            if (g_ads_minimal_server_info) {
-                //rf::console::print("Minimal info displayed because -min switch was used at launch. Enter sv_printconfig to print verbose server config.\n");
+            if (rf::gameseq_get_state() != rf::GameState::GS_GAMEPLAY) {
+                rf::console::print("You cannot load server config while between levels.\n");
+                return;
             }
+
+            load_and_print_alpine_dedicated_server_config(new_config.value_or(g_ads_config_name), false);
+            bool changed_game_type = apply_game_type_for_current_level();
+            apply_rules_for_current_level();
+            af_send_server_info_packet_to_all();
+            if (changed_game_type)
+                restart_current_level();
         }
         else {
             rf::console::print("This command is only available for Alpine Faction dedicated servers launched with the -ads switch.\n");

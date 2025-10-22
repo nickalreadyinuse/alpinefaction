@@ -190,7 +190,7 @@ FunHook<void(bool)> level_init_post_hook{
         process_queued_spawn_points_from_items();
         populate_world_hud_sprite_events();
         reset_achievement_state_info();
-        koth_level_init();
+        multi_level_init_post_gametypes();
 
         if (!rf::is_dedicated_server) {
             evaluate_fullbright_meshes();

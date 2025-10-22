@@ -8,6 +8,7 @@ Version 1.2.0 (Willow): Not yet released
 - Implement TOML-based `ADS` configuration for dedicated servers
     - Per-level rules configuration for server hosts
     - On-demand loading of changed settings without server needing restart
+    - Support changing server game type on-demand or per-level
 - Add `King of the Hill` (KOTH) multiplayer game type
 - Add colorblind mode rendering filter (Direct3D 11 renderer only)
 - Add client-configurable settings to control application of weapon auto switch
@@ -65,6 +66,12 @@ Version 1.2.0 (Willow): Not yet released
 - Support `levelm` and `Play (Multi)` in RED launching KOTH maps with KOTH gamemode
 - Set default gamemode settings when starting a listen server
 - Add `sp_exposuredamage` command to control exposure damage when outside without armor
+- Add `sv_gametype` command to override server configured game type
+- Update `info` command output to include current game type
+- Add game type to `Level initializing` console message on level load
+- Communicate changed server settings to supported clients
+- Support game type switching on client without having to rejoin
+- Kick legacy clients on game type switch and notify them they can rejoin
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

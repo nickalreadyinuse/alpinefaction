@@ -742,10 +742,17 @@ CallHook<float(int, float, int, int, int, rf::PCollisionOut*, int, bool)> obj_ap
     }
 };
 
+CallHook<void(const char* filename)> level_cmd_multi_change_level_hook{
+    0x00435108,
+    [](const char* filename) {
+        if (rf::is_multi)
+            set_manually_loaded_level(true); // "level" console command
+        level_cmd_multi_change_level_hook.call_target(filename);
+    }
+};
+
 void multi_do_patch()
 {
-    
-
     //entity_set_nano_flag_hook.install();
     //entity_remove_nano_flag_hook.install();
     //multi_powerup_add_nano_patch.install();
@@ -785,6 +792,9 @@ void multi_do_patch()
 
     // Fix lava damage sometimes being attributed to a player
     obj_apply_damage_lava_hook.install();
+
+    // Flag manually loaded levels from "level" command
+    level_cmd_multi_change_level_hook.install();
 
     // Init cmd line param
     get_url_cmd_line_param();

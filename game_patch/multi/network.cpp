@@ -207,6 +207,7 @@ enum packet_type : uint8_t {
     af_koth_hill_state     = 0x57,
     af_koth_hill_captured  = 0x58,
     af_just_died_info      = 0x59,
+    af_server_info         = 0x5A,
 };
 
 // client -> server
@@ -286,7 +287,8 @@ std::array g_client_side_packet_whitelist{
     af_just_spawned_info,
     af_koth_hill_state,
     af_koth_hill_captured,
-    af_just_died_info
+    af_just_died_info,
+    af_server_info
 };
 // clang-format on
 
@@ -1052,7 +1054,7 @@ static bool parse_af_tail_v3(const uint8_t* payload, size_t payload_len, const A
     const uint16_t total_len = footer->total_len;
     if (total_len < sizeof(AFJoinReq_v2))
         return false;
-    if (total_len > payload_len - sizeof(AFFooter))
+    if (total_len > payload_len - sizeof(AFFooter)) // may be a mistake
         return false;
 
     const uint8_t* af_start = end - sizeof(AFFooter) - total_len;
@@ -1659,6 +1661,7 @@ FunHook<void()> multi_stop_hook{
     []() {
         g_af_server_info.reset(); // Clear server info when leaving
         set_local_pre_match_active(false); // clear pre-match state when leaving
+        reset_local_pending_game_type(); // clear pending game type when leaving
         multi_stop_hook.call_target();
         if (rf::local_player) {
             reset_player_additional_data(rf::local_player); // clear player additional data when leaving
@@ -1667,6 +1670,11 @@ FunHook<void()> multi_stop_hook{
 };
 
 const std::optional<AlpineFactionServerInfo>& get_df_server_info()
+{
+    return g_af_server_info;
+}
+
+std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable()
 {
     return g_af_server_info;
 }
