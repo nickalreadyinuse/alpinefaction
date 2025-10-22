@@ -327,7 +327,7 @@ ConsoleCommand2 server_rcon_password_cmd{
         }
     },
     "Set or remove the server rcon password.",
-    "server_rcon_password <password>",
+    "sv_rconpass <password>",
 };
 
 // only allow verify_level if a level is loaded (avoid a crash if command is run in menu)
@@ -458,15 +458,12 @@ void console_commands_apply_patches()
     // Allow 'level' command outside of multiplayer game
     AsmWriter(0x00434FEC, 0x00434FF2).nop();
 
-    // restrict risky commands in mp unless debug build
-#ifdef NDEBUG
     drop_clutter_hook.install();
     drop_entity_hook.install();
     drop_item_hook.install();
     //pcollide_hook.install();
     teleport_hook.install();
     level_hardness_hook.install();
-#endif
 }
 
 void console_commands_init()
