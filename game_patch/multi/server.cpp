@@ -247,6 +247,12 @@ void print_player_info(rf::Player* player, bool new_join) {
         return;
     }
 
+    // clients have only limited info
+    if (!rf::is_server && !rf::is_dedicated_server) {
+        rf::console::print("- {} | Ping: {}", player->name, player->net_data->ping);
+        return;
+    }
+
     auto& pdata = get_player_additional_data(player);
 
     std::string client_info;
@@ -270,8 +276,8 @@ void print_player_info(rf::Player* player, bool new_join) {
     auto player_addr = player->net_data->addr;
     addr.S_un.S_addr = ntohl(player_addr.ip_addr);
     if (new_join) {
-            rf::console::print("===| {}{} | IP: {}:{} | {} | Max RFL: {} |===",
-                player->name, rf::strings::has_joined, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version);
+        rf::console::print("===| {}{} | IP: {}:{} | {} | Max RFL: {} |===",
+            player->name, rf::strings::has_joined, inet_ntoa(addr), player->net_data->addr.port, client_info, pdata.max_rfl_version);
     }
     else {
         rf::console::print("- {} | IP: {}:{} | {} | Max RFL: {} | Ping: {} | HC: {}%",
