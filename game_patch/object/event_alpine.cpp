@@ -652,9 +652,9 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             auto* event = dynamic_cast<rf::EventCapturePointHandler*>(base_event);
             if (event) {
                 event->name = params.str1;
-                event->trigger_uid = params.int1;
                 event->outline_offset = params.float1;
                 event->sphere_to_cylinder = params.bool1;
+                event->position = params.int1;
                 event->initial_owner = params.int2;
             }
             return event;

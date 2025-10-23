@@ -29,6 +29,15 @@ enum class HillState : int
     HS_LeanBlueShrinking = 4,
 };
 
+enum class HillRole : int
+{
+    HR_Center = 0,
+    HR_RedBase = 1,
+    HR_BlueBase = 2,
+    HR_RedForward = 3,
+    HR_BlueForward = 4,
+};
+
 struct Presence
 {
     int red = 0;
@@ -84,19 +93,19 @@ struct HillInfo
     int vis_last_flip_ms = 0;
 };
 
-struct KothRules
+struct CPGTRules // capture point game types
 {
     int grow_rate = 20;           // attackers alone, toward flip/capture
     int drain_empty_rate = 10;    // no one on point, progress bleeds toward 0
     int drain_defended_rate = 50; // owner present, attackers absent -> drain faster
     int ms_per_point = 1000;      // scoring tick while owned and not pressured
     bool cyl_use_trigger_up = false; // if sphere is treated as a cylinder, true = use trigger dir to build cylinder, false = use world up
-    bool require_neutral_to_capture = true; // if true, attackers must neutralize before flipping ownership
+    bool require_neutral_to_capture = false; // if true, attackers must neutralize before flipping ownership
 };
 
 struct KothInfo
 {
-    KothRules rules;
+    CPGTRules rules;
     int red_team_score = 0;
     int blue_team_score = 0;
     std::vector<HillInfo> hills;

@@ -583,19 +583,22 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         }
     }},
     {AlpineDedEventID::Capture_Point_Handler, {
-        {FIELD_INT1, FIELD_STR1, FIELD_FLOAT1, FIELD_INT2, FIELD_BOOL1},
+        {FIELD_STR1, FIELD_FLOAT1, FIELD_INT1, FIELD_INT2, FIELD_BOOL1},
         {
-            {FIELD_INT1, "Trigger UID:"},
             {FIELD_STR1, "Name (str1):"},
             {FIELD_FLOAT1, "Outline offset (float1):"},
-            {FIELD_INT2, "Initial owner (int2):"},
-            {FIELD_BOOL1, "Cylindrical trigger (bool1):"}
+            {FIELD_INT1, "Position:"},
+            {FIELD_INT2, "Initial owner:"},
+            {FIELD_BOOL1, "Cylindrical trigger:"}
         },
         {
+            {FIELD_INT1,
+            {"Center", "Red base", "Blue base", "Red forward", "Blue forward"}},
             {FIELD_INT2,
             {"Neutral", "Red", "Blue"}}
         },
         {
+            {FIELD_INT1, true},
             {FIELD_INT2, true}
         }
     }},

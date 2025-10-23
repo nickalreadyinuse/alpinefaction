@@ -2062,6 +2062,7 @@ namespace rf
         int trigger_uid = -1;
         float outline_offset = 0.0f;
         bool sphere_to_cylinder = false;
+        int position = 0;    // HillRole
         int initial_owner = 0; // HillOwner
 
         void register_variable_handlers() override
@@ -2077,16 +2078,6 @@ namespace rf
             handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventCapturePointHandler*>(event);
                 this_event->outline_offset = std::stof(value);
-            };
-
-            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
-                auto* this_event = static_cast<EventCapturePointHandler*>(event);
-                this_event->sphere_to_cylinder = (value == "true");
-            };
-
-            handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
-                auto* this_event = static_cast<EventCapturePointHandler*>(event);
-                this_event->initial_owner = std::stoi(value);
             };
         }
     };
