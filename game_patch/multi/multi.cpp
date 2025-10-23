@@ -582,6 +582,7 @@ void configure_custom_gametype_listen_server_settings() {
     // reset to defaults
     g_alpine_server_config = AlpineServerConfig{};
     g_alpine_server_config_active_rules = AlpineServerConfigRules{};
+    set_upcoming_game_type(rf::netgame.type);
 
     // KOTH gamemode defaults
     if (rf::netgame.type == rf::NetGameType::NG_TYPE_KOTH) {

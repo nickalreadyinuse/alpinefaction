@@ -1557,6 +1557,9 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
 }
 
 bool apply_game_type_for_current_level() {
+    if (!g_dedicated_launched_from_ads)
+        return false;
+
     auto &netgame = rf::netgame;
     auto &cfg     = g_alpine_server_config;
     const int idx = netgame.current_level_index;
