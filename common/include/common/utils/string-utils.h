@@ -43,6 +43,16 @@ inline std::string string_to_lower(std::string_view str)
     return output;
 }
 
+inline std::string string_to_upper(std::string_view str)
+{
+    std::string output;
+    output.reserve(str.size());
+    std::transform(str.begin(), str.end(), std::back_inserter(output), [](unsigned char ch) {
+        return std::toupper(ch);
+    });
+    return output;
+}
+
 inline bool string_equals_ignore_case(std::string_view left, std::string_view right)
 {
     return left.size() == right.size() && std::equal(left.begin(), left.end(), right.begin(), [](unsigned char a, unsigned char b) {
