@@ -1583,6 +1583,9 @@ AlpineRestrictVerdict check_player_alpine_restrict_status(rf::Player* player)
 
 bool check_can_player_spawn(rf::Player* player)
 {
+    if (rf::is_server)
+        return true; // listen server host can always spawn
+
     const auto v = check_player_alpine_restrict_status(player);
     switch (v) {
     case AlpineRestrictVerdict::ok:
