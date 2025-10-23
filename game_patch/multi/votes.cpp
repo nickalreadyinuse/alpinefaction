@@ -29,9 +29,10 @@ bool ends_with(const rf::String& str, const std::string& suffix)
 }
 
 enum class VoteType
-{    
+{
     Kick,
     Level,
+    Gametype,
     Restart,
     Extend,
     Next,
@@ -512,6 +513,105 @@ struct VoteLevel : public Vote
     }
 };
 
+struct VoteGametype : public Vote
+{
+    std::string m_gametype_name;
+    std::string m_level_name;
+
+    VoteType get_type() const override
+    {
+        return VoteType::Gametype;
+    }
+
+    static std::string_view trim_spaces(std::string_view value)
+    {
+        while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
+            value.remove_prefix(1);
+        }
+
+        while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+            value.remove_suffix(1);
+        }
+
+        return value;
+    }
+
+    bool process_vote_arg(std::string_view arg, rf::Player* source) override
+    {
+        arg = trim_spaces(arg);
+
+        if (arg.empty()) {
+            send_chat_line_packet("\xA6 You must specify a gametype.", source);
+            return false;
+        }
+
+        std::string_view gametype_part = arg;
+        std::string_view level_part;
+
+        if (auto space_pos = arg.find(' '); space_pos != std::string_view::npos) {
+            gametype_part = arg.substr(0, space_pos);
+            level_part = arg.substr(space_pos + 1);
+            level_part = trim_spaces(level_part);
+        }
+
+        gametype_part = trim_spaces(gametype_part);
+
+        if (gametype_part.empty()) {
+            send_chat_line_packet("\xA6 You must specify a gametype name.", source);
+            return false;
+        }
+
+        if (!is_gametype_name_valid(gametype_part)) {
+            auto msg = std::format("\xA6 Invalid gametype '{}'!", gametype_part);
+            send_chat_line_packet(msg.c_str(), source);
+            return false;
+        }
+
+        m_gametype_name.assign(gametype_part);
+
+        if (level_part.empty()) {
+            m_level_name = rf::level.filename.c_str();
+            return true;
+        }
+
+        auto [is_valid, normalized_level_name] = is_level_name_valid(level_part);
+
+        if (!is_valid) {
+            auto msg = std::format("\xA6 Cannot start vote: level {} is not available on the server!", normalized_level_name);
+            send_chat_line_packet(msg.c_str(), source);
+            return false;
+        }
+
+        m_level_name = std::move(normalized_level_name);
+        return true;
+    }
+
+    [[nodiscard]] std::string get_title() const override
+    {
+        return std::format("SWITCH TO {} ON {}", string_to_upper(m_gametype_name), m_level_name);
+    }
+
+    void on_accepted() override
+    {
+        auto msg = std::format("\xA6 Vote passed: switching to {} on {}", string_to_upper(m_gametype_name), m_level_name);
+        send_chat_line_packet(msg.c_str(), nullptr);
+
+        multi_set_gametype_alpine(m_gametype_name);
+
+        multi_change_level_alpine(m_level_name.c_str());
+    }
+
+    [[nodiscard]] bool is_allowed_in_limbo_state() const override
+    {
+        return false;
+    }
+
+    [[nodiscard]] const VoteConfig& get_config() const override
+    {
+        return g_alpine_server_config.vote_gametype;
+    }
+};
+
 struct VoteRestart : public Vote
 {
 
@@ -735,6 +835,8 @@ void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, 
         g_vote_mgr.StartVote<VoteLevel>(vote_arg, sender);
     else if (vote_name == "extend" || vote_name == "ext")
         g_vote_mgr.StartVote<VoteExtend>(vote_arg, sender);
+    else if (vote_name == "gametype" || vote_name == "gamemode" || vote_name == "type" || vote_name == "gt")
+        g_vote_mgr.StartVote<VoteGametype>(vote_arg, sender);
     else if (vote_name == "restart" || vote_name == "rest")
         g_vote_mgr.StartVote<VoteRestart>(vote_arg, sender);
     else if (vote_name == "next")

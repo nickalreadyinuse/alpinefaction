@@ -637,6 +637,7 @@ struct AlpineServerConfig
     ClickLimiterConfig click_limiter_config;
     VoteConfig vote_kick;
     VoteConfig vote_level;
+    VoteConfig vote_gametype;
     VoteConfig vote_extend;
     VoteConfig vote_restart;
     VoteConfig vote_next;
@@ -749,7 +750,9 @@ void handle_min_param();
 void handle_log_param();
 const AFGameInfoFlags& server_get_game_info_flags();
 void initialize_game_info_server_flags();
-rf::NetGameType parse_game_type(const std::string& s);
+std::optional<rf::NetGameType> resolve_gametype_from_name(std::string_view gametype_name);
+bool multi_set_gametype_alpine(std::string_view gametype_name);
+bool is_gametype_name_valid(std::string_view gametype_name);
 void load_ads_server_config();
 void launch_alpine_dedicated_server();
 void load_additional_server_config(rf::Parser& parser);

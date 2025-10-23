@@ -136,18 +136,6 @@ void evaluate_mandatory_alpine_restrict() {
     }
 }
 
-rf::NetGameType parse_game_type(const std::string& s)
-{
-    auto s_lower = string_to_lower(s);
-    if (s_lower == "tdm" || s_lower == "teamdm" || s_lower == "2")
-        return rf::NetGameType::NG_TYPE_TEAMDM;
-    if (s_lower == "ctf" || s_lower == "1")
-        return rf::NetGameType::NG_TYPE_CTF;
-    if (s_lower == "koth" || s_lower == "3")
-        return rf::NetGameType::NG_TYPE_KOTH;
-    return rf::NetGameType::NG_TYPE_DM;
-}
-
 static DefaultPlayerWeaponConfig parse_default_player_weapon(const toml::table& t, DefaultPlayerWeaponConfig c)
 {
     if (auto x = t["weapon_name"].value<std::string>()) {
@@ -365,9 +353,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     AlpineServerConfigRules o = base_rules;
 
     if (auto v = t["game_type"].value<std::string>()) {
-        auto gt = parse_game_type(*v);
-        o.game_type = gt;
-        xlog::warn("set gt in cfg");
+        auto gt_opt = resolve_gametype_from_name(*v);
+        o.game_type = gt_opt.has_value() ? gt_opt.value() : rf::NetGameType::NG_TYPE_DM;
     }
     if (auto v = t["time_limit"].value<float>())
         o.set_time_limit(*v);
@@ -716,6 +703,8 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
         cfg.vote_kick = parse_vote_config(tbl);
     else if (key == "vote_level")
         cfg.vote_level = parse_vote_config(tbl);
+    else if (key == "vote_gametype")
+        cfg.vote_gametype = parse_vote_config(tbl);
     else if (key == "vote_extend")
         cfg.vote_extend = parse_vote_config(tbl);
     else if (key == "vote_restart")
@@ -1469,6 +1458,7 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
 
     print_vote("Vote kick enabled:    ", cfg.vote_kick);
     print_vote("Vote level enabled:   ", cfg.vote_level);
+    print_vote("Vote gametype enabled:", cfg.vote_gametype);
     print_vote("Vote extend enabled:  ", cfg.vote_extend);
     print_vote("Vote restart enabled: ", cfg.vote_restart);
     print_vote("Vote next enabled:    ", cfg.vote_next);

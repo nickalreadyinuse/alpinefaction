@@ -72,6 +72,7 @@ Version 1.2.0 (Willow): Not yet released
 - Communicate changed server settings to supported clients
 - Support game type switching on client without having to rejoin
 - Kick legacy clients on game type switch and notify them they can rejoin
+- Add `vote gametype` chat command
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set
