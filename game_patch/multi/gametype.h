@@ -91,6 +91,7 @@ struct KothRules
     int drain_defended_rate = 50; // owner present, attackers absent -> drain faster
     int ms_per_point = 1000;      // scoring tick while owned and not pressured
     bool cyl_use_trigger_up = false; // if sphere is treated as a cylinder, true = use trigger dir to build cylinder, false = use world up
+    bool require_neutral_to_capture = true; // if true, attackers must neutralize before flipping ownership
 };
 
 struct KothInfo

@@ -307,8 +307,8 @@ inline bool local_player_on_owner_team(HillOwner owner)
 inline int capture_sfx_for_local(HillOwner owner)
 {
     if (owner == HillOwner::HO_Neutral)
-        return -1; // do not play a sound
-    return local_player_on_owner_team(owner) ? 63 : 67;
+        return 66; // Flag_Return
+    return local_player_on_owner_team(owner) ? 63 : 67; // Flag_Capture : Flag_Steal
 }
 
 void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, const uint8_t* ids, size_t ids_len)
@@ -341,6 +341,8 @@ void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, c
     const char* team_name = (new_owner == HillOwner::HO_Red) ? "RED" : (new_owner == HillOwner::HO_Blue) ? "BLUE" : "NEUTRAL";
 
     const std::string msg_str =
+        new_owner == HillOwner::HO_Neutral ? 
+        std::format("{} was reset to NEUTRAL by {}", h->name.empty() ? "Hill" : h->name, names_csv) :
         std::format("{} was captured by {} for the {} team", h->name.empty() ? "Hill" : h->name, names_csv, team_name);
     rf::String msg = msg_str.c_str();
 
@@ -394,7 +396,8 @@ static const char* to_string(HillState s)
     }
 }
 
-static void koth_apply_ownership(HillInfo& h, HillOwner new_owner, bool announce = true)
+static void koth_apply_ownership(
+    HillInfo& h, HillOwner new_owner, bool announce = true, HillOwner scoring_team = HillOwner::HO_Neutral)
 {
     if (h.ownership == new_owner)
         return;
@@ -412,7 +415,14 @@ static void koth_apply_ownership(HillInfo& h, HillOwner new_owner, bool announce
     //xlog::warn("[KOTH] {}: OWNER {} -> {}", h.name.c_str(), to_string(old_owner), to_string(new_owner));
 
     if (announce && rf::is_server) {
-        auto ids = on_capture_collect_player_ids_on_hill_for_team(h, new_owner);
+        //auto ids = on_capture_collect_player_ids_on_hill_for_team(h, new_owner);
+        HillOwner reward_team = scoring_team;
+        if (reward_team == HillOwner::HO_Neutral)
+            reward_team = new_owner;
+
+        std::vector<uint8_t> ids;
+        if (reward_team == HillOwner::HO_Red || reward_team == HillOwner::HO_Blue)
+            ids = on_capture_collect_player_ids_on_hill_for_team(h, reward_team);
         const uint8_t uid8 = static_cast<uint8_t>(std::clamp(h.hill_uid, 0, 255));
         af_send_koth_hill_captured_packet_to_all(uid8, new_owner, ids);
     }
@@ -544,7 +554,7 @@ void update_hill_server(HillInfo& h, int dt_ms)
         return;
     }
 
-    // owned paths (never return to neutral)
+    // owned paths
     const HillOwner owner = h.ownership;
     const HillOwner attackers = opposite(owner);
     const bool attackers_only = team_present(attackers, pres) && !team_present(owner, pres);
@@ -561,7 +571,15 @@ void update_hill_server(HillInfo& h, int dt_ms)
             h.state = (attackers == HillOwner::HO_Red) ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
             inc_rate(g_koth_info.rules.grow_rate);
             if (h.capture_milli >= 100000) {
-                koth_apply_ownership(h, attackers);
+                //koth_apply_ownership(h, attackers);
+                if (g_koth_info.rules.require_neutral_to_capture) {
+                    koth_apply_ownership(h, HillOwner::HO_Neutral, true, attackers);
+                }
+                else {
+                    koth_apply_ownership(h, attackers);
+                }
+                emit_change_logs();
+                return;
             }
         }
         emit_change_logs();
@@ -861,12 +879,12 @@ static int koth_build_hills_from_capture_point_events()
 
         auto* cp = static_cast<rf::EventCapturePointHandler*>(e);
 
-        // if trigger_uid not specified, try to infer from links
+        // find trigger_uid from event links
         if (cp->trigger_uid < 0 && !e->links.empty()) {
-            for (int uid : e->links) {
-                if (auto* o = rf::obj_lookup_from_uid(uid)) {
+            for (int handle : e->links) {
+                if (auto* o = rf::obj_from_handle(handle)) {
                     if (o->type == rf::ObjectType::OT_TRIGGER) {
-                        cp->trigger_uid = uid;
+                        cp->trigger_uid = o->uid;
                         break;
                     }
                 }
@@ -876,14 +894,14 @@ static int koth_build_hills_from_capture_point_events()
         // resolve trigger pointer
         rf::Trigger* trig = koth_resolve_trigger_from_uid(cp->trigger_uid);
         if (!trig) {
-            xlog::warn("KOTH: Capture point '{}' has invalid trigger UID {} — skipping", cp->name.c_str(),
+            xlog::warn("KOTH: Capture point '{}' has invalid trigger UID {}, skipping", cp->name.c_str(),
                        cp->trigger_uid);
             continue;
         }
 
         // fix a case where a mapper specified the same trigger for multiple capture point handlers
         if (!seen_uids.insert(cp->trigger_uid).second) {
-            xlog::warn("KOTH: Duplicate capture point for trigger UID {} — ignoring subsequent entries", cp->trigger_uid);
+            xlog::warn("KOTH: Duplicate capture point for trigger UID {}, ignoring subsequent entries", cp->trigger_uid);
             continue;
         }
 
