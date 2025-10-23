@@ -675,11 +675,42 @@ static void queue_level_switch_preferring_rotation(std::string_view level_name)
     }
 }
 
-bool multi_change_game_type(rf::NetGameType game_type) {
-    bool game_type_changed = false;
+std::optional<rf::NetGameType> resolve_gametype_from_name(std::string_view gametype_name)
+{
+    if (gametype_name.empty()) {
+        return std::nullopt;
+    }
+    if (string_equals_ignore_case(gametype_name, "dm")) {
+        return rf::NetGameType::NG_TYPE_DM;
+    }
+    if (string_equals_ignore_case(gametype_name, "tdm") || string_equals_ignore_case(gametype_name, "teamdm")) {
+        return rf::NetGameType::NG_TYPE_TEAMDM;
+    }
+    if (string_equals_ignore_case(gametype_name, "ctf")) {
+        return rf::NetGameType::NG_TYPE_CTF;
+    }
+    if (string_equals_ignore_case(gametype_name, "koth")) {
+        return rf::NetGameType::NG_TYPE_KOTH;
+    }
 
-    if (game_type != get_upcoming_game_type())
-        game_type_changed = set_upcoming_game_type(game_type);
+    return std::nullopt;
+}
+
+bool is_gametype_name_valid(std::string_view gametype_name)
+{
+    return resolve_gametype_from_name(gametype_name).has_value();
+}
+
+bool multi_set_gametype_alpine(std::string_view gametype_name)
+{
+    auto resolved_type = resolve_gametype_from_name(gametype_name);
+    if (!resolved_type) {
+        return false;
+    }
+
+    bool game_type_changed = false;
+    if (resolved_type.value() != get_upcoming_game_type())
+        game_type_changed = set_upcoming_game_type(resolved_type.value());
 
     return game_type_changed;
 }
@@ -694,8 +725,10 @@ ConsoleCommand2 sv_game_type_cmd{
             }
 
             if (new_game_type.has_value()) {
-                rf::NetGameType parsed_game_type = parse_game_type(new_game_type.value());
-                bool changed_game_type = multi_change_game_type(parsed_game_type);
+                //auto parsed_game_type_opt = resolve_gametype_from_name(new_game_type.value());
+                //bool changed_game_type = parsed_game_type_opt.has_value() ? multi_change_game_type(parsed_game_type_opt.value()) : false;
+
+                bool changed_game_type = multi_set_gametype_alpine(new_game_type.value());
 
                 if (changed_game_type)
                     restart_current_level();
