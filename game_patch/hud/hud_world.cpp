@@ -475,7 +475,7 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
 
 static void build_koth_hill_icons()
 {
-    if (!rf::is_multi || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
+    if (!rf::is_multi || !multi_is_game_type_with_hills())
         return;
 
     const auto render_mode =
@@ -901,7 +901,7 @@ static void draw_ring_light_column_colored(const rf::Vector3& base_center, const
 
 static void build_koth_hill_outlines()
 {
-    if (!rf::is_multi || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
+    if (!rf::is_multi || !multi_is_game_type_with_hills())
         return;
 
     const auto mode = WorldHUDRenderMode::no_overdraw_glow;
@@ -948,7 +948,7 @@ void hud_world_do_frame() {
     if (rf::is_multi && g_alpine_game_config.world_hud_ctf_icons && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
     }
-    if (rf::is_multi && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_KOTH) {
+    if (rf::is_multi && multi_is_game_type_with_hills()) {
         build_koth_hill_icons();
         build_koth_hill_outlines();
     }

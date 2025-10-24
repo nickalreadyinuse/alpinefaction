@@ -96,6 +96,7 @@ struct AlpineFactionServerInfo
     bool location_pinging = false;
     bool delayed_spawns = false;
     int koth_score_limit = 0;
+    int dc_score_limit = 0;
 };
 
 enum ClientVersion

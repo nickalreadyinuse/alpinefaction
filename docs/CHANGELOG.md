@@ -10,6 +10,7 @@ Version 1.2.0 (Willow): Not yet released
     - On-demand loading of changed settings without server needing restart
     - Support changing server game type on-demand or per-level
 - Add `King of the Hill` (KOTH) multiplayer game type
+- Add `Damage Control` (DC) multiplayer game type
 - Add colorblind mode rendering filter (Direct3D 11 renderer only)
 - Add client-configurable settings to control application of weapon auto switch
 - Add server-configurable weapon loadouts for players in multiplayer

@@ -173,6 +173,7 @@ FunHook<void()> multi_limbo_init{
                 blue = rf::multi_tdm_get_blue_team_score();
                 break;
             }
+            case rf::NG_TYPE_DC:
             case rf::NG_TYPE_KOTH: {
                 red = multi_koth_get_red_team_score();
                 blue = multi_koth_get_blue_team_score();
@@ -584,31 +585,37 @@ void configure_custom_gametype_listen_server_settings() {
     g_alpine_server_config_active_rules = AlpineServerConfigRules{};
     set_upcoming_game_type(rf::netgame.type);
 
-    // KOTH gamemode defaults
-    if (rf::netgame.type == rf::NetGameType::NG_TYPE_KOTH) {
-        // KOTH requires Alpine clients
+    // KOTH and DC gamemode defaults
+    if (gt_is_koth() || gt_is_dc()) {
+        // KOTH and DC require Alpine clients
         g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
         g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
 
         // KOTH uses spawn delay and custom loadout
         // The same settings are set in dedi_cfg.cpp for dedicated servers
-        g_alpine_server_config_active_rules.spawn_delay.enabled = true;
-        g_alpine_server_config_active_rules.spawn_loadout.loadouts_active = true;
-        int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
-        g_alpine_server_config_active_rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
-        g_alpine_server_config_active_rules.spawn_loadout.add("Remote Charge", 3, false, true);
-        g_alpine_server_config_active_rules.default_player_weapon.set_weapon("Assault Rifle");
+        if (gt_is_koth()) {
+            g_alpine_server_config_active_rules.spawn_delay.enabled = true;
+            g_alpine_server_config_active_rules.spawn_loadout.loadouts_active = true;
+            int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
+            g_alpine_server_config_active_rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
+            g_alpine_server_config_active_rules.spawn_loadout.add("Remote Charge", 3, false, true);
+            g_alpine_server_config_active_rules.default_player_weapon.set_weapon("Assault Rifle");
 
-        if (g_alpine_server_config_active_rules.default_player_weapon.index >= 0) {
-            int default_ammo =
-                rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
-                g_alpine_server_config_active_rules.default_player_weapon.num_clips;
-            g_alpine_server_config_active_rules.spawn_loadout.add(
-                g_alpine_server_config_active_rules.default_player_weapon.weapon_name, default_ammo, false, true);
+            if (g_alpine_server_config_active_rules.default_player_weapon.index >= 0) {
+                int default_ammo =
+                    rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
+                    g_alpine_server_config_active_rules.default_player_weapon.num_clips;
+                g_alpine_server_config_active_rules.spawn_loadout.add(
+                    g_alpine_server_config_active_rules.default_player_weapon.weapon_name, default_ammo, false, true);
+            }
+
+            g_alpine_server_config_active_rules.set_koth_score_limit(3600);
         }
-
-        // So maps don't end while being tested
-        g_alpine_server_config_active_rules.set_koth_score_limit(3600);
+        else { // DC
+            g_alpine_server_config_active_rules.spawn_delay.enabled = true;
+            g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.5f);
+            g_alpine_server_config_active_rules.set_dc_score_limit(3600);
+        }
     }
 }
 
@@ -629,6 +636,7 @@ void start_level_in_multi(std::string filename) {
         rf::netgame.flags = 0; // no broadcast to tracker
         rf::netgame.type = string_starts_with_ignore_case(filename, "ctf") ? rf::NetGameType::NG_TYPE_CTF
             : string_starts_with_ignore_case(filename, "koth") ? rf::NetGameType::NG_TYPE_KOTH
+            : string_starts_with_ignore_case(filename, "dc") ? rf::NetGameType::NG_TYPE_DC
             : rf::NetGameType::NG_TYPE_DM;
         rf::netgame.name = "Alpine Faction Test Server";
         rf::netgame.password = "password";

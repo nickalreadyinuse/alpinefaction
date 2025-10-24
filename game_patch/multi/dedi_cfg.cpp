@@ -366,6 +366,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.set_cap_limit(*v);
     if (auto v = t["koth_score_limit"].value<int>())
         o.set_koth_score_limit(*v);
+    if (auto v = t["dc_score_limit"].value<int>())
+        o.set_dc_score_limit(*v);
     if (auto v = t["geo_limit"].value<int>())
         o.set_geo_limit(*v);
 
@@ -408,8 +410,11 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
 
     // if KOTH, default spawn delay to on before parsing config
-    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH)
+    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH || o.game_type == rf::NetGameType::NG_TYPE_DC)
         o.spawn_delay.enabled = true;
+
+    if (o.game_type == rf::NetGameType::NG_TYPE_DC)
+        o.spawn_delay.set_base_value(2.5f);
 
     if (auto sub = t["spawn_delay"].as_table())
         o.spawn_delay = parse_spawn_delay_config(*sub, o.spawn_delay);
@@ -936,6 +941,9 @@ std::string get_game_type_string(rf::NetGameType game_type) {
          case rf::NetGameType::NG_TYPE_KOTH:
              out_string = "KOTH";
              break;
+         case rf::NetGameType::NG_TYPE_DC:
+             out_string = "DC";
+             break;
          default:
              out_string = "DM";
              break;
@@ -954,6 +962,9 @@ std::string get_game_type_string_long(rf::NetGameType game_type) {
             break;
          case rf::NetGameType::NG_TYPE_KOTH:
              out_string = "King of the Hill";
+             break;
+         case rf::NetGameType::NG_TYPE_DC:
+             out_string = "Damage Control";
              break;
          default:
              out_string = "Deathmatch";
@@ -1076,6 +1087,10 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     case rf::NetGameType::NG_TYPE_KOTH:
         if (base || rules.koth_score_limit != b.koth_score_limit)
             rf::console::print("  KOTH score limit:                      {}\n", rules.koth_score_limit);
+        break;
+    case rf::NetGameType::NG_TYPE_DC:
+        if (base || rules.dc_score_limit != b.dc_score_limit)
+            rf::console::print("  DC score limit:                        {}\n", rules.dc_score_limit);
         break;
     default:
         if (base || rules.individual_kill_limit != b.individual_kill_limit)
@@ -1569,6 +1584,7 @@ bool apply_game_type_for_current_level() {
     rf::NetGameType desired = rf::NetGameType::NG_TYPE_DM;
 
     if (manual_load) {
+        // todo: fix bug here if two manual loads are in a row, it uses base gt
         desired = has_already_queued_change ? upcoming : cfg.base_rules.game_type;
 
         if (!g_ads_minimal_server_info && !has_already_queued_change && desired != upcoming) {

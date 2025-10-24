@@ -16,24 +16,27 @@
 #include "../rf/gameseq.h"
 #include "../rf/localize.h"
 
-static char* const* g_af_gametype_names[4];
+static char* const* g_af_gametype_names[5];
 
 static char koth_name[] = "KOTH";
 static char* koth_slot = koth_name;
+static char dc_name[] = "DC";
+static char* dc_slot = dc_name;
 
-KothInfo g_koth_info;
+KothInfo g_koth_info; // KOTH and DC
 rf::Timestamp g_local_contest_alarm_cooldown;
 static bool g_local_cap_gain_sfx_playing = false;
 static int g_local_cap_gain_sfx_handle = -1;
-static int g_koth_alarm_sound_id = -1;
+static int g_cap_alarm_sound_id = -1;
 
 void populate_gametype_table() {
     g_af_gametype_names[0] = &rf::strings::dm;
     g_af_gametype_names[1] = &rf::strings::ctf;
     g_af_gametype_names[2] = &rf::strings::teamdm;
     g_af_gametype_names[3] = &koth_slot;
+    g_af_gametype_names[4] = &dc_slot;
 
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         const char* const* slot = g_af_gametype_names[i];
         const char* name = (slot && *slot) ? *slot : "(null)";
         //xlog::warn("GameType[{}]: {} (slot={}, name_ptr={})", i, name, static_cast<const void*>(slot), static_cast<const void*>(*slot));
@@ -61,6 +64,7 @@ bool multi_game_type_is_team_type(rf::NetGameType game_type)
         case rf::NG_TYPE_CTF:
         case rf::NG_TYPE_TEAMDM:
         case rf::NG_TYPE_KOTH:
+        case rf::NG_TYPE_DC:
             return true;
         default: // DM
             return false;
@@ -71,10 +75,16 @@ bool multi_game_type_has_hills(rf::NetGameType game_type)
 {
     switch (game_type) {
         case rf::NG_TYPE_KOTH:
+        case rf::NG_TYPE_DC:
             return true;
         default: // DM, CTF, TDM
             return false;
     }
+}
+
+bool multi_is_game_type_with_hills()
+{
+    return multi_game_type_has_hills(rf::multi_get_game_type());
 }
 
 bool multi_is_team_game_type()
@@ -82,35 +92,35 @@ bool multi_is_team_game_type()
     return multi_game_type_is_team_type(rf::multi_get_game_type());
 }
 
-int multi_koth_get_red_team_score()
+int multi_koth_get_red_team_score() // KOTH and DC
 {
     return g_koth_info.red_team_score;
 }
 
-int multi_koth_get_blue_team_score()
+int multi_koth_get_blue_team_score() // KOTH and DC
 {
     return g_koth_info.blue_team_score;
 }
 
-void multi_koth_set_red_team_score(int score)
+void multi_koth_set_red_team_score(int score) // KOTH and DC
 {
-    if (rf::is_server || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
+    if (rf::is_server)
         return;
 
     g_koth_info.red_team_score = score;
     return;
 }
 
-void multi_koth_set_blue_team_score(int score)
+void multi_koth_set_blue_team_score(int score) // KOTH and DC
 {
-    if (rf::is_server || rf::multi_get_game_type() != rf::NetGameType::NG_TYPE_KOTH)
+    if (rf::is_server)
         return;
 
     g_koth_info.blue_team_score = score;
     return;
 }
 
-void multi_koth_reset_scores()
+void multi_koth_reset_scores() // KOTH and DC
 {
     g_koth_info.red_team_score = 0;
     g_koth_info.blue_team_score = 0;
@@ -119,6 +129,11 @@ void multi_koth_reset_scores()
 bool gt_is_koth()
 {
     return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_KOTH;
+}
+
+bool gt_is_dc()
+{
+    return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_DC;
 }
 
 HillInfo* koth_find_hill_by_uid(uint8_t uid)
@@ -772,7 +787,7 @@ static void koth_client_predict_tick(int dt_ms)
 
 void koth_do_frame() // fires every frame on both server and client
 {
-    if (!rf::is_multi || !gt_is_koth())
+    if (!rf::is_multi || (!gt_is_koth() && !gt_is_dc()))
         return;
 
     // server tick
@@ -811,7 +826,7 @@ void koth_do_frame() // fires every frame on both server and client
         bool any_local_owned_enemy_progress = false;
         bool should_play_cap_gain = false;
 
-        if (rf::local_player && !multi_spectate_is_spectating() && gt_is_koth() && rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
+        if (rf::local_player && !multi_spectate_is_spectating() && (gt_is_koth() || gt_is_dc()) && rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
             const bool local_is_blue = (rf::local_player->team != 0);
             const HillOwner local_team_owner = local_is_blue ? HillOwner::HO_Blue : HillOwner::HO_Red;
             const HillState enemy_growing_state = local_is_blue ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
@@ -827,8 +842,9 @@ void koth_do_frame() // fires every frame on both server and client
                 }
 
                 // decide if play alarm
+                // KOTH = when capturing from neutral or my team, DC = only when capturing from my team
                 const bool ours_or_neutral =
-                    (h.ownership == local_team_owner) || (h.ownership == HillOwner::HO_Neutral);
+                    (h.ownership == local_team_owner) || (gt_is_koth() && (h.ownership == HillOwner::HO_Neutral));
                 if (ours_or_neutral && h.state == enemy_growing_state) {
                     any_local_owned_enemy_progress = true;
                 }
@@ -838,7 +854,7 @@ void koth_do_frame() // fires every frame on both server and client
         // play alarm if enemy is capturing our owned hill
         if (any_local_owned_enemy_progress) {
             if (!g_local_contest_alarm_cooldown.valid() || g_local_contest_alarm_cooldown.elapsed()) {
-                rf::snd_play(g_koth_alarm_sound_id, 0, 0.0, 1.0);
+                rf::snd_play(g_cap_alarm_sound_id, 0, 0.0, 1.0);
                 g_local_contest_alarm_cooldown.set(950);
             }
         }
@@ -862,19 +878,24 @@ void koth_do_frame() // fires every frame on both server and client
     }
 }
 
-static int koth_build_hills_from_capture_point_events()
+static int build_hills_from_capture_point_events()
 {
     g_koth_info.hills.clear();
 
-    if (!gt_is_koth()) // no need to search for events in other gametypes
+    const auto gt = rf::multi_get_game_type();
+
+    if (!multi_game_type_has_hills(gt)) // only build hills in modes that have hills
         return int(g_koth_info.hills.size());
+
+    int game_type_max_hills =
+        gt == rf::NetGameType::NG_TYPE_KOTH ? 1 : 32;
 
     auto events = find_all_events_by_type(rf::EventType::Capture_Point_Handler);
     std::unordered_set<int> seen_uids;
 
     int idx = 0;
     for (rf::Event* e : events) {
-        if (!e)
+        if (!e || int(g_koth_info.hills.size()) >= game_type_max_hills) // respect gametype max hills
             continue;
 
         auto* cp = static_cast<rf::EventCapturePointHandler*>(e);
@@ -922,39 +943,41 @@ static int koth_build_hills_from_capture_point_events()
         g_koth_info.hills.push_back(std::move(h));
     }
 
-    //xlog::warn("KOTH: discovered {} capture point(s)", int(g_koth_info.hills.size()));
+    //xlog::warn("GT: discovered {} capture point(s)", int(g_koth_info.hills.size()));
     return int(g_koth_info.hills.size());
 }
 
-void koth_level_init()
+void koth_dc_level_init()
 {
     clear_koth_name_textures(); // clear hill labels
     g_local_cap_gain_sfx_handle = -1;
     g_local_cap_gain_sfx_playing = false;
     multi_koth_reset_scores();
-    g_koth_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
+    g_koth_info.rules.require_neutral_to_capture = gt_is_koth() ? false : true; // KOTH doesn't have CPs go neutral before recap
+    g_koth_info.rules.spawn_players_near_owned_points = gt_is_koth() ? false : true; // KOTH doesn't use CP proximity to decide spawn positions
+    g_cap_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
 }
 
-void koth_level_init_post()
+void koth_dc_level_init_post()
 {
     if (!rf::is_multi)
         return;
 
-    const int n = koth_build_hills_from_capture_point_events(); // need events to be loaded before building hills
+    const int n = build_hills_from_capture_point_events(); // need events to be loaded before building hills
 
     //xlog::warn("KOTH: {} capture points found in this map, gt {}", n, static_cast<int>(rf::netgame.type));
 }
 
 void multi_level_init_post_gametypes()
 {
-    koth_level_init_post();
+    koth_dc_level_init_post();
 }
 
 // pre level being loaded
 CodeInjection multi_level_init_gametypes_injection{
     0x0046E466,
     [](auto& regs) {
-        koth_level_init();
+        koth_dc_level_init();
     },
 };
 
@@ -1015,7 +1038,7 @@ CodeInjection send_team_score_change_level_patch{
 CodeInjection send_team_score_patch{
     0x00472151,
     [](auto& regs) {
-        if (gt_is_koth()) {
+        if (gt_is_koth() || gt_is_dc()) {
             // both int16_t on the wire
             const uint16_t red_score = (uint16_t)std::clamp(multi_koth_get_red_team_score(), 0, 0xFFFF);
             const uint16_t blue_score = (uint16_t)std::clamp(multi_koth_get_blue_team_score(), 0, 0xFFFF);
@@ -1030,7 +1053,7 @@ CodeInjection send_team_score_patch{
 CodeInjection process_team_score_patch{
     0x0047221D,
     [](auto& regs) {
-        if (gt_is_koth()) {
+        if (gt_is_koth() || gt_is_dc()) {
             // both int16_t on the wire
             int red_score = regs.esi;
             int blue_score = regs.edi;

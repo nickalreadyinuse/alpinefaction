@@ -1045,6 +1045,9 @@ static void build_af_server_info_packet(af_server_info_packet& pkt)
         case rf::NetGameType::NG_TYPE_KOTH:
             pkt.win_condition = static_cast<uint32_t>(g_alpine_server_config_active_rules.koth_score_limit);
             break;
+        case rf::NetGameType::NG_TYPE_DC:
+            pkt.win_condition = static_cast<uint32_t>(g_alpine_server_config_active_rules.dc_score_limit);
+            break;
         default:
             pkt.win_condition = static_cast<uint32_t>(rf::netgame.max_kills);
             break;
@@ -1133,6 +1136,9 @@ static void af_process_server_info_packet(const void* data, size_t len, const rf
                 break;
             case rf::NetGameType::NG_TYPE_KOTH:
                 server_info.koth_score_limit = static_cast<int>(pkt.win_condition);
+                break;
+            case rf::NetGameType::NG_TYPE_DC:
+                server_info.dc_score_limit = static_cast<int>(pkt.win_condition);
                 break;
             default:
                 rf::netgame.max_kills = static_cast<int>(pkt.win_condition);

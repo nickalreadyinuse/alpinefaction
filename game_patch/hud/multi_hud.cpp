@@ -472,7 +472,7 @@ void hud_render_team_scores()
         }
     }
 
-    if (game_type == rf::NG_TYPE_CTF || game_type == rf::NG_TYPE_TEAMDM || game_type == rf::NG_TYPE_KOTH) {
+    if (multi_is_team_game_type()) {
         float miniflag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
         rf::gr::set_color(255, 255, 255, 255);
         if (rf::local_player) {
@@ -503,7 +503,7 @@ void hud_render_team_scores()
         red_score = rf::multi_tdm_get_red_team_score();
         blue_score = rf::multi_tdm_get_blue_team_score();
     }
-    else if (game_type == rf::NG_TYPE_KOTH) {
+    else if (game_type == rf::NG_TYPE_KOTH || game_type == rf::NG_TYPE_DC) {
         red_score = multi_koth_get_red_team_score();
         blue_score = multi_koth_get_blue_team_score();
     }
@@ -523,7 +523,7 @@ void hud_render_team_scores()
 CodeInjection hud_render_team_scores_new_gamemodes_patch {
     0x00476DEB,
     [](auto& regs) {
-        if (rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_KOTH) {
+        if (gt_is_koth() || gt_is_dc()) {
             regs.eip = 0x00476E06; // multi_hud_render_team_scores
         }
     }

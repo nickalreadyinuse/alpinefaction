@@ -515,6 +515,7 @@ struct AlpineServerConfigRules
     int team_kill_limit = 100;
     int cap_limit = 5;
     int koth_score_limit = 100;
+    int dc_score_limit = 300;
     int geo_limit = 64;
     bool team_damage = false;
     bool fall_damage = false;
@@ -568,6 +569,10 @@ struct AlpineServerConfigRules
     void set_koth_score_limit(int count)
     {
         koth_score_limit = std::clamp(count, 1, 65535);
+    }
+    void set_dc_score_limit(int count)
+    {
+        dc_score_limit = std::clamp(count, 1, 65535);
     }
     void set_geo_limit(int count)
     {

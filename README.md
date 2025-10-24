@@ -31,7 +31,7 @@ Key Features
 Most important:
 * Fixes for critical security vulnerabilities
 * Direct3D 11 renderer
-* Brand new `King of the Hill` multiplayer game type
+* Brand new `King of the Hill` and `Damage Control` multiplayer game types
 * Multiplayer level auto-downloader (using API at https://autodl.factionfiles.com)
 * Fix for infamous submarine explosion bug (and other FPS-related issues)
 * Checkpoint autosaves at the start of each level

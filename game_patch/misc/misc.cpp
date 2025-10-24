@@ -445,6 +445,8 @@ CallHook level_init_pre_console_output_hook{
                             break;
                         case rf::NetGameType::NG_TYPE_KOTH:
                             server_info.koth_score_limit = g_local_pending_win_condition.value();
+                        case rf::NetGameType::NG_TYPE_DC:
+                            server_info.dc_score_limit = g_local_pending_win_condition.value();
                             break;
                         default:
                             rf::netgame.max_kills = g_local_pending_win_condition.value();

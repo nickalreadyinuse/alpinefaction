@@ -11,6 +11,7 @@ static const char* const multi_rfl_prefixes[] = {
     // "dm",
     // "ctf",
     "koth",
+    "dc"
 };
 
 enum class HillOwner : int
@@ -101,6 +102,7 @@ struct CPGTRules // capture point game types
     int ms_per_point = 1000;      // scoring tick while owned and not pressured
     bool cyl_use_trigger_up = false; // if sphere is treated as a cylinder, true = use trigger dir to build cylinder, false = use world up
     bool require_neutral_to_capture = false; // if true, attackers must neutralize before flipping ownership
+    bool spawn_players_near_owned_points = false; // if true, players only spawn near control points owned by their team (todo: implement)
 };
 
 struct KothInfo
@@ -141,7 +143,10 @@ extern KothInfo g_koth_info;
 
 bool multi_game_type_is_team_type(rf::NetGameType game_type);
 bool multi_game_type_has_hills(rf::NetGameType game_type);
+bool multi_is_game_type_with_hills();
 bool multi_is_team_game_type();
+bool gt_is_koth();
+bool gt_is_dc();
 int multi_koth_get_red_team_score();
 int multi_koth_get_blue_team_score();
 void multi_koth_set_red_team_score(int score);

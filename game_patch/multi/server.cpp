@@ -698,6 +698,9 @@ std::optional<rf::NetGameType> resolve_gametype_from_name(std::string_view gamet
     if (string_equals_ignore_case(gametype_name, "koth")) {
         return rf::NetGameType::NG_TYPE_KOTH;
     }
+    if (string_equals_ignore_case(gametype_name, "dc")) {
+        return rf::NetGameType::NG_TYPE_DC;
+    }
 
     return std::nullopt;
 }
@@ -1061,6 +1064,9 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
         }
         else if (ng_type == RF_GT_KOTH) {
             return string_starts_with_ignore_case(filename, "koth");
+        }
+        else if (ng_type == RF_GT_DC) {
+            return string_starts_with_ignore_case(filename, "dc");
         }
         return string_starts_with_ignore_case(filename, "dm") || string_starts_with_ignore_case(filename, "pdm");
     },
@@ -1841,6 +1847,7 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_TEAMDM: {
         return rf::multi_tdm_get_red_team_score() == rf::multi_tdm_get_blue_team_score();
     }
+    case rf::NG_TYPE_DC:
     case rf::NG_TYPE_KOTH: {
         return multi_koth_get_red_team_score() == multi_koth_get_blue_team_score();
     }
@@ -1885,6 +1892,13 @@ FunHook<void()> multi_check_for_round_end_hook{
             case rf::NG_TYPE_TEAMDM: {
                 if (rf::multi_tdm_get_red_team_score() >= rf::multi_kill_limit ||
                     rf::multi_tdm_get_blue_team_score() >= rf::multi_kill_limit) {
+                    round_over = true;
+                }
+                break;
+            }
+            case rf::NG_TYPE_DC: {
+                if (multi_koth_get_red_team_score() >= g_alpine_server_config_active_rules.dc_score_limit ||
+                    multi_koth_get_blue_team_score() >= g_alpine_server_config_active_rules.dc_score_limit) {
                     round_over = true;
                 }
                 break;
