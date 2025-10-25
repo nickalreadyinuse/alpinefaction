@@ -599,7 +599,9 @@ CodeInjection multi_limbo_leave_pre_patch{
                     // queue for kick
                     to_kick.push_back(&p);
                 }
-                else if (!(pad.client_version == ClientVersion::alpine_faction && pad.client_version_minor >= 2) && pad.client_version != ClientVersion::browser) {
+                else if (get_upcoming_game_type() != rf::netgame.type &&
+                    !(pad.client_version == ClientVersion::alpine_faction && pad.client_version_minor >= 2) &&
+                    pad.client_version != ClientVersion::browser) {
                     auto server_msg = std::format("{} was kicked because their client does not support changing game type.", p.name);
                     rf::console::printf(server_msg.c_str());
 
@@ -2594,12 +2596,16 @@ void server_on_limbo_state_enter()
             send_private_message_with_stats(&player);
         }
 
-        if (&player != rf::local_player && ver > pdata.max_rfl_version && pdata.client_version != ClientVersion::browser) {
-            notify_for_upcoming_level_version_incompatible(&player);
-        }
-        else if (&player != rf::local_player && !(pdata.client_version == ClientVersion::alpine_faction && pdata.client_version_minor >= 2)) {
-            // only notify them if they CAN load the map, otherwise they can't play anyway so no point
-            notify_for_client_incompatible_with_switching_game_type(&player);
+        if (&player != rf::local_player) {
+            if (ver > pdata.max_rfl_version && pdata.client_version != ClientVersion::browser) {
+                notify_for_upcoming_level_version_incompatible(&player);
+            }
+            else if (get_upcoming_game_type() != rf::netgame.type &&
+                !(pdata.client_version == ClientVersion::alpine_faction && pdata.client_version_minor >= 2) &&
+                pdata.client_version != ClientVersion::browser) {
+                // only notify them if they CAN load the map, otherwise they can't play anyway so no point
+                notify_for_client_incompatible_with_switching_game_type(&player);
+            }
         }
     }
 
