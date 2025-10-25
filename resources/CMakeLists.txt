@@ -20,7 +20,7 @@ endfunction()
 
 
 add_packfile(alpinefaction.vpp
-    tables/maps_df.txt
+    tables/maps_af.txt
     tables/events.tbl
     tables/af_level_quirks.tbl
 

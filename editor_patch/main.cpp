@@ -594,7 +594,7 @@ CodeInjection LoadSaveLevel_patch2{
         int* version = regs.edi;
 
         if (*version < 300 && !g_skip_legacy_level_warning) {
-            xlog::warn("Displaying legacy level warning dialog");
+            xlog::info("Displaying legacy level warning dialog");
             ShowLegacyLevelDialog(*version, MAXIMUM_RFL_VERSION);
         }
     }
@@ -748,7 +748,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Load DashEditor.vpp
     vpackfile_init_injection.install();
 
-    // Add maps_df.txt to the collection of files scanned for default textures in order to add more textures from the
+    // Add maps_af.txt to the collection of files scanned for default textures in order to add more textures from the
     // base game to the texture browser
     // Especially add Rck_DefaultP.tga to default textures to fix error when packing a level containing a particle
     // emitter with default properties
@@ -758,7 +758,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
         "maps2.txt",
         "maps3.txt",
         "maps4.txt",
-        "maps_df.txt",
+        "maps_af.txt",
         nullptr,
     };
     write_mem_ptr(0x0041B813 + 1, maps_files_names);
