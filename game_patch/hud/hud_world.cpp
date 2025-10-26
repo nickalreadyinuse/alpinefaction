@@ -160,7 +160,7 @@ void build_ctf_flag_icons()
 }
 
 void build_mp_respawn_icons() {
-    auto all_respawn_points = get_new_multi_respawn_points();
+    auto all_respawn_points = get_alpine_respawn_points();
 
     for (auto& point : all_respawn_points) {
         // build colour for icon and arrow

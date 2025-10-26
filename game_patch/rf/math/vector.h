@@ -272,6 +272,7 @@ namespace rf
     static_assert(sizeof(Vector3) == 0xC);
 
     static auto& zero_vector = addr_as_ref<Vector3>(0x0173C378);
+    static auto& file_default_vector = *reinterpret_cast<Vector3*>(0x01BDB238);
 
     struct Vector2
     {

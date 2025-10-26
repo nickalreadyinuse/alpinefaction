@@ -1,5 +1,6 @@
 #pragma once
 #include "../rf/multi.h"
+#include "../object/object.h"
 
 // Forward declarations
 namespace rf
@@ -31,6 +32,7 @@ bool server_gaussian_spread();
 void server_reliable_socket_ready(rf::Player* player);
 bool server_weapon_items_give_full_ammo();
 void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_ammo);
+void multi_create_alpine_respawn_point(int uid, const char* name, rf::Vector3 pos, rf::Matrix3 orient, bool red, bool blue, bool enabled);
 void multi_reload_weapon_server_side(rf::Player* pp, int weapon_type);
 void multi_update_gungame_weapon(rf::Player* player, bool force_notification);
 void gungame_on_player_spawn(rf::Player* player);
@@ -40,4 +42,4 @@ void send_sound_packet_throwaway(rf::Player* target, int sound_id);
 void multi_change_level_alpine(const char* filename);
 const char* get_rand_level_filename();
 void shuffle_level_array();void process_queued_spawn_points_from_items();
-std::vector<rf::RespawnPoint> get_new_multi_respawn_points();
+

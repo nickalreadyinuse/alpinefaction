@@ -411,6 +411,19 @@ static const char* to_string(HillState s)
     }
 }
 
+static void koth_update_respawn_points(HillInfo* h) {
+    if (!h->mp_spawn_uids.empty()) {
+        auto owner = h->ownership;
+        for (int rp_uid : h->mp_spawn_uids) {
+            if (auto* rp = get_alpine_respawn_point_by_uid(rp_uid)) {
+                set_alpine_respawn_point_teams(rp, owner == HillOwner::HO_Red, owner == HillOwner::HO_Blue);
+                set_alpine_respawn_point_enabled(rp, owner != HillOwner::HO_Neutral);
+                //xlog::warn("mp spawn {} status - enabled {}, red {}, blue {}", rp_uid, rp->enabled, rp->red_team, rp->blue_team);
+            }
+        }
+    }
+}
+
 static void koth_apply_ownership(
     HillInfo& h, HillOwner new_owner, bool announce = true, HillOwner scoring_team = HillOwner::HO_Neutral)
 {
@@ -429,17 +442,21 @@ static void koth_apply_ownership(
 
     //xlog::warn("[KOTH] {}: OWNER {} -> {}", h.name.c_str(), to_string(old_owner), to_string(new_owner));
 
-    if (announce && rf::is_server) {
-        //auto ids = on_capture_collect_player_ids_on_hill_for_team(h, new_owner);
-        HillOwner reward_team = scoring_team;
-        if (reward_team == HillOwner::HO_Neutral)
-            reward_team = new_owner;
+    if (rf::is_server) {
+        koth_update_respawn_points(&h); // update respawn points associated with this hill
+    
+        if (announce) {
+            //auto ids = on_capture_collect_player_ids_on_hill_for_team(h, new_owner);
+            HillOwner reward_team = scoring_team;
+            if (reward_team == HillOwner::HO_Neutral)
+                reward_team = new_owner;
 
-        std::vector<uint8_t> ids;
-        if (reward_team == HillOwner::HO_Red || reward_team == HillOwner::HO_Blue)
-            ids = on_capture_collect_player_ids_on_hill_for_team(h, reward_team);
-        const uint8_t uid8 = static_cast<uint8_t>(std::clamp(h.hill_uid, 0, 255));
-        af_send_koth_hill_captured_packet_to_all(uid8, new_owner, ids);
+            std::vector<uint8_t> ids;
+            if (reward_team == HillOwner::HO_Red || reward_team == HillOwner::HO_Blue)
+                ids = on_capture_collect_player_ids_on_hill_for_team(h, reward_team);
+            const uint8_t uid8 = static_cast<uint8_t>(std::clamp(h.hill_uid, 0, 255));
+            af_send_koth_hill_captured_packet_to_all(uid8, new_owner, ids);
+        }
     }
 }
 
@@ -938,6 +955,16 @@ static int build_hills_from_capture_point_events()
         h.capture_progress = 0;
         h.capture_milli = 0;
         h.hold_ms_accum = 0;
+
+        // build vector of respawn points associated with hill
+        if (!e->links.empty()) {
+            for (int linked_uid : e->links) {
+                if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
+                    h.mp_spawn_uids.push_back(rp->uid);
+                }
+            }
+            koth_update_respawn_points(&h); // set initial respawn point states
+        }
 
         g_koth_info.hills.push_back(std::move(h));
     }

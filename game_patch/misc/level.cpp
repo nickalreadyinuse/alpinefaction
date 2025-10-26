@@ -9,6 +9,7 @@
 #include "../rf/level.h"
 #include "../rf/file/file.h"
 #include "level.h"
+#include "../multi/server.h"
 
 CodeInjection level_read_data_check_restore_status_patch{
     0x00461195,
@@ -82,6 +83,35 @@ CodeInjection level_load_chunk_patch{
     },
 };
 
+FunHook<void(rf::File* file)> level_read_mp_respawns_hook{
+    0x00462B20,
+    [](rf::File* file) {
+        rf::Vector3 pos;
+        rf::Matrix3 orient;
+        rf::String script_name;
+        rf::String tmp_string; // only in rfl version < 67
+        int count = file->read_int(0, 0);
+
+        for (int j = 0; j < count; ++j) {
+            int uid = file->read_int(0, 0);
+            file->read_vector(&pos, 0, &rf::file_default_vector);
+            file->read_matrix(&orient, 0, &rf::file_default_matrix);
+            file->read_string(&script_name, 0, 0);
+            if (file->get_version() < 67)
+                file->read_string(&tmp_string, 0, 0); // unused
+            bool unk1 = file->read_bool(0, true);
+            int team = file->read_int(0, 0);
+            bool red = file->read_bool(172, true);
+            bool blue = file->read_bool(172, true);
+            bool bot = file->read_bool(172, false);
+
+            //xlog::warn("[{}] uid={} name='{}' unk1={} team={} red={} blue={} bot={} pos=({}, {}, {})", j, uid, script_name.c_str(), unk1, team, red, blue, bot, pos.x, pos.y, pos.z);
+
+            multi_create_alpine_respawn_point(uid, script_name.c_str(), pos, orient, red, blue, true);
+        }
+    },
+};
+
 void level_apply_patch()
 {
     // Add checking if restoring game state from save file failed during level loading
@@ -96,4 +126,7 @@ void level_apply_patch()
     // Load new rfl chunks
     level_load_init_patch.install();
     level_load_chunk_patch.install();
+
+    // Load MP respawns
+    level_read_mp_respawns_hook.install();
 }

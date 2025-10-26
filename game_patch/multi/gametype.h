@@ -72,6 +72,7 @@ struct HillInfo
     uint8_t capture_progress = 0; // 0-100
     int hold_ms_accum = 0;
     int capture_milli = 0; // 0 - 100000 (100% = 100000)
+    std::vector<int> mp_spawn_uids;
 
     // debug tracking
     int dbg_last_red = -1;

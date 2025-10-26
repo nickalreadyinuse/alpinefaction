@@ -64,7 +64,7 @@ const char* g_rcon_cmd_whitelist[] = {
     "unban_last"
 };
 
-std::vector<rf::RespawnPoint> g_new_multi_respawn_points; // new storage of spawn points to avoid hard limits
+std::vector<rf::AlpineRespawnPoint> g_alpine_respawn_points;
 std::vector<std::tuple<std::string, rf::Vector3, rf::Matrix3>> queued_item_spawn_points; // queued generated spawns
 std::optional<rf::Vector3> likely_position_of_central_item; // guess at the center of the map for generated spawns
 static const std::vector<std::string> possible_central_item_names = {
@@ -1938,44 +1938,43 @@ FunHook<void()> multi_check_for_round_end_hook{
     }
 };
 
-FunHook<int(const char*, uint8_t, const rf::Vector3*, const rf::Matrix3*, bool, bool, bool)> multi_respawn_create_point_hook{
-    0x00470190,
-    [](const char* name, uint8_t team, const rf::Vector3* pos, const rf::Matrix3* orient, bool red_team, bool blue_team, bool bot) 
-    {
-        constexpr size_t max_respawn_points = 2048; // raise limit 32 -> 2048
-        
-        if (g_new_multi_respawn_points.size() >= max_respawn_points) {
-            return -1;
-        }
+rf::AlpineRespawnPoint* get_alpine_respawn_point_by_uid(int uid)
+{
+    auto it = std::ranges::find(g_alpine_respawn_points, uid, &rf::AlpineRespawnPoint::uid);
+    return (it != g_alpine_respawn_points.end()) ? std::addressof(*it) : nullptr;
+}
 
-        g_new_multi_respawn_points.emplace_back(rf::RespawnPoint{
-            rf::String(name),
-            team, // unused
-            *pos,
-            *orient,
-            red_team,
-            blue_team,
-            bot
-        });
-
-        xlog::debug("New spawn point added! Name: {}, Team: {}, RedTeam: {}, BlueTeam: {}, Bot: {}",
-            name, team, red_team, blue_team, bot);
-
-        if (pos) {
-            xlog::debug("Position: ({}, {}, {})", pos->x, pos->y, pos->z);
-        }
-
-        xlog::debug("Current number of spawn points: {}", g_new_multi_respawn_points.size());
-
-        return 0;
+void set_alpine_respawn_point_enabled(rf::AlpineRespawnPoint* point, bool enabled)
+{
+    if (point) {
+        point->enabled = enabled;
     }
-};
+}
+
+void set_alpine_respawn_point_teams(rf::AlpineRespawnPoint* point, bool red, bool blue)
+{
+    if (point) {
+        point->red_team = red;
+        point->blue_team = blue;
+    }
+}
+
+void multi_create_alpine_respawn_point(int uid, const char* name, rf::Vector3 pos, rf::Matrix3 orient, bool red, bool blue, bool enabled = true) {
+    constexpr size_t max_respawn_points = 2048;
+
+    if (g_alpine_respawn_points.size() >= max_respawn_points) {
+        return; // reached max spawn points
+    }
+
+    g_alpine_respawn_points.emplace_back(rf::AlpineRespawnPoint{uid, enabled, rf::String(name), pos, orient, red, blue});
+    //xlog::warn("New spawn point added! Name: {}, UID: {}, RedTeam: {}, BlueTeam: {}", name, uid, red, blue);
+}
 
 // clear spawn point array and reset last spawn index at level start
 FunHook<void()> multi_respawn_level_init_hook {
     0x00470180,
     []() {
-        g_new_multi_respawn_points.clear();        
+        g_alpine_respawn_points.clear();    
         
         auto player_list = get_current_player_list(false);
         std::for_each(player_list.begin(), player_list.end(),
@@ -2021,9 +2020,8 @@ float get_nearest_other_player(const rf::Player* player, const rf::Vector3* spaw
 
 FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_point_hook{
     0x00470300, [](rf::Vector3* pos, rf::Matrix3* orient, rf::Player* player) {
-
         // Level has no respawn points
-        if (g_new_multi_respawn_points.empty()) {
+        if (g_alpine_respawn_points.empty()) {
             *pos = rf::level.player_start_pos;
             *orient = rf::level.player_start_orient;
             xlog::warn("No Multiplayer Respawn Points found. Spawning {} at the Player Start.", player->name);
@@ -2032,10 +2030,10 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
 
         // Use full RNG if player is invalid (strictly for safety, this should never happen)
         if (!player) {
-            std::uniform_int_distribution<int> dist(0, g_new_multi_respawn_points.size() - 1);
+            std::uniform_int_distribution<int> dist(0, g_alpine_respawn_points.size() - 1);
             int index = dist(g_rng);
-            *pos = g_new_multi_respawn_points[index].position;
-            *orient = g_new_multi_respawn_points[index].orientation;
+            *pos = g_alpine_respawn_points[index].position;
+            *orient = g_alpine_respawn_points[index].orientation;
             xlog::warn("A respawn point was requested for an invalid player.");
             return;
         }
@@ -2049,14 +2047,17 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         //xlog::debug("Spawn point requested! Player: {}, Team: {}, Last Spawn Index: {}", player->name, team, last_index);
 
         // Step 1: Build a list of eligible spawn points for this request
-        std::vector<rf::RespawnPoint*> eligible_points;
-        for (auto& point : g_new_multi_respawn_points) {
+        std::vector<rf::AlpineRespawnPoint*> eligible_points;
+        for (auto& point : g_alpine_respawn_points) {
+            if (!point.enabled) {
+                continue; // Skip disabled spawn points
+            }
             if (config.respect_team_spawns && is_team_game) {
                 if ((team == 0 && !point.red_team) || (team == 1 && !point.blue_team)) {
                     continue; // Only use correct team spawn points in team games
                 }
             }
-            if (config.always_avoid_last && last_index == (&point - &g_new_multi_respawn_points[0])) {
+            if (config.always_avoid_last && last_index == (&point - &g_alpine_respawn_points[0])) {
                 continue; // If avoid_last is on, remove this player's last spawn point
             }
 
@@ -2068,10 +2069,10 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
 
         // If no valid spawn points remain, use full RNG
         if (eligible_points.empty()) {
-            std::uniform_int_distribution<int> dist(0, g_new_multi_respawn_points.size() - 1);
+            std::uniform_int_distribution<int> dist(0, g_alpine_respawn_points.size() - 1);
             int index = dist(g_rng);
-            *pos = g_new_multi_respawn_points[index].position;
-            *orient = g_new_multi_respawn_points[index].orientation;
+            *pos = g_alpine_respawn_points[index].position;
+            *orient = g_alpine_respawn_points[index].orientation;
             xlog::warn("No eligible respawn points were found. Spawning {} at a random respawn point {}.", player->name, index);
             return;
         }
@@ -2079,7 +2080,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         // Step 2: If needed, sort the list based on distance from the nearest other player
         if (config.try_avoid_players || config.always_use_furthest) {
             std::sort(eligible_points.begin(), eligible_points.end(),
-                      [](const rf::RespawnPoint* a, const rf::RespawnPoint* b) {
+                      [](const rf::AlpineRespawnPoint* a, const rf::AlpineRespawnPoint* b) {
                           return a->dist_other_player > b->dist_other_player;
                       });
         }
@@ -2089,7 +2090,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         if (config.always_use_furthest && eligible_points[0]->dist_other_player < std::numeric_limits<float>::max()) {
             selected_index = 0; // Always pick the furthest point
             if (config.always_avoid_last &&
-                last_index == std::distance(g_new_multi_respawn_points.data(), eligible_points[0]) &&
+                last_index == std::distance(g_alpine_respawn_points.data(), eligible_points[0]) &&
                 eligible_points.size() > 1) {
                 selected_index = 1; // Pick second furthest if the last spawn was the furthest
             }
@@ -2106,7 +2107,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
         }
 
         // Convert selected_index (from eligible_points) to g_new_multi_respawn_points index
-        int global_index = std::distance(g_new_multi_respawn_points.data(), eligible_points[selected_index]);
+        int global_index = std::distance(g_alpine_respawn_points.data(), eligible_points[selected_index]);
 
         // Return position and orientation of the selected spawn point
         *pos = eligible_points[selected_index]->position;
@@ -2118,8 +2119,8 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
     }
 };
 
-std::vector<rf::RespawnPoint> get_new_multi_respawn_points() {
-    return g_new_multi_respawn_points;
+std::vector<rf::AlpineRespawnPoint> get_alpine_respawn_points() {
+    return g_alpine_respawn_points;
 }
 
 bool are_flags_initialized()
@@ -2167,7 +2168,7 @@ void create_spawn_point_from_item(const std::string& name, const rf::Vector3* po
         }
     }
 
-    rf::multi_respawn_create_point(name.c_str(), 0, pos, orient, red_spawn, blue_spawn, false);
+    multi_create_alpine_respawn_point(-1, name.c_str(), *pos, *orient, red_spawn, blue_spawn);
 }
 
 int get_item_priority(const std::string& item_name)
@@ -2235,7 +2236,7 @@ CallHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*,
             if (itcfg != logic.dynamic_respawn_items.end()) {
                 int threshold = itcfg->min_respawn_points;
                 // queue if no threshold or we're under it
-                if (threshold == 0 || threshold > static_cast<int>(g_new_multi_respawn_points.size())) {
+                if (threshold == 0 || threshold > static_cast<int>(g_alpine_respawn_points.size())) {
                     queued_item_spawn_points.emplace_back(std::string(name), *pos, *orient);
                 }
             }
@@ -2534,7 +2535,6 @@ void server_init()
 
     // respawn point selection logic
     multi_respawn_level_init_hook.install();
-    multi_respawn_create_point_hook.install();
     multi_respawn_get_next_point_hook.install();
     item_create_hook.install(); // also used for respawn time overrides
 
