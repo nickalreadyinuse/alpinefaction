@@ -865,7 +865,7 @@ void koth_do_frame() // fires every frame on both server and client
         // play hum while gaining capture progress for our team
         if (should_play_cap_gain) {
             if (!g_local_cap_gain_sfx_playing) {
-                g_local_cap_gain_sfx_handle = rf::snd_play(get_custom_sound_id(4), 0, 0.0, 0.75);
+                g_local_cap_gain_sfx_handle = rf::snd_play(get_custom_sound_id(4), 0, 0.0, 5.0);
                 g_local_cap_gain_sfx_playing = true;
             }
         }
@@ -915,8 +915,7 @@ static int build_hills_from_capture_point_events()
         // resolve trigger pointer
         rf::Trigger* trig = koth_resolve_trigger_from_uid(cp->trigger_uid);
         if (!trig) {
-            xlog::warn("KOTH: Capture point '{}' has invalid trigger UID {}, skipping", cp->name.c_str(),
-                       cp->trigger_uid);
+            xlog::warn("KOTH: Capture point '{}' has invalid trigger UID {}, skipping", cp->name.c_str(), cp->trigger_uid);
             continue;
         }
 
