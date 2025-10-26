@@ -388,7 +388,7 @@ $RFE Level1:      "AF_General"
 // Flow Control Events in Alpine Faction
 // ------------------------------------------------
 
-#AplineFlow
+#AlpineFlow
 
 $Event Name:      "Sequence"
 $RFE Level1:      "AF_Flow"
@@ -423,7 +423,7 @@ $RFE Level1:      "AF_Flow"
 // Utility Events in Alpine Faction
 // ------------------------------------------------
 
-#AplineUtility
+#AlpineUtility
 
 $Event Name:      "Set_Variable"
 $RFE Level1:      "AF_Utility"
@@ -455,7 +455,7 @@ $RFE Level1:      "AF_Utility"
 // Catalyst Events in Alpine Faction
 // ------------------------------------------------
 
-#AplineCatalysts
+#AlpineCatalysts
 
 $Event Name:      "AF_When_Dead"
 $RFE Level1:      "AF_Catalysts"
@@ -469,7 +469,7 @@ $RFE Level1:      "AF_Catalysts"
 // Gameplay Logic Events in Alpine Faction
 // ------------------------------------------------
 
-#AplineGameplay
+#AlpineGameplay
 
 $Event Name:      "Capture_Point_Handler"
 $RFE Level1:      "AF_Gameplay"
