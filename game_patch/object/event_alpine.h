@@ -2090,7 +2090,7 @@ namespace rf
             try {
                 for (const auto& linked_uid : this->links) {
                     if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
-                        rp->enabled = true;
+                        set_alpine_respawn_point_enabled(rp, true);
                     }
                 }
             }
@@ -2104,7 +2104,7 @@ namespace rf
             try {
                 for (const auto& linked_uid : this->links) {
                     if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
-                        rp->enabled = false;
+                        set_alpine_respawn_point_enabled(rp, false);
                     }
                 }
             }
@@ -2141,8 +2141,7 @@ namespace rf
             try {
                 for (const auto& linked_uid : this->links) {
                     if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
-                        rp->red_team = red;
-                        rp->blue_team = blue;
+                        set_alpine_respawn_point_teams(rp, red, blue);
                     }
                 }
             }
