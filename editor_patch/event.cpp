@@ -35,7 +35,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 39; // must be 1 higher than actual count
+constexpr int new_event_count = 41; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -79,6 +79,8 @@ const char* additional_event_names[new_event_count] = {
     "World_HUD_Sprite",
     "Set_Light_Color",
     "Capture_Point_Handler",
+    "Respawn_Point_State",
+    "Modify_Respawn_Point",
     "_dummy"
 };
 
@@ -600,6 +602,13 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         {
             {FIELD_INT1, true},
             {FIELD_INT2, true}
+        }
+    }},
+    {AlpineDedEventID::Modify_Respawn_Point, {
+        {FIELD_BOOL1, FIELD_BOOL2},
+        {
+            {FIELD_BOOL1, "Red team (bool1):"},
+            {FIELD_BOOL2, "Blue team (bool2):"},
         }
     }},
 };

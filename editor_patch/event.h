@@ -58,7 +58,9 @@ enum class AlpineDedEventID : int
     Light_State,
     World_HUD_Sprite,
     Set_Light_Color,
-    Capture_Point_Handler
+    Capture_Point_Handler,
+    Respawn_Point_State,
+    Modify_Respawn_Point
 };
 
 constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept

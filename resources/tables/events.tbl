@@ -382,6 +382,9 @@ $RFE Level1:      "AF_General"
 $Event Name:      "Set_Light_Color"
 $RFE Level1:      "AF_General"
 
+$Event Name:      "Modify_Respawn_Point"
+$RFE Level1:      "AF_General"
+
 #End
 
 // ------------------------------------------------
@@ -447,6 +450,9 @@ $Event Name:      "Anchor_Marker_Orient"
 $RFE Level1:      "AF_Utility"
 
 $Event Name:      "Light_State"
+$RFE Level1:      "AF_Utility"
+
+$Event Name:      "Respawn_Point_State"
 $RFE Level1:      "AF_Utility"
 
 #End

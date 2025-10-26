@@ -67,7 +67,7 @@ Multiplayer:
 * `rf://` protocol handler for joining servers
 
 Community development:
-* 30+ new event scripting objects for crafting advanced logic systems in maps
+* 40+ new event scripting objects for crafting advanced logic systems in maps
 * Support for dynamic lights in maps
 * Support for using dynamic lights, particle emitters, and push regions with movers
 * Enhanced and more immersive skyboxes

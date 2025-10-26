@@ -75,6 +75,8 @@ Version 1.2.0 (Willow): Not yet released
 - Kick legacy clients on game type switch and notify them they can rejoin
 - Add `vote gametype` chat command
 - Support mappers associating MP respawn points with control points
+- Add `Respawn_Point_State` event
+- Add `Modify_Respawn_Point` event
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

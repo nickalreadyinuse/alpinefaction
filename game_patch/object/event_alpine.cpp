@@ -84,6 +84,8 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"World_HUD_Sprite", 135},
                 {"Set_Light_Color", 136},
                 {"Capture_Point_Handler", 137},
+                {"Respawn_Point_State", 138},
+                {"Modify_Respawn_Point", 139},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -147,6 +149,8 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {135, []() { return new rf::EventWorldHUDSprite(); }},
                 {136, []() { return new rf::EventSetLightColor(); }},
                 {137, []() { return new rf::EventCapturePointHandler(); }},
+                {138, []() { return new rf::EventRespawnPointState(); }},
+                {139, []() { return new rf::EventModifyRespawnPoint(); }},
             };
 
             // find type and allocate
@@ -214,6 +218,8 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {135, [](rf::Event* e) { delete static_cast<rf::EventWorldHUDSprite*>(e); }},
                 {136, [](rf::Event* e) { delete static_cast<rf::EventSetLightColor*>(e); }},
                 {137, [](rf::Event* e) { delete static_cast<rf::EventCapturePointHandler*>(e); }},
+                {138, [](rf::Event* e) { delete static_cast<rf::EventRespawnPointState*>(e); }},
+                {139, [](rf::Event* e) { delete static_cast<rf::EventModifyRespawnPoint*>(e); }},
             };
 
             // find type and deallocate
@@ -656,6 +662,18 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
                 event->sphere_to_cylinder = params.bool1;
                 event->position = params.int1;
                 event->initial_owner = params.int2;
+            }
+            return event;
+        }
+    },
+    // Modify_Respawn_Point
+    {
+        rf::EventType::Modify_Respawn_Point, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Modify_Respawn_Point));
+            auto* event = dynamic_cast<rf::EventModifyRespawnPoint*>(base_event);
+            if (event) {
+                event->red = params.bool1;
+                event->blue = params.bool2;
             }
             return event;
         }

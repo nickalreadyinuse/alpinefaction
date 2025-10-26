@@ -2082,5 +2082,75 @@ namespace rf
         }
     };
 
+    // id 138
+    struct EventRespawnPointState : Event
+    {
+        void turn_on() override
+        {
+            try {
+                for (const auto& linked_uid : this->links) {
+                    if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
+                        rp->enabled = true;
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                xlog::error("Respawn_Point_State ({}) failed to set enabled: {}", this->uid, e.what());
+            }
+        }
+
+        void turn_off() override
+        {
+            try {
+                for (const auto& linked_uid : this->links) {
+                    if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
+                        rp->enabled = false;
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                xlog::error("Respawn_Point_State ({}) failed to set disabled: {}", this->uid, e.what());
+            }
+        }
+    };
+
+    // id 139
+    struct EventModifyRespawnPoint : Event
+    {
+        bool red = false;
+        bool blue = false;
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::bool1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventModifyRespawnPoint*>(event);
+                this_event->red = (value == "true");
+            };
+
+            handlers[SetVarOpts::bool2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventModifyRespawnPoint*>(event);
+                this_event->blue = (value == "true");
+            };
+        }
+
+        void turn_on() override
+        {
+            try {
+                for (const auto& linked_uid : this->links) {
+                    if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
+                        rp->red_team = red;
+                        rp->blue_team = blue;
+                    }
+                }
+            }
+            catch (const std::exception& e) {
+                xlog::error("Modify_Respawn_Point ({}) failed to set teams: {}", this->uid, e.what());
+            }
+        }
+    };
+
 } // namespace rf
 
