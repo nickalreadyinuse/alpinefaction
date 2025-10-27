@@ -473,14 +473,14 @@ static void hud_draw_cp_row_fullwidth(int x, int y, int w, int h, const HillInfo
     if (locked) {
         static constexpr char kPadlockGlyph[] = {static_cast<char>(0xA7), '\0'}; // padlock
         static constexpr char kPermalockGlyph[] = {static_cast<char>(0xAB), '\0'}; // filled checkbox
-        const char* padlock_glyph =
+        const char* lock_glyph =
             (hinfo.lock_status == HillLockStatus::HLS_Permalocked) ? kPermalockGlyph : kPadlockGlyph;
         int lw, lh;
-        rf::gr::get_string_size(&lw, &lh, padlock_glyph, -1, font_id);
+        rf::gr::get_string_size(&lw, &lh, lock_glyph, -1, font_id);
         rf::gr::set_color(0, 0, 0, 220);
-        rf::gr::string(x + w - pad_r - lw + 1, y + (h - lh) / 2 + 1, padlock_glyph, font_id); // shadow
+        rf::gr::string(x + w - pad_r - lw + 1, y + (h - lh) / 2 + 1, lock_glyph, font_id); // shadow
         rf::gr::set_color(255, 255, 255, 255);
-        rf::gr::string(x + w - pad_r - lw, y + (h - lh) / 2, padlock_glyph, font_id); // main
+        rf::gr::string(x + w - pad_r - lw, y + (h - lh) / 2, lock_glyph, font_id); // main
     }
     else if (contested) {
         char pct_buf[5];
