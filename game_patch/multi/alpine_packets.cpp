@@ -724,6 +724,7 @@ void af_send_koth_hill_state_packet(rf::Player* player, const HillInfo& h, const
     pkt.ownership = static_cast<uint8_t>(h.ownership);
     pkt.steal_dir = static_cast<uint8_t>(h.steal_dir);
     pkt.state = static_cast<uint8_t>(h.state);
+    pkt.lock_status = static_cast<uint8_t>(h.lock_status);
     pkt.capture_progress = h.capture_progress;
     pkt.num_red_players = static_cast<uint8_t>(std::clamp(pres.red, 0, 255));
     pkt.num_blue_players = static_cast<uint8_t>(std::clamp(pres.blue, 0, 255));
@@ -790,6 +791,7 @@ static void af_process_koth_hill_state_packet(const void* data, size_t len, cons
     h->ownership = static_cast<HillOwner>(pkt.ownership);
     h->steal_dir = static_cast<HillOwner>(pkt.steal_dir);
     h->state = static_cast<HillState>(pkt.state);
+    h->lock_status = static_cast<HillLockStatus>(pkt.lock_status);
     h->capture_progress = pkt.capture_progress;
     h->capture_milli = std::clamp<int>(h->capture_progress, 0, 100) * 1000;
 

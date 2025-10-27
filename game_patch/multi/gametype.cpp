@@ -769,6 +769,9 @@ static void koth_client_predict_tick(int dt_ms)
         return;
 
     for (auto& h : g_koth_info.hills) {
+        if (h.lock_status != HillLockStatus::HLS_Available)
+            continue; // hill is locked
+
         if (h.ownership == HillOwner::HO_Neutral) {
             h.client_hold_ms_accum = 0;
             continue;
@@ -798,6 +801,9 @@ static void koth_client_predict_tick(int dt_ms)
 
     // predict capture percentage clientside
     for (auto& h : g_koth_info.hills) {
+        if (h.lock_status != HillLockStatus::HLS_Available)
+            continue; // hill is locked
+
         update_hill_client_predict(h, dt_ms);
     }
 }
@@ -817,6 +823,9 @@ void koth_do_frame() // fires every frame on both server and client
             const int dt_ms = std::clamp(dt_srv, 0, 250);
 
             for (auto& h : g_koth_info.hills) {
+                if (h.lock_status != HillLockStatus::HLS_Available)
+                    continue; // hill is locked
+
                 update_hill_server(h, dt_ms);
 
                 // After the authoritative update, broadcast state if something relevant changed
@@ -944,14 +953,15 @@ static int build_hills_from_capture_point_events()
 
         HillInfo h{};
         h.hill_uid = ++idx;
-        // use name if set by mapper, if not name it "Hill" with an index if multiple
-        h.name = cp->name.empty() ? (events.size() <= 1 ? "Hill" : std::format("Hill {}", idx)) : cp->name;
+        // use name if set by mapper, if not name it "Hill" if only one, or "Control Point X" if multiple
+        h.name = cp->name.empty() ? (events.size() <= 1 ? "Hill" : std::format("Control Point {}", idx)) : cp->name;
         h.trigger_uid = cp->trigger_uid;
         h.trigger = trig;
         h.outline_offset = cp->outline_offset;
         h.handler = cp;
         h.ownership = static_cast<HillOwner>(cp->initial_owner);
         h.state = HillState::HS_Idle;
+        h.lock_status = HillLockStatus::HLS_Available;
         h.capture_progress = 0;
         h.capture_milli = 0;
         h.hold_ms_accum = 0;

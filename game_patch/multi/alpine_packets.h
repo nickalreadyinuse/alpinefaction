@@ -112,6 +112,7 @@ struct af_koth_hill_state_packet
     uint8_t ownership;
     uint8_t steal_dir;
     uint8_t state;
+    uint8_t lock_status;
     uint8_t capture_progress;
     uint8_t num_red_players;
     uint8_t num_blue_players;

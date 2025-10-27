@@ -39,6 +39,13 @@ enum class HillRole : int
     HR_BlueForward = 4,
 };
 
+enum class HillLockStatus : int
+{
+    HLS_Available = 0,
+    HLS_Locked = 1,
+    HLS_Permalocked = 2,
+};
+
 struct Presence
 {
     int red = 0;
@@ -69,6 +76,7 @@ struct HillInfo
     HillOwner ownership = HillOwner::HO_Neutral;
     HillOwner steal_dir = HillOwner::HO_Neutral;
     HillState state = HillState::HS_Idle;
+    HillLockStatus lock_status = HillLockStatus::HLS_Available;
     uint8_t capture_progress = 0; // 0-100
     int hold_ms_accum = 0;
     int capture_milli = 0; // 0 - 100000 (100% = 100000)
