@@ -394,26 +394,239 @@ namespace rf
     auto& hud_flag_gr_mode = addr_as_ref<rf::gr::Mode>(0x01775B30);
 }
 
+static inline void cp_owner_color(HillOwner owner, rf::ubyte& r, rf::ubyte& g, rf::ubyte& b, rf::ubyte& a)
+{
+    a = 220;
+    switch (owner) {
+        case HillOwner::HO_Red:
+            r = 167; g = 0;b = 0;
+            return;
+        case HillOwner::HO_Blue:
+            r = 52; g = 78; b = 167;
+            return;
+        default: // neutral
+            r = 0; g = 0; b = 0;
+            return; 
+    }
+}
+
+static inline void cp_steal_color(HillOwner steal_dir, rf::ubyte& r, rf::ubyte& g, rf::ubyte& b, rf::ubyte& a)
+{
+    a = 230;
+    if (steal_dir == HillOwner::HO_Red) {
+        r = 200; g = 40; b = 40;
+        return;
+    }
+    if (steal_dir == HillOwner::HO_Blue) {
+        r = 70; g = 100; b = 200;
+        return;
+    }
+    r = 180; g = 180; b = 180;
+}
+
+static void hud_draw_cp_row_fullwidth(int x, int y, int w, int h, const HillInfo& hinfo, int font_id)
+{
+    // background base colour
+    rf::gr::set_color(0, 0, 0, 150);
+    rf::gr::rect(x, y, w, h);
+
+    // fill with owner colour
+    rf::ubyte or_, og, ob, oa;
+    cp_owner_color(hinfo.ownership, or_, og, ob, oa);
+    rf::gr::set_color(or_, og, ob, 130);
+    rf::gr::rect(x + 1, y + 1, w - 2, h - 2);
+
+    // cap progress bar
+    if (hinfo.steal_dir != HillOwner::HO_Neutral) {
+        rf::ubyte pr, pg, pb, pa;
+        cp_steal_color(hinfo.steal_dir, pr, pg, pb, pa);
+
+        const float t = std::clamp(hinfo.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
+        const int inner = std::max(1, int((w - 2) * t));
+
+        rf::gr::set_color(pr, pg, pb, pa);
+        rf::gr::rect(x + 1, y + 1, inner, h - 2);
+    }
+
+    // border
+    rf::gr::set_color(150, 150, 150, 170);
+    rf::gr::rect_border(x, y, w, h);
+
+    // text
+    const int pad_l = 6;
+    const int pad_r = 6;
+    const bool contested = (hinfo.steal_dir != HillOwner::HO_Neutral);
+    const int pct_w_room = contested ? 40 : 0; // show progress if contested
+    std::string name_to_show = hinfo.name.empty() ? "Control Point" : hinfo.name;
+    std::string fit_name = hud_fit_string(name_to_show.c_str(), (w - pad_l - pad_r - pct_w_room), nullptr, font_id);
+
+    // name
+    int tw, th;
+    rf::gr::get_string_size(&tw, &th, fit_name.c_str(), -1, font_id);
+    rf::gr::set_color(0, 0, 0, 220);
+    rf::gr::string(x + pad_l + 1, y + (h - th) / 2 + 1, fit_name.c_str(), font_id); // shadow
+    rf::gr::set_color(255, 255, 255, 255);
+    rf::gr::string(x + pad_l, y + (h - th) / 2, fit_name.c_str(), font_id); // main
+
+    // progress percentage
+    if (contested) {
+        char pct_buf[8];
+        std::snprintf(pct_buf, sizeof(pct_buf), "%d%%", (int)std::clamp(hinfo.capture_progress, (uint8_t)0, (uint8_t)100));
+        int pw, ph;
+        rf::gr::get_string_size(&pw, &ph, pct_buf, -1, font_id);
+        rf::gr::set_color(0, 0, 0, 220);
+        rf::gr::string(x + w - pad_r - pw + 1, y + (h - ph) / 2 + 1, pct_buf, font_id); // shadow
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::string(x + w - pad_r - pw, y + (h - ph) / 2, pct_buf, font_id); // main
+    }
+}
+
+static void hud_render_cp_strip_koth_dc_fullwidth(int anchor_x, int anchor_y, int anchor_w)
+{
+    if (!multi_is_game_type_with_hills())
+        return;
+
+    const int count = (int)g_koth_info.hills.size();
+    if (count <= 0)
+        return;
+
+    const int font_id = hud_get_default_font();
+
+    // size cp rows
+    const bool big_ui = g_big_team_scores_hud;
+    int row_h = big_ui ? 28 : 22;
+    int gap_y = 4;
+    int margin = 6; // margin above team scores box
+    const int clip_h = rf::gr::clip_height();
+    int total_h = count * row_h + (count - 1) * gap_y;
+    int y0 = anchor_y - total_h - margin;
+
+    if (y0 < 4) {
+        // compress rows proportionally to keep gap ratio
+        const int avail_h = std::max(8, anchor_y - margin - 4);
+        if (avail_h < total_h) {
+            const float s = std::max(14.0f, float(avail_h - (count - 1) * gap_y)) / float(count);
+            row_h = int(std::floor(s));
+            total_h = count * row_h + (count - 1) * gap_y;
+            y0 = anchor_y - total_h - margin;
+        }
+    }
+
+    // draw from top row to bottom, stacked
+    int cur_y = y0;
+    for (int i = 0; i < count; ++i) {
+        const HillInfo& H = g_koth_info.hills[i];
+        hud_draw_cp_row_fullwidth(anchor_x, cur_y, anchor_w, row_h, H, font_id);
+        cur_y += row_h + gap_y;
+    }
+}
+
+static void hud_render_koth_dc_split_scores(
+    int x, int y, int w, int h, int red_score, int blue_score, int font, int bm_red, int bm_blue,
+    int bm_hilight, rf::gr::Mode bm_mode, bool hilight_red, bool hilight_blue, float miniflag_scale
+) {
+    // base frame
+    rf::gr::set_color(0, 0, 0, 150);
+    rf::gr::rect(x, y, w, h);
+
+    // halves
+    const int half_w = w / 2;
+    const int left_x = x;
+    const int right_x = x + half_w;
+    rf::gr::set_color(0, 0, 0, 160); // red
+    rf::gr::rect(left_x + 1, y + 1, half_w - 2, h - 2);
+    rf::gr::set_color(0, 0, 0, 160); // blue
+    rf::gr::rect(right_x + 1, y + 1, w - half_w - 2, h - 2);
+
+    // vertical separator
+    rf::gr::set_color(255, 255, 255, 120);
+    rf::gr::rect(x + half_w - 1, y + 2, 2, h - 4);
+
+    // padding
+    const int mid_y = y + h / 2;
+    const int pad_outer = g_big_team_scores_hud ? 12 : 8; // dist from edge to flag
+    const int pad_sep = g_big_team_scores_hud ? 10 : 8; // dist from separator to score text
+
+    // miniflags pos
+    const int kMiniW = int(16 * miniflag_scale);
+    const int kMiniH = int(12 * miniflag_scale);
+
+    // scores
+    std::string rs = std::to_string(red_score);
+    std::string bs = std::to_string(blue_score);
+    int rtw = 0, rth = 0, btw = 0, bth = 0;
+    rf::gr::get_string_size(&rtw, &rth, rs.c_str(), -1, font);
+    rf::gr::get_string_size(&btw, &bth, bs.c_str(), -1, font);
+    const int red_flag_x = left_x + pad_outer;
+    const int red_flag_y = mid_y - (kMiniH);
+    const int blue_flag_x = x + w - pad_outer - kMiniW;
+    const int blue_flag_y = mid_y - (kMiniH);
+
+    // red: right aligned to left side of separator
+    const int red_tx = (x + half_w - pad_sep) - rtw;
+    const int red_ty = mid_y - rth / 2;
+
+    // blue: left aligned to right side of separator
+    const int blue_tx = (x + half_w + pad_sep);
+    const int blue_ty = mid_y - bth / 2;
+
+    // miniflag highlight
+    if (hilight_red)
+        hud_scaled_bitmap(bm_hilight, red_flag_x, red_flag_y, miniflag_scale, bm_mode);
+    if (hilight_blue)
+        hud_scaled_bitmap(bm_hilight, blue_flag_x, blue_flag_y, miniflag_scale, bm_mode);
+
+    // render miniflags
+    hud_scaled_bitmap(bm_red, red_flag_x, red_flag_y, miniflag_scale, bm_mode);
+    hud_scaled_bitmap(bm_blue, blue_flag_x, blue_flag_y, miniflag_scale, bm_mode);
+
+    // render score text with shadow
+    auto draw_text = [&](int tx, int ty, const std::string& s) {
+        rf::gr::set_color(0, 0, 0, 230);
+        rf::gr::string(tx + 1, ty + 1, s.c_str(), font);
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::string(tx, ty, s.c_str(), font);
+    };
+    draw_text(red_tx, red_ty, rs);
+    draw_text(blue_tx, blue_ty, bs);
+
+    // main border
+    rf::gr::set_color(255, 255, 255, 170);
+    rf::gr::rect_border(x, y, w, h);
+}
+
 void hud_render_team_scores()
 {
     int clip_h = rf::gr::clip_height();
     rf::gr::set_color(0, 0, 0, 150);
-    int box_w = g_big_team_scores_hud ? 370 : 185;
-    int box_h = g_big_team_scores_hud ? 80 : 55;
+
+    const auto game_type = rf::multi_get_game_type();
+    const bool is_koth_dc = (game_type == rf::NG_TYPE_KOTH || game_type == rf::NG_TYPE_DC);
+
+    int box_w = 0, box_h = 0;
+    if (is_koth_dc) {
+        box_w = g_big_team_scores_hud ? 240 : 185;
+        box_h = g_big_team_scores_hud ? 60  : 40;
+    } else {
+        box_w = g_big_team_scores_hud ? 370 : 185;
+        box_h = g_big_team_scores_hud ? 80  : 55;
+    }
+
     int box_x = 10;
-    int box_y = clip_h - box_h - 10; // clip_h - 65
-    int miniflag_x = box_x + 7; // 17
-    int miniflag_label_x = box_x + (g_big_team_scores_hud ? 45 : 33); // 43
-    int max_miniflag_label_w = box_w - (g_big_team_scores_hud ? 80 : 55);
-    int red_miniflag_y = box_y + 4; // clip_h - 61
-    int blue_miniflag_y = box_y + (g_big_team_scores_hud ? 42 : 30); // clip_h - 35
-    int red_miniflag_label_y = red_miniflag_y + 4; // clip_h - 57
-    int blue_miniflag_label_y = blue_miniflag_y + 4; // clip_h - 31
+    int box_y = clip_h - box_h - 10;
+    int miniflag_x = box_x + 7;
+    int miniflag_label_x = box_x + (g_big_team_scores_hud ? (is_koth_dc ? 40 : 45) : (is_koth_dc ? 30 : 33));
+    int max_miniflag_label_w = box_w - (g_big_team_scores_hud ? (is_koth_dc ? 70 : 80) : (is_koth_dc ? 50 : 55));
+    int red_miniflag_y = box_y + 4;
+    int blue_miniflag_y = box_y + (g_big_team_scores_hud ? (is_koth_dc ? 38 : 42) : (is_koth_dc ? 28 : 30));
+    int red_miniflag_label_y  = red_miniflag_y  + 4;
+    int blue_miniflag_label_y = blue_miniflag_y + 4;
     int flag_x = g_big_team_scores_hud ? 410 : 205;
     float flag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
 
-    rf::gr::rect(10, clip_h - box_h - 10, box_w, box_h);
-    auto game_type = rf::multi_get_game_type();
+    if (!is_koth_dc) {
+        rf::gr::rect(box_x, box_y, box_w, box_h);
+    }
     int font_id = hud_get_default_font();
 
     if (game_type == rf::NG_TYPE_CTF) {
@@ -472,7 +685,7 @@ void hud_render_team_scores()
         }
     }
 
-    if (multi_is_team_game_type()) {
+    if (multi_is_team_game_type() && !is_koth_dc) {
         float miniflag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
         rf::gr::set_color(255, 255, 255, 255);
         if (rf::local_player) {
@@ -514,10 +727,24 @@ void hud_render_team_scores()
     auto red_score_str = std::to_string(red_score);
     auto blue_score_str = std::to_string(blue_score);
     int str_w, str_h;
-    rf::gr::get_string_size(&str_w, &str_h, red_score_str.c_str(), -1, font_id);
-    rf::gr::string(box_x + box_w - 5 - str_w, red_miniflag_label_y, red_score_str.c_str(), font_id);
-    rf::gr::get_string_size(&str_w, &str_h, blue_score_str.c_str(), -1, font_id);
-    rf::gr::string(box_x + box_w - 5 - str_w, blue_miniflag_label_y, blue_score_str.c_str(), font_id);
+    if (is_koth_dc) {
+        hud_render_koth_dc_split_scores(
+            box_x, box_y, box_w, box_h, red_score, blue_score, font_id, rf::hud_miniflag_red_bmh,
+            rf::hud_miniflag_blue_bmh, rf::hud_miniflag_hilight_bmh, rf::hud_flag_gr_mode,
+            (rf::local_player && rf::local_player->team == rf::TEAM_RED),
+            (rf::local_player && rf::local_player->team == rf::TEAM_BLUE), (g_big_team_scores_hud ? 1.5f : 1.0f));
+    }
+    else {
+        rf::gr::get_string_size(&str_w, &str_h, red_score_str.c_str(), -1, font_id);
+        rf::gr::string(box_x + box_w - 5 - str_w, red_miniflag_label_y, red_score_str.c_str(), font_id);
+        rf::gr::get_string_size(&str_w, &str_h, blue_score_str.c_str(), -1, font_id);
+        rf::gr::string(box_x + box_w - 5 - str_w, blue_miniflag_label_y, blue_score_str.c_str(), font_id);
+    }
+
+    // render capture point bars
+    if (is_koth_dc) {
+        hud_render_cp_strip_koth_dc_fullwidth(box_x, box_y, box_w);
+    }
 }
 
 CodeInjection hud_render_team_scores_new_gamemodes_patch {

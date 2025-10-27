@@ -77,6 +77,7 @@ Version 1.2.0 (Willow): Not yet released
 - Support mappers associating MP respawn points with control points
 - Add `Respawn_Point_State` event
 - Add `Modify_Respawn_Point` event
+- Add new team scores HUD widget and capture point progress bars for KOTH and DC game types
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set
