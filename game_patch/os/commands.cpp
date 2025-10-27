@@ -170,80 +170,75 @@ ConsoleCommand2 level_info_ext_cmd{
 
             // Lightmap clamping floor
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
-                uint32_t clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+                uint32_t clamp_floor = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampFloor);
                 auto [r, g, b, _] = extract_color_components(clamp_floor);
                 rf::console::print("Lightmap clamping floor: {}, {}, {}", r, g, b);
             }
 
             // Lightmap clamping ceiling
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
-                uint32_t clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
+                uint32_t clamp_ceiling = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampCeiling);
                 auto [r, g, b, _] = extract_color_components(clamp_ceiling);
                 rf::console::print("Lightmap clamping ceiling: {}, {}, {}", r, g, b);
             }
 
             // Player headlamp color
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor)) {
-                uint32_t headlamp_color = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor);
+                uint32_t headlamp_color = get_level_info_value<uint32_t>(AlpineLevelInfoID::PlayerHeadlampColor);
                 auto [r, g, b, _] = extract_color_components(headlamp_color);
                 rf::console::print("Player headlamp color: {}, {}, {}", r, g, b);
             }
 
             // Player headlamp intensity
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity)) {
-                float headlamp_intensity = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity);
+                float headlamp_intensity = get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampIntensity);
                 rf::console::print("Player headlamp intensity: {}", headlamp_intensity);
             }
 
             // Player headlamp range
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange)) {
-                float headlamp_range = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange);
+                float headlamp_range = get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampRange);
                 rf::console::print("Player headlamp range: {}", headlamp_range);
             }
 
             // Player headlamp radius
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius)) {
-                float headlamp_radius = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius);
+                float headlamp_radius = get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampRadius);
                 rf::console::print("Player headlamp radius: {}", headlamp_radius);
             }
 
             // Ideal player count
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::IdealPlayerCount)) {
-                int player_count = get_level_info_value<int>(rf::level.filename, AlpineLevelInfoID::IdealPlayerCount);
+                int player_count = get_level_info_value<int>(AlpineLevelInfoID::IdealPlayerCount);
                 rf::console::print("Ideal player count: {}", player_count);
             }
 
             // Author contact
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::AuthorContact)) {
-                std::string author_contact = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::AuthorContact);
+                std::string author_contact = get_level_info_value<std::string>(AlpineLevelInfoID::AuthorContact);
                 rf::console::print("Author contact: {}", author_contact);
             }
 
             // Author website
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::AuthorWebsite)) {
-                std::string author_website = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::AuthorWebsite);
+                std::string author_website = get_level_info_value<std::string>(AlpineLevelInfoID::AuthorWebsite);
                 rf::console::print("Author website: {}", author_website);
             }
 
             // Description
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::Description)) {
-                std::string desc = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::Description);
+                std::string desc = get_level_info_value<std::string>(AlpineLevelInfoID::Description);
                 rf::console::print("Level description: {}", desc);
             }
 
             // Mesh replacements
-            const auto& level_mesh_replacements = g_alpine_level_info_config.mesh_replacements;
-            auto mesh_replacements_it = level_mesh_replacements.find(rf::level.filename);
+            const auto& replacements = g_alpine_level_info_config.mesh_replacements;
 
-            if (mesh_replacements_it != level_mesh_replacements.end()) {
-                const auto& replacements = mesh_replacements_it->second;
+            if (!replacements.empty()) {
+                rf::console::print("Mesh replacements:");
 
-                if (!replacements.empty()) {
-                    rf::console::print("Mesh replacements:");
-
-                    for (const auto& [original_mesh, replacement_mesh] : replacements) {
-                        rf::console::print(" - {} -> {}", original_mesh, replacement_mesh);
-                    }
+                for (const auto& [original_mesh, replacement_mesh] : replacements) {
+                    rf::console::print(" - {} -> {}", original_mesh, replacement_mesh);
                 }
             }
         }

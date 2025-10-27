@@ -254,14 +254,14 @@ CodeInjection level_load_lightmaps_color_conv_patch{
 
         // Check if the level explicitly defines clamp floor
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
-            clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+            clamp_floor = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampFloor);
             floor_clamp_defined = true;
             should_clamp = true;
         }
 
         // Check if the level explicitly defines clamp ceiling
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
-            clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
+            clamp_ceiling = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampCeiling);
             should_clamp = true;
         }
 
@@ -513,7 +513,7 @@ CodeInjection levelmod_do_blast_autotexture_ppm_patch{
 
 void set_levelmod_autotexture_ppm() {
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::CraterTexturePPM)) {
-        g_crater_autotexture_ppm = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::CraterTexturePPM);
+        g_crater_autotexture_ppm = get_level_info_value<float>(AlpineLevelInfoID::CraterTexturePPM);
     }
     else {
         g_crater_autotexture_ppm = 32.0f;

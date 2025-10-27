@@ -200,17 +200,17 @@ CodeInjection sort_clutter_patch{
 FunHook<rf::VMesh*(rf::Object*, const char*, rf::VMeshType)> obj_create_mesh_hook{
     0x00489FE0,
     [](rf::Object* objp, const char* name, rf::VMeshType type) {
-        auto level_it = g_alpine_level_info_config.mesh_replacements.find(rf::level.filename);
-        if (level_it != g_alpine_level_info_config.mesh_replacements.end()) {
-            const auto& mesh_map = level_it->second;
+        const auto& mesh_map = g_alpine_level_info_config.mesh_replacements;
 
+        if (!mesh_map.empty()) {
+            const char* original_name = name;
             // convert original mesh name to lowercase
             std::string lower_name = string_to_lower(name);
 
             auto mesh_it = mesh_map.find(lower_name);
             if (mesh_it != mesh_map.end()) {
                 name = mesh_it->second.c_str(); // Use replacement name
-                xlog::debug("Replacing mesh {} with {}", name, mesh_it->second);
+                xlog::debug("Replacing mesh {} with {}", original_name, mesh_it->second);
             }
         }
 

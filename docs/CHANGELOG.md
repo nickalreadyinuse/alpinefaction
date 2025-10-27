@@ -78,6 +78,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Respawn_Point_State` event
 - Add `Modify_Respawn_Point` event
 - Add new team scores HUD widget and capture point progress bars for KOTH and DC game types
+- Simplify and optimize level info (`mapname_info.tbl`) handling
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

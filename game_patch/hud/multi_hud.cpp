@@ -919,7 +919,7 @@ void multi_hud_level_init() {
 
     for (const auto& id : map_keys) {
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, id)) {
-            std::string msg = get_level_info_value<std::string>(rf::level.filename, id);
+            std::string msg = get_level_info_value<std::string>(id);
             level_menu.elements.push_back(
                 {false, ChatMenuListName::Null, ChatMenuListType::Map, msg, msg}
             );

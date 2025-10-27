@@ -607,7 +607,7 @@ void update_player_flashlight() {
     //color
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor)) {
         auto headlamp_color =
-            get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor);
+            get_level_info_value<uint32_t>(AlpineLevelInfoID::PlayerHeadlampColor);
         float _a;
 
         std::tie(g_local_headlamp_settings.r,
@@ -635,7 +635,7 @@ void update_player_flashlight() {
     //intensity
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity)) {
         g_local_headlamp_settings.intensity = std::clamp(
-            get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity), 0.0f, 0.99f);
+            get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampIntensity), 0.0f, 0.99f);
     }
     else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampIntensity)) {
         g_local_headlamp_settings.intensity =
@@ -648,7 +648,7 @@ void update_player_flashlight() {
     //range
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange)) {
         g_local_headlamp_settings.max_range =
-            get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange);
+            get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampRange);
     }
     else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampRange)) {
         g_local_headlamp_settings.max_range = get_option_value<float>(AlpineOptionID::PlayerHeadlampRange);
@@ -660,7 +660,7 @@ void update_player_flashlight() {
     //radius
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius)) {
         g_local_headlamp_settings.base_radius =
-            get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius);
+            get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampRadius);
     }
     else if (g_alpine_options_config.is_option_loaded(AlpineOptionID::PlayerHeadlampRadius)) {
         g_local_headlamp_settings.base_radius = get_option_value<float>(AlpineOptionID::PlayerHeadlampRadius);
