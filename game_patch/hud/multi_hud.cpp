@@ -456,7 +456,8 @@ static void hud_draw_cp_row_fullwidth(int x, int y, int w, int h, const HillInfo
     const int pad_l = 6;
     const int pad_r = 6;
     const bool contested = (hinfo.steal_dir != HillOwner::HO_Neutral);
-    const int pct_w_room = contested ? 40 : 0; // show progress if contested
+    const bool locked = (hinfo.lock_status != HillLockStatus::HLS_Available);
+    const int pct_w_room = (contested || locked) ? 40 : 0; // show progress if contested or locked
     std::string name_to_show = hinfo.name.empty() ? "Control Point" : hinfo.name;
     std::string fit_name = hud_fit_string(name_to_show.c_str(), (w - pad_l - pad_r - pct_w_room), nullptr, font_id);
 
@@ -468,9 +469,21 @@ static void hud_draw_cp_row_fullwidth(int x, int y, int w, int h, const HillInfo
     rf::gr::set_color(255, 255, 255, 255);
     rf::gr::string(x + pad_l, y + (h - th) / 2, fit_name.c_str(), font_id); // main
 
-    // progress percentage
-    if (contested) {
-        char pct_buf[8];
+    // padlock or progress percentage
+    if (locked) {
+        static constexpr char kPadlockGlyph[] = {static_cast<char>(0xA7), '\0'}; // padlock
+        static constexpr char kPermalockGlyph[] = {static_cast<char>(0xAB), '\0'}; // filled checkbox
+        const char* padlock_glyph =
+            (hinfo.lock_status == HillLockStatus::HLS_Permalocked) ? kPermalockGlyph : kPadlockGlyph;
+        int lw, lh;
+        rf::gr::get_string_size(&lw, &lh, padlock_glyph, -1, font_id);
+        rf::gr::set_color(0, 0, 0, 220);
+        rf::gr::string(x + w - pad_r - lw + 1, y + (h - lh) / 2 + 1, padlock_glyph, font_id); // shadow
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::string(x + w - pad_r - lw, y + (h - lh) / 2, padlock_glyph, font_id); // main
+    }
+    else if (contested) {
+        char pct_buf[5];
         std::snprintf(pct_buf, sizeof(pct_buf), "%d%%", (int)std::clamp(hinfo.capture_progress, (uint8_t)0, (uint8_t)100));
         int pw, ph;
         rf::gr::get_string_size(&pw, &ph, pct_buf, -1, font_id);
