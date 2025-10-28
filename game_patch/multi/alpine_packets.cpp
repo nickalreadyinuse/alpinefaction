@@ -1050,6 +1050,9 @@ static void build_af_server_info_packet(af_server_info_packet& pkt)
         case rf::NetGameType::NG_TYPE_DC:
             pkt.win_condition = static_cast<uint32_t>(g_alpine_server_config_active_rules.dc_score_limit);
             break;
+        case rf::NetGameType::NG_TYPE_REV:
+            pkt.win_condition = static_cast<uint32_t>(0); // no wincon necessary
+            break;
         default:
             pkt.win_condition = static_cast<uint32_t>(rf::netgame.max_kills);
             break;
@@ -1142,6 +1145,8 @@ static void af_process_server_info_packet(const void* data, size_t len, const rf
             case rf::NetGameType::NG_TYPE_DC:
                 server_info.dc_score_limit = static_cast<int>(pkt.win_condition);
                 break;
+            case rf::NetGameType::NG_TYPE_REV:
+                break; // no wincon necessary
             default:
                 rf::netgame.max_kills = static_cast<int>(pkt.win_condition);
                 break;

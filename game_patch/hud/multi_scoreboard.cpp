@@ -78,6 +78,9 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
             case rf::NG_TYPE_DC:
                 game_type_name = "DAMAGE CONTROL";
                 break;
+            case rf::NG_TYPE_REV:
+                game_type_name = "REVOLT";
+                break;
             default:
                 game_type_name = rf::strings::deathmatch;
                 break;
@@ -153,13 +156,24 @@ int draw_scoreboard_header(int x, int y, int w, rf::NetGameType game_type, bool 
                 red_score = multi_koth_get_red_team_score();
                 blue_score = multi_koth_get_blue_team_score();
             }
-            rf::gr::set_color(0xD0, 0x20, 0x20, 0xFF);
-            int team_scores_font = rf::scoreboard_big_font;
-            auto red_score_str = std::to_string(red_score);
-            rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x + w * 1 / 6, cur_y + 10, red_score_str.c_str(), team_scores_font);
-            rf::gr::set_color(0x20, 0x20, 0xD0, 0xFF);
-            auto blue_score_str = std::to_string(blue_score);
-            rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x + w * 5 / 6, cur_y + 10, blue_score_str.c_str(), team_scores_font);
+            else if (game_type == rf::NG_TYPE_REV) {
+                static int hud_flag_red_bm = rf::bm::load("hud_flag_red.tga", -1, true);
+                static int hud_flag_blue_bm = rf::bm::load("hud_flag_blue.tga", -1, true);
+                int flag_bm_w, flag_bm_h;
+                rf::bm::get_dimensions(hud_flag_red_bm, &flag_bm_w, &flag_bm_h);
+                rf::gr::bitmap(hud_flag_red_bm, x + w * 2 / 6 - flag_bm_w / 2, cur_y);
+                rf::gr::bitmap(hud_flag_blue_bm, x + w * 4 / 6 - flag_bm_w / 2, cur_y);
+            }
+            // draw scores
+            if (game_type != rf::NG_TYPE_REV) {
+                rf::gr::set_color(0xD0, 0x20, 0x20, 0xFF);
+                int team_scores_font = rf::scoreboard_big_font;
+                auto red_score_str = std::to_string(red_score);
+                rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x + w * 1 / 6, cur_y + 10, red_score_str.c_str(), team_scores_font);
+                rf::gr::set_color(0x20, 0x20, 0xD0, 0xFF);
+                auto blue_score_str = std::to_string(blue_score);
+                rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x + w * 5 / 6, cur_y + 10, blue_score_str.c_str(), team_scores_font);
+            }
         }
 
         cur_y += 60;

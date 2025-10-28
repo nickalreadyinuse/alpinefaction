@@ -11,8 +11,8 @@ static const char* const multi_rfl_prefixes[] = {
     // "dm",
     // "ctf",
     "koth",
-    "dc"
-};
+    "dc",
+    "rev"};
 
 enum class HillOwner : int
 {
@@ -81,6 +81,7 @@ struct HillInfo
     int hold_ms_accum = 0;
     int capture_milli = 0; // 0 - 100000 (100% = 100000)
     std::vector<int> mp_spawn_uids;
+    int stage = 0; // order of hills in REV
 
     // debug tracking
     int dbg_last_red = -1;
@@ -111,7 +112,6 @@ struct CPGTRules // capture point game types
     int ms_per_point = 1000;      // scoring tick while owned and not pressured
     bool cyl_use_trigger_up = false; // if sphere is treated as a cylinder, true = use trigger dir to build cylinder, false = use world up
     bool require_neutral_to_capture = false; // if true, attackers must neutralize before flipping ownership
-    bool spawn_players_near_owned_points = false; // if true, players only spawn near control points owned by their team (todo: implement)
 };
 
 struct KothInfo
@@ -156,6 +156,8 @@ bool multi_is_game_type_with_hills();
 bool multi_is_team_game_type();
 bool gt_is_koth();
 bool gt_is_dc();
+bool gt_is_rev();
+bool rev_all_points_permalocked();
 int multi_koth_get_red_team_score();
 int multi_koth_get_blue_team_score();
 void multi_koth_set_red_team_score(int score);

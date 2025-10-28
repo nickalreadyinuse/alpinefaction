@@ -703,6 +703,9 @@ std::optional<rf::NetGameType> resolve_gametype_from_name(std::string_view gamet
     if (string_equals_ignore_case(gametype_name, "dc")) {
         return rf::NetGameType::NG_TYPE_DC;
     }
+    if (string_equals_ignore_case(gametype_name, "rev")) {
+        return rf::NetGameType::NG_TYPE_REV;
+    }
 
     return std::nullopt;
 }
@@ -1061,14 +1064,17 @@ CallHook<void(rf::Player*, int, int)> give_default_weapon_ammo_hook{
 FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
     0x00445050,
     [](const char *filename, int ng_type) {
-        if (ng_type == RF_GT_CTF) {
+        if (ng_type == rf::NetGameType::NG_TYPE_CTF) {
             return string_starts_with_ignore_case(filename, "ctf") || string_starts_with_ignore_case(filename, "pctf");
         }
-        else if (ng_type == RF_GT_KOTH) {
+        else if (ng_type == rf::NetGameType::NG_TYPE_KOTH) {
             return string_starts_with_ignore_case(filename, "koth");
         }
-        else if (ng_type == RF_GT_DC) {
+        else if (ng_type == rf::NetGameType::NG_TYPE_DC) {
             return string_starts_with_ignore_case(filename, "dc");
+        }
+        else if (ng_type == rf::NetGameType::NG_TYPE_REV) {
+            return string_starts_with_ignore_case(filename, "rev");
         }
         return string_starts_with_ignore_case(filename, "dm") || string_starts_with_ignore_case(filename, "pdm");
     },
@@ -1853,9 +1859,21 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_KOTH: {
         return multi_koth_get_red_team_score() == multi_koth_get_blue_team_score();
     }
-    default:
+    default: // REV can't be tied
         return false;
     }
+}
+
+bool rev_all_points_permalocked()
+{
+    if (!gt_is_rev() || g_koth_info.hills.empty())
+        return false;
+
+    for (const auto& h : g_koth_info.hills) {
+        if (h.lock_status != HillLockStatus::HLS_Permalocked)
+            return false;
+    }
+    return true;
 }
 
 FunHook<void()> multi_check_for_round_end_hook{
@@ -1908,6 +1926,12 @@ FunHook<void()> multi_check_for_round_end_hook{
             case rf::NG_TYPE_KOTH: {
                 if (multi_koth_get_red_team_score() >= g_alpine_server_config_active_rules.koth_score_limit ||
                     multi_koth_get_blue_team_score() >= g_alpine_server_config_active_rules.koth_score_limit) {
+                    round_over = true;
+                }
+                break;
+            }
+            case rf::NG_TYPE_REV: {
+                if (rev_all_points_permalocked()) {
                     round_over = true;
                 }
                 break;

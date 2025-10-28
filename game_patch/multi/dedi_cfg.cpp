@@ -410,11 +410,16 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
 
     // if KOTH, default spawn delay to on before parsing config
-    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH || o.game_type == rf::NetGameType::NG_TYPE_DC)
+    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH ||
+        o.game_type == rf::NetGameType::NG_TYPE_DC ||
+        o.game_type == rf::NetGameType::NG_TYPE_REV)
         o.spawn_delay.enabled = true;
 
     if (o.game_type == rf::NetGameType::NG_TYPE_DC)
         o.spawn_delay.set_base_value(2.5f);
+
+    if (o.game_type == rf::NetGameType::NG_TYPE_REV)
+        o.spawn_delay.set_base_value(2.0f);
 
     if (auto sub = t["spawn_delay"].as_table())
         o.spawn_delay = parse_spawn_delay_config(*sub, o.spawn_delay);
@@ -944,6 +949,9 @@ std::string get_game_type_string(rf::NetGameType game_type) {
          case rf::NetGameType::NG_TYPE_DC:
              out_string = "DC";
              break;
+         case rf::NetGameType::NG_TYPE_REV:
+             out_string = "REV";
+             break;
          default:
              out_string = "DM";
              break;
@@ -965,6 +973,9 @@ std::string get_game_type_string_long(rf::NetGameType game_type) {
              break;
          case rf::NetGameType::NG_TYPE_DC:
              out_string = "Damage Control";
+             break;
+         case rf::NetGameType::NG_TYPE_REV:
+             out_string = "Revolt";
              break;
          default:
              out_string = "Deathmatch";

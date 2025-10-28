@@ -13,11 +13,16 @@ struct WorldHUDAssets
     int flag_blue_s;
     int mp_respawn;
     int koth_neutral;
+    int koth_neutral_atk;
+    int koth_neutral_def;
     int koth_red;
     int koth_blue;
     int koth_neutral_c;
     int koth_red_c;
     int koth_blue_c;
+    int koth_neutral_l;
+    int koth_red_l;
+    int koth_blue_l;
     int koth_fill_red;
     int koth_fill_blue;
     int koth_ring_fade;

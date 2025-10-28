@@ -660,8 +660,8 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
                 event->name = params.str1;
                 event->outline_offset = params.float1;
                 event->sphere_to_cylinder = params.bool1;
-                event->position = params.int1;
-                event->initial_owner = params.int2;
+                event->stage = params.int1;
+                event->position = params.int2;
             }
             return event;
         }

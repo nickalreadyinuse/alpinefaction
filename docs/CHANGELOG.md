@@ -11,6 +11,7 @@ Version 1.2.0 (Willow): Not yet released
     - Support changing server game type on-demand or per-level
 - Add `King of the Hill` (KOTH) multiplayer game type
 - Add `Damage Control` (DC) multiplayer game type
+- Add `Revolt` (REV) multiplayer game type
 - Add colorblind mode rendering filter (Direct3D 11 renderer only)
 - Add client-configurable settings to control application of weapon auto switch
 - Add server-configurable weapon loadouts for players in multiplayer
@@ -79,6 +80,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Modify_Respawn_Point` event
 - Add new team scores HUD widget and capture point progress bars for KOTH and DC game types
 - Simplify and optimize level info (`mapname_info.tbl`) handling
+- Support locked capture points
+- Support stage param on `Capture_Point_State` event
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

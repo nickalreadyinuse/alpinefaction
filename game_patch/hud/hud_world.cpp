@@ -44,11 +44,16 @@ void load_world_hud_assets() {
     g_world_hud_assets.flag_blue_s = rf::bm::load("af_wh_ctf_blue_s.tga", -1, true);
     g_world_hud_assets.mp_respawn = rf::bm::load("af_wh_mp_spawn.tga", -1, true);
     g_world_hud_assets.koth_neutral = rf::bm::load("af_wh_koth_base_neutral.tga", -1, true);
+    g_world_hud_assets.koth_neutral_atk = rf::bm::load("af_wh_koth_atk_neutral.tga", -1, true);
+    g_world_hud_assets.koth_neutral_def = rf::bm::load("af_wh_koth_def_neutral.tga", -1, true);
     g_world_hud_assets.koth_red = rf::bm::load("af_wh_koth_base_red.tga", -1, true);
     g_world_hud_assets.koth_blue = rf::bm::load("af_wh_koth_base_blue.tga", -1, true);
     g_world_hud_assets.koth_neutral_c = rf::bm::load("af_wh_koth_cont_neutral.tga", -1, true);
     g_world_hud_assets.koth_red_c = rf::bm::load("af_wh_koth_cont_red.tga", -1, true);
     g_world_hud_assets.koth_blue_c = rf::bm::load("af_wh_koth_cont_blue.tga", -1, true);
+    g_world_hud_assets.koth_neutral_l = rf::bm::load("af_wh_koth_lock_neutral.tga", -1, true);
+    g_world_hud_assets.koth_red_l = rf::bm::load("af_wh_koth_lock_red.tga", -1, true);
+    g_world_hud_assets.koth_blue_l = rf::bm::load("af_wh_koth_lock_blue.tga", -1, true);
     g_world_hud_assets.koth_fill_red = rf::bm::load("af_wh_koth_fill_red.tga", -1, true);
     g_world_hud_assets.koth_fill_blue = rf::bm::load("af_wh_koth_fill_blue.tga", -1, true);
     g_world_hud_assets.koth_ring_fade = rf::bm::load("af_wh_koth_ring_fade.tga", -1, true);
@@ -299,24 +304,27 @@ static rf::gr::Mode bitmap_mode_from(WorldHUDRenderMode render_mode)
     }
 }
 
-static inline void koth_owner_color(HillOwner owner, rf::ubyte& r, rf::ubyte& g, rf::ubyte& b, rf::ubyte& a)
+static inline void koth_owner_color(HillOwner owner, HillLockStatus lock_status, rf::ubyte& r, rf::ubyte& g, rf::ubyte& b, rf::ubyte& a)
 {
-    a = 200;
+    bool locked = (lock_status != HillLockStatus::HLS_Available);
     switch (owner) {
     case HillOwner::HO_Red:
         r = 167;
         g = 0;
         b = 0;
+        a = 200;
         return;
     case HillOwner::HO_Blue:
         r = 52;
         g = 78;
         b = 167;
+        a = 200;
         return;
     default:
-        r = 200;
-        g = 200;
-        b = 200;
+        r = locked ? 100 : 200;
+        g = locked ? 100 : 200;
+        b = locked ? 100 : 200;
+        a = locked ? 50 : 200;
         return;
     }
 }
@@ -421,13 +429,36 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
     const float ring_base = g_koth_hud_tuning.icon_base_scale;
     float ring_scale = std::clamp(ring_base * view.dist_factor, WorldHUDRender::min_scale, WorldHUDRender::max_scale);
     const bool contested = hill_vis_contested(const_cast<HillInfo&>(h));
+    const bool locked = (h.lock_status != HillLockStatus::HLS_Available);
 
-    // Choose ring bitmap by owner
-    int ring_bmp = contested ? g_world_hud_assets.koth_neutral_c : g_world_hud_assets.koth_neutral;
-    if (h.ownership == HillOwner::HO_Red)
-        ring_bmp = contested ? g_world_hud_assets.koth_red_c : g_world_hud_assets.koth_red;
-    if (h.ownership == HillOwner::HO_Blue)
-        ring_bmp = contested ? g_world_hud_assets.koth_blue_c : g_world_hud_assets.koth_blue;
+    int ring_bmp = 0;
+
+    // neutral base ring
+    if (contested) {
+        ring_bmp = g_world_hud_assets.koth_neutral_c;
+    }
+    else if (locked) {
+        ring_bmp = g_world_hud_assets.koth_neutral_l;
+    }
+    else if (gt_is_rev() && !multi_spectate_is_spectating()) {
+        const bool local_is_red = (rf::local_player && rf::local_player->team == 0);
+        ring_bmp = local_is_red ? g_world_hud_assets.koth_neutral_atk : g_world_hud_assets.koth_neutral_def;
+    }
+    else {
+        ring_bmp = g_world_hud_assets.koth_neutral;
+    }
+
+    // owned base ring
+    if (h.ownership == HillOwner::HO_Red) {
+        ring_bmp = contested ? g_world_hud_assets.koth_red_c
+            : locked  ? g_world_hud_assets.koth_red_l
+            : g_world_hud_assets.koth_red;
+    }
+    else if (h.ownership == HillOwner::HO_Blue) {
+        ring_bmp = contested ? g_world_hud_assets.koth_blue_c
+            : locked  ? g_world_hud_assets.koth_blue_l
+            : g_world_hud_assets.koth_blue;
+    }
 
     // capture progress bar
     if (contested) {
@@ -478,10 +509,12 @@ static void build_koth_hill_icons()
     if (!rf::is_multi || !multi_is_game_type_with_hills())
         return;
 
-    const auto render_mode =
-        g_alpine_game_config.world_hud_overdraw ? WorldHUDRenderMode::overdraw : WorldHUDRenderMode::no_overdraw;
-
+    // KOTH/DC: respect overdraw cvar, REV: respect overdraw cvar for active point, no overdraw for others
     for (const auto& h : g_koth_info.hills) {
+        const auto render_mode =
+            h.lock_status == HillLockStatus::HLS_Available ?
+            (g_alpine_game_config.world_hud_overdraw ? WorldHUDRenderMode::overdraw : WorldHUDRenderMode::no_overdraw)
+            : WorldHUDRenderMode::no_overdraw;
         render_koth_icon_for_hill(h, render_mode);
     }
 }
@@ -912,7 +945,7 @@ static void build_koth_hill_outlines()
             continue;
 
         rf::ubyte r, g, b, a;
-        koth_owner_color(h.ownership, r, g, b, a);
+        koth_owner_color(h.ownership, h.lock_status, r, g, b, a);
 
         // outline
         if (trig->type == 0 && h.handler && h.handler->sphere_to_cylinder) {

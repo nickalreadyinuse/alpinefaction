@@ -169,6 +169,7 @@ enum RF_GameType
     // delivered to legacy clients uses 0x02 instead to prevent them crashing
     RF_GT_KOTH = 0x03,
     RF_GT_DC = 0x04,
+    RF_GT_REV = 0x05,
 };
 
 enum RF_ServerFlags

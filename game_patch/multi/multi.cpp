@@ -179,6 +179,11 @@ FunHook<void()> multi_limbo_init{
                 blue = multi_koth_get_blue_team_score();
                 break;
             }
+            case rf::NG_TYPE_REV: {
+                red = static_cast<int>(rev_all_points_permalocked());
+                blue = static_cast<int>(!rev_all_points_permalocked());
+                break;
+            }
             default:
                 break;
             }
@@ -585,9 +590,9 @@ void configure_custom_gametype_listen_server_settings() {
     g_alpine_server_config_active_rules = AlpineServerConfigRules{};
     set_upcoming_game_type(rf::netgame.type);
 
-    // KOTH and DC gamemode defaults
-    if (gt_is_koth() || gt_is_dc()) {
-        // KOTH and DC require Alpine clients
+    // KOTH, DC, REV gamemode defaults
+    if (multi_is_game_type_with_hills()) {
+        // require Alpine clients
         g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
         g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
 
@@ -611,10 +616,14 @@ void configure_custom_gametype_listen_server_settings() {
 
             g_alpine_server_config_active_rules.set_koth_score_limit(3600);
         }
-        else { // DC
+        else if (gt_is_dc()) {
             g_alpine_server_config_active_rules.spawn_delay.enabled = true;
             g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.5f);
             g_alpine_server_config_active_rules.set_dc_score_limit(3600);
+        }
+        else { // REV
+            g_alpine_server_config_active_rules.spawn_delay.enabled = true;
+            g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.0f);
         }
     }
 }
@@ -637,6 +646,7 @@ void start_level_in_multi(std::string filename) {
         rf::netgame.type = string_starts_with_ignore_case(filename, "ctf") ? rf::NetGameType::NG_TYPE_CTF
             : string_starts_with_ignore_case(filename, "koth") ? rf::NetGameType::NG_TYPE_KOTH
             : string_starts_with_ignore_case(filename, "dc") ? rf::NetGameType::NG_TYPE_DC
+            : string_starts_with_ignore_case(filename, "rev") ? rf::NetGameType::NG_TYPE_REV
             : rf::NetGameType::NG_TYPE_DM;
         rf::netgame.name = "Alpine Faction Test Server";
         rf::netgame.password = "password";

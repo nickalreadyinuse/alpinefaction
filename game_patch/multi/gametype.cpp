@@ -16,12 +16,14 @@
 #include "../rf/gameseq.h"
 #include "../rf/localize.h"
 
-static char* const* g_af_gametype_names[5];
+static char* const* g_af_gametype_names[6];
 
 static char koth_name[] = "KOTH";
 static char* koth_slot = koth_name;
 static char dc_name[] = "DC";
 static char* dc_slot = dc_name;
+static char rev_name[] = "REV";
+static char* rev_slot = rev_name;
 
 KothInfo g_koth_info; // KOTH and DC
 rf::Timestamp g_local_contest_alarm_cooldown;
@@ -35,6 +37,7 @@ void populate_gametype_table() {
     g_af_gametype_names[2] = &rf::strings::teamdm;
     g_af_gametype_names[3] = &koth_slot;
     g_af_gametype_names[4] = &dc_slot;
+    g_af_gametype_names[5] = &rev_slot;
 
     for (int i = 0; i < 5; ++i) {
         const char* const* slot = g_af_gametype_names[i];
@@ -65,6 +68,7 @@ bool multi_game_type_is_team_type(rf::NetGameType game_type)
         case rf::NG_TYPE_TEAMDM:
         case rf::NG_TYPE_KOTH:
         case rf::NG_TYPE_DC:
+        case rf::NG_TYPE_REV:
             return true;
         default: // DM
             return false;
@@ -76,6 +80,7 @@ bool multi_game_type_has_hills(rf::NetGameType game_type)
     switch (game_type) {
         case rf::NG_TYPE_KOTH:
         case rf::NG_TYPE_DC:
+        case rf::NG_TYPE_REV:
             return true;
         default: // DM, CTF, TDM
             return false;
@@ -134,6 +139,11 @@ bool gt_is_koth()
 bool gt_is_dc()
 {
     return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_DC;
+}
+
+bool gt_is_rev()
+{
+    return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_REV;
 }
 
 HillInfo* koth_find_hill_by_uid(uint8_t uid)
@@ -413,13 +423,40 @@ static const char* to_string(HillState s)
 
 static void koth_update_respawn_points(HillInfo* h) {
     if (!h->mp_spawn_uids.empty()) {
-        auto owner = h->ownership;
+        auto lock_status = h->lock_status;
         for (int rp_uid : h->mp_spawn_uids) {
             if (auto* rp = get_alpine_respawn_point_by_uid(rp_uid)) {
-                set_alpine_respawn_point_teams(rp, owner == HillOwner::HO_Red, owner == HillOwner::HO_Blue);
-                set_alpine_respawn_point_enabled(rp, owner != HillOwner::HO_Neutral);
+                if (gt_is_rev()) { // REV: enable spawns only when hill is available
+                    set_alpine_respawn_point_enabled(rp, lock_status == HillLockStatus::HLS_Available);
+                }
+                else { // KOTH/DC: adjust spawn team and enable when hill is captured, disable when neutral
+                    auto owner = h->ownership;
+                    set_alpine_respawn_point_teams(rp, owner == HillOwner::HO_Red, owner == HillOwner::HO_Blue);
+
+                    bool enabled = (owner != HillOwner::HO_Neutral) && (lock_status == HillLockStatus::HLS_Available);
+                    set_alpine_respawn_point_enabled(rp, enabled);
+                }
+
                 //xlog::warn("mp spawn {} status - enabled {}, red {}, blue {}", rp_uid, rp->enabled, rp->red_team, rp->blue_team);
             }
+        }
+    }
+}
+
+static int rev_index_of(const HillInfo* ptr)
+{
+    for (size_t i = 0; i < g_koth_info.hills.size(); ++i)
+        if (&g_koth_info.hills[i] == ptr) return int(i);
+    return -1;
+}
+
+static void rev_unlock_next(size_t i)
+{
+    if (i + 1 < g_koth_info.hills.size()) {
+        auto& next = g_koth_info.hills[i + 1];
+        if (next.lock_status != HillLockStatus::HLS_Permalocked) {
+            next.lock_status = HillLockStatus::HLS_Available;
+            koth_update_respawn_points(&next);
         }
     }
 }
@@ -427,6 +464,9 @@ static void koth_update_respawn_points(HillInfo* h) {
 static void koth_apply_ownership(
     HillInfo& h, HillOwner new_owner, bool announce = true, HillOwner scoring_team = HillOwner::HO_Neutral)
 {
+    if (gt_is_rev() && new_owner == HillOwner::HO_Blue)
+        return;
+
     if (h.ownership == new_owner)
         return;
 
@@ -443,7 +483,18 @@ static void koth_apply_ownership(
     //xlog::warn("[KOTH] {}: OWNER {} -> {}", h.name.c_str(), to_string(old_owner), to_string(new_owner));
 
     if (rf::is_server) {
-        koth_update_respawn_points(&h); // update respawn points associated with this hill
+        if (gt_is_rev() && new_owner == HillOwner::HO_Red) {
+            h.lock_status = HillLockStatus::HLS_Permalocked; // permalock captured point
+        }
+
+        koth_update_respawn_points(&h); // update spawns for this hill
+
+        if (gt_is_rev() && new_owner == HillOwner::HO_Red) {
+            const int i = rev_index_of(&h);
+            if (i >= 0) {
+                rev_unlock_next(size_t(i)); // unlock next hill
+            }
+        }
     
         if (announce) {
             //auto ids = on_capture_collect_player_ids_on_hill_for_team(h, new_owner);
@@ -458,6 +509,78 @@ static void koth_apply_ownership(
             af_send_koth_hill_captured_packet_to_all(uid8, new_owner, ids);
         }
     }
+}
+
+void update_hill_server_rev(HillInfo& h, int dt_ms)
+{
+    // only the currently available point can be captured
+    if (h.lock_status != HillLockStatus::HLS_Available)
+        return;
+
+    // blue doesn't attack
+    if (h.steal_dir == HillOwner::HO_Blue) {
+        h.steal_dir = HillOwner::HO_Neutral;
+    }
+
+    const Presence pres = sample_presence(h);
+    const bool red_only = (pres.red > 0 && pres.blue == 0);
+    const bool blue_only = (pres.blue > 0 && pres.red == 0);
+    const bool both = (pres.red > 0 && pres.blue > 0);
+    const bool empty = (pres.red == 0 && pres.blue == 0);
+
+    auto inc_rate = [&](int rate_per_sec) {
+        h.capture_milli = std::min(100000, h.capture_milli + rate_per_sec * dt_ms);
+        h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
+    };
+    auto dec_rate = [&](int rate_per_sec) {
+        h.capture_milli = std::max(0, h.capture_milli - rate_per_sec * dt_ms);
+        h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
+        if (h.capture_milli == 0)
+            h.steal_dir = HillOwner::HO_Neutral;
+    };
+
+    // contested
+    if (both) {
+        h.state = HillState::HS_Idle;
+        return;
+    }
+
+    // slow decay of red's progress
+    if (empty) {
+        if (h.capture_milli > 0)
+            dec_rate(g_koth_info.rules.drain_empty_rate);
+        h.state = HillState::HS_Idle;
+        return;
+    }
+
+    // make forward progress
+    if (red_only) {
+        if (h.steal_dir == HillOwner::HO_Neutral)
+            h.steal_dir = HillOwner::HO_Red;
+        h.state = HillState::HS_LeanRedGrowing;
+        inc_rate(g_koth_info.rules.grow_rate);
+        if (h.capture_milli >= 100000) {
+            // on cap, permalock, unlock next
+            koth_apply_ownership(h, HillOwner::HO_Red);
+        }
+        return;
+    }
+
+    // quick drain of red's progress
+    if (blue_only) {
+        if (h.capture_milli > 0) {
+            h.state = HillState::HS_LeanRedShrinking;
+            dec_rate(g_koth_info.rules.drain_defended_rate);
+        }
+        else {
+            h.state = HillState::HS_Idle;
+        }
+        return;
+    }
+
+    // fallback
+    h.state = HillState::HS_Idle;
+    return;
 }
 
 void update_hill_server(HillInfo& h, int dt_ms)
@@ -762,39 +885,99 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
     h.state = HillState::HS_Idle;
 }
 
+static void update_hill_client_predict_rev(HillInfo& h, int dt_ms)
+{
+    // protection, should never happen
+    if (h.steal_dir == HillOwner::HO_Blue)
+        h.steal_dir = HillOwner::HO_Neutral;
+
+    const Presence pres = sample_presence(h);
+    const bool red_only  = (pres.red  > 0 && pres.blue == 0);
+    const bool blue_only = (pres.blue > 0 && pres.red  == 0);
+    const bool both      = (pres.red  > 0 && pres.blue > 0);
+    const bool empty     = (pres.red  == 0 && pres.blue == 0);
+
+    auto inc_rate = [&](int rate_per_sec) {
+        h.capture_milli   = std::min(100000, h.capture_milli + rate_per_sec * dt_ms);
+        h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
+    };
+    auto dec_rate = [&](int rate_per_sec) {
+        h.capture_milli   = std::max(0, h.capture_milli - rate_per_sec * dt_ms);
+        h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
+        if (h.capture_milli == 0) h.steal_dir = HillOwner::HO_Neutral;
+    };
+
+    if (both) { h.state = HillState::HS_Idle; return; }
+
+    if (empty) {
+        if (h.capture_milli > 0) dec_rate(g_koth_info.rules.drain_empty_rate);
+        h.state = HillState::HS_Idle;
+        return;
+    }
+
+    if (red_only) {
+        if (h.steal_dir == HillOwner::HO_Neutral) h.steal_dir = HillOwner::HO_Red;
+        h.state = HillState::HS_LeanRedGrowing;
+        inc_rate(g_koth_info.rules.grow_rate);
+        if (h.capture_milli >= 100000) {
+            // flip locally, will be confirmed by server
+            koth_apply_ownership(h, HillOwner::HO_Red, false);
+        }
+        return;
+    }
+
+    if (blue_only) {
+        // blue presence only drains red progress
+        if (h.capture_milli > 0) {
+            h.state = HillState::HS_LeanRedShrinking;
+            dec_rate(g_koth_info.rules.drain_defended_rate);
+        } else {
+            h.state = HillState::HS_Idle;
+        }
+        return;
+    }
+
+    h.state = HillState::HS_Idle;
+}
+
 static void koth_client_predict_tick(int dt_ms)
 {
     // client-only; server is authoritative
     if (!rf::is_multi || rf::is_server || rf::is_dedicated_server)
         return;
 
-    for (auto& h : g_koth_info.hills) {
-        if (h.lock_status != HillLockStatus::HLS_Available)
-            continue; // hill is locked
+    // score prediction in KOTH/DC
+    if (gt_is_koth() || gt_is_dc()) {
+        for (auto& h : g_koth_info.hills) {
+            if (h.lock_status != HillLockStatus::HLS_Available)
+                continue; // hill is locked
 
-        if (h.ownership == HillOwner::HO_Neutral) {
-            h.client_hold_ms_accum = 0;
-            continue;
-        }
-
-        const bool opp_on = (h.ownership == HillOwner::HO_Red) ? (h.net_last_blue > 0) : (h.ownership == HillOwner::HO_Blue) ? (h.net_last_red > 0) : false;
-
-        const HillOwner attackers = opposite(h.ownership);
-        const bool hostile_progress = (h.steal_dir == attackers) && (h.capture_progress > 0);
-
-        if (rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
-            if (!opp_on && !hostile_progress) {
-                h.client_hold_ms_accum += dt_ms;
-                while (h.client_hold_ms_accum >= g_koth_info.rules.ms_per_point) {
-                    if (h.ownership == HillOwner::HO_Red)
-                        ++g_koth_info.red_team_score;
-                    else
-                        ++g_koth_info.blue_team_score;
-                    h.client_hold_ms_accum -= g_koth_info.rules.ms_per_point;
-                }
-            }
-            else {
+            if (h.ownership == HillOwner::HO_Neutral) {
                 h.client_hold_ms_accum = 0;
+                continue;
+            }
+
+            const bool opp_on = (h.ownership == HillOwner::HO_Red) ? (h.net_last_blue > 0)
+                : (h.ownership == HillOwner::HO_Blue) ? (h.net_last_red > 0)
+                : false;
+
+            const HillOwner attackers = opposite(h.ownership);
+            const bool hostile_progress = (h.steal_dir == attackers) && (h.capture_progress > 0);
+
+            if (rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
+                if (!opp_on && !hostile_progress) {
+                    h.client_hold_ms_accum += dt_ms;
+                    while (h.client_hold_ms_accum >= g_koth_info.rules.ms_per_point) {
+                        if (h.ownership == HillOwner::HO_Red)
+                            ++g_koth_info.red_team_score;
+                        else
+                            ++g_koth_info.blue_team_score;
+                        h.client_hold_ms_accum -= g_koth_info.rules.ms_per_point;
+                    }
+                }
+                else {
+                    h.client_hold_ms_accum = 0;
+                }
             }
         }
     }
@@ -802,15 +985,20 @@ static void koth_client_predict_tick(int dt_ms)
     // predict capture percentage clientside
     for (auto& h : g_koth_info.hills) {
         if (h.lock_status != HillLockStatus::HLS_Available)
-            continue; // hill is locked
+            continue; // locked
 
-        update_hill_client_predict(h, dt_ms);
+        if (gt_is_rev()) {
+            update_hill_client_predict_rev(h, dt_ms);
+        }
+        else {
+            update_hill_client_predict(h, dt_ms);
+        }
     }
 }
 
 void koth_do_frame() // fires every frame on both server and client
 {
-    if (!rf::is_multi || (!gt_is_koth() && !gt_is_dc()))
+    if (!rf::is_multi || !multi_is_game_type_with_hills())
         return;
 
     // server tick
@@ -826,7 +1014,12 @@ void koth_do_frame() // fires every frame on both server and client
                 if (h.lock_status != HillLockStatus::HLS_Available)
                     continue; // hill is locked
 
-                update_hill_server(h, dt_ms);
+                if (gt_is_rev()) {
+                    update_hill_server_rev(h, dt_ms);
+                }
+                else {
+                    update_hill_server(h, dt_ms);
+                }
 
                 // After the authoritative update, broadcast state if something relevant changed
                 const Presence pres = sample_presence(h);
@@ -852,7 +1045,7 @@ void koth_do_frame() // fires every frame on both server and client
         bool any_local_owned_enemy_progress = false;
         bool should_play_cap_gain = false;
 
-        if (rf::local_player && !multi_spectate_is_spectating() && (gt_is_koth() || gt_is_dc()) && rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
+        if (rf::local_player && !multi_spectate_is_spectating() && multi_is_game_type_with_hills() && rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
             const bool local_is_blue = (rf::local_player->team != 0);
             const HillOwner local_team_owner = local_is_blue ? HillOwner::HO_Blue : HillOwner::HO_Red;
             const HillState enemy_growing_state = local_is_blue ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
@@ -864,13 +1057,16 @@ void koth_do_frame() // fires every frame on both server and client
 
                 // decide if play capture hum
                 if (h.state == my_growing_state && h.capture_milli < 100000) {
-                    should_play_cap_gain = true;
+                    // in REV, blue can never grow
+                    if (!gt_is_rev() || (gt_is_rev() && !local_is_blue)) {
+                        should_play_cap_gain = true;
+                    }
                 }
 
                 // decide if play alarm
-                // KOTH = when capturing from neutral or my team, DC = only when capturing from my team
+                // KOTH/REV = when capturing from neutral or my team, DC = only when capturing from my team
                 const bool ours_or_neutral =
-                    (h.ownership == local_team_owner) || (gt_is_koth() && (h.ownership == HillOwner::HO_Neutral));
+                    (h.ownership == local_team_owner) || ((gt_is_koth() || gt_is_rev()) && (h.ownership == HillOwner::HO_Neutral));
                 if (ours_or_neutral && h.state == enemy_growing_state) {
                     any_local_owned_enemy_progress = true;
                 }
@@ -954,12 +1150,13 @@ static int build_hills_from_capture_point_events()
         HillInfo h{};
         h.hill_uid = ++idx;
         // use name if set by mapper, if not name it "Hill" if only one, or "Control Point X" if multiple
-        h.name = cp->name.empty() ? (events.size() <= 1 ? "Hill" : std::format("Control Point {}", idx)) : cp->name;
+        h.name = cp->name.empty() ? (events.size() <= 1 ? "Hill" : std::format("Point {}", idx)) : cp->name;
         h.trigger_uid = cp->trigger_uid;
         h.trigger = trig;
         h.outline_offset = cp->outline_offset;
+        h.stage = cp->stage;
         h.handler = cp;
-        h.ownership = static_cast<HillOwner>(cp->initial_owner);
+        h.ownership = HillOwner::HO_Neutral;
         h.state = HillState::HS_Idle;
         h.lock_status = HillLockStatus::HLS_Available;
         h.capture_progress = 0;
@@ -973,28 +1170,48 @@ static int build_hills_from_capture_point_events()
                     h.mp_spawn_uids.push_back(rp->uid);
                 }
             }
-            koth_update_respawn_points(&h); // set initial respawn point states
         }
 
         g_koth_info.hills.push_back(std::move(h));
+    }
+
+    if (gt == rf::NetGameType::NG_TYPE_REV && !g_koth_info.hills.empty()) {
+        std::sort(g_koth_info.hills.begin(), g_koth_info.hills.end(),
+            [](const HillInfo& a, const HillInfo& b) { return a.stage < b.stage; });
+
+        for (size_t i = 0; i < g_koth_info.hills.size(); ++i) {
+            auto& h = g_koth_info.hills[i];
+            if (i == 0) {
+                h.lock_status = HillLockStatus::HLS_Available; // first stage
+            }
+            else {
+                h.lock_status = HillLockStatus::HLS_Locked;
+            }
+
+            koth_update_respawn_points(&h); // ensure respawns reflect initial lock state
+        }
+    }
+    else {
+        for (auto& h : g_koth_info.hills) {
+            koth_update_respawn_points(&h);
+        }
     }
 
     //xlog::warn("GT: discovered {} capture point(s)", int(g_koth_info.hills.size()));
     return int(g_koth_info.hills.size());
 }
 
-void koth_dc_level_init()
+void hill_mode_level_init()
 {
     clear_koth_name_textures(); // clear hill labels
     g_local_cap_gain_sfx_handle = -1;
     g_local_cap_gain_sfx_playing = false;
     multi_koth_reset_scores();
     g_koth_info.rules.require_neutral_to_capture = gt_is_koth() ? false : true; // KOTH doesn't have CPs go neutral before recap
-    g_koth_info.rules.spawn_players_near_owned_points = gt_is_koth() ? false : true; // KOTH doesn't use CP proximity to decide spawn positions
     g_cap_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
 }
 
-void koth_dc_level_init_post()
+void hill_mode_level_init_post()
 {
     if (!rf::is_multi)
         return;
@@ -1006,14 +1223,14 @@ void koth_dc_level_init_post()
 
 void multi_level_init_post_gametypes()
 {
-    koth_dc_level_init_post();
+    hill_mode_level_init_post();
 }
 
 // pre level being loaded
 CodeInjection multi_level_init_gametypes_injection{
     0x0046E466,
     [](auto& regs) {
-        koth_dc_level_init();
+        hill_mode_level_init();
     },
 };
 
@@ -1021,8 +1238,8 @@ CodeInjection multi_level_init_gametypes_injection{
 CodeInjection send_team_score_server_do_frame_patch{
     0x0046E5B4,
     [](auto& regs) {
-        if (multi_is_team_game_type()) {
-            regs.eip = 0x0046E5C3; // if any team mode, send team_scores packet
+        if (multi_is_team_game_type() && !gt_is_rev()) {
+            regs.eip = 0x0046E5C3; // send team_scores packet
         }
     },
 };
@@ -1040,14 +1257,16 @@ CodeInjection send_team_score_state_info_patch{
     0x0048183F,
     [](auto& regs) {
         auto game_type = rf::multi_get_game_type();
-        if (multi_game_type_is_team_type(game_type)) {
-            // send hill state packet on join
-            if (multi_game_type_has_hills(game_type)) {
-                rf::Player* pp = regs.edi;
+        // send hill state packet on join
+        if (multi_game_type_has_hills(game_type)) {
+            if (rf::Player* pp = regs.edi) {
                 send_koth_hill_state_packet_to_player(pp);
             }
+        }
 
-            regs.eip = 0x00481859; // if any team mode, send team_scores packet
+        // send team_scores packet
+        if (multi_game_type_is_team_type(game_type) && !gt_is_rev()) {
+            regs.eip = 0x00481859; 
         }
     },
 };

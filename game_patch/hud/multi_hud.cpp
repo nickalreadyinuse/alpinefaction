@@ -458,7 +458,7 @@ static void hud_draw_cp_row_fullwidth(int x, int y, int w, int h, const HillInfo
     const bool contested = (hinfo.steal_dir != HillOwner::HO_Neutral);
     const bool locked = (hinfo.lock_status != HillLockStatus::HLS_Available);
     const int pct_w_room = (contested || locked) ? 40 : 0; // show progress if contested or locked
-    std::string name_to_show = hinfo.name.empty() ? "Control Point" : hinfo.name;
+    std::string name_to_show = hinfo.name.empty() ? "Point" : hinfo.name;
     std::string fit_name = hud_fit_string(name_to_show.c_str(), (w - pad_l - pad_r - pct_w_room), nullptr, font_id);
 
     // name
@@ -615,12 +615,17 @@ void hud_render_team_scores()
 
     const auto game_type = rf::multi_get_game_type();
     const bool is_koth_dc = (game_type == rf::NG_TYPE_KOTH || game_type == rf::NG_TYPE_DC);
+    const bool is_rev = (game_type == rf::NG_TYPE_REV);
 
     int box_w = 0, box_h = 0;
     if (is_koth_dc) {
         box_w = g_big_team_scores_hud ? 240 : 185;
         box_h = g_big_team_scores_hud ? 60  : 40;
-    } else {
+    }
+    else if (is_rev) {
+        box_w = g_big_team_scores_hud ? 240 : 185;
+    }
+    else {
         box_w = g_big_team_scores_hud ? 370 : 185;
         box_h = g_big_team_scores_hud ? 80  : 55;
     }
@@ -637,7 +642,7 @@ void hud_render_team_scores()
     int flag_x = g_big_team_scores_hud ? 410 : 205;
     float flag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
 
-    if (!is_koth_dc) {
+    if (!is_koth_dc && !is_rev) {
         rf::gr::rect(box_x, box_y, box_w, box_h);
     }
     int font_id = hud_get_default_font();
@@ -698,7 +703,7 @@ void hud_render_team_scores()
         }
     }
 
-    if (multi_is_team_game_type() && !is_koth_dc) {
+    if (multi_is_team_game_type() && !is_koth_dc && !is_rev) {
         float miniflag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
         rf::gr::set_color(255, 255, 255, 255);
         if (rf::local_player) {
@@ -747,7 +752,7 @@ void hud_render_team_scores()
             (rf::local_player && rf::local_player->team == rf::TEAM_RED),
             (rf::local_player && rf::local_player->team == rf::TEAM_BLUE), (g_big_team_scores_hud ? 1.5f : 1.0f));
     }
-    else {
+    else if (game_type != rf::NG_TYPE_REV) {
         rf::gr::get_string_size(&str_w, &str_h, red_score_str.c_str(), -1, font_id);
         rf::gr::string(box_x + box_w - 5 - str_w, red_miniflag_label_y, red_score_str.c_str(), font_id);
         rf::gr::get_string_size(&str_w, &str_h, blue_score_str.c_str(), -1, font_id);
@@ -755,7 +760,7 @@ void hud_render_team_scores()
     }
 
     // render capture point bars
-    if (is_koth_dc) {
+    if (is_koth_dc || is_rev) {
         hud_render_cp_strip_koth_dc_fullwidth(box_x, box_y, box_w);
     }
 }
@@ -763,7 +768,7 @@ void hud_render_team_scores()
 CodeInjection hud_render_team_scores_new_gamemodes_patch {
     0x00476DEB,
     [](auto& regs) {
-        if (gt_is_koth() || gt_is_dc()) {
+        if (gt_is_koth() || gt_is_dc()|| gt_is_rev()) {
             regs.eip = 0x00476E06; // multi_hud_render_team_scores
         }
     }

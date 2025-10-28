@@ -2062,8 +2062,8 @@ namespace rf
         int trigger_uid = -1;
         float outline_offset = 0.0f;
         bool sphere_to_cylinder = false;
-        int position = 0;    // HillRole
-        int initial_owner = 0; // HillOwner
+        int stage = 0;
+        int position = 0; // HillRole
 
         void register_variable_handlers() override
         {

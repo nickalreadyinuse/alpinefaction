@@ -460,7 +460,7 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         },
         {
             {FIELD_INT1,
-            {"Deathmatch", "Capture the Flag", "Team Deathmatch", "King of the Hill"}}
+            {"Deathmatch", "Capture the Flag", "Team Deathmatch", "King of the Hill", "Damage Control", "Revolt"}}
         },
         {
             {FIELD_INT1, true}
@@ -589,18 +589,15 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         {
             {FIELD_STR1, "Name (str1):"},
             {FIELD_FLOAT1, "Outline offset (float1):"},
-            {FIELD_INT1, "Position:"},
-            {FIELD_INT2, "Initial owner:"},
+            {FIELD_INT1, "Stage:"},
+            {FIELD_INT2, "Position:"},
             {FIELD_BOOL1, "Cylindrical trigger:"}
         },
         {
-            {FIELD_INT1,
-            {"Center", "Red base", "Blue base", "Red forward", "Blue forward"}},
             {FIELD_INT2,
-            {"Neutral", "Red", "Blue"}}
+            {"Basic/Center", "Red base", "Blue base", "Red forward", "Blue forward"}}
         },
         {
-            {FIELD_INT1, true},
             {FIELD_INT2, true}
         }
     }},
