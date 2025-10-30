@@ -462,8 +462,7 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
 
     // capture progress bar
     if (contested) {
-        const float t_raw = std::clamp(h.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
-        const float t = std::pow(t_raw, 0.65f);
+        const float t = std::clamp(h.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
 
         const float track_w = (2.0f * ring_scale) * g_koth_hud_tuning.fill_vs_ring_scale;
         const float bar_h = ring_scale * 0.44f;
