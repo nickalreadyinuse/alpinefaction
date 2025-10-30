@@ -281,6 +281,46 @@ Presence sample_presence(const HillInfo& h)
     return out;
 }
 
+static int players_on_team(const Presence& pres, HillOwner team)
+{
+    switch (team) {
+        case HillOwner::HO_Red:
+            return pres.red;
+        case HillOwner::HO_Blue:
+            return pres.blue;
+        default:
+            return 0;
+    }
+}
+
+static float rate_bonus_for_players(int player_count)
+{
+    if (player_count <= 1)
+        return 1.0f;
+    if (player_count == 2)
+        return 1.5f;
+    return 2.0f; // 3 or more
+}
+
+static int scaled_capture_rate(const HillInfo& h, int base_rate, int player_count)
+{
+    if (base_rate <= 0)
+        return base_rate;
+
+    float multiplier = (h.capture_rate > 0.0f) ? h.capture_rate : 1.0f;
+    multiplier *= rate_bonus_for_players(player_count);
+
+    int scaled = static_cast<int>(std::lround(base_rate * multiplier));
+    if (base_rate > 0)
+        scaled = std::max(scaled, 1);
+    return scaled;
+}
+
+static int effective_rate_per_sec(const HillInfo& h, int base_rate, const Presence& pres, HillOwner team)
+{
+    return scaled_capture_rate(h, base_rate, players_on_team(pres, team));
+}
+
 static std::vector<uint8_t> on_capture_collect_player_ids_on_hill_for_team(const HillInfo& h, HillOwner team)
 {
     std::vector<uint8_t> ids;
@@ -528,12 +568,14 @@ void update_hill_server_rev(HillInfo& h, int dt_ms)
     const bool both = (pres.red > 0 && pres.blue > 0);
     const bool empty = (pres.red == 0 && pres.blue == 0);
 
-    auto inc_rate = [&](int rate_per_sec) {
-        h.capture_milli = std::min(100000, h.capture_milli + rate_per_sec * dt_ms);
+    auto inc_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::min(100000, h.capture_milli + effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
     };
-    auto dec_rate = [&](int rate_per_sec) {
-        h.capture_milli = std::max(0, h.capture_milli - rate_per_sec * dt_ms);
+    auto dec_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::max(0, h.capture_milli - effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
         if (h.capture_milli == 0)
             h.steal_dir = HillOwner::HO_Neutral;
@@ -548,7 +590,7 @@ void update_hill_server_rev(HillInfo& h, int dt_ms)
     // slow decay of red's progress
     if (empty) {
         if (h.capture_milli > 0)
-            dec_rate(g_koth_info.rules.drain_empty_rate);
+            dec_rate(g_koth_info.rules.drain_empty_rate, HillOwner::HO_Neutral);
         h.state = HillState::HS_Idle;
         return;
     }
@@ -558,7 +600,7 @@ void update_hill_server_rev(HillInfo& h, int dt_ms)
         if (h.steal_dir == HillOwner::HO_Neutral)
             h.steal_dir = HillOwner::HO_Red;
         h.state = HillState::HS_LeanRedGrowing;
-        inc_rate(g_koth_info.rules.grow_rate);
+        inc_rate(g_koth_info.rules.grow_rate, HillOwner::HO_Red);
         if (h.capture_milli >= 100000) {
             // on cap, permalock, unlock next
             koth_apply_ownership(h, HillOwner::HO_Red);
@@ -570,7 +612,7 @@ void update_hill_server_rev(HillInfo& h, int dt_ms)
     if (blue_only) {
         if (h.capture_milli > 0) {
             h.state = HillState::HS_LeanRedShrinking;
-            dec_rate(g_koth_info.rules.drain_defended_rate);
+            dec_rate(g_koth_info.rules.drain_defended_rate, HillOwner::HO_Blue);
         }
         else {
             h.state = HillState::HS_Idle;
@@ -592,12 +634,14 @@ void update_hill_server(HillInfo& h, int dt_ms)
     const bool empty = (pres.red == 0 && pres.blue == 0);
 
     // milli-percent helpers: rate is %/sec, dt_ms is ms
-    auto inc_rate = [&](int rate_per_sec) {
-        h.capture_milli = std::min(100000, h.capture_milli + rate_per_sec * dt_ms);
+    auto inc_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::min(100000, h.capture_milli + effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
     };
-    auto dec_rate = [&](int rate_per_sec) {
-        h.capture_milli = std::max(0, h.capture_milli - rate_per_sec * dt_ms);
+    auto dec_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::max(0, h.capture_milli - effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
         if (h.capture_milli == 0)
             h.steal_dir = HillOwner::HO_Neutral;
@@ -665,7 +709,7 @@ void update_hill_server(HillInfo& h, int dt_ms)
     // empty: bleed back to 0
     if (empty) {
         if (h.capture_milli > 0)
-            dec_rate(g_koth_info.rules.drain_empty_rate);
+            dec_rate(g_koth_info.rules.drain_empty_rate, HillOwner::HO_Neutral);
         h.state = HillState::HS_Idle;
         emit_change_logs();
         return;
@@ -681,7 +725,7 @@ void update_hill_server(HillInfo& h, int dt_ms)
             if (h.steal_dir == losing && h.capture_milli > 0) {
                 // Clear the other team's partial progress first
                 h.state = clear_state;
-                dec_rate(neutral_clear); // dec_rate sets steal_dir = Neutral on reaching 0
+                dec_rate(neutral_clear, winning); // dec_rate sets steal_dir = Neutral on reaching 0
                 return;                  // keep clearing until 0
             }
 
@@ -691,7 +735,7 @@ void update_hill_server(HillInfo& h, int dt_ms)
 
             if (h.steal_dir == winning) {
                 h.state = grow_state;
-                inc_rate(grow);
+                inc_rate(grow, winning);
                 if (h.capture_milli >= 100000) {
                     koth_apply_ownership(h, winning);
                 }
@@ -719,12 +763,12 @@ void update_hill_server(HillInfo& h, int dt_ms)
         if (h.steal_dir != attackers && h.capture_milli > 0) {
             // drain hostile progress quickly
             h.state = (owner == HillOwner::HO_Red) ? HillState::HS_LeanRedShrinking : HillState::HS_LeanBlueShrinking;
-            dec_rate(g_koth_info.rules.drain_defended_rate);
+            dec_rate(g_koth_info.rules.drain_defended_rate, attackers);
         }
         else {
             h.steal_dir = attackers;
             h.state = (attackers == HillOwner::HO_Red) ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
-            inc_rate(g_koth_info.rules.grow_rate);
+            inc_rate(g_koth_info.rules.grow_rate, attackers);
             if (h.capture_milli >= 100000) {
                 //koth_apply_ownership(h, attackers);
                 if (g_koth_info.rules.require_neutral_to_capture) {
@@ -744,7 +788,7 @@ void update_hill_server(HillInfo& h, int dt_ms)
     if (owner_only) {
         if (h.capture_milli > 0) {
             h.state = (owner == HillOwner::HO_Red) ? HillState::HS_LeanBlueShrinking : HillState::HS_LeanRedShrinking;
-            dec_rate(g_koth_info.rules.drain_defended_rate);
+            dec_rate(g_koth_info.rules.drain_defended_rate, owner);
         }
         else {
             h.state = HillState::HS_Idle;
@@ -786,12 +830,14 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
 {
     const Presence pres = sample_presence(h);
 
-    auto inc_rate = [&](int rate_per_sec) {
-        h.capture_milli = std::min(100000, h.capture_milli + rate_per_sec * dt_ms);
+    auto inc_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::min(100000, h.capture_milli + effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
     };
-    auto dec_rate = [&](int rate_per_sec) {
-        h.capture_milli = std::max(0, h.capture_milli - rate_per_sec * dt_ms);
+    auto dec_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::max(0, h.capture_milli - effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
         if (h.capture_milli == 0)
             h.steal_dir = HillOwner::HO_Neutral;
@@ -808,7 +854,7 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
     }
     if (empty) {
         if (h.capture_milli > 0)
-            dec_rate(g_koth_info.rules.drain_empty_rate);
+            dec_rate(g_koth_info.rules.drain_empty_rate, HillOwner::HO_Neutral);
         h.state = HillState::HS_Idle;
         return;
     }
@@ -821,7 +867,7 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
         auto clear_then_grow = [&](HillOwner losing, HillOwner winning, HillState clear_state, HillState grow_state) {
             if (h.steal_dir == losing && h.capture_milli > 0) {
                 h.state = clear_state;
-                dec_rate(neutral_clear);
+                dec_rate(neutral_clear, winning);
                 return;
             }
             if (h.steal_dir == HillOwner::HO_Neutral)
@@ -829,10 +875,10 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
 
             if (h.steal_dir == winning) {
                 h.state = grow_state;
-                inc_rate(grow);
+                inc_rate(grow, winning);
                 if (h.capture_milli >= 100000) {
                     // Local flip; no announce
-                    koth_apply_ownership(h, winning, /*announce=*/false);
+                    koth_apply_ownership(h, winning, false);
                 }
             }
         };
@@ -857,14 +903,14 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
     if (attackers_only) {
         if (h.steal_dir != attackers && h.capture_milli > 0) {
             h.state = (owner == HillOwner::HO_Red) ? HillState::HS_LeanRedShrinking : HillState::HS_LeanBlueShrinking;
-            dec_rate(g_koth_info.rules.drain_defended_rate);
+            dec_rate(g_koth_info.rules.drain_defended_rate, attackers);
         }
         else {
             h.steal_dir = attackers;
             h.state = (attackers == HillOwner::HO_Red) ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
-            inc_rate(g_koth_info.rules.grow_rate);
+            inc_rate(g_koth_info.rules.grow_rate, attackers);
             if (h.capture_milli >= 100000) {
-                koth_apply_ownership(h, attackers, /*announce=*/false);
+                koth_apply_ownership(h, attackers, false);
             }
         }
         return;
@@ -873,7 +919,7 @@ static void update_hill_client_predict(HillInfo& h, int dt_ms)
     if (owner_only) {
         if (h.capture_milli > 0) {
             h.state = (owner == HillOwner::HO_Red) ? HillState::HS_LeanBlueShrinking : HillState::HS_LeanRedShrinking;
-            dec_rate(g_koth_info.rules.drain_defended_rate);
+            dec_rate(g_koth_info.rules.drain_defended_rate, owner);
         }
         else {
             h.state = HillState::HS_Idle;
@@ -897,12 +943,14 @@ static void update_hill_client_predict_rev(HillInfo& h, int dt_ms)
     const bool both      = (pres.red  > 0 && pres.blue > 0);
     const bool empty     = (pres.red  == 0 && pres.blue == 0);
 
-    auto inc_rate = [&](int rate_per_sec) {
-        h.capture_milli   = std::min(100000, h.capture_milli + rate_per_sec * dt_ms);
+    auto inc_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::min(100000, h.capture_milli + effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
     };
-    auto dec_rate = [&](int rate_per_sec) {
-        h.capture_milli   = std::max(0, h.capture_milli - rate_per_sec * dt_ms);
+    auto dec_rate = [&](int rate_per_sec, HillOwner team) {
+        const int effective = effective_rate_per_sec(h, rate_per_sec, pres, team);
+        h.capture_milli = std::max(0, h.capture_milli - effective * dt_ms);
         h.capture_progress = static_cast<uint8_t>(h.capture_milli / 1000);
         if (h.capture_milli == 0) h.steal_dir = HillOwner::HO_Neutral;
     };
@@ -910,7 +958,7 @@ static void update_hill_client_predict_rev(HillInfo& h, int dt_ms)
     if (both) { h.state = HillState::HS_Idle; return; }
 
     if (empty) {
-        if (h.capture_milli > 0) dec_rate(g_koth_info.rules.drain_empty_rate);
+        if (h.capture_milli > 0) dec_rate(g_koth_info.rules.drain_empty_rate, HillOwner::HO_Neutral);
         h.state = HillState::HS_Idle;
         return;
     }
@@ -918,7 +966,7 @@ static void update_hill_client_predict_rev(HillInfo& h, int dt_ms)
     if (red_only) {
         if (h.steal_dir == HillOwner::HO_Neutral) h.steal_dir = HillOwner::HO_Red;
         h.state = HillState::HS_LeanRedGrowing;
-        inc_rate(g_koth_info.rules.grow_rate);
+        inc_rate(g_koth_info.rules.grow_rate, HillOwner::HO_Red);
         if (h.capture_milli >= 100000) {
             // flip locally, will be confirmed by server
             koth_apply_ownership(h, HillOwner::HO_Red, false);
@@ -930,7 +978,7 @@ static void update_hill_client_predict_rev(HillInfo& h, int dt_ms)
         // blue presence only drains red progress
         if (h.capture_milli > 0) {
             h.state = HillState::HS_LeanRedShrinking;
-            dec_rate(g_koth_info.rules.drain_defended_rate);
+            dec_rate(g_koth_info.rules.drain_defended_rate, HillOwner::HO_Blue);
         } else {
             h.state = HillState::HS_Idle;
         }
@@ -1154,6 +1202,7 @@ static int build_hills_from_capture_point_events()
         h.trigger_uid = cp->trigger_uid;
         h.trigger = trig;
         h.outline_offset = cp->outline_offset;
+        h.capture_rate = cp->capture_rate;
         h.stage = cp->stage;
         h.handler = cp;
         h.ownership = HillOwner::HO_Neutral;

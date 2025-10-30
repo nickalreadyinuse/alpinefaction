@@ -2061,6 +2061,7 @@ namespace rf
         std::string name = "";
         int trigger_uid = -1;
         float outline_offset = 0.0f;
+        float capture_rate = 0.0f;
         bool sphere_to_cylinder = false;
         int stage = 0;
         int position = 0; // HillRole
@@ -2078,6 +2079,11 @@ namespace rf
             handlers[SetVarOpts::float1] = [](Event* event, const std::string& value) {
                 auto* this_event = static_cast<EventCapturePointHandler*>(event);
                 this_event->outline_offset = std::stof(value);
+            };
+
+            handlers[SetVarOpts::float2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventCapturePointHandler*>(event);
+                this_event->capture_rate = std::stof(value);
             };
         }
     };

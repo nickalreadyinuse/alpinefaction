@@ -72,6 +72,7 @@ struct HillInfo
     int trigger_uid = -1; // used once to lookup trigger
     rf::Trigger* trigger = nullptr; // set on koth init during map init
     float outline_offset = 0.0f;
+    float capture_rate = 0.0f;
     rf::EventCapturePointHandler* handler = nullptr; // used for world HUD icon
     HillOwner ownership = HillOwner::HO_Neutral;
     HillOwner steal_dir = HillOwner::HO_Neutral;
