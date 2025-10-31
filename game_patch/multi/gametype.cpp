@@ -154,6 +154,19 @@ HillInfo* koth_find_hill_by_uid(uint8_t uid)
     return nullptr;
 }
 
+HillInfo* koth_find_hill_by_handler(const rf::EventCapturePointHandler* handler)
+{
+    if (!handler)
+        return nullptr;
+
+    for (auto& h : g_koth_info.hills) {
+        if (h.handler == handler)
+            return &h;
+    }
+
+    return nullptr;
+}
+
 float cylinder_radius_for_box_inscribed(const rf::Trigger* t)
 {
     const float hx = 0.5f * std::fabs(t->box_size.x);
@@ -483,26 +496,91 @@ static void koth_update_respawn_points(HillInfo* h) {
     }
 }
 
-static int rev_index_of(const HillInfo* ptr)
+static void rev_recalculate_stage_locks()
 {
-    for (size_t i = 0; i < g_koth_info.hills.size(); ++i)
-        if (&g_koth_info.hills[i] == ptr) return int(i);
-    return -1;
-}
+    if (!gt_is_rev())
+        return;
 
-static void rev_unlock_next(size_t i)
-{
-    if (i + 1 < g_koth_info.hills.size()) {
-        auto& next = g_koth_info.hills[i + 1];
-        if (next.lock_status != HillLockStatus::HLS_Permalocked) {
-            next.lock_status = HillLockStatus::HLS_Available;
-            koth_update_respawn_points(&next);
+    if (g_koth_info.hills.empty())
+        return;
+
+    std::vector<int> unique_stages;
+    unique_stages.reserve(g_koth_info.hills.size());
+
+    for (const auto& hill : g_koth_info.hills) {
+        if (std::find(unique_stages.begin(), unique_stages.end(), hill.stage) == unique_stages.end()) {
+            unique_stages.push_back(hill.stage);
+        }
+    }
+
+    std::sort(unique_stages.begin(), unique_stages.end());
+
+    bool all_previous_complete = true;
+
+    for (int stage : unique_stages) {
+        bool stage_complete = true;
+
+        for (const auto& hill : g_koth_info.hills) {
+            if (hill.stage != stage)
+                continue;
+
+            if (hill.ownership != HillOwner::HO_Red) {
+                stage_complete = false;
+                break;
+            }
+        }
+
+        const bool stage_should_be_available = all_previous_complete;
+
+        for (auto& hill : g_koth_info.hills) {
+            if (hill.stage != stage)
+                continue;
+
+            if (hill.lock_status == HillLockStatus::HLS_Permalocked)
+                continue;
+
+            const HillLockStatus desired_status =
+                stage_should_be_available ? HillLockStatus::HLS_Available : HillLockStatus::HLS_Locked;
+
+            if (hill.lock_status != desired_status) {
+                hill.lock_status = desired_status;
+                koth_update_respawn_points(&hill);
+            }
+        }
+
+        if (!stage_complete) {
+            all_previous_complete = false;
         }
     }
 }
 
-static void koth_apply_ownership(
-    HillInfo& h, HillOwner new_owner, bool announce = true, HillOwner scoring_team = HillOwner::HO_Neutral)
+static void notify_capture_point_captured(HillInfo& h, HillOwner new_owner)
+{
+    if (!h.handler)
+        return;
+
+    if (new_owner != HillOwner::HO_Red && new_owner != HillOwner::HO_Blue)
+        return;
+
+    auto events = rf::find_all_events_by_type(rf::EventType::When_Captured);
+    if (events.empty())
+        return;
+
+    const int handler_handle = h.handler->handle;
+    const int owner_token = (new_owner == HillOwner::HO_Red) ? -2 : -3;
+
+    for (auto* event : events) {
+        if (!event)
+            continue;
+
+        const auto it = std::find(event->links.begin(), event->links.end(), handler_handle);
+        if (it != event->links.end()) {
+            event->activate(handler_handle, owner_token, true);
+        }
+    }
+}
+
+static void koth_apply_ownership(HillInfo& h, HillOwner new_owner, bool announce = true, HillOwner scoring_team = HillOwner::HO_Neutral)
 {
     if (gt_is_rev() && new_owner == HillOwner::HO_Blue)
         return;
@@ -529,11 +607,12 @@ static void koth_apply_ownership(
 
         koth_update_respawn_points(&h); // update spawns for this hill
 
-        if (gt_is_rev() && new_owner == HillOwner::HO_Red) {
-            const int i = rev_index_of(&h);
-            if (i >= 0) {
-                rev_unlock_next(size_t(i)); // unlock next hill
-            }
+        if (gt_is_rev()) {
+            rev_recalculate_stage_locks();
+        }
+
+        if (new_owner == HillOwner::HO_Red || new_owner == HillOwner::HO_Blue) {
+            notify_capture_point_captured(h, new_owner);
         }
     
         if (announce) {
@@ -549,6 +628,34 @@ static void koth_apply_ownership(
             af_send_koth_hill_captured_packet_to_all(uid8, new_owner, ids);
         }
     }
+}
+
+bool koth_set_capture_point_owner(rf::EventCapturePointHandler* handler, int owner, bool announce)
+{
+    if (!rf::is_multi || !rf::is_server)
+        return false; // ignore on client
+
+    HillInfo* hill = koth_find_hill_by_handler(handler);
+    if (!hill)
+        return false;
+
+    auto owner_enum = static_cast<HillOwner>(owner);
+
+    if (hill->ownership == owner_enum) {
+        bool adjusted = false;
+        if (gt_is_rev() && owner_enum == HillOwner::HO_Red && hill->lock_status != HillLockStatus::HLS_Permalocked) {
+            hill->lock_status = HillLockStatus::HLS_Permalocked;
+            koth_update_respawn_points(hill);
+            rev_recalculate_stage_locks();
+            adjusted = true;
+        }
+
+        return adjusted;
+    }
+
+    HillOwner previous_owner = hill->ownership;
+    koth_apply_ownership(*hill, owner_enum, announce);
+    return previous_owner != owner_enum;
 }
 
 void update_hill_server_rev(HillInfo& h, int dt_ms)
@@ -1226,24 +1333,13 @@ static int build_hills_from_capture_point_events()
 
     if (gt == rf::NetGameType::NG_TYPE_REV && !g_koth_info.hills.empty()) {
         std::sort(g_koth_info.hills.begin(), g_koth_info.hills.end(),
-            [](const HillInfo& a, const HillInfo& b) { return a.stage < b.stage; });
-
-        for (size_t i = 0; i < g_koth_info.hills.size(); ++i) {
-            auto& h = g_koth_info.hills[i];
-            if (i == 0) {
-                h.lock_status = HillLockStatus::HLS_Available; // first stage
-            }
-            else {
-                h.lock_status = HillLockStatus::HLS_Locked;
-            }
-
-            koth_update_respawn_points(&h); // ensure respawns reflect initial lock state
-        }
+                  [](const HillInfo& a, const HillInfo& b) { return a.stage < b.stage; });
     }
-    else {
-        for (auto& h : g_koth_info.hills) {
-            koth_update_respawn_points(&h);
-        }
+
+    rev_recalculate_stage_locks();
+
+    for (auto& h : g_koth_info.hills) {
+        koth_update_respawn_points(&h);
     }
 
     //xlog::warn("GT: discovered {} capture point(s)", int(g_koth_info.hills.size()));

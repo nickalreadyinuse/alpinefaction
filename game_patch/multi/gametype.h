@@ -2,9 +2,15 @@
 
 #include <optional>
 #include <xlog/xlog.h>
-#include "../object/event_alpine.h"
 #include "../rf/trigger.h"
 #include "../rf/os/string.h"
+
+// forward declarations
+namespace rf
+{
+    struct EventCapturePointHandler;
+    enum NetGameType;
+}
 
 static const char* const multi_rfl_prefixes[] = {
     // "m_",
@@ -164,6 +170,8 @@ int multi_koth_get_blue_team_score();
 void multi_koth_set_red_team_score(int score);
 void multi_koth_set_blue_team_score(int score);
 HillInfo* koth_find_hill_by_uid(uint8_t uid);
+HillInfo* koth_find_hill_by_handler(const rf::EventCapturePointHandler* handler);
+bool koth_set_capture_point_owner(rf::EventCapturePointHandler* handler, int owner, bool announce = true);
 rf::Trigger* koth_resolve_trigger_from_uid(int uid);
 void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, const uint8_t* ids, size_t ids_len);
 void koth_local_announce_hill_captured_vector(const HillInfo* h, HillOwner new_owner, const std::vector<uint8_t>& ids);
