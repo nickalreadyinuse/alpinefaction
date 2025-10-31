@@ -6,8 +6,8 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <common/version/version.h>
+#include <common/utils/list-utils.h>
 #include "multi.h"
-#include "gametype.h"
 #include "endgame_votes.h"
 #include "multi_private.h"
 #include "alpine_packets.h"
