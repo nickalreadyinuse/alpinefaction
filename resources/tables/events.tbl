@@ -385,6 +385,9 @@ $RFE Level1:      "AF_General"
 $Event Name:      "Modify_Respawn_Point"
 $RFE Level1:      "AF_General"
 
+$Event Name:      "Set_Capture_Point_Owner"
+$RFE Level1:      "AF_General"
+
 #End
 
 // ------------------------------------------------
@@ -418,6 +421,9 @@ $Event Name:      "Inside_Gate"
 $RFE Level1:      "AF_Flow"
 
 $Event Name:      "Gametype_Gate"
+$RFE Level1:      "AF_Flow"
+
+$Event Name:      "Owner_Gate"
 $RFE Level1:      "AF_Flow"
 
 #End
@@ -467,6 +473,9 @@ $Event Name:      "AF_When_Dead"
 $RFE Level1:      "AF_Catalysts"
 
 $Event Name:      "When_Picked_Up"
+$RFE Level1:      "AF_Catalysts"
+
+$Event Name:      "When_Captured"
 $RFE Level1:      "AF_Catalysts"
 
 #End

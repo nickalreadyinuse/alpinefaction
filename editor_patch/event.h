@@ -60,7 +60,10 @@ enum class AlpineDedEventID : int
     Set_Light_Color,
     Capture_Point_Handler,
     Respawn_Point_State,
-    Modify_Respawn_Point
+    Modify_Respawn_Point,
+    When_Captured,
+    Set_Capture_Point_Owner,
+    Owner_Gate
 };
 
 constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept

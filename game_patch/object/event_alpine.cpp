@@ -86,6 +86,9 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"Capture_Point_Handler", 137},
                 {"Respawn_Point_State", 138},
                 {"Modify_Respawn_Point", 139},
+                {"When_Captured", 140},
+                {"Set_Capture_Point_Owner", 141},
+                {"Owner_Gate", 142},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -151,6 +154,9 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {137, []() { return new rf::EventCapturePointHandler(); }},
                 {138, []() { return new rf::EventRespawnPointState(); }},
                 {139, []() { return new rf::EventModifyRespawnPoint(); }},
+                {140, []() { return new rf::EventWhenCaptured(); }},
+                {141, []() { return new rf::EventSetCapturePointOwner(); }},
+                {142, []() { return new rf::EventOwnerGate(); }},
             };
 
             // find type and allocate
@@ -220,6 +226,9 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {137, [](rf::Event* e) { delete static_cast<rf::EventCapturePointHandler*>(e); }},
                 {138, [](rf::Event* e) { delete static_cast<rf::EventRespawnPointState*>(e); }},
                 {139, [](rf::Event* e) { delete static_cast<rf::EventModifyRespawnPoint*>(e); }},
+                {140, [](rf::Event* e) { delete static_cast<rf::EventWhenCaptured*>(e); }},
+                {141, [](rf::Event* e) { delete static_cast<rf::EventSetCapturePointOwner*>(e); }},
+                {142, [](rf::Event* e) { delete static_cast<rf::EventOwnerGate*>(e); }},
             };
 
             // find type and deallocate
@@ -261,7 +270,10 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Light_State,
         rf::EventType::World_HUD_Sprite,
         rf::EventType::Set_Light_Color,
-        rf::EventType::Capture_Point_Handler
+        rf::EventType::Capture_Point_Handler,
+        rf::EventType::Set_Capture_Point_Owner,
+        rf::EventType::When_Captured,
+        rf::EventType::Owner_Gate
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
@@ -675,6 +687,29 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             if (event) {
                 event->red = params.bool1;
                 event->blue = params.bool2;
+            }
+            return event;
+        }
+    },
+    // Set_Capture_Point_Owner
+    {
+        rf::EventType::Set_Capture_Point_Owner, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Capture_Point_Owner));
+            auto* event = dynamic_cast<rf::EventSetCapturePointOwner*>(base_event);
+            if (event) {
+                event->owner = params.int1;
+            }
+            return event;
+        }
+    },
+    // Owner_Gate
+    {
+        rf::EventType::Owner_Gate, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Owner_Gate));
+            auto* event = dynamic_cast<rf::EventOwnerGate*>(base_event);
+            if (event) {
+                event->handler_uid = params.int1;
+                event->required_owner = params.int2;
             }
             return event;
         }

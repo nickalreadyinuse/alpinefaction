@@ -35,7 +35,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 41; // must be 1 higher than actual count
+constexpr int new_event_count = 44; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -81,6 +81,9 @@ const char* additional_event_names[new_event_count] = {
     "Capture_Point_Handler",
     "Respawn_Point_State",
     "Modify_Respawn_Point",
+    "When_Captured",
+    "Set_Capture_Point_Owner",
+    "Owner_Gate",
     "_dummy"
 };
 
@@ -607,6 +610,32 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         {
             {FIELD_BOOL1, "Red team (bool1):"},
             {FIELD_BOOL2, "Blue team (bool2):"},
+        }
+    }},
+    {AlpineDedEventID::Set_Capture_Point_Owner, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Owner (int1):"},
+        },
+        {
+            {FIELD_INT1,
+            {"Neutral", "Red", "Blue"}}
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Owner_Gate, {
+        {FIELD_INT1, FIELD_INT2},
+        {
+            {FIELD_INT1, "Handler UID (int1):"},
+            {FIELD_INT2, "Required owner (int2):"}
+        },
+        {
+            {FIELD_INT2, {"Neutral", "Red", "Blue"}}
+        },
+        {
+            {FIELD_INT2, true}
         }
     }},
 };

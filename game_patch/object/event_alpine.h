@@ -22,6 +22,7 @@
 #include "../rf/particle_emitter.h"
 #include "../main/main.h"
 #include "../object/object.h"
+#include "../multi/gametype.h"
 #include "../rf/player/player.h"
 #include "../rf/os/timestamp.h"
 #include "../rf/os/array.h"
@@ -2154,6 +2155,170 @@ namespace rf
             catch (const std::exception& e) {
                 xlog::error("Modify_Respawn_Point ({}) failed to set teams: {}", this->uid, e.what());
             }
+        }
+    };
+
+    // id 140
+    struct EventWhenCaptured : Event
+    {
+        void turn_on() override
+        {
+            if (!this->links.contains(this->trigger_handle)) {
+                return;
+            }
+
+            activate_links(this->trigger_handle, this->triggered_by_handle, true);
+        }
+
+        void do_activate_links(int trigger_handle, int triggered_by_handle, bool on) override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj) {
+                    ObjectType type = obj->type;
+                    switch (type) {
+                        case OT_MOVER: {
+                            mover_activate_from_trigger(obj->handle, -1, -1);
+                            break;
+                        }
+                        case OT_TRIGGER: {
+                            Trigger* trigger = static_cast<Trigger*>(obj);
+                            trigger_enable(trigger);
+                            break;
+                        }
+                        case OT_EVENT: {
+                            Event* event = static_cast<Event*>(obj);
+                            if (event->event_type !=
+                                static_cast<int>(EventType::Capture_Point_Handler)) { // don't activate the handler
+                                event_signal_on(link_handle, -1, -1);
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                        }
+                    }
+            }
+        }
+    };
+
+    // id 141
+    struct EventSetCapturePointOwner : Event
+    {
+        int owner = 0; // HillOwner
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventSetCapturePointOwner*>(event);
+                this_event->owner = std::stoi(value);
+            };
+        }
+
+        void turn_on() override
+        {
+            apply_owner();
+        }
+
+    private:
+        void apply_owner()
+        {
+            if (!rf::is_multi || !rf::is_server) {
+                return; // ignore on client
+            }
+
+            bool found_any = false;
+            bool changed_any = false;
+
+            for (int link_handle : this->links) {
+                if (auto* obj = obj_from_handle(link_handle)) {
+                    if (obj->type != rf::ObjectType::OT_EVENT)
+                        continue;
+
+                    auto* linked_event = static_cast<rf::Event*>(obj);
+                    if (linked_event->event_type != rf::event_type_to_int(rf::EventType::Capture_Point_Handler))
+                        continue;
+
+                    auto* handler = static_cast<rf::EventCapturePointHandler*>(linked_event);
+                    found_any = true;
+                    if (koth_set_capture_point_owner(handler, owner)) {
+                        changed_any = true;
+                    }
+                }
+            }
+
+            if (!found_any) {
+                xlog::warn("Set_Capture_Point_Owner ({}) did not find any linked capture points", this->uid);
+            }
+            else if (!changed_any) {
+                xlog::debug("Set_Capture_Point_Owner ({}) left capture point owners unchanged", this->uid);
+            }
+        }
+    };
+
+    // id 142
+    struct EventOwnerGate : Event
+    {
+        int handler_uid = -1;
+        int required_owner = 0; // HillOwner
+
+        void register_variable_handlers() override
+        {
+            Event::register_variable_handlers();
+
+            auto& handlers = variable_handler_storage[this];
+            handlers[SetVarOpts::int1] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventOwnerGate*>(event);
+                this_event->handler_uid = std::stoi(value);
+            };
+
+            handlers[SetVarOpts::int2] = [](Event* event, const std::string& value) {
+                auto* this_event = static_cast<EventOwnerGate*>(event);
+                this_event->required_owner = std::stoi(value);
+            };
+        }
+
+        void turn_on() override
+        {
+            if (condition_passes()) {
+                activate_links(this->trigger_handle, this->triggered_by_handle, true);
+            }
+        }
+
+        void turn_off() override
+        {
+            if (condition_passes()) {
+                activate_links(this->trigger_handle, this->triggered_by_handle, false);
+            }
+        }
+
+    private:
+        bool condition_passes() const
+        {
+            if (handler_uid < 0) {
+                return false;
+            }
+
+            Object* obj = obj_lookup_from_uid(handler_uid);
+            if (!obj || obj->type != ObjectType::OT_EVENT) {
+                return false;
+            }
+
+            auto* linked_event = static_cast<Event*>(obj);
+            if (linked_event->event_type != event_type_to_int(EventType::Capture_Point_Handler)) {
+                return false;
+            }
+
+            auto* handler = static_cast<EventCapturePointHandler*>(linked_event);
+            if (auto* hill = koth_find_hill_by_handler(handler)) {
+                return static_cast<int>(hill->ownership) == required_owner;
+            }
+
+            return false;
         }
     };
 

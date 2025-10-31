@@ -82,6 +82,9 @@ Version 1.2.0 (Willow): Not yet released
 - Simplify and optimize level info (`mapname_info.tbl`) handling
 - Support locked capture points
 - Support stage param on `Capture_Point_State` event
+- Add `Set_Capture_Point_Owner` event
+- Add `When_Captured` event
+- Add `Owner_Gate` event
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

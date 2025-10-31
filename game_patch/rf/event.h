@@ -334,7 +334,10 @@ namespace rf
         Set_Light_Color,
         Capture_Point_Handler,
         Respawn_Point_State,
-        Modify_Respawn_Point
+        Modify_Respawn_Point,
+        When_Captured,
+        Set_Capture_Point_Owner,
+        Owner_Gate
     };
 
     // int to EventType
