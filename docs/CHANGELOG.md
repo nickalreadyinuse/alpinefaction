@@ -85,6 +85,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Set_Capture_Point_Owner` event
 - Add `When_Captured` event
 - Add `Owner_Gate` event
+- Allow using `Edit Links` window in level editor to link objects to MP respawn points
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

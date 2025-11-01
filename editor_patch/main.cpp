@@ -641,6 +641,9 @@ void apply_af_level_editor_changes()
     AsmWriter(0x0041D0AF).push(0x12C);
     AsmWriter(0x0041D0BC).push(0x12C);
 
+    // Allow linking to multiplayer respawn points
+    AsmWriter(0x004698C7).nop(2);
+
     // Remove legacy geometry maximums from build output window
     static char new_faces_string[] = "Faces: %d\n";                                  // Replace "Faces: %d/%d\n"
     static char new_face_vertices_string[] = "Face Vertices: %d\n";                  // Replace "Face Vertices: %d/%d\n"
