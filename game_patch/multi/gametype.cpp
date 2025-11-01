@@ -474,13 +474,23 @@ static const char* to_string(HillState s)
     }
 }
 
+static bool rev_should_enable_respawn_point(int rp_uid)
+{
+    return std::any_of(g_koth_info.hills.begin(), g_koth_info.hills.end(), [rp_uid](const HillInfo& hill) {
+        if (hill.lock_status != HillLockStatus::HLS_Available)
+            return false;
+
+        return std::find(hill.mp_spawn_uids.begin(), hill.mp_spawn_uids.end(), rp_uid) != hill.mp_spawn_uids.end();
+    });
+}
+
 static void koth_update_respawn_points(HillInfo* h) {
     if (!h->mp_spawn_uids.empty()) {
         auto lock_status = h->lock_status;
         for (int rp_uid : h->mp_spawn_uids) {
             if (auto* rp = get_alpine_respawn_point_by_uid(rp_uid)) {
-                if (gt_is_rev()) { // REV: enable spawns only when hill is available
-                    set_alpine_respawn_point_enabled(rp, lock_status == HillLockStatus::HLS_Available);
+                if (gt_is_rev()) { // REV: enable spawns when any linked hill is available
+                    set_alpine_respawn_point_enabled(rp, rev_should_enable_respawn_point(rp_uid));
                 }
                 else { // KOTH/DC: adjust spawn team and enable when hill is captured, disable when neutral
                     auto owner = h->ownership;
