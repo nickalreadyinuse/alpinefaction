@@ -1880,6 +1880,10 @@ bool rev_all_points_permalocked()
 FunHook<void()> multi_check_for_round_end_hook{
     0x0046E7C0,
     []() {
+        if (g_match_info.pre_match_active) {
+            return; // round can't end during pre-match
+        }
+
         bool time_up = (rf::multi_time_limit > 0.0f && rf::level.time >= rf::multi_time_limit);
         bool round_over = time_up;
         const auto game_type = rf::multi_get_game_type();
