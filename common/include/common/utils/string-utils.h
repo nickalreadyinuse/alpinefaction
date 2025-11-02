@@ -13,6 +13,32 @@
 #define PRINTF_FMT_ATTRIBUTE(fmt_idx, va_idx)
 #endif
 
+inline std::string_view ltrim(std::string_view s)
+{
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) s.remove_prefix(1);
+    return s;
+}
+
+inline std::string_view rtrim(std::string_view s)
+{
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) s.remove_suffix(1);
+    return s;
+}
+
+inline std::string_view trim(std::string_view s)
+{
+    return rtrim(ltrim(s));
+}
+
+inline std::pair<std::string_view, std::string_view> split_once_ws(std::string_view s)
+{
+    s = trim(s);
+    const auto pos = s.find_first_of(" \t");
+    if (pos == std::string_view::npos)
+        return {s, {}};
+    return {trim(s.substr(0, pos)), trim(s.substr(pos + 1))};
+}
+
 inline std::vector<std::string_view> string_split(std::string_view str, char delim = ' ')
 {
     std::vector<std::string_view> output;
