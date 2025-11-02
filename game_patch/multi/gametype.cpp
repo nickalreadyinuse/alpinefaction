@@ -389,6 +389,32 @@ inline int capture_sfx_for_local(HillOwner owner)
     return local_player_on_owner_team(owner) ? 63 : 67; // Flag_Capture : Flag_Steal
 }
 
+static void notify_capture_point_captured(const HillInfo& h, HillOwner new_owner)
+{
+    if (!h.handler)
+        return;
+
+    if (new_owner != HillOwner::HO_Red && new_owner != HillOwner::HO_Blue)
+        return;
+
+    auto events = rf::find_all_events_by_type(rf::EventType::When_Captured);
+    if (events.empty())
+        return;
+
+    const int handler_handle = h.handler->handle;
+    const int owner_token = (new_owner == HillOwner::HO_Red) ? -2 : -3;
+
+    for (auto* event : events) {
+        if (!event)
+            continue;
+
+        const auto it = std::find(event->links.begin(), event->links.end(), handler_handle);
+        if (it != event->links.end()) {
+            event->activate(handler_handle, owner_token, true);
+        }
+    }
+}
+
 void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, const uint8_t* ids, size_t ids_len)
 {
     if (!h)
@@ -435,6 +461,10 @@ void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, c
     const int sfx = capture_sfx_for_local(new_owner);
     if (sfx >= 0) {
         rf::snd_play(sfx, 0, 0.0, 1.0);
+    }
+
+    if (new_owner == HillOwner::HO_Red || new_owner == HillOwner::HO_Blue) {
+        notify_capture_point_captured(*h, new_owner);
     }
 }
 
@@ -560,32 +590,6 @@ static void rev_recalculate_stage_locks()
 
         if (!stage_complete) {
             all_previous_complete = false;
-        }
-    }
-}
-
-static void notify_capture_point_captured(HillInfo& h, HillOwner new_owner)
-{
-    if (!h.handler)
-        return;
-
-    if (new_owner != HillOwner::HO_Red && new_owner != HillOwner::HO_Blue)
-        return;
-
-    auto events = rf::find_all_events_by_type(rf::EventType::When_Captured);
-    if (events.empty())
-        return;
-
-    const int handler_handle = h.handler->handle;
-    const int owner_token = (new_owner == HillOwner::HO_Red) ? -2 : -3;
-
-    for (auto* event : events) {
-        if (!event)
-            continue;
-
-        const auto it = std::find(event->links.begin(), event->links.end(), handler_handle);
-        if (it != event->links.end()) {
-            event->activate(handler_handle, owner_token, true);
         }
     }
 }
