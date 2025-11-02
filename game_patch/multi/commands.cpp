@@ -11,6 +11,7 @@
 #include <patch_common/CallHook.h>
 #include <vector>
 #include <format>
+#include <optional>
 
 std::vector<int> g_players_to_kick;
 
@@ -21,16 +22,25 @@ void extend_round_time(int minutes)
 
 void restart_current_level()
 {
+    std::optional<ManualRulesOverride> manual_rules_override;
+    if (g_manual_rules_override)
+        manual_rules_override = *g_manual_rules_override;
+
     multi_change_level_alpine(rf::level.filename.c_str());
+
+    if (manual_rules_override)
+        set_manual_rules_override(std::move(*manual_rules_override));
 }
 
 void load_next_level()
 {
+    clear_manual_rules_override();
     multi_change_level_alpine(nullptr);
 }
 
 void load_prev_level()
 {
+    clear_manual_rules_override();
     rf::netgame.current_level_index--;
     if (rf::netgame.current_level_index < 0) {
         rf::netgame.current_level_index = rf::netgame.levels.size() - 1;
@@ -46,6 +56,7 @@ void load_prev_level()
 
 void load_rand_level()
 {
+    clear_manual_rules_override();
     multi_change_level_alpine(get_rand_level_filename());
 }
 

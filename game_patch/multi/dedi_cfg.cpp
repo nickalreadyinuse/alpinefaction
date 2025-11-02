@@ -14,6 +14,7 @@
 #include <format>
 #include <sstream>
 #include <numeric>
+#include <string_view>
 #include <unordered_set>
 #include <array>
 #include <windows.h>
@@ -625,8 +626,213 @@ static AlpineRestrictConfig parse_alpine_restrict_config(const toml::table &t)
 
 namespace fs = std::filesystem;
 
+static AlpineServerConfigRules apply_rules_presets_and_overrides(
+    const toml::table& scope_tbl, const fs::path& base_dir, const AlpineServerConfigRules& starting_rules,
+    std::string_view context, const std::map<std::string, std::string>* preset_aliases = nullptr,
+    std::vector<fs::path>* preset_stack = nullptr, std::vector<std::string>* applied_presets = nullptr)
+{
+    std::vector<fs::path> local_stack;
+    const bool is_root_call = !preset_stack;
+    if (!preset_stack)
+        preset_stack = &local_stack;
+
+    if (is_root_call && applied_presets)
+        applied_presets->clear();
+
+    AlpineServerConfigRules rules = starting_rules;
+
+    auto apply_preset = [&](std::string_view preset_path) {
+        bool used_alias = false;
+        fs::path resolved_path;
+
+        if (preset_aliases) {
+            auto alias_it = preset_aliases->find(std::string(preset_path));
+            if (alias_it != preset_aliases->end()) {
+                resolved_path = alias_it->second;
+                used_alias = true;
+            }
+        }
+
+        if (resolved_path.empty())
+            resolved_path = base_dir / preset_path;
+
+        try {
+            resolved_path = fs::weakly_canonical(resolved_path);
+        }
+        catch (const fs::filesystem_error& err) {
+            rf::console::print("  [WARN] failed to canonicalize rules preset '{}' in {}: {}\n", resolved_path.string(), context, err.what()); resolved_path = fs::absolute(resolved_path);
+        }
+
+        if (std::find(preset_stack->begin(), preset_stack->end(), resolved_path) != preset_stack->end()) {
+            rf::console::print("  [ERROR] rules preset cycle detected at '{}' in {}\n", resolved_path.string(), context);
+            return;
+        }
+
+        preset_stack->push_back(resolved_path);
+        try {
+            toml::table preset_root = toml::parse_file(resolved_path.string());
+            const toml::table* preset_rules = nullptr;
+
+            if (auto tbl = preset_root["rules"].as_table())
+                preset_rules = tbl;
+            else
+                preset_rules = &preset_root;
+
+            std::string next_context = std::format("rules preset '{}'", resolved_path.string());
+            rules = apply_rules_presets_and_overrides(*preset_rules, resolved_path.parent_path(), rules, next_context, preset_aliases, preset_stack, applied_presets);
+            if (applied_presets) {
+                if (used_alias)
+                    applied_presets->push_back(std::format("{} (alias '{}')", resolved_path.generic_string(), preset_path));
+                else
+                    applied_presets->push_back(resolved_path.generic_string());
+            }
+        }
+        catch (const toml::parse_error& err) {
+            rf::console::print("  [ERROR] failed to parse rules preset '{}' in {}: {}\n", resolved_path.string(), context, err.description());
+        }
+        preset_stack->pop_back();
+    };
+
+    if (auto presets = scope_tbl["rules_presets"]) {
+        if (auto arr = presets.as_array()) {
+            for (auto& node : *arr) {
+                if (auto preset = node.value<std::string>())
+                    apply_preset(*preset);
+                else
+                    rf::console::print("  [WARN] rules_presets entries in {} must be strings.\n", context);
+            }
+        }
+        else if (auto preset = presets.value<std::string>()) {
+            apply_preset(*preset);
+        }
+        else {
+            rf::console::print("  [WARN] 'rules_presets' in {} must be a string or array of strings.\n", context);
+        }
+    }
+
+    // Allow presets to specify rule keys directly at the current scope.
+    rules = parse_server_rules(scope_tbl, rules);
+
+    if (auto rules_tbl = scope_tbl["rules"].as_table())
+        rules = parse_server_rules(*rules_tbl, rules);
+
+    return rules;
+}
+
+std::optional<ManualRulesOverride> load_rules_preset_alias(std::string_view preset_name)
+{
+    const auto it = g_alpine_server_config.rules_preset_aliases.find(std::string(preset_name));
+    if (it == g_alpine_server_config.rules_preset_aliases.end())
+        return std::nullopt;
+
+    fs::path resolved_path = it->second;
+    try {
+        resolved_path = fs::weakly_canonical(resolved_path);
+    }
+    catch (const fs::filesystem_error& err) {
+        rf::console::print("  [WARN] failed to canonicalize rules preset alias '{}' at '{}': {}\n", preset_name, resolved_path.string(), err.what());
+        resolved_path = fs::absolute(resolved_path);
+    }
+
+    std::vector<std::string> applied_presets;
+
+    try {
+        toml::table preset_root = toml::parse_file(resolved_path.string());
+        const toml::table* preset_rules = nullptr;
+
+        if (auto tbl = preset_root["rules"].as_table())
+            preset_rules = tbl;
+        else
+            preset_rules = &preset_root;
+
+        ManualRulesOverride result;
+        result.rules = apply_rules_presets_and_overrides(
+            *preset_rules, resolved_path.parent_path(), g_alpine_server_config.base_rules,
+            std::format("rules preset alias '{}'", preset_name), &g_alpine_server_config.rules_preset_aliases,
+            nullptr, &applied_presets);
+
+        applied_presets.push_back(std::format("{} (alias '{}')", resolved_path.generic_string(), preset_name));
+        result.applied_preset_paths = std::move(applied_presets);
+        result.preset_alias = std::string(preset_name);
+        return result;
+    }
+    catch (const toml::parse_error& err) {
+        rf::console::print("  [ERROR] failed to parse rules preset alias '{}' at '{}': {}\n",
+            preset_name, resolved_path.string(), err.description());
+        return std::nullopt;
+    }
+}
+
+static void add_level_entry_from_table(AlpineServerConfig& cfg, const toml::table& lvl_tbl, const fs::path& base_dir)
+{
+    for (auto&& [k, v] : lvl_tbl) {
+        const std::string key = std::string(k.str());
+        if (key != "filename" && key != "rules" && key != "rules_presets") {
+            xlog::warn("Unknown key '{}' inside a [[levels]] entry; did you intend to put it in [root]?", key);
+        }
+    }
+
+    auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
+    rf::File f;
+    if (!f.find(tmp_filename.c_str())) {
+        rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
+        return;
+    }
+
+    AlpineServerConfigLevelEntry entry;
+    entry.level_filename = tmp_filename;
+
+    std::string context = "level '" + (tmp_filename.empty() ? std::string("<unknown>") : tmp_filename) + "'";
+    entry.rule_overrides = apply_rules_presets_and_overrides(
+        lvl_tbl, base_dir, cfg.base_rules, context, &cfg.rules_preset_aliases, nullptr, &entry.applied_rules_preset_paths);
+
+    cfg.levels.push_back(std::move(entry));
+}
+
 static bool is_include_key(std::string_view k) {
     return k == "include" || k == "includes";
+}
+
+static void apply_rules_preset_aliases(AlpineServerConfig& cfg, const toml::table& tbl, const fs::path& base_dir)
+{
+    for (auto&& [alias_key, node] : tbl) {
+        if (!node.is_value()) {
+            xlog::warn("rules_preset_aliases entry '{}' must be a string", alias_key.str());
+            continue;
+        }
+
+        auto alias_value = node.value<std::string>();
+        if (!alias_value) {
+            xlog::warn("rules_preset_aliases entry '{}' must be a string", alias_key.str());
+            continue;
+        }
+
+        fs::path resolved_path = base_dir / *alias_value;
+        try {
+            resolved_path = fs::weakly_canonical(resolved_path);
+        }
+        catch (const fs::filesystem_error& err) {
+            rf::console::print("  [WARN] failed to canonicalize rules preset alias '{}' -> '{}' : {}\n",
+                std::string(alias_key), *alias_value, err.what());
+            resolved_path = fs::absolute(resolved_path);
+        }
+
+        const std::string alias_name = static_cast<std::string>(alias_key.str());
+        const std::string resolved = resolved_path.generic_string();
+
+        auto it = cfg.rules_preset_aliases.find(alias_name);
+        if (it != cfg.rules_preset_aliases.end()) {
+            if (it->second == resolved)
+                continue;
+
+            it->second = resolved;
+            rf::console::print("  Updated rules preset alias '{}' -> {}\n", alias_name, resolved);
+        }
+        else {
+            cfg.rules_preset_aliases.emplace(alias_name, resolved);
+            rf::console::print("  Registered rules preset alias '{}' -> {}\n", alias_name, resolved);
+        }
+    }
 }
 
 // apply base config single keys (main and includes)
@@ -699,7 +905,7 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
 }
 
 // apply base config toml tables (main and includes)
-static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::table& tbl)
+static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::table& tbl, const fs::path& base_dir)
 {
     if (key == "inactivity")
         cfg.inactivity_config = parse_inactivity_config(tbl);
@@ -725,9 +931,11 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
         cfg.vote_rand = parse_vote_config(tbl);
     else if (key == "vote_previous")
         cfg.vote_previous = parse_vote_config(tbl);
+    else if (key == "rules_preset_aliases")
+        apply_rules_preset_aliases(cfg, tbl, base_dir);
     else if (key == "base") {
-        if (auto rules = tbl["rules"].as_table())
-            cfg.base_rules = parse_server_rules(*rules, cfg.base_rules);
+        cfg.base_rules = apply_rules_presets_and_overrides(
+            tbl, base_dir, cfg.base_rules, "base configuration", &cfg.rules_preset_aliases, nullptr, &cfg.base_rules_preset_paths);
     }
     else if (key == "levels") {
         if (auto arr = tbl.as_array()) {
@@ -735,28 +943,14 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
                 if (!elem.is_table())
                     continue;
                 auto& lvl_tbl = *elem.as_table();
-                AlpineServerConfigLevelEntry entry;
-
-                auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
-                rf::File f;
-                if (!f.find(tmp_filename.c_str())) {
-                    rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
-                    continue;
-                }
-
-                entry.level_filename = tmp_filename;
-                entry.rule_overrides = cfg.base_rules;
-                if (auto* over = lvl_tbl["rules"].as_table())
-                    entry.rule_overrides = parse_server_rules(*over, cfg.base_rules);
-
-                cfg.levels.push_back(std::move(entry));
+                add_level_entry_from_table(cfg, lvl_tbl, base_dir);
             }
         }
     }
 }
 
 // apply known array toml nodes (main and includes)
-static void apply_known_array_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::array& arr)
+static void apply_known_array_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::array& arr, const fs::path& base_dir)
 {
     if (key == "levels") {
         for (auto& elem : arr) {
@@ -765,36 +959,14 @@ static void apply_known_array_in_order(AlpineServerConfig& cfg, const std::strin
 
             auto& lvl_tbl = *elem.as_table();
 
-            for (auto&& [k, v] : lvl_tbl) {
-                if (k != "filename" && k != "rules") {
-                    xlog::warn("Unknown key '{}' inside a [[levels]] entry; did you intend to put it in [root]?",
-                               std::string(k.str()));
-                }
-            }
-
-            AlpineServerConfigLevelEntry entry;
-
-            auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
-            rf::File f;
-            if (!f.find(tmp_filename.c_str())) {
-                rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
-                continue;
-            }
-
-            entry.level_filename = tmp_filename;
-            entry.rule_overrides = cfg.base_rules;
-
-            if (auto* over = lvl_tbl["rules"].as_table())
-                entry.rule_overrides = parse_server_rules(*over, cfg.base_rules);
-
-            cfg.levels.push_back(std::move(entry));
+            add_level_entry_from_table(cfg, lvl_tbl, base_dir);
         }
     }
 }
 
 // unified parser for main and included config files
-static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::table& tbl, const fs::path& base_dir,
-                                        std::vector<fs::path>& load_stack, int depth, ParsePass pass)
+static void apply_config_table_in_order(
+    AlpineServerConfig& cfg, const toml::table& tbl, const fs::path& base_dir, std::vector<fs::path>& load_stack, int depth, ParsePass pass)
 {
     if (depth > 16) {
         rf::console::print("  [ERROR] include depth exceeded under {}\n", base_dir.string());
@@ -876,7 +1048,7 @@ static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::tab
         if (auto* arr = v.as_array()) {
             if (key == "levels") {
                 if (pass == ParsePass::Levels)
-                    apply_known_array_in_order(cfg, key, *arr);
+                    apply_known_array_in_order(cfg, key, *arr, base_dir);
             }
             continue;
         }
@@ -886,7 +1058,7 @@ static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::tab
             if (key == "levels") {
                 if (pass == ParsePass::Levels) {
                     if (auto nested = sub_tbl->as_array())
-                        apply_known_array_in_order(cfg, key, *nested);
+                        apply_known_array_in_order(cfg, key, *nested, base_dir);
                 }
                 continue;
             }
@@ -896,7 +1068,7 @@ static void apply_config_table_in_order(AlpineServerConfig& cfg, const toml::tab
                 apply_config_table_in_order(cfg, *sub_tbl, base_dir, load_stack, depth, pass);
             }
             else {
-                apply_known_table_in_order(cfg, key, *sub_tbl);
+                apply_known_table_in_order(cfg, key, *sub_tbl, base_dir);
             }
 
             continue;
@@ -1392,6 +1564,16 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     print_gungame(rules.gungame, b.gungame, base);
 }
 
+void print_rules_with_presets(const AlpineServerConfigRules& rules, const std::vector<std::string>& preset_paths, bool base)
+{
+    if (!preset_paths.empty()) {
+        rf::console::print("  Rules presets applied:\n");
+        for (const auto& preset : preset_paths)
+            rf::console::print("    {}\n", preset);
+    }
+    print_rules(rules, base);
+}
+
 void print_alpine_dedicated_server_config_info(bool verbose) {
     auto& netgame = rf::netgame;
     const auto& cfg = g_alpine_server_config;
@@ -1491,14 +1673,21 @@ void print_alpine_dedicated_server_config_info(bool verbose) {
     print_vote("Vote random enabled:  ", cfg.vote_rand);
     print_vote("Vote previous enabled:", cfg.vote_previous);
 
+    
+    if (!cfg.rules_preset_aliases.empty()) {
+        rf::console::print("\n---- Rules preset alias mappings ----\n");
+        for (const auto& [alias, path] : cfg.rules_preset_aliases)
+            rf::console::print("  {} -> {}\n", alias, path);
+    }
+
     rf::console::print("\n---- Base rules ----\n");
-    print_rules(cfg.base_rules);
+    print_rules_with_presets(cfg.base_rules, cfg.base_rules_preset_paths, true);
 
     rf::console::print("\n---- Level rotation ----\n");
     for (size_t i = 0; i < cfg.levels.size(); ++i) {
         const auto& lvl = cfg.levels[i];
         rf::console::print("{} ({})\n", lvl.level_filename, i);
-        print_rules(lvl.rule_overrides, false);
+        print_rules_with_presets(lvl.rule_overrides, lvl.applied_rules_preset_paths, false);
     }
     rf::console::print("\n");
 }
@@ -1595,13 +1784,24 @@ bool apply_game_type_for_current_level() {
     rf::NetGameType desired = rf::NetGameType::NG_TYPE_DM;
 
     if (manual_load) {
-        // todo: fix bug here if two manual loads are in a row, it uses base gt
-        desired = has_already_queued_change ? upcoming : cfg.base_rules.game_type;
+        const AlpineServerConfigRules& manual_rules =
+            g_manual_rules_override ? g_manual_rules_override->rules : cfg.base_rules;
+
+        desired = has_already_queued_change ? upcoming : manual_rules.game_type;
 
         if (!g_ads_minimal_server_info && !has_already_queued_change && desired != upcoming) {
-            rf::console::print("Applying base game type {} for manually loaded level {}...\n",
-                get_game_type_string(desired),
-                rf::level_filename_to_load);
+            if (g_manual_rules_override && g_manual_rules_override->preset_alias) {
+                rf::console::print("Applying rules preset '{}' game type {} for manually loaded level {}...\n",
+                    *g_manual_rules_override->preset_alias, get_game_type_string(desired), rf::level_filename_to_load);
+            }
+            else if (g_manual_rules_override) {
+                rf::console::print("Applying manual override game type {} for manually loaded level {}...\n",
+                    get_game_type_string(desired), rf::level_filename_to_load);
+            }
+            else {
+                rf::console::print("Applying base game type {} for manually loaded level {}...\n",
+                    get_game_type_string(desired), rf::level_filename_to_load);
+            }
         }
     }
     else { // in rotation
@@ -1615,8 +1815,7 @@ bool apply_game_type_for_current_level() {
         if (!g_ads_minimal_server_info && !has_already_queued_change && desired != upcoming) {
             std::string_view level_name = idx_valid ? std::string_view(cfg.levels[idx].level_filename) : std::string_view("UNKNOWN");
             rf::console::print("Applying game type {} for server rotation index {} ({})...\n",
-                get_game_type_string(desired),
-                idx, level_name);
+                get_game_type_string(desired), idx, level_name);
         }
     }
 
@@ -1651,9 +1850,22 @@ void apply_rules_for_current_level()
     int idx = netgame.current_level_index;
     // level manually loaded
     if (was_level_loaded_manually()) {
-        g_alpine_server_config_active_rules = cfg.base_rules;
-        if (!g_ads_minimal_server_info)
-            rf::console::print("Applying base rules for manually loaded level {}...\n", rf::level_filename_to_load, cfg.levels[idx].level_filename.c_str());
+        if (g_manual_rules_override) {
+            g_alpine_server_config_active_rules = g_manual_rules_override->rules;
+            if (!g_ads_minimal_server_info) {
+                if (g_manual_rules_override->preset_alias)
+                    rf::console::print("Applying rules preset '{}' for manually loaded level {}...\n",
+                                       *g_manual_rules_override->preset_alias, rf::level_filename_to_load);
+                else
+                    rf::console::print("Applying manual rules override for manually loaded level {}...\n",
+                                       rf::level_filename_to_load);
+            }
+        }
+        else {
+            g_alpine_server_config_active_rules = cfg.base_rules;
+            if (!g_ads_minimal_server_info)
+                rf::console::print("Applying base rules for manually loaded level {}...\n", rf::level_filename_to_load);
+        }
     }
     else { // level is in rotation
         AlpineServerConfigRules const &override_rules =
@@ -1768,12 +1980,21 @@ ConsoleCommand2 print_level_rules_cmd{
 
             if (manual_load) {
                 rf::console::print("\n---- Rules for level {} ----\n", rf::level_filename_to_load, idx);
-                rf::console::print("  (manually loaded {} is using base rules)\n\n", rf::level_filename_to_load);
-                print_rules(cfg.base_rules);
+                if (g_manual_rules_override) {
+                    if (g_manual_rules_override->preset_alias)
+                        rf::console::print("  (manually loaded {} is using rules preset '{}')\n\n", rf::level_filename_to_load, *g_manual_rules_override->preset_alias);
+                    else
+                        rf::console::print("  (manually loaded {} has a manual rules override)\n\n", rf::level_filename_to_load);
+                    print_rules_with_presets(g_manual_rules_override->rules, g_manual_rules_override->applied_preset_paths, true);
+                }
+                else {
+                    rf::console::print("  (manually loaded {} is using base rules)\n\n", rf::level_filename_to_load);
+                    print_rules_with_presets(cfg.base_rules, cfg.base_rules_preset_paths, true);
+                }
             }
             else {
                 rf::console::print("\n---- Rules for level {} (index {}) ----\n", entry.level_filename, idx);
-                print_rules(entry.rule_overrides);
+                print_rules_with_presets(entry.rule_overrides, entry.applied_rules_preset_paths, true);
             }
         }
     },

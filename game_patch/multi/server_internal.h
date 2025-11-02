@@ -617,6 +617,7 @@ struct AlpineServerConfigLevelEntry
 {
     std::string level_filename;
     AlpineServerConfigRules rule_overrides;
+    std::vector<std::string> applied_rules_preset_paths;
 };
 
 struct AlpineServerConfig
@@ -651,6 +652,8 @@ struct AlpineServerConfig
 
 
     AlpineServerConfigRules base_rules;
+    std::vector<std::string> base_rules_preset_paths;
+    std::map<std::string, std::string> rules_preset_aliases;
     std::vector<AlpineServerConfigLevelEntry> levels;
 
     // =============================================
@@ -671,6 +674,13 @@ struct AlpineServerConfig
         std::string_view to_use = was_trimmed ? new_password.substr(0, 15) : new_password;
         rcon_password.assign(to_use);
     }
+};
+
+struct ManualRulesOverride
+{
+    AlpineServerConfigRules rules;
+    std::vector<std::string> applied_preset_paths;
+    std::optional<std::string> preset_alias;
 };
 
 struct MatchInfo
@@ -709,6 +719,7 @@ struct MatchInfo
 
 extern AlpineServerConfig g_alpine_server_config;
 extern AlpineServerConfigRules g_alpine_server_config_active_rules;
+extern std::optional<ManualRulesOverride> g_manual_rules_override;
 extern bool g_dedicated_launched_from_ads;
 extern bool g_manually_loaded_level;
 extern std::string g_ads_config_name;
@@ -723,6 +734,9 @@ void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, 
 void handle_player_set_handicap(rf::Player* player, uint8_t amount);
 std::vector<rf::Player*> get_current_player_list(bool include_browsers);
 std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_input);
+std::optional<ManualRulesOverride> load_rules_preset_alias(std::string_view preset_name);
+void set_manual_rules_override(ManualRulesOverride override_rules);
+void clear_manual_rules_override();
 bool is_player_in_match(rf::Player* player);
 bool is_player_ready(rf::Player* player);
 void update_pre_match_powerups(rf::Player* player);

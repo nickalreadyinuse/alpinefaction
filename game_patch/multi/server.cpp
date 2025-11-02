@@ -15,6 +15,7 @@
 #include <numeric>
 #include <unordered_set>
 #include <array>
+#include <utility>
 #include <windows.h>
 #include <winsock2.h>
 #include "server.h"
@@ -78,6 +79,7 @@ int current_center_item_priority = possible_central_item_names.size();
 
 AlpineServerConfig g_alpine_server_config;
 AlpineServerConfigRules g_alpine_server_config_active_rules; // currently active rules which are applied
+std::optional<ManualRulesOverride> g_manual_rules_override;
 bool g_manually_loaded_level = false; // used to decide whether to use level-specific rules or base rules
 AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
@@ -104,8 +106,19 @@ const bool was_level_loaded_manually()
 void set_manually_loaded_level(bool is_true)
 {
     g_manually_loaded_level = is_true;
-    //xlog::warn("setting loaded manually - {}", g_manually_loaded_level);
-    return;
+    if (!g_manually_loaded_level)
+        g_manual_rules_override.reset();
+}
+
+void set_manual_rules_override(ManualRulesOverride override_rules)
+{
+    g_manual_rules_override = std::move(override_rules);
+    set_manually_loaded_level(true);
+}
+
+void clear_manual_rules_override()
+{
+    g_manual_rules_override.reset();
 }
 
 // Weapon stay exemption part 1: remove item when it is picked up and start respawn timer
@@ -1450,7 +1463,7 @@ void match_do_frame()
             g_match_info.last_match_reminder_time = current_time;
 
             send_chat_line_packet(
-                "\xA6 No active match. Use \"/vote match <type> <map filename>\" to call a match vote.", nullptr);
+                "\xA6 No active match. Use \"/vote match <type> <map filename> [preset]\" to call a match vote.", nullptr);
         }
     }
     else if (g_match_info.pre_match_active) {

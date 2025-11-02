@@ -3,6 +3,9 @@
 #include <set>
 #include <ctime>
 #include <format>
+#include <optional>
+#include <cctype>
+#include <utility>
 #include "../rf/player/player.h"
 #include "../rf/level.h"
 #include "../rf/multi.h"
@@ -12,6 +15,7 @@
 #include "../misc/player.h"
 #include "../main/main.h"
 #include <common/utils/list-utils.h>
+#include <common/utils/string-utils.h>
 #include <xlog/xlog.h>
 #include "server_internal.h"
 #include "multi.h"
@@ -258,31 +262,50 @@ protected:
     }
 };
 
-std::tuple<int, bool, std::string> parse_match_vote_info(std::string_view arg)
+std::tuple<int, bool, std::string, std::optional<std::string>> parse_match_vote_info(std::string_view arg)
 {
-    // validate match param
-    if (arg.length() < 3 || arg[1] != 'v' || arg[0] < '1' || arg[0] > '8' || arg[2] != arg[0]) {
-        return {-1, false, ""};
+    arg = trim(arg);
+    if (arg.size() < 3)
+        return {-1, false, "", std::nullopt};
+
+    auto [size_part, rest] = split_once_ws(arg);
+
+    if (size_part.size() != 3 || size_part[1] != 'v' || size_part[0] < '1' || size_part[0] > '8' ||
+        size_part[2] != size_part[0]) {
+        return {-1, false, "", std::nullopt};
     }
 
-    int a_size = arg[0] - '0';
+    const int team_size = size_part[0] - '0';
 
-    // no level param
-    if (arg[3] != ' ') {
-        return {a_size, false, ""};
-    }
-
+    bool valid_level = false;
     std::string level_name;
-    bool valid_level;
+    std::optional<std::string> preset_alias;
 
-    level_name = arg.substr(4);
-    std::tie(valid_level, level_name) = is_level_name_valid(level_name); 
+    if (!rest.empty()) {
+        auto [level_part, preset_part] = split_once_ws(rest);
 
-    return {a_size, valid_level, level_name};
+        if (!level_part.empty()) {
+            auto [is_valid, normalized_name] = is_level_name_valid(level_part);
+            valid_level = is_valid;
+            level_name = std::move(normalized_name);
+        }
+
+        if (!preset_part.empty()) {
+            // take the first token for preset alias
+            auto [alias, _discard] = split_once_ws(preset_part);
+            if (!alias.empty())
+                preset_alias = std::string(alias);
+        }
+    }
+
+    return {team_size, valid_level, level_name, preset_alias};
 }
 
 struct VoteMatch : public Vote
 {
+    std::optional<ManualRulesOverride> m_manual_rules_override;
+    std::optional<std::string> m_manual_rules_alias;
+
     VoteType get_type() const override
     {
         return VoteType::Match;
@@ -295,14 +318,8 @@ struct VoteMatch : public Vote
             return false;
         }
 
-        if (arg.empty()) {
-            send_chat_line_packet("\xA6 You must specify a match size. Supported sizes are 1v1 - 8v8.", source);
-            return false;
-        }
-
-        //g_match_info.team_size = parse_match_team_size(arg);
-        auto [team_size, valid_level, match_level_name] = parse_match_vote_info(arg);
-        g_match_info.team_size = team_size;        
+        auto [team_size, valid_level, match_level_name, preset_alias] = parse_match_vote_info(arg);
+        g_match_info.team_size = team_size;
 
         if (valid_level) {
             g_match_info.match_level_name = match_level_name;
@@ -315,11 +332,31 @@ struct VoteMatch : public Vote
             return false;
         }
 
-        //rf::File::find(g_match_info.match_level_name.c_str());
-
         if (g_match_info.team_size == -1) {
             send_chat_line_packet("\xA6 Invalid match size! Supported sizes are 1v1 up to 8v8.", source);
             return false;
+        }
+
+        m_manual_rules_override.reset();
+        m_manual_rules_alias.reset();
+
+        if (preset_alias) {
+            auto alias_it = g_alpine_server_config.rules_preset_aliases.find(*preset_alias);
+            if (alias_it == g_alpine_server_config.rules_preset_aliases.end()) {
+                auto msg = std::format("\\xA6 Cannot start vote: rules preset '{}' is not defined!", *preset_alias);
+                send_chat_line_packet(msg.c_str(), source);
+                return false;
+            }
+
+            auto preset_result = load_rules_preset_alias(*preset_alias);
+            if (!preset_result) {
+                auto msg = std::format("\\xA6 Cannot start vote: failed to load rules preset '{}'", *preset_alias);
+                send_chat_line_packet(msg.c_str(), source);
+                return false;
+            }
+
+            m_manual_rules_alias = std::move(*preset_alias);
+            m_manual_rules_override = std::move(*preset_result);
         }
 
         return true;
@@ -327,25 +364,61 @@ struct VoteMatch : public Vote
 
     [[nodiscard]] std::string get_title() const override
     {
+        if (m_manual_rules_alias)
+            return std::format("START {}v{} MATCH on {} (PRESET '{}')",
+                               g_match_info.team_size, g_match_info.team_size,
+                               g_match_info.match_level_name, *m_manual_rules_alias);
         return std::format("START {}v{} MATCH on {}",
-            g_match_info.team_size, g_match_info.team_size, g_match_info.match_level_name);      
+            g_match_info.team_size, g_match_info.team_size, g_match_info.match_level_name);
     }
 
     void on_accepted() override
     {
-        auto msg = std::format("\xA6 Vote passed. {}.",
-            g_match_info.match_level_name == rf::level.filename.c_str()
-            ? "Entering pre-match ready up phase" : "Changing to match level, then entering pre-match ready up phase");
+        const bool match_level_is_current = (g_match_info.match_level_name == rf::level.filename.c_str());
+
+        bool match_game_type_matches_current = true;
+        if (match_level_is_current) {
+            rf::NetGameType desired_game_type = rf::netgame.type;
+            if (m_manual_rules_override)
+                desired_game_type = m_manual_rules_override->rules.game_type;
+            else
+                desired_game_type = g_alpine_server_config_active_rules.game_type;
+
+            match_game_type_matches_current = (desired_game_type == rf::netgame.type);
+        }
+
+        const bool using_current_level = match_level_is_current && match_game_type_matches_current;
+        const char* detail = using_current_level ? "Entering pre-match ready up phase"
+                             : match_level_is_current
+                                 ? "Restarting level to apply match game type, then entering pre-match ready up phase"
+                                 : "Changing to match level, then entering pre-match ready up phase";
+
+        std::string msg;
+        if (m_manual_rules_alias)
+            msg = std::format("\xA6 Vote passed. {} (rules preset '{}').", detail, *m_manual_rules_alias);
+        else
+            msg = std::format("\xA6 Vote passed. {}.", detail);
         send_chat_line_packet(msg.c_str(), nullptr);
 
         g_match_info.pre_match_queued = true;
 
-        if (g_match_info.match_level_name == rf::level.filename.c_str()) {
+        if (using_current_level) {
+            if (m_manual_rules_override) {
+                set_manual_rules_override(std::move(*m_manual_rules_override));
+                apply_rules_for_current_level();
+                m_manual_rules_override.reset();
+            }
             start_pre_match();
         }
         else if (!g_match_info.match_level_name.empty()) {
+            if (!m_manual_rules_override)
+                clear_manual_rules_override();
             multi_change_level_alpine(g_match_info.match_level_name.c_str());
-        }      
+            if (m_manual_rules_override) {
+                set_manual_rules_override(std::move(*m_manual_rules_override));
+                m_manual_rules_override.reset();
+            }
+        }
     }
 
     bool on_player_leave(rf::Player* player) override
@@ -470,20 +543,45 @@ struct VoteExtend : public Vote
 struct VoteLevel : public Vote
 {
     std::string m_level_name;
+    std::optional<ManualRulesOverride> m_manual_rules_override;
 
     VoteType get_type() const override
     {
         return VoteType::Level;
     }
 
-    bool process_vote_arg([[maybe_unused]] std::string_view arg, rf::Player* source) override
+    bool process_vote_arg(std::string_view arg, rf::Player* source) override
     {
-        auto [is_valid, level_name] = is_level_name_valid(arg);
+        arg = trim(arg);
+
+        auto [level_part, preset_part] = split_once_ws(arg);
+        auto [is_valid, level_name] = is_level_name_valid(level_part);
 
         if (!is_valid) {
             auto msg = std::format("\xA6 Cannot start vote: level {} is not available on the server!", level_name);
             send_chat_line_packet(msg.c_str(), source);
             return false;
+        }
+
+        m_manual_rules_override.reset();
+
+        if (!preset_part.empty()) {
+            std::string preset_name{preset_part};
+            auto alias_it = g_alpine_server_config.rules_preset_aliases.find(preset_name);
+            if (alias_it == g_alpine_server_config.rules_preset_aliases.end()) {
+                auto msg = std::format("\xA6 Cannot start vote: rules preset '{}' is not defined!", preset_name);
+                send_chat_line_packet(msg.c_str(), source);
+                return false;
+            }
+
+            auto preset_result = load_rules_preset_alias(preset_name);
+            if (!preset_result) {
+                auto msg = std::format("\xA6 Cannot start vote: failed to load rules preset '{}'", preset_name);
+                send_chat_line_packet(msg.c_str(), source);
+                return false;
+            }
+
+            m_manual_rules_override = std::move(*preset_result);
         }
 
         m_level_name = std::move(level_name);
@@ -492,14 +590,28 @@ struct VoteLevel : public Vote
 
     [[nodiscard]] std::string get_title() const override
     {
+        if (m_manual_rules_override && m_manual_rules_override->preset_alias)
+            return std::format("LOAD LEVEL '{}' (PRESET '{}')", m_level_name, *m_manual_rules_override->preset_alias);
         return std::format("LOAD LEVEL '{}'", m_level_name);
     }
 
     void on_accepted() override
     {
-        auto msg = std::format("\xA6 Vote passed: changing level to {}", m_level_name);
+        clear_manual_rules_override();
+
+        std::string msg;
+        if (m_manual_rules_override && m_manual_rules_override->preset_alias)
+            msg = std::format("\xA6 Vote passed: changing level to {} with preset {}",
+                              m_level_name, *m_manual_rules_override->preset_alias);
+        else
+            msg = std::format("\xA6 Vote passed: changing level to {}", m_level_name);
         send_chat_line_packet(msg.c_str(), nullptr);
         multi_change_level_alpine(m_level_name.c_str());
+
+        if (m_manual_rules_override) {
+            set_manual_rules_override(std::move(*m_manual_rules_override));
+            m_manual_rules_override.reset();
+        }
     }
 
     [[nodiscard]] bool is_allowed_in_limbo_state() const override
@@ -523,38 +635,16 @@ struct VoteGametype : public Vote
         return VoteType::Gametype;
     }
 
-    static std::string_view trim_spaces(std::string_view value)
-    {
-        while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
-            value.remove_prefix(1);
-        }
-
-        while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
-            value.remove_suffix(1);
-        }
-
-        return value;
-    }
-
     bool process_vote_arg(std::string_view arg, rf::Player* source) override
     {
-        arg = trim_spaces(arg);
-
+        arg = trim(arg);
         if (arg.empty()) {
             send_chat_line_packet("\xA6 You must specify a gametype.", source);
             return false;
         }
 
-        std::string_view gametype_part = arg;
-        std::string_view level_part;
-
-        if (auto space_pos = arg.find(' '); space_pos != std::string_view::npos) {
-            gametype_part = arg.substr(0, space_pos);
-            level_part = arg.substr(space_pos + 1);
-            level_part = trim_spaces(level_part);
-        }
-
-        gametype_part = trim_spaces(gametype_part);
+        auto [gametype_part, level_part] = split_once_ws(arg);
+        gametype_part = trim(gametype_part);
 
         if (gametype_part.empty()) {
             send_chat_line_packet("\xA6 You must specify a gametype name.", source);
@@ -575,7 +665,6 @@ struct VoteGametype : public Vote
         }
 
         auto [is_valid, normalized_level_name] = is_level_name_valid(level_part);
-
         if (!is_valid) {
             auto msg = std::format("\xA6 Cannot start vote: level {} is not available on the server!", normalized_level_name);
             send_chat_line_packet(msg.c_str(), source);
@@ -598,6 +687,7 @@ struct VoteGametype : public Vote
 
         multi_set_gametype_alpine(m_gametype_name);
 
+        clear_manual_rules_override();
         multi_change_level_alpine(m_level_name.c_str());
     }
 
