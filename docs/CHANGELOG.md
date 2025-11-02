@@ -113,6 +113,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix rare crash when rapidly switching between players in first person spectate mode
 - Fix server processing `af_ping_location_req` packets when feature was turned off
 - Fix `Solo ignore resets` trigger option not working properly
+- Fix `No match is queued` message mistakenly being sent to all players instead of just the requester
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads

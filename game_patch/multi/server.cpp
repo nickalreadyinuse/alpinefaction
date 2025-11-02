@@ -484,13 +484,14 @@ void handle_matchinfo_command(rf::Player* player)
 
 void handle_whosready_command(rf::Player* player)
 {
-    auto msg = std::format("\xA6 No match is queued.");
-
     if (g_match_info.pre_match_active) {
-        msg = std::format("\xA6 Not ready: {}\n", get_unready_player_names());
+        auto msg = std::format("\xA6 Not ready: {}\n", get_unready_player_names());
+        send_chat_line_packet(msg.c_str(), nullptr);
     }
-
-    send_chat_line_packet(msg.c_str(), nullptr);
+    else if (player) {
+        auto msg = std::format("\xA6 No match is queued.");
+        send_chat_line_packet(msg.c_str(), player);
+    }
 }
 
 static void handle_drop_flag_request(rf::Player* player)
