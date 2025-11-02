@@ -429,8 +429,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
     o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
 
-    // if KOTH, give an AR and remote charges by default
-    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH) {
+    // if KOTH/REV, give an AR and remote charges by default
+    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH || o.game_type == rf::NetGameType::NG_TYPE_REV) {
         o.spawn_loadout.add("Remote Charge", 3, false, true);
         o.default_player_weapon.set_weapon("Assault Rifle");
 

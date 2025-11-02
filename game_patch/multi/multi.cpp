@@ -598,7 +598,7 @@ void configure_custom_gametype_listen_server_settings() {
 
         // KOTH uses spawn delay and custom loadout
         // The same settings are set in dedi_cfg.cpp for dedicated servers
-        if (gt_is_koth()) {
+        if (gt_is_koth() || gt_is_rev()) {
             g_alpine_server_config_active_rules.spawn_delay.enabled = true;
             g_alpine_server_config_active_rules.spawn_loadout.loadouts_active = true;
             int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
@@ -614,16 +614,17 @@ void configure_custom_gametype_listen_server_settings() {
                     g_alpine_server_config_active_rules.default_player_weapon.weapon_name, default_ammo, false, true);
             }
 
-            g_alpine_server_config_active_rules.set_koth_score_limit(3600);
+            if (gt_is_koth()) {
+                g_alpine_server_config_active_rules.set_koth_score_limit(3600);
+            }
+            else { // REV
+                g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.0f);
+            }
         }
         else if (gt_is_dc()) {
             g_alpine_server_config_active_rules.spawn_delay.enabled = true;
             g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.5f);
             g_alpine_server_config_active_rules.set_dc_score_limit(3600);
-        }
-        else { // REV
-            g_alpine_server_config_active_rules.spawn_delay.enabled = true;
-            g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.0f);
         }
     }
 }
