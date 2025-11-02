@@ -4,12 +4,12 @@
 #include <xlog/xlog.h>
 #include "../rf/trigger.h"
 #include "../rf/os/string.h"
+#include "../rf/multi.h"
 
 // forward declarations
 namespace rf
 {
     struct EventCapturePointHandler;
-    enum NetGameType;
 }
 
 static const char* const multi_rfl_prefixes[] = {
