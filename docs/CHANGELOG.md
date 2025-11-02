@@ -97,6 +97,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix super powerups applying in SP in non-Alpine levels
 - Fix `Cyclic_Timer` event activating twice on initial activation (unless `Legacy Cyclic_Timers` is on)
 - Fix broken rendering of particle emitter 23616 on community level `dm-birthday.rfl`
+- Fix broken rendering of particle emitter 14313 on community level `DM-RFU2-Halloween.rfl`
 - Fix `NAME has been kicked` not being printed to server console when players kicked due to inactivity
 - Fix `Advertise AF` sometimes sending the wrong advert to players running old Alpine versions
 - Fix inactivity incorrectly being tracked when endgame scoreboard is displayed
