@@ -1170,6 +1170,9 @@ void koth_do_frame() // fires every frame on both server and client
     if (!rf::is_multi || !multi_is_game_type_with_hills())
         return;
 
+    if (rf::gameseq_get_state() != rf::GameState::GS_GAMEPLAY)
+        return;
+
     // server tick
     if (rf::is_dedicated_server || rf::is_server) {
         static int last_srv = rf::timer_get(1000);
