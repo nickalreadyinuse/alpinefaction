@@ -16,7 +16,7 @@
 #include <numeric>
 #include <string_view>
 #include <unordered_set>
-#include <array>
+#include <vector>
 #include <windows.h>
 #include <winsock2.h>
 #include <toml++/toml.hpp>
@@ -346,6 +346,36 @@ static KillRewardConfig parse_kill_reward_config(const toml::table& t, KillRewar
     return c;
 }
 
+void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigRules& rules)
+{
+    switch (game_type) {
+        case rf::NetGameType::NG_TYPE_KOTH:
+            rules.spawn_delay.enabled = true;
+            rules.default_player_weapon.set_weapon("Assault Rifle");
+            rules.spawn_loadout.add("Remote Charge", 3, false, true);
+            loadouts_in_use = true;
+            rules.spawn_loadout.loadouts_active = true;
+            break;
+
+        case rf::NetGameType::NG_TYPE_DC:
+            rules.spawn_delay.enabled = true;
+            rules.spawn_delay.set_base_value(2.5f);
+            break;
+
+        case rf::NetGameType::NG_TYPE_REV:
+            rules.spawn_delay.enabled = true;
+            rules.spawn_delay.set_base_value(2.0f);
+            rules.default_player_weapon.set_weapon("Assault Rifle");
+            rules.spawn_loadout.add("Remote Charge", 3, false, true);
+            loadouts_in_use = true;
+            rules.spawn_loadout.loadouts_active = true;
+            break;
+
+        default:
+            break;
+    }
+}
+
 // parse toml rules
 // for base rules, load all speciifed. For not specified, defaults are in struct
 // for level-specific rules, start with base rules and load anything specified beyond that
@@ -353,10 +383,19 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 {
     AlpineServerConfigRules o = base_rules;
 
+    rf::NetGameType resolved_game_type = o.game_type;
     if (auto v = t["game_type"].value<std::string>()) {
         auto gt_opt = resolve_gametype_from_name(*v);
-        o.game_type = gt_opt.has_value() ? gt_opt.value() : rf::NetGameType::NG_TYPE_DM;
+        resolved_game_type = gt_opt.has_value() ? gt_opt.value() : rf::NetGameType::NG_TYPE_DM;
     }
+
+    const bool game_type_changed = resolved_game_type != base_rules.game_type;
+
+    o.game_type = resolved_game_type;
+
+    if (game_type_changed)
+        apply_defaults_for_game_type(o.game_type, o);
+
     if (auto v = t["time_limit"].value<float>())
         o.set_time_limit(*v);
     if (auto v = t["individual_kill_limit"].value<int>())
@@ -410,34 +449,12 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     if (auto sub = t["spawn_armor"].as_table())
         o.spawn_armour = parse_spawn_life_config(*sub, o.spawn_armour);
 
-    // if KOTH, default spawn delay to on before parsing config
-    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH ||
-        o.game_type == rf::NetGameType::NG_TYPE_DC ||
-        o.game_type == rf::NetGameType::NG_TYPE_REV)
-        o.spawn_delay.enabled = true;
-
-    if (o.game_type == rf::NetGameType::NG_TYPE_DC)
-        o.spawn_delay.set_base_value(2.5f);
-
-    if (o.game_type == rf::NetGameType::NG_TYPE_REV)
-        o.spawn_delay.set_base_value(2.0f);
-
     if (auto sub = t["spawn_delay"].as_table())
         o.spawn_delay = parse_spawn_delay_config(*sub, o.spawn_delay);
 
     // add default loadout
     int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
     o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
-
-    // if KOTH/REV, give an AR and remote charges by default
-    if (o.game_type == rf::NetGameType::NG_TYPE_KOTH || o.game_type == rf::NetGameType::NG_TYPE_REV) {
-        o.spawn_loadout.add("Remote Charge", 3, false, true);
-        o.default_player_weapon.set_weapon("Assault Rifle");
-
-        // loadouts are always used in KOTH
-        loadouts_in_use = true;
-        o.spawn_loadout.loadouts_active = true;
-    }
 
     // add default weapon to loadout
     if (o.default_player_weapon.index >= 0) {
@@ -1864,6 +1881,14 @@ void apply_rules_for_current_level()
             rf::console::print("Applying level-specific rules for server rotation index {} ({})...\n", idx, cfg.levels[idx].level_filename);
     }
 
+    // respect game type specific base rules (eg. koth spawn loadout) for voted or manually loaded maps
+    const rf::NetGameType active_game_type = rf::netgame.type;
+    if (g_alpine_server_config_active_rules.game_type != active_game_type) {
+        g_alpine_server_config_active_rules.game_type = active_game_type;
+        apply_defaults_for_game_type(active_game_type, g_alpine_server_config_active_rules);
+    }
+
+    // apply the rules
     apply_alpine_dedicated_server_rules(netgame, g_alpine_server_config_active_rules);
 }
 

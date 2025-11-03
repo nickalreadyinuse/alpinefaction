@@ -590,42 +590,18 @@ void configure_custom_gametype_listen_server_settings() {
     g_alpine_server_config_active_rules = AlpineServerConfigRules{};
     set_upcoming_game_type(rf::netgame.type);
 
-    // KOTH, DC, REV gamemode defaults
-    if (multi_is_game_type_with_hills()) {
-        // require Alpine clients
-        g_alpine_server_config.alpine_restricted_config.clients_require_alpine = true;
-        g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min = true;
+    auto& rules = g_alpine_server_config_active_rules;
+    rules.game_type = rf::netgame.type;
+    apply_defaults_for_game_type(rules.game_type, rules);
+    rules.set_koth_score_limit(3600);
+    rules.set_dc_score_limit(3600);
 
-        // KOTH uses spawn delay and custom loadout
-        // The same settings are set in dedi_cfg.cpp for dedicated servers
-        if (gt_is_koth() || gt_is_rev()) {
-            g_alpine_server_config_active_rules.spawn_delay.enabled = true;
-            g_alpine_server_config_active_rules.spawn_loadout.loadouts_active = true;
-            int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
-            g_alpine_server_config_active_rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
-            g_alpine_server_config_active_rules.spawn_loadout.add("Remote Charge", 3, false, true);
-            g_alpine_server_config_active_rules.default_player_weapon.set_weapon("Assault Rifle");
+    int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
+    rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
 
-            if (g_alpine_server_config_active_rules.default_player_weapon.index >= 0) {
-                int default_ammo =
-                    rf::weapon_types[g_alpine_server_config_active_rules.default_player_weapon.index].clip_size_multi *
-                    g_alpine_server_config_active_rules.default_player_weapon.num_clips;
-                g_alpine_server_config_active_rules.spawn_loadout.add(
-                    g_alpine_server_config_active_rules.default_player_weapon.weapon_name, default_ammo, false, true);
-            }
-
-            if (gt_is_koth()) {
-                g_alpine_server_config_active_rules.set_koth_score_limit(3600);
-            }
-            else { // REV
-                g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.0f);
-            }
-        }
-        else if (gt_is_dc()) {
-            g_alpine_server_config_active_rules.spawn_delay.enabled = true;
-            g_alpine_server_config_active_rules.spawn_delay.set_base_value(2.5f);
-            g_alpine_server_config_active_rules.set_dc_score_limit(3600);
-        }
+    if (rules.default_player_weapon.index >= 0) {
+        int default_ammo = rf::weapon_types[rules.default_player_weapon.index].clip_size_multi * rules.default_player_weapon.num_clips;
+        rules.spawn_loadout.add(rules.default_player_weapon.weapon_name, default_ammo, false, true);
     }
 }
 

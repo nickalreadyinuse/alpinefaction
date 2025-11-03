@@ -735,6 +735,7 @@ enum class UpcomingGameTypeSelection {
 const rf::NetGameType get_upcoming_game_type();
 UpcomingGameTypeSelection get_upcoming_game_type_selection();
 bool set_upcoming_game_type(rf::NetGameType gt, UpcomingGameTypeSelection selection = UpcomingGameTypeSelection::Rotation);
+void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigRules& rules);
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);
 void handle_player_set_handicap(rf::Player* player, uint8_t amount);
