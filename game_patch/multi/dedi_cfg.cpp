@@ -1257,29 +1257,17 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
     if (base || rules.time_limit != b.time_limit)
         rf::console::print("  Time limit:                            {} min\n", rules.time_limit / 60.0f);
 
-    // score/cap limit
-    switch (rf::netgame.type) {
-    case rf::NetGameType::NG_TYPE_TEAMDM:
-        if (base || rules.team_kill_limit != b.team_kill_limit)
-            rf::console::print("  Team score limit:                      {}\n", rules.team_kill_limit);
-        break;
-    case rf::NetGameType::NG_TYPE_CTF:
-        if (base || rules.cap_limit != b.cap_limit)
-            rf::console::print("  Flag capture limit:                    {}\n", rules.cap_limit);
-        break;
-    case rf::NetGameType::NG_TYPE_KOTH:
-        if (base || rules.koth_score_limit != b.koth_score_limit)
-            rf::console::print("  KOTH score limit:                      {}\n", rules.koth_score_limit);
-        break;
-    case rf::NetGameType::NG_TYPE_DC:
-        if (base || rules.dc_score_limit != b.dc_score_limit)
-            rf::console::print("  DC score limit:                        {}\n", rules.dc_score_limit);
-        break;
-    default:
-        if (base || rules.individual_kill_limit != b.individual_kill_limit)
-            rf::console::print("  Player score limit:                    {}\n", rules.individual_kill_limit);
-        break;
-    }
+    // score limits
+    if (base || rules.individual_kill_limit != b.individual_kill_limit)
+        rf::console::print("  Player score limit (DM):               {}\n", rules.individual_kill_limit);
+    if (base || rules.team_kill_limit != b.team_kill_limit)
+        rf::console::print("  Team score limit (TDM):                {}\n", rules.team_kill_limit);
+    if (base || rules.cap_limit != b.cap_limit)
+        rf::console::print("  Flag capture limit (CTF):              {}\n", rules.cap_limit);
+    if (base || rules.koth_score_limit != b.koth_score_limit)
+        rf::console::print("  Team score limit (KOTH):               {}\n", rules.koth_score_limit);
+    if (base || rules.dc_score_limit != b.dc_score_limit)
+        rf::console::print("  Team score limit (DC):                 {}\n", rules.dc_score_limit);
 
     // common limits & flags
     if (base || rules.geo_limit != b.geo_limit)
@@ -1298,16 +1286,12 @@ void print_rules(const AlpineServerConfigRules& rules, bool base = true)
         rf::console::print("  Ideal player count:                    {}\n", rules.ideal_player_count);
     if (base || rules.saving_enabled != b.saving_enabled)
         rf::console::print("  Position saving:                       {}\n", rules.saving_enabled);
-
-    if (rf::netgame.type == rf::NetGameType::NG_TYPE_CTF) {
-        if (base || rules.flag_dropping != b.flag_dropping)
-            rf::console::print("  Flag dropping:                         {}\n", rules.flag_dropping);
-        if (base || rules.flag_captures_while_stolen != b.flag_captures_while_stolen)
-            rf::console::print("  Flag captures while stolen:            {}\n", rules.flag_captures_while_stolen);
-        if (base || rules.ctf_flag_return_time_ms != b.ctf_flag_return_time_ms)
-            rf::console::print("  Flag return time:                      {} sec\n", rules.ctf_flag_return_time_ms / 1000.0f);
-    }
-
+    if (base || rules.flag_dropping != b.flag_dropping)
+        rf::console::print("  Flag dropping (CTF):                   {}\n", rules.flag_dropping);
+    if (base || rules.flag_captures_while_stolen != b.flag_captures_while_stolen)
+        rf::console::print("  Flag captures while stolen (CTF):      {}\n", rules.flag_captures_while_stolen);
+    if (base || rules.ctf_flag_return_time_ms != b.ctf_flag_return_time_ms)
+        rf::console::print("  Flag return time (CTF):                {} sec\n", rules.ctf_flag_return_time_ms / 1000.0f);
     if (base || rules.pvp_damage_modifier != b.pvp_damage_modifier)
         rf::console::print("  PvP damage modifier:                   {}\n", rules.pvp_damage_modifier);
     if (base || rules.drop_amps != b.drop_amps)
