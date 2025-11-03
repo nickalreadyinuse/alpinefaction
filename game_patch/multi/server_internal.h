@@ -727,8 +727,14 @@ extern AFGameInfoFlags g_game_info_server_flags;
 extern std::string g_prev_level;
 extern MatchInfo g_match_info;
 
+enum class UpcomingGameTypeSelection {
+    Rotation,
+    ExplicitRequest,
+};
+
 const rf::NetGameType get_upcoming_game_type();
-bool set_upcoming_game_type(rf::NetGameType gt);
+UpcomingGameTypeSelection get_upcoming_game_type_selection();
+bool set_upcoming_game_type(rf::NetGameType gt, UpcomingGameTypeSelection selection = UpcomingGameTypeSelection::Rotation);
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);
 void handle_player_set_handicap(rf::Player* player, uint8_t amount);

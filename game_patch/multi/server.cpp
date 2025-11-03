@@ -47,6 +47,7 @@
 #include "../purefaction/pf.h"
 
 const char* g_rcon_cmd_whitelist[] = {
+    "gt",
     "kick",
     "level",
     "sv_pass",
@@ -60,6 +61,7 @@ const char* g_rcon_cmd_whitelist[] = {
     "map_prev",
     "sv_caplimit",
     "sv_fraglimit",
+    "sv_gametype",
     "sv_geolimit",
     "sv_timelimit",
     "unban_last"
@@ -85,15 +87,28 @@ AFGameInfoFlags g_game_info_server_flags;
 std::string g_prev_level;
 bool g_is_overtime = false;
 rf::NetGameType upcoming_game_type;
+UpcomingGameTypeSelection g_upcoming_game_type_selection = UpcomingGameTypeSelection::Rotation;
 
 const rf::NetGameType get_upcoming_game_type()
 {
     return upcoming_game_type;
 }
 
-bool set_upcoming_game_type(rf::NetGameType gt)
+UpcomingGameTypeSelection get_upcoming_game_type_selection()
+{
+    return g_upcoming_game_type_selection;
+}
+
+void clear_explicit_upcoming_game_type_request()
+{
+    if (g_upcoming_game_type_selection == UpcomingGameTypeSelection::ExplicitRequest)
+        g_upcoming_game_type_selection = UpcomingGameTypeSelection::Rotation;
+}
+
+bool set_upcoming_game_type(rf::NetGameType gt, UpcomingGameTypeSelection selection)
 {
     upcoming_game_type = gt;
+    g_upcoming_game_type_selection = selection;
 
     return upcoming_game_type != rf::netgame.type;
 }
@@ -736,16 +751,13 @@ bool multi_set_gametype_alpine(std::string_view gametype_name)
         return false;
     }
 
-    bool game_type_changed = false;
-    if (resolved_type.value() != get_upcoming_game_type())
-        game_type_changed = set_upcoming_game_type(resolved_type.value());
-
-    return game_type_changed;
+    set_upcoming_game_type(resolved_type.value(), UpcomingGameTypeSelection::ExplicitRequest);
+    return true;
 }
 
 ConsoleCommand2 sv_game_type_cmd{
     "sv_gametype",
-    [](std::optional<std::string> new_game_type) {
+    [](std::optional<std::string> new_game_type, std::optional<std::string> level_name) {
         if (g_dedicated_launched_from_ads && rf::is_dedicated_server) {
             if (rf::gameseq_get_state() != rf::GameState::GS_GAMEPLAY) {
                 rf::console::print("You cannot change the game type while between levels.\n");
@@ -753,13 +765,48 @@ ConsoleCommand2 sv_game_type_cmd{
             }
 
             if (new_game_type.has_value()) {
-                //auto parsed_game_type_opt = resolve_gametype_from_name(new_game_type.value());
-                //bool changed_game_type = parsed_game_type_opt.has_value() ? multi_change_game_type(parsed_game_type_opt.value()) : false;
+                auto resolved_type = resolve_gametype_from_name(new_game_type.value());
+                if (!resolved_type) {
+                    rf::console::print("Unknown game type '{}'.\n", new_game_type.value());
+                    return;
+                }
 
-                bool changed_game_type = multi_set_gametype_alpine(new_game_type.value());
+                std::string level_to_load;
+                bool explicit_level = false;
 
-                if (changed_game_type)
+                if (level_name.has_value()) {
+                    auto [is_valid_level, normalized_level_name] = is_level_name_valid(level_name.value());
+                    if (!is_valid_level) {
+                        rf::console::print("Level '{}' is not available on the server!\n", level_name.value());
+                        return;
+                    }
+
+                    level_to_load = std::move(normalized_level_name);
+                    explicit_level = true;
+                }
+                else {
+                    level_to_load = rf::level.filename.c_str();
+                }
+
+                set_upcoming_game_type(*resolved_type, UpcomingGameTypeSelection::ExplicitRequest);
+
+                if (explicit_level) {
+                    clear_manual_rules_override();
+
+                    std::string display_level_name = level_to_load;
+                    if (display_level_name.size() > 4) {
+                        display_level_name.resize(display_level_name.size() - 4);
+                    }
+
+                    auto msg = std::format("\xA6 Loading {} on {}", display_level_name,
+                                           get_game_type_string_long(*resolved_type));
+                    rf::multi_chat_say(msg.c_str(), false);
+
+                    multi_change_level_alpine(level_to_load.c_str());
+                }
+                else {
                     restart_current_level();
+                }
             }
             else {
                 rf::console::print("Current game type: {}\n", get_game_type_string_long(rf::netgame.type));
@@ -769,8 +816,13 @@ ConsoleCommand2 sv_game_type_cmd{
             rf::console::print("This command is only available for Alpine Faction dedicated servers launched with the -ads switch.\n");
         }
     },
-    "Override the configured gametype. Will restart the current level on the specified gametype. Only available for ADS dedicated servers.",
-    "sv_gametype <dm|tdm|ctf|koth>",
+    "Load a specific gametype. Loads level if specificed, otherwise restarts current level. Only available for ADS dedicated servers.",
+    "sv_gametype <dm|tdm|ctf|koth|dc|rev> [level]",
+};
+
+DcCommandAlias gt_cmd{
+    "gt",
+    sv_game_type_cmd,
 };
 
 void multi_change_level_alpine(const char* filename) {
@@ -2605,6 +2657,7 @@ void server_init()
 
     // console commands
     sv_game_type_cmd.register_cmd();
+    gt_cmd.register_cmd();
 }
 
 void server_do_frame()

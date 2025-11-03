@@ -87,7 +87,10 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Owner_Gate` event
 - Allow using `Edit Links` window in level editor to link objects to MP respawn points
 - Support rule presets and aliases in ADS dedicated servers
-- Allow preset support to `vote level` and `vote match` chat commands
+- Add preset support to `vote level` and `vote match` chat commands
+- Expand `sv_gametype` to allow setting a new level
+- Add `gt` alias to `sv_gametype` command
+- Allow `sv_gametype` execution via rcon
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set

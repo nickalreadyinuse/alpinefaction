@@ -1779,7 +1779,8 @@ bool apply_game_type_for_current_level() {
     auto &cfg     = g_alpine_server_config;
     const int idx = netgame.current_level_index;
     const auto upcoming = get_upcoming_game_type();
-    const bool has_already_queued_change = upcoming != netgame.type;
+    const bool has_already_queued_change = (upcoming != netgame.type)
+        || (get_upcoming_game_type_selection() == UpcomingGameTypeSelection::ExplicitRequest);
     const bool manual_load = was_level_loaded_manually();
     rf::NetGameType desired = rf::NetGameType::NG_TYPE_DM;
 

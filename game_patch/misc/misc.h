@@ -19,3 +19,4 @@ void evaluate_restrict_disable_ss();
 void evaluate_restrict_disable_muzzle_flash();
 void initialize_achievement_manager();
 void set_levelmod_autotexture_ppm();
+void clear_explicit_upcoming_game_type_request();

@@ -430,6 +430,7 @@ CallHook level_init_pre_console_output_hook{
         if (rf::is_dedicated_server && g_dedicated_launched_from_ads) {
             apply_game_type_for_current_level();
             rf::netgame.type = get_upcoming_game_type();
+            clear_explicit_upcoming_game_type_request();
         }
 
         // local client delayed gametype swap
