@@ -44,9 +44,9 @@ struct PlayerAdditionalData
     uint8_t damage_handicap = 0; // percentile
 };
 
-static rf::Timestamp g_respawn_timer_local;
-static bool g_spawned_in_current_level = false; // relevant if force respawn is on
-static bool g_local_queued_delayed_spawn = false;
+inline rf::Timestamp g_respawn_timer_local;
+inline bool g_spawned_in_current_level = false; // relevant if force respawn is on
+inline bool g_local_queued_delayed_spawn = false;
 
 std::string build_local_spawn_string(bool can_respawn);
 void set_local_spawn_delay(bool can_respawn, bool force_respawn, int spawn_delay);
