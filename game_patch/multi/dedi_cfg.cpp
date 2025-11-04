@@ -348,31 +348,60 @@ static KillRewardConfig parse_kill_reward_config(const toml::table& t, KillRewar
 
 void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigRules& rules)
 {
+    // all modes get baton
+    int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
+    rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
+
     switch (game_type) {
-        case rf::NetGameType::NG_TYPE_KOTH:
+        case rf::NetGameType::NG_TYPE_KOTH: {
             rules.spawn_delay.enabled = true;
-            rules.default_player_weapon.set_weapon("Assault Rifle");
+
+            // secondary weapon
             rules.spawn_loadout.add("Remote Charge", 3, false, true);
+
+            // primary weapon
+            rules.spawn_loadout.remove("12mm handgun", false);
+            rules.default_player_weapon.set_weapon("Assault Rifle");
+
             loadouts_in_use = true;
             rules.spawn_loadout.loadouts_active = true;
             break;
+        }
 
-        case rf::NetGameType::NG_TYPE_DC:
+        case rf::NetGameType::NG_TYPE_DC: {
             rules.spawn_delay.enabled = true;
             rules.spawn_delay.set_base_value(2.5f);
+            rules.default_player_weapon.set_weapon("12mm handgun");
             break;
+        }
 
-        case rf::NetGameType::NG_TYPE_REV:
+        case rf::NetGameType::NG_TYPE_REV: {
             rules.spawn_delay.enabled = true;
             rules.spawn_delay.set_base_value(2.0f);
-            rules.default_player_weapon.set_weapon("Assault Rifle");
+
+            // secondary weapon
             rules.spawn_loadout.add("Remote Charge", 3, false, true);
+
+            // primary weapon
+            rules.spawn_loadout.remove("12mm handgun", false);
+            rules.default_player_weapon.set_weapon("Assault Rifle");
+
             loadouts_in_use = true;
             rules.spawn_loadout.loadouts_active = true;
             break;
+        }
 
-        default:
+        default: {
+            // primary weapon
+            rules.default_player_weapon.set_weapon("12mm handgun");
             break;
+        }
+    }
+
+    // handle default player weapon
+    if (rules.default_player_weapon.index >= 0) {
+        int default_ammo = rf::weapon_types[rules.default_player_weapon.index].clip_size_multi * rules.default_player_weapon.num_clips;
+        rules.spawn_loadout.add(rules.default_player_weapon.weapon_name, default_ammo, false, true);
     }
 }
 
@@ -451,16 +480,6 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 
     if (auto sub = t["spawn_delay"].as_table())
         o.spawn_delay = parse_spawn_delay_config(*sub, o.spawn_delay);
-
-    // add default loadout
-    int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
-    o.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
-
-    // add default weapon to loadout
-    if (o.default_player_weapon.index >= 0) {
-        int default_ammo = rf::weapon_types[o.default_player_weapon.index].clip_size_multi * o.default_player_weapon.num_clips;
-        o.spawn_loadout.add(o.default_player_weapon.weapon_name, default_ammo, false, true);
-    }
 
     if (auto arr = t["spawn_loadout"].as_array()) {
         for (auto& node : *arr) {

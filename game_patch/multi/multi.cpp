@@ -595,14 +595,6 @@ void configure_custom_gametype_listen_server_settings() {
     apply_defaults_for_game_type(rules.game_type, rules);
     rules.set_koth_score_limit(3600);
     rules.set_dc_score_limit(3600);
-
-    int baton_ammo = rf::weapon_types[rf::riot_stick_weapon_type].clip_size_multi;
-    rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
-
-    if (rules.default_player_weapon.index >= 0) {
-        int default_ammo = rf::weapon_types[rules.default_player_weapon.index].clip_size_multi * rules.default_player_weapon.num_clips;
-        rules.spawn_loadout.add(rules.default_player_weapon.weapon_name, default_ammo, false, true);
-    }
 }
 
 void start_level_in_multi(std::string filename) {

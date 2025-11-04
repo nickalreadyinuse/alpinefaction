@@ -473,12 +473,25 @@ struct WeaponLoadoutConfig
         weapons_array->emplace_back(WeaponLoadoutEntry{std::string{name}, idx, ammo, enabled});
         return true;
     }
+
+    bool remove(std::string_view name, bool blue_team)
+    {
+        auto& weapons_array = blue_team ? blue_weapons : red_weapons;
+        auto it = std::find_if(weapons_array.begin(), weapons_array.end(),
+            [&](auto const& e) { return e.weapon_name == name; });
+
+        if (it == weapons_array.end())
+            return false;
+
+        weapons_array.erase(it);
+        return true;
+    }
 };
 
 struct DefaultPlayerWeaponConfig
 {
-    std::string weapon_name = "12mm handgun";
-    int index = 3;
+    std::string weapon_name = "";
+    int index = -1;
     int num_clips = 3;
 
     // =============================================
