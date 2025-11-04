@@ -91,6 +91,7 @@ Version 1.2.0 (Willow): Not yet released
 - Expand `sv_gametype` to allow setting a new level
 - Add `gt` alias to `sv_gametype` command
 - Allow `sv_gametype` execution via rcon
+- Add `dbg_numgeos` debug command to count number of geo craters in current level
 
 [@is-this-c](https://github.com/is-this-c)
 - Simplify code that fixed broken events if their delay parameter was set
@@ -119,6 +120,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix server processing `af_ping_location_req` packets when feature was turned off
 - Fix `Solo ignore resets` trigger option not working properly
 - Fix `No match is queued` message mistakenly being sent to all players instead of just the requester
+- Fix match mode logic error if map is changed during pre-match phase
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
