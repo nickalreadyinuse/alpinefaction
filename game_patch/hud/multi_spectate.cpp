@@ -80,7 +80,14 @@ void multi_spectate_set_target_player(rf::Player* player)
 #endif // SPECTATE_MODE_SHOW_WEAPON
     }
 
-    g_spectate_mode_enabled = (player != rf::local_player);
+    bool entering_player_spectate = (player != rf::local_player);
+
+    if (entering_player_spectate) {
+        g_local_queued_delayed_spawn = false;
+        stop_draw_respawn_timer_notification();
+    }
+
+    g_spectate_mode_enabled = entering_player_spectate;
     g_spectate_mode_target = player;
 
     rf::multi_kill_local_player();
