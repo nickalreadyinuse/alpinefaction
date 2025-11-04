@@ -313,11 +313,6 @@ struct VoteMatch : public Vote
 
     bool process_vote_arg(std::string_view arg, rf::Player* source) override
     {
-        if (rf::multi_get_game_type() == rf::NG_TYPE_DM) {
-            send_chat_line_packet("\xA6 Match system is not available in deathmatch!", source);
-            return false;
-        }
-
         auto [team_size, valid_level, match_level_name, preset_alias] = parse_match_vote_info(arg);
         g_match_info.team_size = team_size;
 
@@ -357,6 +352,14 @@ struct VoteMatch : public Vote
 
             m_manual_rules_alias = std::move(*preset_alias);
             m_manual_rules_override = std::move(*preset_result);
+        }
+
+        const auto desired_game_type =
+            m_manual_rules_override ? m_manual_rules_override->rules.game_type : g_alpine_server_config_active_rules.game_type;
+
+        if (desired_game_type == rf::NG_TYPE_DM) {
+            send_chat_line_packet("\xA6 Matches must be played on a team game type.", source);
+            return false;
         }
 
         return true;
