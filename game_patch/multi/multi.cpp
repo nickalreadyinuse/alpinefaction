@@ -113,6 +113,9 @@ FunHook<void()> multi_limbo_init{
                 g_match_info.everyone_ready = false;
                 g_match_info.pre_match_active = false;
             }
+            else if (g_match_info.pre_match_active) {
+                cancel_match(); // cancel match if map forcefully ends during pre-match phase
+            }
         }
 
         // don't let clients vote if the map has been played for less than 1 min
