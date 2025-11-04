@@ -53,8 +53,6 @@ bool g_ads_minimal_server_info = false;     // print only minimal server info wh
 bool g_ads_full_console_log = false;        // log full console output to file
 int g_ads_loaded_version = ADS_VERSION;
 
-bool loadouts_in_use = false;
-
 rf::CmdLineParam& get_ads_cmd_line_param()
 {
     static rf::CmdLineParam ads_param{"-ads", "", true};
@@ -83,58 +81,6 @@ void handle_min_param()
 void handle_log_param()
 {
     g_ads_full_console_log = get_log_cmd_line_param().found();
-}
-
-// check if we need to force the server to be restricted to Alpine clients
-// prevents legacy clients from connecting to servers that require features they don't support
-void evaluate_mandatory_alpine_restrict() {
-    auto& cfg = g_alpine_server_config;
-
-    if (cfg.alpine_restricted_config.clients_require_alpine &&
-        cfg.alpine_restricted_config.alpine_server_version_enforce_min &&
-        cfg.alpine_restricted_config.reject_non_alpine_clients) {
-        return; // everything is already enforced, no need to evaluate
-    }
-
-    bool require_alpine = false;
-    bool require_min_version = false;
-    bool reject_non_alpine = false;
-
-    // loadouts require min server version
-    if (loadouts_in_use) { // added in 1.2.0
-        rf::console::print("Loadouts are configured, so these settings have been turned on:\n");
-
-        rf::console::print("  Clients require Alpine\n");
-        require_min_version = true;
-    }
-
-    // KOTH requires min server version and rejecting non-alpine clients
-    if (cfg.base_rules.game_type == rf::NetGameType::NG_TYPE_KOTH) { // added in 1.2.0
-        rf::console::print("Gametype is KOTH, so these settings have been turned on:\n"); // todo: if KOTH is specified anywhere, turn on
-
-        rf::console::print("  Clients require Alpine\n");
-        require_min_version = true;
-        reject_non_alpine = true;
-    }
-
-    // evaluate if we need to require min server version
-    if (require_min_version) {
-        rf::console::print("    Enforce min server version\n");
-        require_alpine = true;
-        cfg.alpine_restricted_config.alpine_server_version_enforce_min = true;
-    }
-
-    // evaluate if we need to reject non-alpine clients
-    if (reject_non_alpine) {
-        rf::console::print("    Reject non-Alpine clients\n");
-        require_alpine = true;
-        cfg.alpine_restricted_config.reject_non_alpine_clients = true;
-    }
-
-    // evaluate if we need to turn on base alpine restriction
-    if (require_alpine) {
-        cfg.alpine_restricted_config.clients_require_alpine = true;
-    }
 }
 
 static DefaultPlayerWeaponConfig parse_default_player_weapon(const toml::table& t, DefaultPlayerWeaponConfig c)
@@ -363,7 +309,6 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
             rules.spawn_loadout.remove("12mm handgun", false);
             rules.default_player_weapon.set_weapon("Assault Rifle");
 
-            loadouts_in_use = true;
             rules.spawn_loadout.loadouts_active = true;
             break;
         }
@@ -371,7 +316,11 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
         case rf::NetGameType::NG_TYPE_DC: {
             rules.spawn_delay.enabled = true;
             rules.spawn_delay.set_base_value(2.5f);
+
+            // primary weapon
             rules.default_player_weapon.set_weapon("12mm handgun");
+
+            rules.spawn_loadout.loadouts_active = false;
             break;
         }
 
@@ -386,7 +335,6 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
             rules.spawn_loadout.remove("12mm handgun", false);
             rules.default_player_weapon.set_weapon("Assault Rifle");
 
-            loadouts_in_use = true;
             rules.spawn_loadout.loadouts_active = true;
             break;
         }
@@ -394,6 +342,8 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
         default: {
             // primary weapon
             rules.default_player_weapon.set_weapon("12mm handgun");
+
+            rules.spawn_loadout.loadouts_active = false;
             break;
         }
     }
@@ -488,8 +438,7 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
                     int ammo = (*tbl)["ammo"].value<int>().value_or(0);
                     bool enabled = (*tbl)["include"].value<bool>().value_or(true); // default true if not specified
                     o.spawn_loadout.add(*nameOpt, ammo, false, enabled);
-                    loadouts_in_use = true;                         // used to restrict to alpine only
-                    o.spawn_loadout.loadouts_active = true;         // used to decide if loadouts should be used on a specific map
+                    o.spawn_loadout.loadouts_active = true;
                 }
             }
         }
@@ -1116,7 +1065,6 @@ void load_ads_server_config(std::string ads_config_name)
 {
     rf::console::print("Loading and applying server configuration from {}...\n\n", ads_config_name);
 
-    loadouts_in_use = false;    // reset per load
     AlpineServerConfig cfg;     // start from defaults
 
     toml::table root;
@@ -1778,8 +1726,6 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
     initialize_core_alpine_dedicated_server_settings(netgame, cfg, on_launch);
 
     apply_alpine_dedicated_server_rules(netgame, cfg.base_rules); // base rules
-
-    evaluate_mandatory_alpine_restrict(); // force alpine restrict on if rules are configured which need it
 
     if (g_alpine_server_config.dynamic_rotation) {
         shuffle_level_array();

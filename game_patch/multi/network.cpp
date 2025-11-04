@@ -1313,6 +1313,20 @@ FunHook<int(rf::NetAddr*, rf::JoinRequest*)> check_access_for_new_player_hook {
     },
 };
 
+static std::pair<bool, int> server_features_require_alpine_client()
+{
+    bool does_req_alpine_client = false;
+    int min_minor_ver = 0;
+
+    if (static_cast<int>(rf::netgame.type) >= 3 || // KOTH or higher
+        g_alpine_server_config_active_rules.spawn_loadout.loadouts_active) {
+        does_req_alpine_client = true;
+        min_minor_ver = std::max(min_minor_ver, 2); // AF v1.2+
+    }
+
+    return {does_req_alpine_client, min_minor_ver};
+}
+
 static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict_status(ClientVersion cv, const AlpineFactionJoinReqPacketExt& info)
 {
     // reject join reqs from clients that are not compatible with the current level
@@ -1344,13 +1358,18 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
     }
 
     const auto& cfg = g_alpine_server_config.alpine_restricted_config;
-    const bool require_alpine = cfg.clients_require_alpine && cfg.reject_non_alpine_clients;
+
+    const auto [auto_require_alpine, min_minor_version] = server_features_require_alpine_client();
+    const bool reject_non_alpine = cfg.reject_non_alpine_clients || auto_require_alpine;
+    const bool require_alpine = cfg.clients_require_alpine || reject_non_alpine;
+    const bool enforce_release_build = cfg.alpine_require_release_build;
+    const bool enforce_min_version = cfg.alpine_server_version_enforce_min || auto_require_alpine;
 
     if (!require_alpine)
-        return {AlpineRestrictVerdict::ok, {}};
+        return {AlpineRestrictVerdict::ok, {}}; // server doesn't require alpine
 
     // require af client
-    if (cv != ClientVersion::alpine_faction) {
+    if (reject_non_alpine && cv != ClientVersion::alpine_faction) {
         switch (cv) {
             case ClientVersion::dash_faction:
                 return {AlpineRestrictVerdict::need_alpine,
@@ -1365,17 +1384,22 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
     }
 
     // require af release build
-    if (cfg.alpine_require_release_build && info.version_type != VERSION_TYPE_RELEASE) {
+    if (enforce_release_build && info.version_type != VERSION_TYPE_RELEASE) {
         return {AlpineRestrictVerdict::need_release,
-                std::format("incompatible Alpine Faction client {}.{}.{} non-stable",
+                std::format("incompatible AF client {}.{}.{} non-stable",
                     info.version_major, info.version_minor, info.version_patch)};
     }
 
     // require af min version match server
-    if (cfg.alpine_server_version_enforce_min) {
-        if (version_is_older(info.version_major, info.version_minor, VERSION_MAJOR, VERSION_MINOR)) {
+    if (enforce_min_version) {
+        int required_minor_version = VERSION_MINOR;
+
+        if (auto_require_alpine)
+            required_minor_version = std::max(required_minor_version, min_minor_version);
+
+        if (version_is_older(info.version_major, info.version_minor, VERSION_MAJOR, required_minor_version)) {
             return {AlpineRestrictVerdict::need_update,
-                    std::format("incompatible Alpine Faction client {}.{}.{}-{}",
+                    std::format("updated AF client required, current is {}.{}.{}-{}",
                         info.version_major, info.version_minor, info.version_patch, info.version_type)};
         }
     }
