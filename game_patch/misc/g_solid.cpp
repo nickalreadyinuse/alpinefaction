@@ -487,6 +487,27 @@ static ConsoleCommand2 dbg_room_clip_wnd_cmd{
     },
 };
 
+ConsoleCommand2 dbg_num_geomods_cmd{
+    "dbg_numgeos",
+    []() {
+        if (!(rf::level.flags & rf::LEVEL_LOADED)) {
+            rf::console::print("No level loaded!");
+            return;
+        }
+
+        if (rf::is_multi && !rf::is_server) {
+            rf::console::print("In multiplayer, this command can only be run by the server.");
+            return;
+        }
+
+        //int max_geos = 128;
+        int max_geos = rf::is_multi ? rf::netgame.geomod_limit : 128;
+
+        rf::console::print("{} craters in the current level out of a maximum of {}", rf::g_num_geomods_this_level, max_geos);
+    },
+    "Count the number of geomod craters in the current level",
+};
+
 void g_solid_render_ui()
 {
     if (g_show_room_clip_wnd && rf::gameseq_in_gameplay()) {
@@ -713,6 +734,7 @@ void g_solid_do_patch()
     // Commands
     max_decals_cmd.register_cmd();
     dbg_room_clip_wnd_cmd.register_cmd();
+    dbg_num_geomods_cmd.register_cmd();
     lighting_color_range_cmd.register_cmd();
     clamp_official_lightmaps_cmd.register_cmd();
 }
