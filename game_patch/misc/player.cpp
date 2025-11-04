@@ -142,6 +142,7 @@ void attempt_spawn_local_player(rf::Player* pp) {
             return;
         }
         g_local_queued_delayed_spawn = false;
+        stop_draw_respawn_timer_notification();
         return;
     }
     return;
@@ -599,6 +600,7 @@ CodeInjection player_move_flashlight_light_patch {
 
 void player_multi_level_post_init() {
     g_local_queued_delayed_spawn = false;
+    stop_draw_respawn_timer_notification();
 }
 
 // called on game start and during each level post init
