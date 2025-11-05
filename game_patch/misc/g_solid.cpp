@@ -500,7 +500,6 @@ ConsoleCommand2 dbg_num_geomods_cmd{
             return;
         }
 
-        //int max_geos = 128;
         int max_geos = rf::is_multi ? rf::netgame.geomod_limit : 128;
 
         rf::console::print("{} craters in the current level out of a maximum of {}", rf::g_num_geomods_this_level, max_geos);
@@ -540,22 +539,6 @@ void set_levelmod_autotexture_ppm() {
         g_crater_autotexture_ppm = 32.0f;
     }
 }
-
-// currently unused
-CallHook<void(rf::GSolid*, rf::GSolid*, rf::GBooleanOperation, bool, rf::Vector3*, rf::Matrix3*, rf::GSolid*,
-    rf::GBooleanOperation, float, float*, bool, rf::Vector3*, rf::Vector3*)> g_boolean_begin_hook{
-    0x00466D9D,
-        [](rf::GSolid* a, rf::GSolid* b, rf::GBooleanOperation op, bool verbose, rf::Vector3* b_pos,
-            rf::Matrix3* b_orient, rf::GSolid* other_solid, rf::GBooleanOperation other_op, float scale,
-            float* other_area, bool propagate_textures, rf::Vector3* a12, rf::Vector3* a13) {
-        
-        xlog::warn("g_boolean_begin hook called: verbose={}, scale={}, propagate_textures={}", verbose, scale, propagate_textures);
-        
-
-        // Call the original function
-        g_boolean_begin_hook.call_target(a, b, op, verbose, b_pos, b_orient, other_solid, other_op, scale, other_area, propagate_textures, a12, a13);
-    },
-};
 
 // verify proposed new sky room UID is a sky room and if so, set it as the override
 void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale)
@@ -670,9 +653,6 @@ void g_solid_do_patch()
     find_sky_room_hook.install();
     sky_room_eye_position_patch.install();
     level_release_sky_room_shutdown_patch.install();
-
-    // geomod experimental
-    //g_boolean_begin_hook.install();
 
     // Buffer overflows in solid_read
     // Note: Buffer size is 1024 but opcode allows only 1 byte size
