@@ -1238,6 +1238,20 @@ FunHook<void()> multi_hud_render_time_left_hook{
     },
 };
 
+CodeInjection multi_hud_handle_final_countdown_injection {
+    0x00476EC5,
+    []() {
+        const int min_plus_sec = rf::time_left_minutes * 60 + rf::time_left_seconds;
+
+        if (min_plus_sec > 60)
+            rf::played_one_minute_left_sound = 0;
+        if (min_plus_sec > 30)
+            rf::played_half_minute_left_sound = 0;
+        if (min_plus_sec > 10)
+            memset(&rf::played_n_seconds_left_sound[0], 0, 10);
+    }
+};
+
 void build_time_left_string_format() {
     
     if (g_alpine_game_config.verbose_time_left_display) {
@@ -1309,6 +1323,9 @@ void multi_hud_apply_patches()
 
     // Draw Time Left label
     multi_hud_render_time_left_hook.install();
+
+    // Reset final countdown sounds (allows "one minute remaining", etc. to play again if map is extended)
+    multi_hud_handle_final_countdown_injection.install();
 
     // Console commands
     playernames_cmd.register_cmd();

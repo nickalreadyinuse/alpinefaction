@@ -122,6 +122,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix `No match is queued` message mistakenly being sent to all players instead of just the requester
 - Fix match mode logic error if map is changed during pre-match phase
 - Fix skybox rendering issues with Direct3D 11 renderer on community level `dm-rfu-friday.rfl`
+- Fix MP timer alert sounds not playing if already played once this level (e.g. if level is extended)
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
