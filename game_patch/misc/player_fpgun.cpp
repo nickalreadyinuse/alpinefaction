@@ -181,6 +181,13 @@ CodeInjection player_fpgun_render_main_player_entity_injection{
     },
 };
 
+CodeInjection players_cleanup_injection{
+    0x004A259C,
+    []() {
+        g_fpgun_main_player = nullptr;
+    },
+};
+
 void player_fpgun_do_patch()
 {
 #if SPECTATE_MODE_SHOW_WEAPON
@@ -202,6 +209,8 @@ void player_fpgun_do_patch()
     write_mem_ptr(0x004AEB86 + 1, &g_fpgun_main_player); // player_fpgun_delete_meshes
     write_mem_ptr(0x004A44BF + 2, &g_fpgun_main_player); // player_create_entity
     write_mem_ptr(0x004A44F7 + 2, &g_fpgun_main_player); // player_create_entity
+
+    players_cleanup_injection.install(); // fixes crash at 0x004AEB8F in player_fpgun_delete_meshes
 
     player_fpgun_render_main_player_entity_injection.install();
 
