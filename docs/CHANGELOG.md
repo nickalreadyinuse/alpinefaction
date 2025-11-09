@@ -128,6 +128,7 @@ Version 1.2.0 (Willow): Not yet released
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
+- Fix a potential crash after a client quits the game on Direct3D 11 renderer
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)
