@@ -1165,6 +1165,16 @@ static void koth_client_predict_tick(int dt_ms)
     }
 }
 
+void koth_force_broadcast_all_hill_states() {
+    if (!rf::is_multi || !rf::is_dedicated_server || !rf::is_server || !multi_is_game_type_with_hills())
+        return;
+
+    for (auto& h : g_koth_info.hills) {
+        const Presence pres = sample_presence(h);
+        server_maybe_broadcast_state(h, pres);
+    }
+}
+
 void koth_do_frame() // fires every frame on both server and client
 {
     if (!rf::is_multi || !multi_is_game_type_with_hills())

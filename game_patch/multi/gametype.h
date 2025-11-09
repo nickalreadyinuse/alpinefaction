@@ -173,6 +173,7 @@ HillInfo* koth_find_hill_by_uid(uint8_t uid);
 HillInfo* koth_find_hill_by_handler(const rf::EventCapturePointHandler* handler);
 bool koth_set_capture_point_owner(rf::EventCapturePointHandler* handler, int owner, bool announce = true);
 rf::Trigger* koth_resolve_trigger_from_uid(int uid);
+void koth_force_broadcast_all_hill_states();
 void koth_local_announce_hill_captured(const HillInfo* h, HillOwner new_owner, const uint8_t* ids, size_t ids_len);
 void koth_local_announce_hill_captured_vector(const HillInfo* h, HillOwner new_owner, const std::vector<uint8_t>& ids);
 void multi_level_init_post_gametypes();

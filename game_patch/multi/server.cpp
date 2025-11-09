@@ -2114,11 +2114,14 @@ float get_nearest_other_player(const rf::Player* player, const rf::Vector3* spaw
 
 FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_point_hook{
     0x00470300, [](rf::Vector3* pos, rf::Matrix3* orient, rf::Player* player) {
+        //if (!rf::is_server)
+        //    return; // needs more investigation
+
         // Level has no respawn points
         if (g_alpine_respawn_points.empty()) {
             *pos = rf::level.player_start_pos;
             *orient = rf::level.player_start_orient;
-            xlog::warn("No Multiplayer Respawn Points found. Spawning {} at the Player Start.", player->name);
+            xlog::debug("No Multiplayer Respawn Points found. Spawning {} at the Player Start.", player->name);
             return;
         }
 
@@ -2128,7 +2131,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
             int index = dist(g_rng);
             *pos = g_alpine_respawn_points[index].position;
             *orient = g_alpine_respawn_points[index].orientation;
-            xlog::warn("A respawn point was requested for an invalid player.");
+            xlog::debug("A respawn point was requested for an invalid player.");
             return;
         }
 
@@ -2167,7 +2170,7 @@ FunHook<void(rf::Vector3*, rf::Matrix3*, rf::Player*)> multi_respawn_get_next_po
             int index = dist(g_rng);
             *pos = g_alpine_respawn_points[index].position;
             *orient = g_alpine_respawn_points[index].orientation;
-            xlog::warn("No eligible respawn points were found. Spawning {} at a random respawn point {}.", player->name, index);
+            xlog::debug("No eligible respawn points were found. Spawning {} at random respawn point {}.", player->name, index);
             return;
         }
 
@@ -2678,6 +2681,7 @@ void server_on_limbo_state_enter()
     const int ver = get_level_file_version(rf::level_filename_to_load);
 
     apply_game_type_for_current_level();
+    koth_force_broadcast_all_hill_states();
     af_send_server_info_packet_to_all();
 
     // Clear save data for all players

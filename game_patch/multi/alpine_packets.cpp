@@ -792,7 +792,7 @@ static void af_process_koth_hill_state_packet(const void* data, size_t len, cons
 
     HillInfo* h = koth_find_hill_by_uid(pkt.hill_uid);
     if (!h) {
-        xlog::warn("koth_state: unknown hill uid {}", pkt.hill_uid);
+        //xlog::warn("koth_state: unknown hill uid {}", pkt.hill_uid);
         return;
     }
 
@@ -823,7 +823,7 @@ void af_send_koth_hill_captured_packet(rf::Player* player, uint8_t hill_uid, Hil
     assert(rf::is_server);
 
     if (!player) {
-        xlog::error("af_koth_hill_captured_packet: Attempted to send to an invalid player");
+        //xlog::error("af_koth_hill_captured_packet: Attempted to send to an invalid player");
         return;
     }
 
@@ -913,7 +913,7 @@ static void af_process_koth_hill_captured_packet(const void* data, size_t len, c
 
     HillInfo* h = koth_find_hill_by_uid(pkt.hill_uid);
     if (!h) {
-        xlog::warn("koth_captured: unknown hill uid {}", pkt.hill_uid);
+        //xlog::warn("koth_captured: unknown hill uid {}", pkt.hill_uid);
         return;
     }
 
