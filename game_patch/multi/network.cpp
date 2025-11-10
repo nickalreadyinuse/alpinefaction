@@ -1388,7 +1388,7 @@ static std::pair<AlpineRestrictVerdict, std::string> check_join_request_restrict
                 return {AlpineRestrictVerdict::need_alpine,
                         std::format("unsupported client - Dash Faction {}.{}", info.version_major, info.version_minor)};
             case ClientVersion::browser:
-                return {AlpineRestrictVerdict::need_alpine, "unsupported client - Server Browser"};
+                return {AlpineRestrictVerdict::ok, {}}; // server browsers are allowed
             case ClientVersion::pure_faction:
                 return {AlpineRestrictVerdict::need_alpine, "unsupported client - Pure Faction"};
             default:
