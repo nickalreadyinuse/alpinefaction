@@ -65,6 +65,8 @@ CodeInjection CLevelDialog_OnInitDialog_patch{
         HWND hdlg = WndToHandle(regs.esi);
         auto& alpine_level_props = CDedLevel::Get()->GetAlpineLevelProperties();
         CheckDlgButton(hdlg, IDC_LEGACY_CYCLIC_TIMERS, alpine_level_props.legacy_cyclic_timers ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hdlg, IDC_LEGACY_MOVER_VELOCITY, alpine_level_props.legacy_mover_velocity ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hdlg, IDC_LEGACY_MOVER_ROT_ACCEL, alpine_level_props.legacy_mover_rot_accel ? BST_CHECKED : BST_UNCHECKED);
     },
 };
 
@@ -75,6 +77,8 @@ CodeInjection CLevelDialog_OnOK_patch{
         HWND hdlg = WndToHandle(regs.ecx);
         auto& alpine_level_props = CDedLevel::Get()->GetAlpineLevelProperties();
         alpine_level_props.legacy_cyclic_timers = IsDlgButtonChecked(hdlg, IDC_LEGACY_CYCLIC_TIMERS) == BST_CHECKED;
+        alpine_level_props.legacy_mover_velocity = IsDlgButtonChecked(hdlg, IDC_LEGACY_MOVER_VELOCITY) == BST_CHECKED;
+        alpine_level_props.legacy_mover_rot_accel = IsDlgButtonChecked(hdlg, IDC_LEGACY_MOVER_ROT_ACCEL) == BST_CHECKED;
     },
 };
 

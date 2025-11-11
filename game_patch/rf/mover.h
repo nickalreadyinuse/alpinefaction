@@ -21,6 +21,23 @@ namespace rf
     };
     static_assert(sizeof(Keyframe) == 0x4);
 
+    struct MoverKeyframe
+    {
+        int uid;
+        Vector3 pos;
+        Matrix3 orient;
+        float pause_time_seconds;
+        float forward_time_seconds;
+        float reverse_time_seconds;
+        float ramp_up_time_seconds;
+        float ramp_down_time_seconds;
+        int event_uid;
+        int item_uids[2];
+        float rotation_angle;
+        Vector3 rotation_axis;
+    };
+    static_assert(sizeof(MoverKeyframe) == 0x64);
+
     enum class MoverKeyframeMoveType : int
     {
         MKMT_ONE_WAY = 0x1,
@@ -38,7 +55,7 @@ namespace rf
         char mover_index;
         char padding[3];
         Timestamp field_298;
-        VArray<Keyframe> keyframes;
+        VArray<MoverKeyframe> keyframes;
         VArray<int> object_uids;
         VArray<int> brush_uids;
         VArray<int> object_handles;

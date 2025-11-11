@@ -16,6 +16,7 @@
 #include "alpine_options.h"
 #include "alpine_settings.h"
 #include "misc.h"
+#include "level.h"
 #include "../sound/sound.h"
 #include "../os/console.h"
 #include "../main/main.h"
@@ -27,6 +28,7 @@
 #include "../rf/gameseq.h"
 #include "../rf/os/os.h"
 #include "../rf/misc.h"
+#include "../rf/mover.h"
 #include "../rf/parse.h"
 #include "../rf/vmesh.h"
 #include "../rf/level.h"
@@ -222,6 +224,124 @@ CodeInjection mover_rotating_keyframe_oob_crashfix{
         float& unk_time = *reinterpret_cast<float*>(regs.esi + 0x308);
         unk_time = 0;
         regs.eip = 0x0046A89D;
+    }
+};
+
+CallHook<void(float*, float, float)> cap_float_mover_process_pre_hook{
+    0x00469AD0,
+    [](float* vel, float min, float max) {
+        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+            cap_float_mover_process_pre_hook.call_target(vel, min, max);
+        }
+        else {
+            if (max <= 0.0f) {
+                *vel = 0.0f;
+                return;
+            }
+            // legacy behaviour clamps vel to 0.4f which breaks very slow moving movers
+            *vel = std::clamp(*vel, 0.0f, max);
+        }
+    },
+};
+
+static float alpine_rot_progress_trapezoid(float t, float T, float accel, float decel)
+{
+    // default behaviours in strange cases for safety
+    if (T <= 0.0f)
+        return 1.0f;
+    if (t <= 0.0f)
+        return 0.0f;
+    if (t >= T)
+        return 1.0f;
+
+    // if the mapper made accel+decel > total time, scale them down proportionally
+    float sum = accel + decel;
+    if (sum > 0.0f && sum > T) {
+        float s = T / sum;
+        accel *= s;
+        decel *= s;
+    }
+
+    // no accel/decel = linear movement
+    if (accel <= 0.0f && decel <= 0.0f)
+        return t / T;
+
+    const float v_max = 1.0f / (T - 0.5f * (accel + decel)); // full area = 1
+    const float cruise_start = accel;
+    const float cruise_end   = T - decel;
+
+    if (t < accel) {
+        // accelerating from 0 to max vel
+        return 0.5f * v_max * (t * t / accel);
+    }
+
+    if (t < cruise_end) {
+        // moving at max vel
+        const float area_accel = 0.5f * v_max * accel;
+        return area_accel + v_max * (t - cruise_start);
+    }
+
+    // decelerating from max vel to 0
+    const float u = T - t; // decel for remaining travel time
+    const float remaining = 0.5f * v_max * (u * u / decel);
+    return 1.0f - remaining;
+}
+
+CodeInjection mover_rotating_process_pre_accel_patch{
+    0x0046A55F,
+    [](auto& regs)
+    {
+        if (AlpineLevelProperties::instance().legacy_mover_rot_accel) {
+            return; // legacy behaviour
+        }
+        else {
+            rf::Mover* mp = regs.esi;
+            rf::MoverKeyframe* kf0 = regs.ebp;
+
+            if (!mp || !kf0 || mp->stop_at_keyframe == -1) {
+                regs.eip = 0x0046A5D8; // abort
+                return;
+            }
+
+            const bool forward = (mp->mover_flags & 0x2000) != 0;
+            const float T = forward ? kf0->forward_time_seconds : kf0->reverse_time_seconds;
+            const float t = mp->travel_time_seconds;
+
+            if (T <= 0.0f) { // invalid forward/reverse time
+                regs.eip = 0x0046A6C9;
+                return;
+            }
+
+            if (t >= T) { // travel time exceeds forward/reverse time
+                regs.eip = 0x0046A6C9;
+                return;
+            }
+
+            const float A = kf0->rotation_angle; // radians
+
+            // no warping after accel/decel
+            float accel = kf0->ramp_up_time_seconds;
+            float decel = kf0->ramp_down_time_seconds;
+            if (accel < 0.0f)
+                accel = 0.0f;
+            if (decel < 0.0f)
+                decel = 0.0f;
+
+            const float p = alpine_rot_progress_trapezoid(t, T, accel, decel);
+
+            float angle_now = forward ? (A * p) : (A * (1.0f - p));
+
+            constexpr float two_pi = 6.2831855f;
+            if (angle_now >= two_pi || angle_now < 0.0f) {
+                angle_now = std::fmod(angle_now, two_pi);
+                if (angle_now < 0.0f)
+                    angle_now += two_pi;
+            }
+
+            mp->rot_cur_pos = angle_now;
+
+            regs.eip = 0x0046A5D8;
+        }
     }
 };
 
@@ -586,6 +706,12 @@ void misc_init()
 
     // Fix crash when skipping cutscene after robot kill in L7S4
     mover_rotating_keyframe_oob_crashfix.install();
+
+    // Allow very slow speed movers
+    cap_float_mover_process_pre_hook.install();
+
+    // Fix accel/decel for rotating movers
+    mover_rotating_process_pre_accel_patch.install();
 
     // Fix crash in LEGO_MP mod caused by XSTR(1000, "RL"); for some reason it does not crash in PF...
     parser_xstr_oob_fix.install();

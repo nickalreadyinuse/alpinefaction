@@ -16,8 +16,11 @@ struct AlpineLevelProperties
     // defaults for new levels
     // v1
     bool legacy_cyclic_timers = false;
+    // v2
+    bool legacy_mover_velocity = false;
+    bool legacy_mover_rot_accel = false;
 
-    static constexpr std::uint32_t current_alpine_chunk_version = 1u;
+    static constexpr std::uint32_t current_alpine_chunk_version = 2u;
 
     // defaults for existing levels, overwritten for maps with these fields in their alpine level props chunk
     // relevant for maps without alpine level props and maps with older alpine level props versions
@@ -25,6 +28,8 @@ struct AlpineLevelProperties
     void LoadDefaults()
     {
         legacy_cyclic_timers = true;
+        legacy_mover_velocity = true;
+        legacy_mover_rot_accel = true;
     }
 
     void Serialize(rf::File& file) const
@@ -33,6 +38,9 @@ struct AlpineLevelProperties
 
         // v1
         file.write<std::uint8_t>(legacy_cyclic_timers ? 1u : 0u);
+        // v2
+        file.write<std::uint8_t>(legacy_mover_velocity ? 1u : 0u);
+        file.write<std::uint8_t>(legacy_mover_rot_accel ? 1u : 0u);
     }
 
     void Deserialize(rf::File& file, std::size_t chunk_len)
@@ -79,13 +87,26 @@ struct AlpineLevelProperties
         }
         xlog::debug("[AlpineLevelProps] version {}", version);
 
-        // v1
         if (version >= 1) {
             std::uint8_t u8 = 0;
             if (!read_bytes(&u8, sizeof(u8)))
                 return;
             legacy_cyclic_timers = (u8 != 0);
             xlog::debug("[AlpineLevelProps] legacy_cyclic_timers {}", legacy_cyclic_timers);
+        }
+
+        if (version >= 2) {
+            std::uint8_t u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            legacy_mover_velocity = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] legacy_mover_velocity {}", legacy_mover_velocity);
+
+            u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            legacy_mover_rot_accel = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] legacy_mover_rot_accel {}", legacy_mover_rot_accel);
         }
     }
 };

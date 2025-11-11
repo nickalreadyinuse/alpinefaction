@@ -12,6 +12,9 @@ struct AlpineLevelProperties
     // default values if not set by level file
     // v1
     bool legacy_cyclic_timers = true;
+    // v2
+    bool legacy_mover_velocity = true;
+    bool legacy_mover_rot_accel = true;
 
     static AlpineLevelProperties& instance()
     {
@@ -63,13 +66,26 @@ struct AlpineLevelProperties
         }
         xlog::debug("[AlpineLevelProps] version {}", version);
 
-        // v1
         if (version >= 1) {
             std::uint8_t u8 = 0;
             if (!read_bytes(&u8, sizeof(u8)))
                 return;
             legacy_cyclic_timers = (u8 != 0);
             xlog::debug("[AlpineLevelProps] legacy_cyclic_timers {}", legacy_cyclic_timers);
+        }
+
+        if (version >= 2) {
+            std::uint8_t u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            legacy_mover_velocity = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] legacy_mover_velocity {}", legacy_mover_velocity);
+
+            u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            legacy_mover_rot_accel = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] legacy_mover_rot_accel {}", legacy_mover_rot_accel);
         }
     }
 };
