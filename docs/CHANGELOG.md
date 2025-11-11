@@ -95,6 +95,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `legacy_mover_velocity` and `legacy_mover_rot_accel` settings to level properties window in level editor
 
 [@is-this-c](https://github.com/is-this-c)
+- Add `ui_remote_server_cfg` command and a configurable control to display a remote server's config
 - Add `ui_always_show_spectators` command to display spectators in multiplayer
 - Simplify code that fixed broken events if their delay parameter was set
 
@@ -131,7 +132,7 @@ Version 1.2.0 (Willow): Not yet released
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
-- Fix a potential crash after a client quits the game on Direct3D 11 renderer
+- Fix a potential crash after a client quits a game if Directd3D 11 is enabled
 
 ### Commits from other repos
 [Dash Faction](https://github.com/rafalh/dashfaction) (Upstream)

@@ -32,6 +32,7 @@ enum class af_packet_type : uint8_t
     af_server_info = 0x5A,              // Alpine 1.2
     af_spectate_start = 0x5B,           // Alpine 1.2
     af_spectate_notify = 0x5C,          // Alpine 1.2
+    af_server_msg = 0x5D,               // Alpine 1.2
 };
 
 struct af_ping_location_req_packet
@@ -72,7 +73,8 @@ struct af_obj_update_packet
 
 enum class af_client_req_type : uint8_t
 {
-    af_req_handicap = 0x00,
+    af_req_handicap = 0x0,
+    af_req_server_cfg = 0x1,
 };
 
 struct HandicapPayload
@@ -80,7 +82,7 @@ struct HandicapPayload
     uint8_t amount = 0;
 };
 
-using af_client_payload = std::variant<HandicapPayload>;
+using af_client_payload = std::variant<HandicapPayload, std::monostate>;
 
 struct af_client_req_packet
 {
@@ -144,31 +146,31 @@ struct af_just_died_info_packet
     uint16_t spawn_delay;
 };
 
-enum af_server_info_flags : uint32_t
-{
-    SIF_NONE = 0x0,
-    SIF_POSITION_SAVING = 0x1,
-    SIF_UNUSED = 0x2,
-    SIF_ALLOW_FULLBRIGHT_MESHES = 0x4,
-    SIF_ALLOW_LIGHTMAPS_ONLY = 0x8,
-    SIF_ALLOW_NO_SCREENSHAKE = 0x10,
-    SIF_NO_PLAYER_COLLIDE = 0x20,
-    SIF_ALLOW_NO_MUZZLE_FLASH_LIGHT = 0x40,
-    SIF_CLICK_LIMITER = 0x80,
-    SIF_ALLOW_UNLIMITED_FPS = 0x100,
-    SIF_GAUSSIAN_SPREAD = 0x200,
-    SIF_LOCATION_PINGING = 0x400,
-    SIF_DELAYED_SPAWNS = 0x800,
+enum af_server_info_flags : uint32_t {
+    SIF_NONE = 0,
+    SIF_POSITION_SAVING = 1u << 0,
+    SIF_UNUSED = 1u << 1,
+    SIF_ALLOW_FULLBRIGHT_MESHES = 1u << 2,
+    SIF_ALLOW_LIGHTMAPS_ONLY = 1u << 3,
+    SIF_ALLOW_NO_SCREENSHAKE = 1u << 4,
+    SIF_NO_PLAYER_COLLIDE = 1u << 5,
+    SIF_ALLOW_NO_MUZZLE_FLASH_LIGHT = 1u << 6,
+    SIF_CLICK_LIMITER = 1u << 7,
+    SIF_ALLOW_UNLIMITED_FPS = 1u << 8,
+    SIF_GAUSSIAN_SPREAD = 1u << 9,
+    SIF_LOCATION_PINGING = 1u << 10,
+    SIF_DELAYED_SPAWNS = 1u << 11,
+    SIF_SERVER_CFG_CHANGED = 1u << 12,
 };
 
-enum rf_server_info_flags : uint8_t // subset of rf::NetGameFlags
-{
-    RFSIF_NONE = 0x0,
-    RFSIF_WEAPON_STAY = 0x1,
-    RFSIF_FORCE_RESPAWN = 0x2,
-    RFSIF_TEAM_DAMAGE = 0x4,
-    RFSIF_FALL_DAMAGE = 0x8,
-    RFSIF_BALANCE_TEAMS = 0x10,
+// Subset of `rf::NetGameFlags`.
+enum rf_server_info_flags : uint8_t {
+    RFSIF_NONE = 0,
+    RFSIF_WEAPON_STAY = 1u << 0,
+    RFSIF_FORCE_RESPAWN = 1u << 1,
+    RFSIF_TEAM_DAMAGE = 1u << 2,
+    RFSIF_FALL_DAMAGE = 1u << 3,
+    RFSIF_BALANCE_TEAMS = 1u << 4,
 };
 
 struct af_server_info_packet
@@ -190,6 +192,16 @@ struct af_spectate_notify_packet {
     RF_GamePacketHeader header;
     uint8_t spectator_id;
     bool does_spectate;
+};
+
+enum af_server_msg_type : uint8_t {
+    AF_SERVER_MSG_TYPE_REMOTE_SERVER_CFG = 0x1,
+};
+
+struct af_server_msg_packet {
+    RF_GamePacketHeader header;
+    uint8_t type;
+    char data[];
 };
 
 #pragma pack(pop)
@@ -223,6 +235,9 @@ void af_send_spectate_start_packet(const rf::Player* spectatee);
 void af_process_spectate_start_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_spectate_notify_packet(rf::Player* player, const rf::Player* spectator, bool does_spectate);
 void af_process_spectate_notify_packet(const void* data, size_t len, const rf::NetAddr&);
+void af_send_server_cfg(rf::Player* player);
+void af_process_server_msg_packet(const void* data, size_t len, const rf::NetAddr&);
 
 // client requests
 void af_send_handicap_request(uint8_t amount);
+void af_send_server_cfg_request();
