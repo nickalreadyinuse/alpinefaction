@@ -34,7 +34,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `cl_autoswitchempty` command to always autoswitch empty weapons even if autoswitch is turned off
 - Bump RFL version to 302
 - Add support for custom AlpineLevelProperties chunk in rfl files
-- Add handling for `Legacy Cyclic_Timers` option in level files in editor and game
+- Add `legacy_cyclic_timers` setting to level properties window in level editor
 - Add "ignore nonvoters" option to dedicated server vote configs
 - Reformatted output of `info` command to contain more useful info
 - Deprecate `sv_connectedclients` command as all info is now in the output of `info`
@@ -92,6 +92,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `gt` alias to `sv_gametype` command
 - Allow `sv_gametype` execution via rcon
 - Add `dbg_numgeos` debug command to count number of geo craters in current level
+- Add `legacy_mover_velocity` and `legacy_mover_rot_accel` settings to level properties window in level editor
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `ui_always_show_spectators` command to display spectators in multiplayer
@@ -125,6 +126,8 @@ Version 1.2.0 (Willow): Not yet released
 - Fix skybox rendering issues with Direct3D 11 renderer on community level `dm-rfu-friday.rfl`
 - Fix MP timer alert sounds not playing if already played once this level (e.g. if level is extended)
 - Fix rare crash on game shutdown when certain mods are loaded
+- Fix slow-moving translating movers not working as expected (unless legacy switch is on)
+- Fix accelerating/decelerating rotating movers not working as expected (unless legacy switch is on)
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
