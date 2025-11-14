@@ -239,9 +239,93 @@ CallHook<void(float*, float, float)> cap_float_mover_process_pre_hook{
                 return;
             }
             // legacy behaviour clamps vel to 0.4f which breaks very slow moving movers
-            *vel = std::clamp(*vel, 0.0f, max);
+            *vel = std::clamp(*vel, 0.001f, max);
         }
     },
+};
+
+inline void normalize_ramp_times(float& accel, float& decel, float total_time)
+{
+    accel = std::max(accel, 0.0f);
+    decel = std::max(decel, 0.0f);
+
+    // if mapper made accel+decel > total time, scale them down proportionally
+    const float sum = accel + decel;
+    if (sum > total_time && sum > 0.0f) {
+        const float scale = total_time / sum;
+        accel *= scale;
+        decel *= scale;
+    }
+}
+
+float compute_translation_mover_travel_time(const rf::MoverKeyframe* kf, float cfg_time)
+{
+    if (!kf || cfg_time <= 0.0f) {
+        return 0.0f;
+    }
+
+    float accel = kf->ramp_up_time_seconds;
+    float decel = kf->ramp_down_time_seconds;
+    normalize_ramp_times(accel, decel, cfg_time);
+
+    // adjust travel time value to maintain trapezoidal velocity profile when using accel/decel
+    const float correction = 0.5f * (accel + decel);
+    const float travel_time = cfg_time - correction;
+
+    // is fed into stock game velocity calculation logic
+    return travel_time;
+}
+
+CodeInjection mover_process_pre_travel_time_fwd_patch{
+    0x004698F5,
+    [](auto& regs) {
+        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+            return; // legacy behaviour
+        }
+        else {
+            //rf::Mover* mp = regs.esi;
+            rf::MoverKeyframe* kf = regs.ebp;
+
+            if (!kf) {
+                return;
+            }
+
+            const float cfg_time = kf->forward_time_seconds; // forward travel
+            float travel_time = compute_translation_mover_travel_time(kf, cfg_time);
+
+            if (travel_time <= 0.0f) {
+                return; // no adjustment
+            }
+
+            regs.ecx = travel_time;
+        }
+    }
+};
+
+CodeInjection mover_process_pre_travel_time_bwd_patch{
+    0x004699C7,
+    [](auto& regs) {
+        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+            return; // legacy behaviour
+        }
+        else {
+            //rf::Mover* mp = regs.esi;
+            rf::MoverKeyframe* kf = regs.ebp;
+
+            if (!kf) {
+                return;
+            }
+
+            const float cfg_time = kf->reverse_time_seconds; // backward travel
+            float travel_time = compute_translation_mover_travel_time(kf, cfg_time);
+
+            if (travel_time <= 0.0f) {
+                return; // no adjustment
+            }
+
+            regs.edx = travel_time;
+        }
+    }
 };
 
 static float alpine_rot_progress_trapezoid(float t, float T, float accel, float decel)
@@ -254,13 +338,7 @@ static float alpine_rot_progress_trapezoid(float t, float T, float accel, float 
     if (t >= T)
         return 1.0f;
 
-    // if the mapper made accel+decel > total time, scale them down proportionally
-    float sum = accel + decel;
-    if (sum > 0.0f && sum > T) {
-        float s = T / sum;
-        accel *= s;
-        decel *= s;
-    }
+    normalize_ramp_times(accel, decel, T);
 
     // no accel/decel = linear movement
     if (accel <= 0.0f && decel <= 0.0f)
@@ -289,8 +367,7 @@ static float alpine_rot_progress_trapezoid(float t, float T, float accel, float 
 
 CodeInjection mover_rotating_process_pre_accel_patch{
     0x0046A55F,
-    [](auto& regs)
-    {
+    [](auto& regs) {
         if (AlpineLevelProperties::instance().legacy_mover_rot_accel) {
             return; // legacy behaviour
         }
@@ -318,16 +395,7 @@ CodeInjection mover_rotating_process_pre_accel_patch{
             }
 
             const float A = kf0->rotation_angle; // radians
-
-            // no warping after accel/decel
-            float accel = kf0->ramp_up_time_seconds;
-            float decel = kf0->ramp_down_time_seconds;
-            if (accel < 0.0f)
-                accel = 0.0f;
-            if (decel < 0.0f)
-                decel = 0.0f;
-
-            const float p = alpine_rot_progress_trapezoid(t, T, accel, decel);
+            const float p = alpine_rot_progress_trapezoid(t, T, kf0->ramp_up_time_seconds, kf0->ramp_down_time_seconds);
 
             float angle_now = forward ? (A * p) : (A * (1.0f - p));
 
@@ -341,6 +409,18 @@ CodeInjection mover_rotating_process_pre_accel_patch{
             mp->rot_cur_pos = angle_now;
 
             regs.eip = 0x0046A5D8;
+        }
+    }
+};
+
+CodeInjection mover_rotating_process_pre_ping_pong_patch{
+    0x0046A84F,
+    [](auto& regs) {
+        if (AlpineLevelProperties::instance().legacy_mover_rot_accel) {
+            return; // legacy behaviour
+        }
+        else {
+            regs.eip = 0x0046A855;
         }
     }
 };
@@ -710,8 +790,15 @@ void misc_init()
     // Allow very slow speed movers
     cap_float_mover_process_pre_hook.install();
 
-    // Fix accel/decel for rotating movers
+    // Calculate correct travel time for movers with accel/decel
+    mover_process_pre_travel_time_fwd_patch.install();
+    mover_process_pre_travel_time_bwd_patch.install();
+
+    // Fix accel/decel and "Loop" mode behaviour for rotating movers
     mover_rotating_process_pre_accel_patch.install();
+
+    // Fix "Ping Pong Infinite" mode behaviour for rotating movers
+    mover_rotating_process_pre_ping_pong_patch.install();
 
     // Fix crash in LEGO_MP mod caused by XSTR(1000, "RL"); for some reason it does not crash in PF...
     parser_xstr_oob_fix.install();

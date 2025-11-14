@@ -129,6 +129,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix rare crash on game shutdown when certain mods are loaded
 - Fix slow-moving translating movers not working as expected (unless legacy switch is on)
 - Fix accelerating/decelerating rotating movers not working as expected (unless legacy switch is on)
+- Fix `Ping Pong Infinite`, `Loop Once`, and `Loop Infinite` modes for rotating movers (unless legacy switch is on)
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
