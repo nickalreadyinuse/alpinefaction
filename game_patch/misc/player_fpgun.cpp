@@ -97,6 +97,49 @@ void player_fpgun_reload_meshes(bool force)
     }
 }
 
+void fpgun_play_random_idle_anim()
+{
+    auto* pp = rf::local_player;
+    const int weapon_cls_id = rf::player_get_current_weapon(pp);
+
+    if (!pp)
+        return;
+
+    bool deny_play_idle = rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_RELOAD) ||
+                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_1) ||
+                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_2) ||
+                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_3) ||
+                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_HOLSTER) ||
+                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_DRAW);
+
+    if (deny_play_idle)
+        return;
+
+    rf::WeaponAction candidates[3];
+    int count = 0;
+
+    for (int action = rf::WeaponAction::WA_IDLE_1; action <= rf::WeaponAction::WA_IDLE_3; ++action) {
+        auto wa = static_cast<rf::WeaponAction>(action);
+        if (rf::player_fpgun_action_anim_exists(weapon_cls_id, wa)) {
+            candidates[count++] = wa;
+        }
+    }
+
+    if (count == 0)
+        return;
+
+    int r = rand() % count; // todo: g_rng, weight toward lower numbers
+    rf::player_fpgun_play_anim(pp, candidates[r]);
+    rf::player_fpgun_reset_idle_timeout(pp);
+}
+
+CallHook<void(rf::Player*)> player_fpgun_stop_idle_actions_hook{
+    0x004AA4E4,
+    [](rf::Player* pp) {
+        return;
+    },
+};
+
 #ifndef NDEBUG
 
 ConsoleCommand2 reload_fpgun_cmd{
@@ -260,6 +303,9 @@ void player_fpgun_do_patch()
 
     // Render rocket launcher scanner image every frame
     // addr_as_ref<bool>(0x5A1020) = 0;
+
+    // do not stop playing idle anim when fpgun state anim changes
+    player_fpgun_stop_idle_actions_hook.install();
 
     // Allow customizing fpgun fov
     player_fpgun_render_gr_setup_3d_hook.install();
