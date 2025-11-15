@@ -19,6 +19,7 @@ struct AlpineLevelProperties
     // v2
     bool legacy_mover_velocity = false;
     bool legacy_mover_rot_accel = false;
+    bool correct_mover_times = true;
 
     static constexpr std::uint32_t current_alpine_chunk_version = 2u;
 
@@ -30,6 +31,7 @@ struct AlpineLevelProperties
         legacy_cyclic_timers = true;
         legacy_mover_velocity = true;
         legacy_mover_rot_accel = true;
+        correct_mover_times = false;
     }
 
     void Serialize(rf::File& file) const
@@ -41,6 +43,7 @@ struct AlpineLevelProperties
         // v2
         file.write<std::uint8_t>(legacy_mover_velocity ? 1u : 0u);
         file.write<std::uint8_t>(legacy_mover_rot_accel ? 1u : 0u);
+        file.write<std::uint8_t>(correct_mover_times ? 1u : 0u);
     }
 
     void Deserialize(rf::File& file, std::size_t chunk_len)
@@ -107,6 +110,12 @@ struct AlpineLevelProperties
                 return;
             legacy_mover_rot_accel = (u8 != 0);
             xlog::debug("[AlpineLevelProps] legacy_mover_rot_accel {}", legacy_mover_rot_accel);
+
+            u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            correct_mover_times = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] correct_mover_times {}", correct_mover_times);
         }
     }
 };

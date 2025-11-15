@@ -239,36 +239,20 @@ CallHook<void(float*, float, float)> cap_float_mover_process_pre_hook{
                 return;
             }
             // legacy behaviour clamps vel to 0.4f which breaks very slow moving movers
-            *vel = std::clamp(*vel, 0.001f, max);
+            *vel = std::clamp(*vel, 0.0f, max);
         }
     },
 };
 
-inline void normalize_ramp_times(float& accel, float& decel, float total_time)
-{
-    accel = std::max(accel, 0.0f);
-    decel = std::max(decel, 0.0f);
-
-    // if mapper made accel+decel > total time, scale them down proportionally
-    const float sum = accel + decel;
-    if (sum > total_time && sum > 0.0f) {
-        const float scale = total_time / sum;
-        accel *= scale;
-        decel *= scale;
-    }
-}
-
-float compute_translation_mover_travel_time(const rf::MoverKeyframe* kf, float cfg_time)
+float alpine_trans_progress_trapezoid(const rf::MoverKeyframe* kf, float cfg_time)
 {
     if (!kf || cfg_time <= 0.0f) {
         return 0.0f;
     }
 
-    float accel = kf->ramp_up_time_seconds;
-    float decel = kf->ramp_down_time_seconds;
-    normalize_ramp_times(accel, decel, cfg_time);
-
     // adjust travel time value to maintain trapezoidal velocity profile when using accel/decel
+    const float accel = std::max(kf->ramp_up_time_seconds, 0.0f);
+    const float decel = std::max(kf->ramp_down_time_seconds, 0.0f);
     const float correction = 0.5f * (accel + decel);
     const float travel_time = cfg_time - correction;
 
@@ -291,7 +275,7 @@ CodeInjection mover_process_pre_travel_time_fwd_patch{
             }
 
             const float cfg_time = kf->forward_time_seconds; // forward travel
-            float travel_time = compute_translation_mover_travel_time(kf, cfg_time);
+            float travel_time = alpine_trans_progress_trapezoid(kf, cfg_time);
 
             if (travel_time <= 0.0f) {
                 return; // no adjustment
@@ -317,7 +301,7 @@ CodeInjection mover_process_pre_travel_time_bwd_patch{
             }
 
             const float cfg_time = kf->reverse_time_seconds; // backward travel
-            float travel_time = compute_translation_mover_travel_time(kf, cfg_time);
+            float travel_time = alpine_trans_progress_trapezoid(kf, cfg_time);
 
             if (travel_time <= 0.0f) {
                 return; // no adjustment
@@ -338,13 +322,16 @@ static float alpine_rot_progress_trapezoid(float t, float T, float accel, float 
     if (t >= T)
         return 1.0f;
 
-    normalize_ramp_times(accel, decel, T);
-
     // no accel/decel = linear movement
     if (accel <= 0.0f && decel <= 0.0f)
         return t / T;
 
-    const float v_max = 1.0f / (T - 0.5f * (accel + decel)); // full area = 1
+    const float v_max_denom = T - 0.5f * (accel + decel);
+
+    if (v_max_denom <= 0.0f)
+        return t / T; // fall back to linear, only possible if "fix mover times" is off
+
+    const float v_max = 1.0f / v_max_denom; // full area = 1
     const float cruise_start = accel;
     const float cruise_end   = T - decel;
 
@@ -395,7 +382,9 @@ CodeInjection mover_rotating_process_pre_accel_patch{
             }
 
             const float A = kf0->rotation_angle; // radians
-            const float p = alpine_rot_progress_trapezoid(t, T, kf0->ramp_up_time_seconds, kf0->ramp_down_time_seconds);
+            const float accel = std::max(kf0->ramp_up_time_seconds, 0.0f);
+            const float decel = std::max(kf0->ramp_down_time_seconds, 0.0f);
+            const float p = alpine_rot_progress_trapezoid(t, T, accel, decel);
 
             float angle_now = forward ? (A * p) : (A * (1.0f - p));
 

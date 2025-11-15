@@ -15,6 +15,7 @@ struct AlpineLevelProperties
     // v2
     bool legacy_mover_velocity = true;
     bool legacy_mover_rot_accel = true;
+    bool correct_mover_times = false;
 
     static AlpineLevelProperties& instance()
     {
@@ -86,6 +87,12 @@ struct AlpineLevelProperties
                 return;
             legacy_mover_rot_accel = (u8 != 0);
             xlog::debug("[AlpineLevelProps] legacy_mover_rot_accel {}", legacy_mover_rot_accel);
+
+            u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            correct_mover_times = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] correct_mover_times {}", correct_mover_times);
         }
     }
 };
