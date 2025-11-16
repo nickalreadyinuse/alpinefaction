@@ -100,17 +100,21 @@ void player_fpgun_reload_meshes(bool force)
 void fpgun_play_random_idle_anim()
 {
     auto* pp = rf::local_player;
-    const int weapon_cls_id = rf::player_get_current_weapon(pp);
-
     if (!pp)
         return;
 
-    bool deny_play_idle = rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_RELOAD) ||
-                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_1) ||
-                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_2) ||
-                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_3) ||
-                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_HOLSTER) ||
-                          rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_DRAW);
+    const int weapon_cls_id = rf::player_get_current_weapon(pp);
+    if (weapon_cls_id < 0)
+        return;
+
+    bool deny_play_idle =
+        rf::player_fpgun_is_in_state_anim(pp, rf::WeaponState::WS_LOOP_FIRE) ||
+        rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_RELOAD) ||
+        rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_1) ||
+        rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_2) ||
+        rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_IDLE_3) ||
+        rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_HOLSTER) ||
+        rf::player_fpgun_action_anim_is_playing(pp, rf::WeaponAction::WA_DRAW);
 
     if (deny_play_idle)
         return;
@@ -118,7 +122,10 @@ void fpgun_play_random_idle_anim()
     rf::WeaponAction candidates[3];
     int count = 0;
 
-    for (int action = rf::WeaponAction::WA_IDLE_1; action <= rf::WeaponAction::WA_IDLE_3; ++action) {
+    for (int action = static_cast<int>(rf::WeaponAction::WA_IDLE_1);
+        action <= static_cast<int>(rf::WeaponAction::WA_IDLE_3);
+        ++action)
+    {
         auto wa = static_cast<rf::WeaponAction>(action);
         if (rf::player_fpgun_action_anim_exists(weapon_cls_id, wa)) {
             candidates[count++] = wa;
@@ -128,10 +135,39 @@ void fpgun_play_random_idle_anim()
     if (count == 0)
         return;
 
-    int r = rand() % count; // todo: g_rng, weight toward lower numbers
-    rf::player_fpgun_play_anim(pp, candidates[r]);
+    const double roll = std::generate_canonical<double, 16>(g_rng);
+    int idx = 0;
+
+    if (count == 1) {
+        idx = 0;
+    }
+    else if (count == 2) {
+        // 90% first, 10% second
+        idx = (roll < 0.9) ? 0 : 1;
+    }
+    else { // count == 3
+        // 60% first, 30% second, 10% third
+        if (roll < 0.6)
+            idx = 0;
+        else if (roll < 0.9)
+            idx = 1;
+        else
+            idx = 2;
+    }
+
+    rf::player_fpgun_play_anim(pp, candidates[idx]);
     rf::player_fpgun_reset_idle_timeout(pp);
 }
+
+CodeInjection player_fpgun_update_state_anim_stop_idle_injection{
+    0x004AA3FA,
+    [](auto& regs) {
+        rf::Player* pp = regs.esi;
+        if (pp) {
+            rf::player_fpgun_stop_idle_actions(pp);
+        }
+    },
+};
 
 CallHook<void(rf::Player*)> player_fpgun_stop_idle_actions_hook{
     0x004AA4E4,
@@ -306,6 +342,9 @@ void player_fpgun_do_patch()
 
     // do not stop playing idle anim when fpgun state anim changes
     player_fpgun_stop_idle_actions_hook.install();
+
+    // stop idle anims when starting auto fire (semi auto is already handled by stock game)
+    player_fpgun_update_state_anim_stop_idle_injection.install();
 
     // Allow customizing fpgun fov
     player_fpgun_render_gr_setup_3d_hook.install();
