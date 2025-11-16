@@ -93,6 +93,7 @@ Version 1.2.0 (Willow): Not yet released
 - Allow `sv_gametype` execution via rcon
 - Add `dbg_numgeos` debug command to count number of geo craters in current level
 - Add legacy mover setting to level properties window in level editor
+- Add `Inspect weapon` control bind
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `key_quick_exit` command to restore keyboard shortcut `Shift+Esc` to quit out of Red Faction
