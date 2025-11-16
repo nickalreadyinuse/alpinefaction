@@ -265,6 +265,8 @@ CodeInjection control_config_init_patch{
                                        rf::AlpineControlConfigAction::AF_ACTION_NO_AUTOSWITCH);
         alpine_control_config_add_item(ccp, "Remote server config", false, rf::KEY_F5, -1, -1,
                                        rf::AlpineControlConfigAction::AF_ACTION_REMOTE_SERVER_CFG);
+        alpine_control_config_add_item(ccp, "Inspect weapon", false, rf::KEY_I, -1, -1,
+                                       rf::AlpineControlConfigAction::AF_ACTION_INSPECT_WEAPON);
     },
 };
 
@@ -298,6 +300,10 @@ CodeInjection player_execute_action_patch{
             else if (action_index == starting_alpine_control_index +
                 static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_PING_LOCATION)) {
                 ping_looked_at_location();
+            }
+            else if (action_index == starting_alpine_control_index +
+                static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_INSPECT_WEAPON)) {
+                fpgun_play_random_idle_anim();
             }
         }
     },
