@@ -92,11 +92,11 @@ Version 1.2.0 (Willow): Not yet released
 - Add `gt` alias to `sv_gametype` command
 - Allow `sv_gametype` execution via rcon
 - Add `dbg_numgeos` debug command to count number of geo craters in current level
-- Add legacy mover settings to level properties window in level editor
+- Add legacy mover setting to level properties window in level editor
 
 [@is-this-c](https://github.com/is-this-c)
-- Add `key_quick_exit` command to restore keyboard shortcut `Shift+Esc` to quit out of Red Faction 
-- Add support to quit out of Red Faction, by window messages
+- Add `key_quick_exit` command to restore keyboard shortcut `Shift+Esc` to quit out of Red Faction
+- Support `Alt+F4` or pressing X on window to quit out of Red Faction
 - Add `ui_remote_server_cfg` command and a configurable control to display a remote server's config
 - Add `ui_always_show_spectators` command to display spectators in multiplayer
 - Simplify code that fixed broken events if their delay parameter was set

@@ -34,7 +34,7 @@ CodeInjection level_read_data_check_restore_status_patch{
 CodeInjection level_read_moving_group_travel_time_patch{
     0x0046396C,
     [](auto& regs) {
-        if (!AlpineLevelProperties::instance().correct_mover_times) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
         }
         else {

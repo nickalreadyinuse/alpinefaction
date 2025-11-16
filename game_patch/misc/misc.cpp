@@ -230,7 +230,7 @@ CodeInjection mover_rotating_keyframe_oob_crashfix{
 CallHook<void(float*, float, float)> cap_float_mover_process_pre_hook{
     0x00469AD0,
     [](float* vel, float min, float max) {
-        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             cap_float_mover_process_pre_hook.call_target(vel, min, max);
             return;
         }
@@ -263,7 +263,7 @@ float alpine_trans_progress_trapezoid(const rf::MoverKeyframe* kf, float cfg_tim
 CodeInjection mover_process_pre_travel_time_fwd_patch{
     0x004698F5,
     [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
         }
 
@@ -288,7 +288,7 @@ CodeInjection mover_process_pre_travel_time_fwd_patch{
 CodeInjection mover_process_pre_travel_time_bwd_patch{
     0x004699C7,
     [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
         }
 
@@ -314,7 +314,7 @@ CodeInjection mover_process_pre_travel_time_bwd_patch{
 CodeInjection mover_process_pre_cur_vel_patch{
     0x00469B16,
     [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_mover_velocity) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
         }
 
@@ -399,7 +399,7 @@ static float alpine_rot_progress_trapezoid(float t, float T, float accel, float 
 CodeInjection mover_rotating_process_pre_accel_patch{
     0x0046A55F,
     [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_mover_rot_accel) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
         }
 
@@ -448,7 +448,7 @@ CodeInjection mover_rotating_process_pre_accel_patch{
 CodeInjection mover_rotating_process_pre_ping_pong_patch{
     0x0046A84F,
     [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_mover_rot_accel) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
         }
 
