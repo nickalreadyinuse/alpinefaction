@@ -671,21 +671,24 @@ CallHook level_init_pre_console_output_hook{
                     rf::netgame.type = g_local_pending_game_type.value();
 
                     if (g_local_pending_win_condition.has_value() && get_af_server_info_mutable().has_value()) {
-                        auto server_info = get_af_server_info_mutable().value();
+                        auto& server_info = get_af_server_info_mutable().value();
                         switch (rf::netgame.type) {
-                            case rf::NetGameType::NG_TYPE_CTF:
-                                rf::netgame.max_captures = g_local_pending_win_condition.value();
-                                break;
-                            case rf::NetGameType::NG_TYPE_KOTH:
-                                server_info.koth_score_limit = g_local_pending_win_condition.value();
-                            case rf::NetGameType::NG_TYPE_DC:
-                                server_info.dc_score_limit = g_local_pending_win_condition.value();
-                                break;
-                            case rf::NetGameType::NG_TYPE_REV:
-                                break;
-                            default:
-                                rf::netgame.max_kills = g_local_pending_win_condition.value();
-                                break;
+                        case rf::NetGameType::NG_TYPE_CTF:
+                            rf::netgame.max_captures = g_local_pending_win_condition.value();
+                            break;
+                        case rf::NetGameType::NG_TYPE_KOTH:
+                            server_info.koth_score_limit = g_local_pending_win_condition.value();
+                            break;
+                        case rf::NetGameType::NG_TYPE_DC:
+                            server_info.dc_score_limit = g_local_pending_win_condition.value();
+                            break;
+                        case rf::NetGameType::NG_TYPE_REV:
+                            break;
+                        case rf::NetGameType::NG_TYPE_RUN:
+                            break;
+                        default:
+                            rf::netgame.max_kills = g_local_pending_win_condition.value();
+                            break;
                         }
                     }
                 }
