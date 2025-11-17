@@ -197,7 +197,8 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
 
     int status_w = static_cast<int>(12 * scale);
     int score_w = static_cast<int>(50 * scale);
-    int kd_w = static_cast<int>(70 * scale);
+    bool show_kd = game_type != rf::NG_TYPE_RUN;
+    int kd_w = show_kd ? static_cast<int>(70 * scale) : 0;
     int caps_w = game_type == rf::NG_TYPE_CTF ? static_cast<int>(45 * scale) : 0;
     int ping_w = static_cast<int>(35 * scale);
     int name_w = w - status_w - score_w - kd_w - caps_w - ping_w;
@@ -214,7 +215,9 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
         rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xFF);
         rf::gr::string(name_x, y, rf::strings::player);
         rf::gr::string(score_x, y, rf::strings::score); // Note: RF uses "Frags"
-        rf::gr::string(kd_x, y, "K/D");
+        if (show_kd) {
+            rf::gr::string(kd_x, y, "K/D");
+        }
         if (game_type == rf::NG_TYPE_CTF) {
             rf::gr::string(caps_x, y, rf::strings::caps);
         }
@@ -267,11 +270,14 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
             int ping = player->net_data ? player->net_data->ping : 0;
 #endif
 
-            auto score_str = std::to_string(score);
+            int displayed_score = game_type == rf::NG_TYPE_RUN ? num_deaths : score;
+            auto score_str = std::to_string(displayed_score);
             rf::gr::string(score_x, y, score_str.c_str());
 
-            auto kills_deaths_str = std::format("{}/{}", num_kills, num_deaths);
-            rf::gr::string(kd_x, y, kills_deaths_str.c_str());
+            if (show_kd) {
+                auto kills_deaths_str = std::format("{}/{}", num_kills, num_deaths);
+                rf::gr::string(kd_x, y, kills_deaths_str.c_str());
+            }
 
             if (game_type == rf::NG_TYPE_CTF) {
                 auto caps_str = std::to_string(caps);
