@@ -2375,12 +2375,9 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
         ammo_count = winfo.max_ammo + winfo.clip_size;
     }
     rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
-    //ep->ai.clip_ammo[weapon_type] = winfo.clip_size;
-    //ep->ai.ammo[winfo.ammo_type] = winfo.max_ammo;
     rf::ai_add_weapon(&ep->ai, weapon_type, ammo_count);
      if (!rf::weapon_uses_clip(weapon_type)) {
         if (!rf::player_is_dead(player)) {
-            //xlog::warn("reloading non-clip weapon");
             rf::Entity* entity = rf::entity_from_handle(player->entity_handle);
             RF_ReloadPacket packet;
             packet.header.type = RF_GPT_RELOAD;
@@ -2392,7 +2389,6 @@ void server_add_player_weapon(rf::Player* player, int weapon_type, bool full_amm
             rf::multi_io_send_reliable(player, reinterpret_cast<uint8_t*>(&packet), sizeof(packet), 0);
         }
     }
-    //xlog::warn("gave player {} weapon {} with ammo {}", player->name, weapon_type, ammo_count);
 }
 
 void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
@@ -2414,14 +2410,12 @@ void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count)
         dropped_item = rf::item_create(32, "Multi Invulnerability", count, -1, &drop_position, &drop_orient, -1, 0, 0);
         break;
     default:
-        //xlog::debug("Unknown powerup type: {}", powerup_type);
         return;
     }
 
     if (dropped_item) {
-        xlog::debug("Dropped {} with count {}", dropped_item->name, count);
         dropped_item->item_flags |= 8u;
-        rf::send_obj_kill_packet(ep, dropped_item, nullptr);
+        rf::send_item_create_packet(dropped_item, 0);
     }
 }
 
