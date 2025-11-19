@@ -22,6 +22,8 @@
 #include "../main/main.h"
 #include "../multi/multi.h"
 #include "../multi/server.h"
+#include "../rf/os/frametime.h"
+#include "../rf/event.h"
 #include "../rf/gr/gr.h"
 #include "../rf/player/player.h"
 #include "../rf/multi.h"
@@ -227,133 +229,683 @@ CodeInjection mover_rotating_keyframe_oob_crashfix{
     }
 };
 
-CallHook<void(float*, float, float)> cap_float_mover_process_pre_hook{
-    0x00469AD0,
-    [](float* vel, float min, float max) {
-        if (AlpineLevelProperties::instance().legacy_movers) {
-            cap_float_mover_process_pre_hook.call_target(vel, min, max);
-            return;
-        }
-
-        if (max <= 0.0f) {
-            *vel = 0.0f;
-            return;
-        }
-        // legacy behaviour clamps vel to 0.4f which breaks very slow moving movers
-        *vel = std::clamp(*vel, 0.0f, max);
-    },
-};
-
-float alpine_trans_progress_trapezoid(const rf::MoverKeyframe* kf, float cfg_time)
+static inline rf::MoverKeyframe* KF(const rf::Mover* m, int i)
 {
-    if (!kf || cfg_time <= 0.0f) {
-        return 0.0f;
-    }
-
-    // adjust travel time value to maintain trapezoidal velocity profile when using accel/decel
-    const float accel = std::max(kf->ramp_up_time_seconds, 0.0f);
-    const float decel = std::max(kf->ramp_down_time_seconds, 0.0f);
-    const float correction = 0.5f * (accel + decel);
-    const float travel_time = cfg_time - correction;
-
-    // is fed into stock game velocity calculation logic
-    return travel_time;
+    return m->keyframes[i];
 }
 
-CodeInjection mover_process_pre_travel_time_fwd_patch{
-    0x004698F5,
-    [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_movers) {
-            return; // legacy behaviour
-        }
+static inline int count_keyframes(const rf::Mover* m)
+{
+    return m->keyframes.size();
+}
 
-        //rf::Mover* mp = regs.esi;
-        rf::MoverKeyframe* kf = regs.ebp;
+static inline bool mover_forward(const rf::Mover* m)
+{
+    return (m->mover_flags & rf::MoverFlags::MF_DIR_FORWARD) != 0;
+}
 
-        if (!kf) {
-            return;
-        }
+static inline void mover_set_forward(rf::Mover* m)
+{
+    m->mover_flags = static_cast<rf::MoverFlags>(
+        m->mover_flags | rf::MoverFlags::MF_DIR_FORWARD
+    );
+}
 
-        const float cfg_time = kf->forward_time_seconds; // forward travel
-        float travel_time = alpine_trans_progress_trapezoid(kf, cfg_time);
+static inline void mover_set_backward(rf::Mover* m)
+{
+    m->mover_flags = static_cast<rf::MoverFlags>(
+        m->mover_flags & ~rf::MoverFlags::MF_DIR_FORWARD
+    );
+}
 
-        if (travel_time <= 0.0f) {
-            return; // no adjustment
-        }
+static inline bool mover_paused_at_keyframe(const rf::Mover* m)
+{
+    return (m->mover_flags & rf::MoverFlags::MF_PAUSED_AT_KEYFRAME) != 0;
+}
 
-        regs.ecx = travel_time;
+static inline bool mover_paused_with_flag(const rf::Mover* m)
+{
+    return (m->mover_flags & rf::MoverFlags::MF_PAUSED) != 0;
+}
+
+static inline void mover_pause_at_kf(rf::Mover* m, float seconds)
+{
+    if (!m)
+        return;
+
+    if (seconds <= 0.0f) {
+        m->mover_flags = static_cast<rf::MoverFlags>(m->mover_flags & ~rf::MoverFlags::MF_PAUSED_AT_KEYFRAME);
+        m->wait_timestamp.invalidate();
+        return;
     }
-};
 
-CodeInjection mover_process_pre_travel_time_bwd_patch{
-    0x004699C7,
-    [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_movers) {
-            return; // legacy behaviour
-        }
+    const int ms = static_cast<int>(seconds * 1000.0f + 0.5f);
+    m->wait_timestamp.set(ms);
+    m->mover_flags = static_cast<rf::MoverFlags>(m->mover_flags | rf::MoverFlags::MF_PAUSED_AT_KEYFRAME);
+    m->cur_vel = 0.0f;
 
-        //rf::Mover* mp = regs.esi;
-        rf::MoverKeyframe* kf = regs.ebp;
+    rf::mover_play_stop_sound(m);
+}
 
-        if (!kf) {
-            return;
-        }
+static inline void mover_clear_pause(rf::Mover* m)
+{
+    if (!m)
+        return;
 
-        const float cfg_time = kf->reverse_time_seconds; // backward travel
-        float travel_time = alpine_trans_progress_trapezoid(kf, cfg_time);
+    m->mover_flags = static_cast<rf::MoverFlags>(m->mover_flags & ~rf::MoverFlags::MF_PAUSED_AT_KEYFRAME);
+    m->wait_timestamp.invalidate();
+}
 
-        if (travel_time <= 0.0f) {
-            return; // no adjustment
-        }
+static inline bool mover_is_moving(const rf::Mover* m)
+{
+    return (m->stop_at_keyframe != -1);
+}
 
-        regs.edx = travel_time;
+static bool alpine_mover_try_bounce_door_mid_segment(
+    rf::Mover* mp, int& from, int& to, rf::MoverKeyframe*& kfA, rf::MoverKeyframe*& kfB,
+    float& travel_param, float& travel, rf::Vector3& delta, float& dist_sq, float& dist)
+{
+    if (!mp)
+        return false;
+
+    const int count = count_keyframes(mp);
+    if (count < 2)
+        return false;
+
+    // Must be a door, must be obstructed by an entity
+    if (!rf::mover_is_door(mp) ||
+        mp->keyframe_move_type == rf::MoverKeyframeMoveType::MKMT_ONE_WAY ||
+        to != 0 ||
+        !rf::mover_is_obstructed_by_entity(mp))
+    {
+        return false;
     }
-};
 
-// ensure movers actually get to their destination keyframe if decel makes cur_vel drop to 0
-CodeInjection mover_process_pre_cur_vel_patch{
-    0x00469B16,
-    [](auto& regs) {
-        if (AlpineLevelProperties::instance().legacy_movers) {
-            return; // legacy behaviour
+    // Ensure current movement segment is valid
+    const float old_T = travel;
+    if (old_T <= 0.0f)
+        return false;
+
+    // Where are we along the segment?
+    const float old_t = mp->travel_time_seconds;
+    const float frac = std::clamp(old_t / old_T, 0.0f, 1.0f);
+
+    // Mirror the progress when bouncing
+    const float mirrored_frac = 1.0f - frac;
+
+    // Go back towards door open state
+    std::swap(mp->start_at_keyframe, mp->stop_at_keyframe);
+    mover_set_forward(mp);
+
+    from = mp->start_at_keyframe;
+    to = mp->stop_at_keyframe;
+
+    if (from < 0 || to < 0 || from >= count || to >= count || from == to)
+        return false;
+
+    kfA = KF(mp, from);
+    kfB = KF(mp, to);
+    if (!kfA || !kfB)
+        return false;
+
+    // Rebuild segment geometry
+    delta = kfB->pos - kfA->pos;
+    dist_sq = delta.x * delta.x + delta.y * delta.y + delta.z * delta.z;
+    dist = (dist_sq > 0.0f) ? std::sqrt(dist_sq) : 0.0f;
+
+    const bool dir_forward = (mp->mover_flags & rf::MoverFlags::MF_DIR_FORWARD) != 0;
+
+    if (dir_forward) {
+        travel_param = kfA->forward_time_seconds;
+    }
+    else {
+        travel_param = kfA->reverse_time_seconds;
+    }
+
+    travel = 0.001f; // fallback value
+
+    if (travel_param > 0.0f) {
+        if (mp->mover_flags & rf::MoverFlags::MF_USE_TRAV_TIME_AS_SPD) {
+            if (dist > 0.0f)
+                travel = dist / travel_param; // travel time treated as velocity
+        }
+        else {
+            travel = travel_param;
+        }
+    }
+
+    // Put us on the mirrored segment
+    mp->travel_time_seconds = mirrored_frac * travel;
+
+    return true;
+}
+
+// t = elapsed sec along this segment
+// T = total travel time (sec) for this segment
+static float alpine_trans_progress_trapezoid(float t, float T, float accel, float decel)
+{
+    if (T <= 0.0f)
+        return 1.0f;
+    if (t <= 0.0f)
+        return 0.0f;
+    if (t >= T)
+        return 1.0f;
+
+    if (accel <= 0.0f && decel <= 0.0f)
+        return t / T;
+
+    const float v_max_denom = T - 0.5f * (accel + decel);
+
+    // If accel+decel is too large, fall back to linear
+    if (v_max_denom <= 0.0f)
+        return t / T;
+
+    const float v_max = 1.0f / v_max_denom;
+    const float cruise_end = T - decel;
+
+    if (t < accel) {
+        // quadratic accelerate
+        return 0.5f * v_max * (t * t / accel);
+    }
+
+    if (t < cruise_end) {
+        // cruise: full speed, constant slope
+        const float area_accel = 0.5f * v_max * accel;
+        return area_accel + v_max * (t - accel);
+    }
+
+    // quadratic decelerate
+    const float u = T - t;
+    const float remaining = 0.5f * v_max * (u * u / decel);
+    return 1.0f - remaining;
+}
+
+// out_s = [0-1] progress
+// out_v_norm = normalized speed, integral over [0,T] == 1
+static void alpine_trans_trapezoid(float t, float T, float accel, float decel, float& out_s, float& out_v_norm)
+{
+    if (T <= 0.0f) {
+        out_s = 1.0f;
+        out_v_norm = 0.0f;
+        return;
+    }
+    if (t <= 0.0f) {
+        out_s = 0.0f;
+        out_v_norm = 0.0f;
+        return;
+    }
+    if (t >= T) {
+        out_s = 1.0f;
+        out_v_norm = 0.0f;
+        return;
+    }
+
+    if (accel <= 0.0f && decel <= 0.0f) {
+        // linear case
+        out_s = t / T;
+        out_v_norm = 1.0f / T; // constant speed
+        return;
+    }
+
+    const float v_max_denom = T - 0.5f * (accel + decel);
+
+    // If accel+decel is too large, fall back to linear
+    if (v_max_denom <= 0.0f) {
+        out_s = t / T;
+        out_v_norm = 1.0f / T;
+        return;
+    }
+
+    const float v_max = 1.0f / v_max_denom; // normalized speed
+    const float cruise_end = T - decel;
+    const float area_accel = 0.5f * v_max * accel;
+
+    // accelerating
+    if (t < accel) {
+        const float a = v_max / accel; // normalized acceleration
+        out_v_norm = a * t;
+        out_s      = 0.5f * a * t * t;
+        return;
+    }
+    // cruise
+    if (t < cruise_end) {
+        out_v_norm = v_max;
+        out_s      = area_accel + v_max * (t - accel);
+        return;
+    }
+
+    // decelerating
+    const float u = T - t;
+    const float a = v_max / decel; // normalized deceleration
+    out_v_norm = a * u;
+
+    const float area_tail = 0.5f * v_max * (u * u / decel);
+    out_s = 1.0f - area_tail;
+}
+
+
+void alpine_mover_reached_keyframe(rf::Mover* mp)
+{
+    if (!mp)
+        return;
+
+    const int count = count_keyframes(mp);
+    if (count < 2)
+        return;
+
+    const int from = mp->start_at_keyframe; // segment we just finished
+    const int cur  = mp->stop_at_keyframe; // arrival keyframe
+
+    if (cur < 0 || cur >= count || from < 0 || from >= count) {
+        mp->stop_at_keyframe = -1;
+        return;
+    }
+
+    const int first = 0;
+    const int last  = count - 1;
+
+    // Trigger event by UID
+    rf::MoverKeyframe* kf_cur = KF(mp, cur);
+    if (auto ev = rf::event_lookup_from_uid(kf_cur->event_uid)) {
+        rf::event_activate_from_trigger(ev->handle, mp->handle, -1);
+    }
+
+    // Snap to arrival state
+    mp->start_at_keyframe   = cur;
+    mp->travel_time_seconds = 0.0f;
+    mp->dist_travelled      = 0.0f;
+
+    const float pause = kf_cur->pause_time_seconds;
+
+    // stay open while player is in trigger region
+    if (mp->stop_completely_at_keyframe >= 0 && cur == mp->stop_completely_at_keyframe) {
+        const int count = count_keyframes(mp);
+        const int last = count - 1;
+
+        mp->start_at_keyframe = cur;
+        mp->stop_at_keyframe = -1;
+        mp->travel_time_seconds = 0.0f;
+        mp->dist_travelled = 0.0f;
+
+        rf::mover_play_stop_sound(mp);
+
+        if (cur == last) {
+            mover_set_backward(mp); // clear forward
+        }
+        else if (cur == 0) {
+            mover_set_forward(mp); // set forward
         }
 
-        rf::Mover* mp = regs.esi;
-        if (!mp || mp->stop_at_keyframe == -1)
+        return;
+    }
+
+    int next = -1; // default: stop until re-activated
+
+    switch (mp->keyframe_move_type)
+    {
+        // ONE WAY
+        case rf::MoverKeyframeMoveType::MKMT_ONE_WAY:
+        {
+            const bool forward = mover_forward(mp);
+
+            if (forward) {
+                if (cur < last) {
+                    // still heading toward last
+                    next = cur + 1;
+                } else {
+                    // reached last, stop; next activation goes backward
+                    mover_set_backward(mp);
+                    next = -1;
+                }
+            } else { // backward
+                if (cur > first) {
+                    next = cur - 1;
+                } else {
+                    // reached first, stop; next activation goes forward
+                    mover_set_forward(mp);
+                    next = -1;
+                }
+            }
+
+            mp->stop_at_keyframe = next;
+            mover_pause_at_kf(mp, pause);
             return;
-
-        if (mp->mover_flags & rf::MoverFlags::MF_PAUSED)
-            return; // do not snap if paused intentionally
-
-        // game calls mover_reverse_direction if doors are obstructed,
-        // which zeroes cur_vel, so we need to avoid snapping in that case
-        if ((mp->mover_flags & rf::MoverFlags::MF_DOOR) && (rf::mover_is_obstructed(mp) || rf::mover_is_obstructed_by_entity(mp))) {
-            return; // do not snap if it's a door and is obstructed
         }
 
-        const int start_idx = mp->start_at_keyframe;
-        const int stop_idx = mp->stop_at_keyframe;
-        if (start_idx < 0 || stop_idx < 0)
-            return;
+        // PING PONG ONCE
+        case rf::MoverKeyframeMoveType::MKMT_PING_PONG_ONCE:
+        {
+            bool forward = mover_forward(mp);
+            const int first = 0;
+            const int last = count - 1;
 
-        rf::MoverKeyframe* kf_start = mp->keyframes.get(start_idx);
-        rf::MoverKeyframe* kf_stop = mp->keyframes.get(stop_idx);
-        if (!kf_start || !kf_stop)
-            return;
+            if (forward) {
+                if (cur < last) {
+                    // Still on the forward leg: go to next keyframe
+                    next = cur + 1;
+                }
+                else {
+                    // Reached last while going forward – start the backward leg
+                    mover_set_backward(mp);
+                    forward = false;
+                    if (count > 1)
+                        next = cur - 1;
+                }
+            }
+            else { // backward
+                if (cur > first) {
+                    // Still going back toward first
+                    next = cur - 1;
+                }
+                else {
+                    // complete, stop here
+                    next = -1;
 
-        const float max_dist = rf::vec_dist(&kf_start->pos, &kf_stop->pos);
-        if (max_dist <= 0.0f)
-            return;
+                    // reset state so next activation is clean forward
+                    mover_set_forward(mp);
+                    mp->stop_completely_at_keyframe = -1;
+                }
+            }
 
-        if (mp->dist_travelled <= 0.0f || mp->dist_travelled >= max_dist)
+            mp->stop_at_keyframe = next;
+            mover_pause_at_kf(mp, pause);
             return;
+        }
 
-        if ( mp->cur_vel <= 0.0f) {
-            mp->dist_travelled = max_dist;
+        // PING PONG INFINITE
+        case rf::MoverKeyframeMoveType::MKMT_PING_PONG_INFINITE:
+        {
+            bool forward = mover_forward(mp);
+
+            if (forward) {
+                if (cur < last) {
+                    next = cur + 1;
+                } else {
+                    // reached last while going forward; bounce
+                    mover_set_backward(mp);
+                    forward = false;
+                    if (count > 1)
+                        next = cur - 1;
+                }
+            } else { // backward
+                if (cur > first) {
+                    next = cur - 1;
+                } else {
+                    // reached first while going backward; bounce again
+                    mover_set_forward(mp);
+                    forward = true;
+                    if (count > 1)
+                        next = cur + 1;
+                }
+            }
+
+            mp->stop_at_keyframe = next;
+            mover_pause_at_kf(mp, pause);
+            return;
+        }
+
+        // LOOP ONCE
+        case rf::MoverKeyframeMoveType::MKMT_LOOP_ONCE:
+        {
+            // check if loop is complete
+            if (from == last && cur == first) {
+                next = -1; // finished one loop
+            } else {
+                // keep going forward, wrapping
+                next = (cur < last) ? (cur + 1) : first;
+            }
+
+            mp->stop_at_keyframe = next;
+            mover_pause_at_kf(mp, pause);
+            return;
+        }
+
+        // LOOP INFINITE
+        case rf::MoverKeyframeMoveType::MKMT_LOOP_INFINITE:
+        {
+            next = (cur < last) ? (cur + 1) : first;
+
+            mp->stop_at_keyframe = next;
+            mover_pause_at_kf(mp, pause);
+            return;
+        }
+
+        // LIFT
+        case rf::MoverKeyframeMoveType::MKMT_LIFT:
+        {
+            // what should the next activation do?
+            if (cur == last)
+                mover_set_backward(mp);
+            else if (cur == first)
+                mover_set_forward(mp);
+
+            // finished one segment
+            next = -1;
+
+            mp->stop_at_keyframe = next;
+            mover_pause_at_kf(mp, pause);
+            return;
+        }
+    }
+}
+
+
+void alpine_mover_process_linear(rf::Mover* mp)
+{
+    if (!mp)
+        return;
+
+    const int count = count_keyframes(mp);
+    if (count < 2)
+        return;
+
+    // keep current position pinned if not moving
+    if (!mover_is_moving(mp)) {
+        const int cur = mp->start_at_keyframe;
+        if (cur >= 0 && cur < count)
+            mp->p_data.next_pos = KF(mp, cur)->pos;
+        return;
+    }
+
+    int from = mp->start_at_keyframe;
+    int to = mp->stop_at_keyframe;
+
+    if (from < 0 || to < 0 || from >= count || to >= count || from == to)
+        return;
+
+    rf::MoverKeyframe* kfA = KF(mp, from);
+    rf::MoverKeyframe* kfB = KF(mp, to);
+    if (!kfA || !kfB)
+        return;
+
+    const bool dir_forward = (mp->mover_flags & rf::MoverFlags::MF_DIR_FORWARD) != 0;
+
+    float travel_param = 0.0f;
+    if (dir_forward) {
+        travel_param = kfA->forward_time_seconds;
+    }
+    else { // backwards
+        travel_param = kfA->reverse_time_seconds;
+    }
+
+    // Compute segment distance
+    rf::Vector3 delta = kfB->pos - kfA->pos;
+    float dist_sq = rf::vec_dist_squared(&kfA->pos, &kfB->pos);
+    float dist = rf::vec_dist(&kfA->pos, &kfB->pos);
+
+    float travel = 0.001f; // fallback
+
+    if (travel_param > 0.0f) {
+        if (mp->mover_flags & rf::MoverFlags::MF_USE_TRAV_TIME_AS_SPD) {
+            // travel_param as velocity
+            if (dist > 0.0f)
+                travel = dist / travel_param;
+        }
+        else {
+            // travel_param as time
+            travel = travel_param;
+        }
+    }
+
+    bool bounced_this_frame =
+        alpine_mover_try_bounce_door_mid_segment(mp, from, to, kfA, kfB, travel_param, travel, delta, dist_sq, dist);
+
+    // Obstructed and has not bounced this frame
+    if (!bounced_this_frame && rf::mover_is_obstructed(mp)) {
+        const float obstruct_pause = kfB->pause_time_seconds;
+        mover_pause_at_kf(mp, obstruct_pause);
+        return;
+    }
+
+    // Advance elapsed time
+    mp->travel_time_seconds += rf::frametime;
+    if (mp->travel_time_seconds > travel)
+        mp->travel_time_seconds = travel;
+
+    float accel = kfA->ramp_up_time_seconds;
+    float decel = kfA->ramp_down_time_seconds;
+
+    // For "Travel Time as Velocity" mode, ensure accel/decel fit within travel
+    const bool use_travel_time_as_velocity = (mp->mover_flags & rf::MoverFlags::MF_USE_TRAV_TIME_AS_SPD) != 0;
+    if (use_travel_time_as_velocity && travel > 0.0f) {
+        const float ramp_sum = accel + decel;
+        if (ramp_sum > 0.0f) {
+            const float max_ramp_sum = 0.9f * travel;
+            if (ramp_sum > max_ramp_sum) {
+                const float scale = max_ramp_sum / ramp_sum;
+                accel *= scale;
+                decel *= scale;
+            }
+        }
+    }
+
+    // Calculate and set mover properties for this frame
+    float s = 0.0f;
+    float v_norm = 0.0f;
+    alpine_trans_trapezoid(mp->travel_time_seconds, travel, accel, decel, s, v_norm);
+    mp->dist_travelled = dist * s; // s = path fraction
+    mp->cur_vel = dist * v_norm;
+    const rf::Vector3 pos{kfA->pos.x + delta.x * s, kfA->pos.y + delta.y * s, kfA->pos.z + delta.z * s};
+    mp->p_data.next_pos = pos;
+
+    // Did we reach the end of this segment?
+    if (mp->travel_time_seconds >= travel - 1e-4f) {
+        // Snap cleanly to destination
+        mp->p_data.next_pos = kfB->pos;
+        mp->travel_time_seconds = 0.0f;
+        mp->dist_travelled = 0.0f;
+
+        const int old_stop = mp->stop_at_keyframe;
+
+        alpine_mover_reached_keyframe(mp);
+
+        // no longer have a next keyframe, fully stop
+        if (!mover_is_moving(mp)) {
+            if (!mover_paused_at_keyframe(mp)) {
+                rf::mover_play_stop_sound(mp);
+            }
+        }
+
+        rf::mover_update_item_status(mp);
+    }
+    /* xlog::warn("mover {} seg {} -> {}, dir_fwd={}, use_trav_as_spd={}, "
+               "fwdA={}, revA={}, travel_param={}, travel={}, frametime={}",
+               mp->handle, from, to, dir_forward, (mp->mover_flags & rf::MoverFlags::MF_USE_TRAV_TIME_AS_SPD) != 0,
+               kfA->forward_time_seconds, kfA->reverse_time_seconds, travel_param, travel, rf::frametime);*/
+}
+
+static void alpine_mover_process_pre(rf::Mover* mp)
+{
+    if (!mp)
+        return;
+
+    mp->p_data.vel = rf::Vector3{0.0f, 0.0f, 0.0f};
+
+    if (rf::mover_rotates_in_place(mp)) {
+        rf::mover_rotating_process_pre(mp);
+        return;
+    }
+
+    const int count = count_keyframes(mp);
+
+    if (mp->door_room) {
+        auto* door_room = static_cast<std::uint8_t*>(mp->door_room);
+        door_room[0x40] = 0;
+        if (mp->start_at_keyframe == 0 && mp->stop_at_keyframe == -1)
+            door_room[0x40] = 1;
+    }
+
+    const auto mover_flags = mp->mover_flags;
+
+    if (mover_flags & rf::MoverFlags::MF_PAUSED) {
+        // treat mover as active with zero velocity
+        // allows mover_interpolate_objects to ensure child brushes/objects also have their vel zeroed when paused
+        // otherwise they would keep their last frame vel and players standing on them would be pushed
+        mp->mover_flags = static_cast<rf::MoverFlags>(mover_flags | (rf::MoverFlags::MF_UNK_8 | rf::MoverFlags::MF_UNK_4000));
+
+        mp->obj_flags = static_cast<rf::ObjectFlags>(static_cast<int>(mp->obj_flags) | 0x04000000);
+
+        const int loop_instance = mp->sound_instances[1];
+        if (loop_instance != -1) {
+            rf::snd_change_3d(loop_instance, mp->p_data.pos, rf::zero_vector, 1.0f);
+        }
+
+        mp->p_data.vel = rf::Vector3{0.0f, 0.0f, 0.0f};
+        mp->cur_vel = 0.0f;
+
+        return;
+    }
+
+    if (!mover_is_moving(mp)) {
+        return;
+    }
+
+    // normal movement
+    mp->mover_flags = static_cast<rf::MoverFlags>(mover_flags | (rf::MoverFlags::MF_UNK_8 | rf::MoverFlags::MF_UNK_4000));
+    mp->obj_flags = static_cast<rf::ObjectFlags>(static_cast<int>(mp->obj_flags) | 0x04000000);
+
+    const int loop_instance = mp->sound_instances[1];
+    if (loop_instance != -1) {
+        rf::snd_change_3d(loop_instance, mp->p_data.pos, rf::zero_vector, 1.0f);
+    }
+
+    // handle pause time
+    if (mover_paused_at_keyframe(mp)) {
+        if (!mp->wait_timestamp.elapsed()) {
+            const int cur = mp->start_at_keyframe;
+            if (cur >= 0 && cur < count) {
+                mp->p_data.next_pos = KF(mp, cur)->pos;
+            }
+            mp->p_data.vel = rf::Vector3{0.0f, 0.0f, 0.0f};
             mp->cur_vel = 0.0f;
-            mp->p_data.next_pos = kf_stop->pos;
+            return;
         }
+
+        mover_clear_pause(mp);
+        rf::mover_play_start_sound(mp);
     }
+
+    alpine_mover_process_linear(mp);
+}
+
+FunHook<void(rf::Mover*)> mover_process_pre_hook{
+    0x00469800,
+    [](rf::Mover* mp) {
+        if (!mp)
+            return;
+
+        if (AlpineLevelProperties::instance().legacy_movers) {
+            mover_process_pre_hook.call_target(mp);
+            return;
+        }
+
+        alpine_mover_process_pre(mp);
+
+        //auto* brush = rf::obj_lookup_from_uid(6711);
+        //xlog::warn("flags {:x},{:x}, vel {},{},{}, next_pos {},{},{}", static_cast<uint32_t>(mp->mover_flags), static_cast<uint32_t>(mp->obj_flags),
+        //    brush->p_data.vel.x, brush->p_data.vel.y, brush->p_data.vel.z,
+        //    brush->p_data.next_pos.x, brush->p_data.next_pos.y, brush->p_data.next_pos.z);
+    },
 };
 
 static float alpine_rot_progress_trapezoid(float t, float T, float accel, float decel)
@@ -826,13 +1378,8 @@ void misc_init()
     // Fix crash when skipping cutscene after robot kill in L7S4
     mover_rotating_keyframe_oob_crashfix.install();
 
-    // Allow very slow speed movers
-    cap_float_mover_process_pre_hook.install();
-    mover_process_pre_cur_vel_patch.install();
-
-    // Calculate correct travel time for movers with accel/decel
-    mover_process_pre_travel_time_fwd_patch.install();
-    mover_process_pre_travel_time_bwd_patch.install();
+    // Alpine translation movers
+    mover_process_pre_hook.install();
 
     // Fix accel/decel and "Loop" mode behaviour for rotating movers
     mover_rotating_process_pre_accel_patch.install();
