@@ -977,6 +977,42 @@ CodeInjection mover_rotating_process_pre_ping_pong_patch{
     }
 };
 
+CodeInjection mover_interpolate_objects_force_orient_trans_patch{
+    0x0046BF39, // after check for translation movers with "Force Orient" flag
+    [](auto& regs) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
+            return; // legacy behaviour
+        }
+
+        rf::Mover* mp = regs.esi;
+        // for translating movers with "Force Orient", stock game code crashes on Vector3::get_substracted for stop_at_keyframe
+        // because stop_at_keyframe is -1 before movement begins - we don't need to care about orient here
+        // because it is not important until movement starts, so skip it to avoid the crash
+        if (mp->stop_at_keyframe < 0 || mp->start_at_keyframe < 0) {
+            regs.eip = 0x0046BF89;
+            return;
+        }
+    }
+};
+
+CodeInjection mover_interpolate_objects_force_orient_rot_patch{
+    0x0046BECA,
+    [](auto& regs) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
+            return; // legacy behaviour
+        }
+
+        rf::Mover* mp = regs.esi;
+        // rotating movers force the orientation to follow the rotation path by default, so use "Force Orient"
+        // to reverse that behavior and force the orientation to stay fixed throughout the movement
+        if ((mp->mover_flags & rf::MoverFlags::MF_FORCE_ORIENT) != 0) {
+            rf::Matrix3 orient;
+            orient.make_identity();
+            regs.ecx = reinterpret_cast<int32_t>(&orient);
+        }
+    }
+};
+
 CodeInjection parser_xstr_oob_fix{
     0x0051212E,
     [](auto& regs) {
@@ -1355,6 +1391,10 @@ void misc_init()
 
     // Fix "Ping Pong Infinite" mode behaviour for rotating movers
     mover_rotating_process_pre_ping_pong_patch.install();
+
+    // Make "Force Orient" mover flag work properly
+    mover_interpolate_objects_force_orient_trans_patch.install();
+    mover_interpolate_objects_force_orient_rot_patch.install();
 
     // Fix crash in LEGO_MP mod caused by XSTR(1000, "RL"); for some reason it does not crash in PF...
     parser_xstr_oob_fix.install();

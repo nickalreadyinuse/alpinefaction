@@ -35,6 +35,12 @@ CodeInjection level_read_moving_group_travel_time_patch{
     0x00463BF3,
     [](auto& regs) {
         if (AlpineLevelProperties::instance().legacy_movers) {
+            rf::MoverCreateInfo* mci = regs.edx;
+            // "Force Orient" on translating movers crashes the stock game, so remove it if set just to avoid the crash
+            // In Alpine mode, this is fixed so it works properly so the flag shouldn't be removed
+            if (!mci->rotate_in_place) {
+                mci->force_orient = false;
+            }
             return; // legacy behaviour
         }
         else {
