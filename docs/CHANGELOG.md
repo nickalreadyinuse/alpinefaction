@@ -135,7 +135,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix accelerating/decelerating rotating movers not working as expected (unless legacy switch is on)
 - Fix `Ping Pong Infinite`, `Loop Once`, and `Loop Infinite` modes for rotating movers (unless legacy switch is on)
 - Fix `Lift` mode for translating movers (unless legacy switch is on)
-- Fix strange behaviour of mover travel times when accel + decel is greater than total travel time (unless fix switch is off)
+- Fix strange behaviour of mover travel times when accel + decel is greater than total travel time (unless legacy switch is on)
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
