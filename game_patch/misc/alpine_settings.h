@@ -94,6 +94,7 @@ struct AlpineGameSettings
     bool world_hud_damage_numbers = true;
     bool world_hud_spectate_player_labels = false;
     bool world_hud_team_player_labels = false;
+    bool show_location_pings = true;
     bool play_hit_sounds = true;
     bool play_taunt_sounds = true;
     bool play_global_rad_msg_sounds = true;

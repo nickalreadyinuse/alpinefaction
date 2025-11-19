@@ -457,6 +457,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.world_hud_team_player_labels = std::stoi(settings["WorldHUDTeamLabels"]);
         processed_keys.insert("WorldHUDTeamLabels");
     }
+    if (settings.count("ShowLocationPings")) {
+        g_alpine_game_config.show_location_pings = std::stoi(settings["ShowLocationPings"]);
+        processed_keys.insert("ShowLocationPings");
+    }
     if (settings.count("PlayHitsounds")) {
         g_alpine_game_config.play_hit_sounds = std::stoi(settings["PlayHitsounds"]);
         processed_keys.insert("PlayHitsounds");
@@ -816,6 +820,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "WorldHUDDamageNumbers=" << g_alpine_game_config.world_hud_damage_numbers << "\n";
     file << "WorldHUDSpectateLabels=" << g_alpine_game_config.world_hud_spectate_player_labels << "\n";
     file << "WorldHUDTeamLabels=" << g_alpine_game_config.world_hud_team_player_labels << "\n";
+    file << "ShowLocationPings=" << g_alpine_game_config.show_location_pings << "\n";
     file << "PlayHitsounds=" << g_alpine_game_config.play_hit_sounds << "\n";
     file << "PlayTaunts=" << g_alpine_game_config.play_taunt_sounds << "\n";
     file << "VisualRicochet=" << g_alpine_game_config.multi_ricochet << "\n";

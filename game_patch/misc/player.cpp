@@ -499,6 +499,16 @@ ConsoleCommand2 localhitsound_cmd{
     "cl_hitsounds",
 };
 
+ConsoleCommand2 location_ping_display_cmd{
+    "cl_locationpings",
+    []() {
+        g_alpine_game_config.show_location_pings = !g_alpine_game_config.show_location_pings;
+        rf::console::print("Location pinging is {}", g_alpine_game_config.show_location_pings ? "enabled" : "disabled");
+    },
+    "Toggle whether location pinging is enabled (only available in team gametypes and in RUN)",
+    "cl_locationpings",
+};
+
 ConsoleCommand2 set_autoswitch_fire_wait_cmd{
     "cl_autoswitchfirewait",
     [](std::optional<int> new_fire_wait) {
@@ -512,6 +522,13 @@ ConsoleCommand2 set_autoswitch_fire_wait_cmd{
 
 void ping_looked_at_location() {
     if (!rf::is_multi) {
+        return;
+    }
+
+    if (!g_alpine_game_config.show_location_pings) {
+        rf::String msg{"Failed to ping location because the setting is turned off"};
+        rf::String prefix;
+        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
         return;
     }
 
@@ -772,4 +789,5 @@ void player_do_patch()
     localhitsound_cmd.register_cmd();
     tauntsound_cmd.register_cmd();
     set_autoswitch_fire_wait_cmd.register_cmd();
+    location_ping_display_cmd.register_cmd();
 }
