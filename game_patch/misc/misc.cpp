@@ -689,7 +689,6 @@ void alpine_mover_reached_keyframe(rf::Mover* mp)
     }
 }
 
-
 void alpine_mover_process_linear(rf::Mover* mp)
 {
     if (!mp)
@@ -908,46 +907,6 @@ FunHook<void(rf::Mover*)> mover_process_pre_hook{
     },
 };
 
-static float alpine_rot_progress_trapezoid(float t, float T, float accel, float decel)
-{
-    // default behaviours in strange cases for safety
-    if (T <= 0.0f)
-        return 1.0f;
-    if (t <= 0.0f)
-        return 0.0f;
-    if (t >= T)
-        return 1.0f;
-
-    // no accel/decel = linear movement
-    if (accel <= 0.0f && decel <= 0.0f)
-        return t / T;
-
-    const float v_max_denom = T - 0.5f * (accel + decel);
-
-    if (v_max_denom <= 0.0f)
-        return t / T; // fall back to linear, only possible if "fix mover times" is off
-
-    const float v_max = 1.0f / v_max_denom; // full area = 1
-    const float cruise_start = accel;
-    const float cruise_end   = T - decel;
-
-    if (t < accel) {
-        // accelerating from 0 to max vel
-        return 0.5f * v_max * (t * t / accel);
-    }
-
-    if (t < cruise_end) {
-        // moving at max vel
-        const float area_accel = 0.5f * v_max * accel;
-        return area_accel + v_max * (t - cruise_start);
-    }
-
-    // decelerating from max vel to 0
-    const float u = T - t; // decel for remaining travel time
-    const float remaining = 0.5f * v_max * (u * u / decel);
-    return 1.0f - remaining;
-}
-
 CodeInjection mover_rotating_process_pre_accel_patch{
     0x0046A55F,
     [](auto& regs) {
@@ -959,39 +918,49 @@ CodeInjection mover_rotating_process_pre_accel_patch{
         rf::MoverKeyframe* kf0 = regs.ebp;
 
         if (!mp || !kf0 || mp->stop_at_keyframe == -1) {
-            regs.eip = 0x0046A5D8; // abort
+            regs.eip = 0x0046A5D8;
             return;
         }
 
         const bool forward = (mp->mover_flags & rf::MoverFlags::MF_DIR_FORWARD) != 0;
         const float T = forward ? kf0->forward_time_seconds : kf0->reverse_time_seconds;
+
+        if (T <= 0.0f) {
+            regs.eip = 0x0046A6C9;
+            return;
+        }
+
         const float t = mp->travel_time_seconds;
 
-        if (T <= 0.0f) { // invalid forward/reverse time
+        if (t >= T) {
             regs.eip = 0x0046A6C9;
             return;
         }
 
-        if (t >= T) { // travel time exceeds forward/reverse time
-            regs.eip = 0x0046A6C9;
-            return;
+        float accel = std::max(kf0->ramp_up_time_seconds, 0.0f);
+        float decel = std::max(kf0->ramp_down_time_seconds, 0.0f);
+
+        float s = 0.0f;
+        float v_norm = 0.0f;
+        alpine_trans_trapezoid(t, T, accel, decel, s, v_norm);
+
+        const float A = kf0->rotation_angle; // radians for this segment
+
+        // Normalized speed
+        float omega = A * v_norm;
+        if (!forward) {
+            omega = -omega;
         }
 
-        const float A = kf0->rotation_angle; // radians
-        const float accel = std::max(kf0->ramp_up_time_seconds, 0.0f);
-        const float decel = std::max(kf0->ramp_down_time_seconds, 0.0f);
-        const float p = alpine_rot_progress_trapezoid(t, T, accel, decel);
-
-        float angle_now = forward ? (A * p) : (A * (1.0f - p));
+        // Integrate angle over this frame
+        mp->rot_cur_pos += omega * rf::frametime;
 
         constexpr float two_pi = 6.2831855f;
-        if (angle_now >= two_pi || angle_now < 0.0f) {
-            angle_now = std::fmod(angle_now, two_pi);
-            if (angle_now < 0.0f)
-                angle_now += two_pi;
+        if (mp->rot_cur_pos >= two_pi || mp->rot_cur_pos < 0.0f) {
+            mp->rot_cur_pos = std::fmod(mp->rot_cur_pos, two_pi);
+            if (mp->rot_cur_pos < 0.0f)
+                mp->rot_cur_pos += two_pi;
         }
-
-        mp->rot_cur_pos = angle_now;
 
         regs.eip = 0x0046A5D8;
     }
