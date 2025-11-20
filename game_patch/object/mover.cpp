@@ -444,12 +444,23 @@ void alpine_mover_reached_keyframe(rf::Mover* mp)
         // LOOP ONCE
         case rf::MoverKeyframeMoveType::MKMT_LOOP_ONCE:
         {
-            // check if loop is complete
-            if (from == last && cur == first) {
-                next = -1; // finished one loop
-            } else {
-                // keep going forward, wrapping
-                next = (cur < last) ? (cur + 1) : first;
+            const bool forward = mover_forward(mp);
+
+            if (forward) {
+                if (from == last && cur == first) {
+                    next = -1;
+                }
+                else {
+                    next = (cur < last) ? (cur + 1) : first;
+                }
+            }
+            else { // backward
+                if (from == first && cur == last) {
+                    next = -1;
+                }
+                else {
+                    next = (cur > first) ? (cur - 1) : last;
+                }
             }
 
             mp->stop_at_keyframe = next;
@@ -460,7 +471,14 @@ void alpine_mover_reached_keyframe(rf::Mover* mp)
         // LOOP INFINITE
         case rf::MoverKeyframeMoveType::MKMT_LOOP_INFINITE:
         {
-            next = (cur < last) ? (cur + 1) : first;
+            const bool forward = mover_forward(mp);
+
+            if (forward) {
+                next = (cur < last) ? (cur + 1) : first;
+            }
+            else { // backward
+                next = (cur > first) ? (cur - 1) : last;
+            }
 
             mp->stop_at_keyframe = next;
             mover_pause_at_kf(mp, pause);
