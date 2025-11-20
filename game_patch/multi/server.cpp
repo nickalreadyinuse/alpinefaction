@@ -89,6 +89,7 @@ std::string g_prev_level;
 bool g_is_overtime = false;
 rf::NetGameType upcoming_game_type;
 UpcomingGameTypeSelection g_upcoming_game_type_selection = UpcomingGameTypeSelection::Rotation;
+static std::optional<rf::NetGameType> g_previous_level_game_type;
 
 const rf::NetGameType get_upcoming_game_type()
 {
@@ -1269,6 +1270,18 @@ std::vector<rf::Player*> get_current_player_list(bool include_browsers)
     return player_list;
 }
 
+static bool should_balance_teams(rf::NetGameType current_game_type)
+{
+    const bool previous_was_team_type = g_previous_level_game_type.has_value() && multi_game_type_is_team_type(g_previous_level_game_type.value());
+    const bool current_is_team_type = multi_game_type_is_team_type(current_game_type);
+    const bool balance_teams_flag = (rf::netgame.flags & rf::NetGameFlags::NG_FLAG_BALANCE_TEAMS) != 0;
+
+    const bool transitioned = g_previous_level_game_type.has_value() && !previous_was_team_type && current_is_team_type;
+
+    g_previous_level_game_type = current_game_type;
+
+    return transitioned || (current_is_team_type && balance_teams_flag);
+}
 
 bool is_player_ready(rf::Player* player)
 {
@@ -1873,6 +1886,19 @@ CodeInjection multi_level_init_injection{
                 // if this is the last level in the list and dynamic rotation is on, shuffle
                 shuffle_level_array();
             }
+        }
+    },
+};
+
+CodeInjection multi_balance_teams_injection{
+    0x0048215D,
+    [](auto& regs) {
+        const rf::NetGameType current_game_type = rf::multi_get_game_type();
+        if (should_balance_teams(current_game_type)) {
+            regs.eip = 0x00482170; // balance teams
+        }
+        else {
+            regs.eip = 0x004823ED; // end function, no balancing
         }
     },
 };
@@ -2653,6 +2679,10 @@ void server_init()
 
     // Shuffle rotation when the last map in the list is loaded
     multi_level_init_injection.install();
+
+    // Balance teams when server transitions from a non-team mode to a team mode
+    multi_balance_teams_injection.install();
+    AsmWriter(0x00482157).jmp(0x0048215D); // ignore balance teams netgame flag in stock code
 
     // Check if round is finished or if overtime should begin
     multi_check_for_round_end_hook.install();
