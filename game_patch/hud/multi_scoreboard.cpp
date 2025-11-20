@@ -325,15 +325,23 @@ void draw_scoreboard_internal_new(bool draw)
     }
     game_type = rf::NG_TYPE_CTF;
     bool group_by_team = multi_game_type_is_team_type(game_type);
+    //bool split_columns = true;
 #else
     // Sort players by score
     bool group_by_team = multi_game_type_is_team_type(game_type);
+    bool split_columns = group_by_team;
     if (group_by_team) {
         filter_and_sort_players(left_players, {rf::TEAM_RED});
         filter_and_sort_players(right_players, {rf::TEAM_BLUE});
     }
     else {
         filter_and_sort_players(left_players, {});
+        if (left_players.size() > 16) {
+            auto overflow_start = left_players.begin() + 16;
+            right_players.assign(overflow_start, left_players.end());
+            left_players.erase(overflow_start, left_players.end());
+            split_columns = true;
+        }
     }
 #endif
 
@@ -365,11 +373,11 @@ void draw_scoreboard_internal_new(bool draw)
     // Note: fit_scoreboard_string does not support providing font by argument so default font must be changed
     if (g_big_scoreboard) {
         rf::gr::set_default_font(hud_get_default_font_name(true));
-        w = std::min(!group_by_team ? 900 : 1400, rf::gr::clip_width());
+        w = std::min(!split_columns ? 900 : 1400, rf::gr::clip_width());
         scale = 2.0f;
     }
     else {
-        w = std::min(!group_by_team ? 450 : 700, rf::gr::clip_width());
+        w = std::min(!split_columns ? 450 : 700, rf::gr::clip_width());
         scale = 1.0f;
     }
 
@@ -401,7 +409,7 @@ void draw_scoreboard_internal_new(bool draw)
     }
 
     y += draw_scoreboard_header(x, y, w, game_type);
-    if (group_by_team) {
+    if (split_columns) {
         int table_w = (w - left_padding - middle_padding - right_padding) / 2;
         draw_scoreboard_players(left_players, x + left_padding, y, table_w, scale, game_type);
         draw_scoreboard_players(right_players, x + left_padding + table_w + middle_padding, y, table_w, scale, game_type);

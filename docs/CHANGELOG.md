@@ -96,6 +96,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add legacy mover setting to level properties window in level editor
 - Add `Inspect weapon` control bind
 - Add `cl_locationpings` command to toggle location pinging functionality
+- Fit scoreboard on screen by splitting into columns when server has > 16 players
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `key_quick_exit` command to restore keyboard shortcut `Shift+Esc` to quit out of Red Faction
