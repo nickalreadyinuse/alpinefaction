@@ -685,7 +685,9 @@ static void alpine_mover_process_pre(rf::Mover* mp)
 
     // handle pause time
     if (mover_paused_at_keyframe(mp)) {
-        if (!mp->wait_timestamp.elapsed()) {
+        const bool blocked = (rf::mover_is_door(mp) && rf::mover_is_obstructed_by_entity(mp));
+
+        if (blocked || !mp->wait_timestamp.elapsed()) {
             const int cur = mp->start_at_keyframe;
             if (cur >= 0 && cur < count) {
                 mp->p_data.next_pos = KF(mp, cur)->pos;
@@ -827,7 +829,6 @@ CodeInjection mover_interpolate_objects_force_orient_rot_patch{
         }
     }
 };
-
 
 void mover_do_patch()
 {
