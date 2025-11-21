@@ -140,6 +140,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix strange behaviour of translating movers when accel + decel > total travel time (subject to legacy switch)
 - Fix crash when `Force Orient` flag is used with translating movers
 - Fix `Force Orient` mover flag not working (subject to legacy switch)
+- Fix rare crash when starting to spectate a player immediately when they land on a surface
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
