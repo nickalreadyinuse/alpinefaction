@@ -299,12 +299,14 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
     rules.spawn_loadout.add("Riot Stick", baton_ammo, false, true);
     rules.set_pvp_damage_modifier(1.0f);
     rules.no_player_collide = false;
+    rules.location_pinging = false;
     rules.saving_enabled = false;
 
     switch (game_type) {
         case rf::NetGameType::NG_TYPE_KOTH: {
             rules.spawn_delay.enabled = true;
             rules.spawn_delay.set_base_value(5.0f);
+            rules.location_pinging = true;
 
             // secondary weapon
             rules.spawn_loadout.add("Remote Charge", 3, false, true);
@@ -320,6 +322,7 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
         case rf::NetGameType::NG_TYPE_DC: {
             rules.spawn_delay.enabled = true;
             rules.spawn_delay.set_base_value(2.5f);
+            rules.location_pinging = true;
 
             // primary weapon
             rules.default_player_weapon.set_weapon("12mm handgun");
@@ -331,6 +334,7 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
         case rf::NetGameType::NG_TYPE_REV: {
             rules.spawn_delay.enabled = true;
             rules.spawn_delay.set_base_value(2.0f);
+            rules.location_pinging = true;
 
             // secondary weapon
             rules.spawn_loadout.add("Remote Charge", 3, false, true);
@@ -346,6 +350,7 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
         case rf::NetGameType::NG_TYPE_RUN: {
             rules.set_pvp_damage_modifier(0.0f);
             rules.no_player_collide = true;
+            rules.location_pinging = true;
             rules.saving_enabled = true;
 
             rules.spawn_delay.enabled = false;
