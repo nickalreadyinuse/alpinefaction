@@ -2040,6 +2040,7 @@ ConsoleCommand2 load_server_config_cmd{
             load_and_print_alpine_dedicated_server_config(new_config.value_or(g_ads_config_name), false);
             bool changed_game_type = apply_game_type_for_current_level();
             apply_rules_for_current_level();
+            initialize_game_info_server_flags();
             af_send_server_info_packet_to_all();
             if (changed_game_type)
                 restart_current_level();

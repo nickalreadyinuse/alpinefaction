@@ -1880,6 +1880,7 @@ CodeInjection multi_level_init_injection{
     0x0046E450,
     [](auto& regs) {
         if (rf::is_server) {
+            initialize_game_info_server_flags();
             af_send_server_info_packet_to_all();
             if (g_alpine_server_config.dynamic_rotation &&
                 rf::netgame.current_level_index == rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
