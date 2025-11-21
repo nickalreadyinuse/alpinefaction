@@ -539,7 +539,7 @@ struct AlpineServerConfigRules
     bool flag_captures_while_stolen = false;
     bool drop_amps = false;
     bool no_player_collide = false;
-    bool location_pinging = true;
+    bool location_pinging = false;
     int ctf_flag_return_time_ms = 25000;
     float pvp_damage_modifier = 1.0f;
     DefaultPlayerWeaponConfig default_player_weapon;
