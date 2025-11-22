@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <format>
 #include <common/utils/list-utils.h>
+#include <optional>
 #include <patch_common/FunHook.h>
 #include "multi_scoreboard.h"
 #include "../input/input.h"
@@ -200,15 +201,20 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
     bool show_kd = game_type != rf::NG_TYPE_RUN;
     int kd_w = show_kd ? static_cast<int>(70 * scale) : 0;
     int caps_w = game_type == rf::NG_TYPE_CTF ? static_cast<int>(45 * scale) : 0;
+    const auto& server_info = get_df_server_info();
+    bool saving_enabled = server_info.has_value() && server_info->saving_enabled;
+    bool show_loads = game_type == rf::NG_TYPE_RUN && saving_enabled;
+    int loads_w = show_loads ? static_cast<int>(55 * scale) : 0;
     int ping_w = static_cast<int>(35 * scale);
-    int name_w = w - status_w - score_w - kd_w - caps_w - ping_w;
+    int name_w = w - status_w - score_w - kd_w - caps_w - loads_w - ping_w;
 
     int status_x = x;
     int name_x = status_x + status_w;
     int score_x = name_x + name_w;
     int kd_x = score_x + score_w;
     int caps_x = kd_x + kd_w;
-    int ping_x = caps_x + caps_w;
+    int loads_x = caps_x + caps_w;
+    int ping_x = loads_x + loads_w;
 
     // Draw list header
     if (!dry_run) {
@@ -220,6 +226,9 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
         }
         if (game_type == rf::NG_TYPE_CTF) {
             rf::gr::string(caps_x, y, rf::strings::caps);
+        }
+        if (show_loads) {
+            rf::gr::string(loads_x, y, "Loads");
         }
         rf::gr::string(ping_x, y, rf::strings::ping, -1);
     }
@@ -266,7 +275,7 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
             int score = stats->score;
             int num_kills = stats->num_kills;
             int num_deaths = stats->num_deaths;
-            int caps = stats->caps;
+            int caps_or_loads = stats->caps;
             int ping = player->net_data ? player->net_data->ping : 0;
 #endif
 
@@ -280,8 +289,13 @@ int draw_scoreboard_players(const std::vector<rf::Player*>& players, int x, int 
             }
 
             if (game_type == rf::NG_TYPE_CTF) {
-                auto caps_str = std::to_string(caps);
+                auto caps_str = std::to_string(caps_or_loads);
                 rf::gr::string(caps_x, y, caps_str.c_str());
+            }
+
+            if (show_loads) {
+                auto loads_str = std::to_string(caps_or_loads);
+                rf::gr::string(loads_x, y, loads_str.c_str());
             }
 
             auto ping_str = std::to_string(ping);

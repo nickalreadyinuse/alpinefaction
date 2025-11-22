@@ -439,6 +439,9 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
             rf::send_entity_create_packet_to_all(entity);
             pdata.last_teleport_timestamp.set(300);
             pdata.last_teleport_pos = save_data.pos;
+            if (player && player->stats) {
+                ++player->stats->caps; // repurpose caps to track load teleports in RUN scoreboard
+            }
             af_send_automated_chat_msg("Your position has been restored!", player);
         }
         else {
