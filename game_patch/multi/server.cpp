@@ -613,7 +613,7 @@ static void notify_for_client_incompatible_with_switching_game_type(rf::Player* 
 CodeInjection multi_limbo_leave_pre_patch{
     0x0047C497,
     [](auto& regs) {
-        if (rf::is_server && g_alpine_server_config.alpine_restricted_config.reject_incompatible_clients) {
+        if (rf::is_server) {
             const int ver = get_level_file_version(rf::level_filename_to_load);
             std::vector<rf::Player*> to_kick;
 
@@ -828,6 +828,75 @@ ConsoleCommand2 sv_game_type_cmd{
 DcCommandAlias gt_cmd{
     "gt",
     sv_game_type_cmd,
+};
+
+static std::string describe_alpine_restrict_verdict(const std::pair<AlpineRestrictVerdict, std::string>& verdict)
+{
+    switch (verdict.first) {
+    case AlpineRestrictVerdict::ok:
+        return "allowed";
+    case AlpineRestrictVerdict::need_alpine:
+        return verdict.second.empty() ? "needs Alpine Faction" : std::format("needs Alpine Faction ({})", verdict.second);
+    case AlpineRestrictVerdict::need_release:
+        return verdict.second.empty() ? "requires an official AF release" : std::format("requires release build ({})", verdict.second);
+    case AlpineRestrictVerdict::need_update:
+        return verdict.second.empty() ? "needs a newer AF build" : std::format("needs update ({})", verdict.second);
+    }
+
+    return "unknown status";
+}
+
+static void print_alpine_restrict_status_summary()
+{
+    const auto& cfg = g_alpine_server_config.alpine_restricted_config;
+    const auto [auto_require_alpine, auto_min_minor, hard_reject] = server_features_require_alpine_client();
+    const bool reject_non_alpine = cfg.reject_non_alpine_clients || hard_reject;
+    const bool require_alpine = cfg.clients_require_alpine || auto_require_alpine;
+    const bool enforce_release = cfg.alpine_require_release_build;
+    const auto level_version = get_level_file_version(rf::level.filename.c_str());
+    const auto game_type = rf::multi_get_game_type();
+
+    rf::console::print("Alpine restriction summary:");
+    rf::console::print("  Level: {} (RFL version {})", rf::level.filename.c_str(), level_version);
+    rf::console::print("  Gametype: {} (ID {})", get_game_type_string_long(game_type), static_cast<int>(game_type));
+    rf::console::print("  Server rules auto-require Alpine: {}{}", auto_require_alpine ? "yes" : "no",
+        auto_require_alpine ? std::format(" (min version 1.{})", auto_min_minor) : "");
+    rf::console::print("  Server config requires Alpine: {}", cfg.clients_require_alpine ? "yes" : "no");
+    rf::console::print("  Non-Alpine clients rejected: {}", reject_non_alpine ? "yes" : "no");
+    rf::console::print("  Require stable AF build: {}", enforce_release ? "yes" : "no");
+
+    const uint32_t max_rfl = MAXIMUM_RFL_VERSION;
+    const uint32_t alpine_max_rfl = MAXIMUM_RFL_VERSION;
+    const uint32_t alpine_v1_max_rfl = 301u;
+    const uint32_t legacy_max_rfl = 200u;
+
+    const auto describe_client = [](std::string_view label, const ClientVersionInfoProfile& info) {
+        const auto [verdict, verdict_string, hard_reject] = evaluate_alpine_restrict_status(info, true);
+        return std::format("  {}: {}", label, describe_alpine_restrict_verdict(std::pair{verdict, verdict_string}));
+    };
+
+    rf::console::print("Common test cases:");
+    rf::console::print("{}", describe_client("Alpine Faction 1.2", ClientVersionInfoProfile{ClientVersion::alpine_faction, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TYPE, max_rfl}));
+    rf::console::print("{}", describe_client("Alpine Faction 1.2-dev", ClientVersionInfoProfile{ClientVersion::alpine_faction, VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TYPE_DEV, max_rfl}));
+    rf::console::print("{}", describe_client("Alpine Faction 1.1", ClientVersionInfoProfile{ClientVersion::alpine_faction, 1u, 1u, 0u, VERSION_TYPE_RELEASE, alpine_v1_max_rfl}));
+    rf::console::print("{}", describe_client("Dash Faction 1.9", ClientVersionInfoProfile{ClientVersion::dash_faction, 1u, 9u, 0u, VERSION_TYPE_RELEASE, legacy_max_rfl}));
+    rf::console::print("{}", describe_client("Pure Faction 3.0", ClientVersionInfoProfile{ClientVersion::pure_faction, 3u, 0u, 0u, VERSION_TYPE_RELEASE, legacy_max_rfl}));
+    rf::console::print("{}", describe_client("Official RF 1.21", ClientVersionInfoProfile{ClientVersion::unknown, 1u, 2u, 1u, VERSION_TYPE_RELEASE, legacy_max_rfl}));
+    rf::console::print("{}", describe_client("RFSB 5.1.4", ClientVersionInfoProfile{ClientVersion::browser, 5u, 1u, 4u, VERSION_TYPE_RELEASE, max_rfl}));
+}
+
+ConsoleCommand2 alpine_restrict_status_cmd{
+    "sv_restrict_status",
+    []() {
+        if (rf::is_server) {
+            print_alpine_restrict_status_summary();
+        }
+        else {
+            rf::console::print("This command is only available for servers.\n");
+        }
+    },
+    "Show the current Alpine restriction checks and expected join verdicts.",
+    "sv_restrict_status",
 };
 
 void multi_change_level_alpine(const char* filename) {
@@ -1516,7 +1585,7 @@ bool get_ready_status(const rf::Player* player)
 
 void match_do_frame()
 {
-    if (!g_alpine_server_config.alpine_restricted_config.vote_match.enabled) {
+    if (!g_alpine_server_config.vote_match.enabled) {
         return;
     }
 
@@ -1659,31 +1728,135 @@ bool version_is_older(int aMaj, int aMin, int bMaj, int bMin)
     return false;
 }
 
-AlpineRestrictVerdict check_player_alpine_restrict_status(rf::Player* player)
+std::tuple<AlpineRestrictVerdict, std::string, bool> evaluate_alpine_restrict_status(
+    const ClientVersionInfoProfile& info, const bool check_level_version)
+{
+    const auto& cfg = g_alpine_server_config.alpine_restricted_config;
+
+    const auto [auto_require_alpine, min_minor_version, hard_reject] = server_features_require_alpine_client();
+    const bool reject_non_alpine = cfg.reject_non_alpine_clients || hard_reject;
+    const bool require_alpine = cfg.clients_require_alpine || auto_require_alpine;
+    const bool enforce_release_build = cfg.alpine_require_release_build;
+
+    if (require_alpine) {
+        if (info.client_version != ClientVersion::alpine_faction) {
+            switch (info.client_version) {
+            case ClientVersion::dash_faction:
+                return {AlpineRestrictVerdict::need_alpine,
+                        std::format("unsupported client - Dash Faction {}.{}", info.version_major, info.version_minor),
+                        reject_non_alpine};
+            case ClientVersion::browser:
+                return {AlpineRestrictVerdict::ok, {}, reject_non_alpine}; // server browsers are allowed
+            case ClientVersion::pure_faction:
+                return {AlpineRestrictVerdict::need_alpine, "unsupported client - Pure Faction", reject_non_alpine};
+            default:
+                return {AlpineRestrictVerdict::need_alpine, "unsupported client - Legacy Client", reject_non_alpine};
+            }
+        }
+
+        if (enforce_release_build && info.version_type != VERSION_TYPE_RELEASE) {
+            return {AlpineRestrictVerdict::need_release,
+                    std::format("incompatible AF client {}.{}.{} non-stable", info.version_major, info.version_minor, info.version_patch),
+                    reject_non_alpine};
+        }
+
+        if (auto_require_alpine) {
+            int required_minor_version = std::min(VERSION_MINOR, min_minor_version);
+
+            if (version_is_older(info.version_major, info.version_minor, VERSION_MAJOR, required_minor_version)) {
+                return {AlpineRestrictVerdict::need_update,
+                    std::format("updated AF client required, current is {}.{}.{}-{}",
+                        info.version_major, info.version_minor, info.version_patch, info.version_type),
+                    reject_non_alpine};
+            }
+        }
+    }
+
+    if (check_level_version) {
+        int level_version = get_level_file_version(rf::level.filename.c_str());
+
+        if (level_version > info.max_rfl_version && info.client_version != ClientVersion::browser) {
+            std::string client_name = "";
+            switch (info.client_version) {
+                case ClientVersion::alpine_faction:
+                    client_name = std::format("Alpine Faction {}.{}.{}-{}",
+                        info.version_major, info.version_minor, info.version_patch, info.version_type);
+                    break;
+                case ClientVersion::dash_faction:
+                    client_name = std::format("Dash Faction {}.{}{}",
+                        info.version_major, info.version_minor, info.version_type == VERSION_TYPE_BETA ? "-m" : "");
+                    break;
+                case ClientVersion::pure_faction:
+                    client_name = "Pure Faction";
+                    break;
+                default:
+                    client_name = "Legacy Client";
+                    break;
+            }
+
+            return {AlpineRestrictVerdict::need_update,
+                std::format("{} max RFL ver {}, {} is {}", client_name, info.max_rfl_version, rf::level.filename.c_str(), level_version),
+                reject_non_alpine};
+        }
+    }
+
+    return {AlpineRestrictVerdict::ok, {}, reject_non_alpine};
+}
+
+static ClientVersionInfoProfile make_client_version_info(const rf::Player* player)
 {
     const auto& pad = get_player_additional_data(player);
 
-    if (!g_alpine_server_config.alpine_restricted_config.clients_require_alpine)
-        return AlpineRestrictVerdict::ok;
+    return ClientVersionInfoProfile{
+        pad.client_version,
+        pad.client_version_major,
+        pad.client_version_minor,
+        pad.client_version_patch,
+        pad.client_version_type,
+        pad.max_rfl_version
+    };
+}
 
-    if (pad.client_version != ClientVersion::alpine_faction)
-        return AlpineRestrictVerdict::need_alpine;
+void enforce_alpine_hard_reject_for_all_players_on_current_level()
+{
+    std::vector<rf::Player*> to_kick;
+    auto plist = SinglyLinkedList{rf::player_list};
 
-    if (g_alpine_server_config.alpine_restricted_config.alpine_require_release_build &&
-        pad.client_version_type != VERSION_TYPE_RELEASE)
-        return AlpineRestrictVerdict::need_release;
-
-    if (g_alpine_server_config.alpine_restricted_config.alpine_server_version_enforce_min) {
-        if (version_is_older(pad.client_version_major, pad.client_version_minor, VERSION_MAJOR, VERSION_MINOR)) {
-            return AlpineRestrictVerdict::need_update;
+    for (auto& p : plist) {
+        if (&p == rf::local_player) {
+            continue;
         }
+
+        const auto info = make_client_version_info(&p);
+        const auto [verdict, verdict_string, hard_reject] = evaluate_alpine_restrict_status(info, true);
+
+        if (!hard_reject || verdict == AlpineRestrictVerdict::ok) {
+            continue;
+        }
+
+        auto reason = describe_alpine_restrict_verdict(std::pair{verdict, verdict_string});
+        rf::console::print("{} was kicked: {}", p.name, reason);
+
+        // queue for kick
+        to_kick.push_back(&p);
     }
-    return AlpineRestrictVerdict::ok;
+
+    // kick anyone queued for kick
+    for (auto* p : to_kick) {
+        rf::multi_kick_player(p);
+    }
+}
+
+AlpineRestrictVerdict check_player_alpine_restrict_status(rf::Player* player)
+{
+    const auto info = make_client_version_info(player);
+    const auto [verdict, verdict_string, hard_reject] = evaluate_alpine_restrict_status(info, false);
+    return verdict;
 }
 
 bool check_can_player_spawn(rf::Player* player)
 {
-    if (rf::is_server)
+    if (player == rf::local_player && rf::is_server)
         return true; // listen server host can always spawn
 
     const auto v = check_player_alpine_restrict_status(player);
@@ -1887,6 +2060,7 @@ CodeInjection multi_level_init_injection{
                 // if this is the last level in the list and dynamic rotation is on, shuffle
                 shuffle_level_array();
             }
+            enforce_alpine_hard_reject_for_all_players_on_current_level();
         }
     },
 };
@@ -1944,7 +2118,7 @@ bool round_is_tied(rf::NetGameType game_type)
             return true;
         }
 
-        if (g_alpine_server_config.alpine_restricted_config.overtime.consider_tie_if_flag_stolen) {        
+        if (g_alpine_server_config.overtime.consider_tie_if_flag_stolen) {
             bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
             bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
 
@@ -2051,13 +2225,13 @@ FunHook<void()> multi_check_for_round_end_hook{
         if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
             //xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_additional_server_config.overtime.enabled, g_is_overtime, round_is_tied(game_type));
 
-            if (time_up && g_alpine_server_config.alpine_restricted_config.overtime.enabled && !g_is_overtime && g_match_info.match_active && round_is_tied(game_type)) {
+            if (time_up && g_alpine_server_config.overtime.enabled && !g_is_overtime && g_match_info.match_active && round_is_tied(game_type)) {
                 g_is_overtime = true;
-                extend_round_time(g_alpine_server_config.alpine_restricted_config.overtime.additional_time);
+                extend_round_time(g_alpine_server_config.overtime.additional_time);
 
                 std::string msg = std::format("\xA6 OVERTIME! Game will end when the tie is broken");
-                msg += g_alpine_server_config.alpine_restricted_config.overtime.additional_time > 0
-                           ? std::format(", or in {} minutes!", g_alpine_server_config.alpine_restricted_config.overtime.additional_time)
+                msg += g_alpine_server_config.overtime.additional_time > 0
+                           ? std::format(", or in {} minutes!", g_alpine_server_config.overtime.additional_time)
                            : "!";
                 af_broadcast_automated_chat_msg(msg);
             }
@@ -2695,6 +2869,7 @@ void server_init()
 
     // console commands
     sv_game_type_cmd.register_cmd();
+    alpine_restrict_status_cmd.register_cmd();
     gt_cmd.register_cmd();
 }
 
@@ -2805,20 +2980,31 @@ bool server_gaussian_spread()
     return g_alpine_server_config.gaussian_spread;
 }
 
-std::pair<bool, int> server_features_require_alpine_client()
+std::tuple<bool, int, bool> server_features_require_alpine_client()
 {
-    bool requires_alpine = false;
-    int min_minor_version = 0;
+    bool requires_alpine = false; // alpine required to spawn
+    int min_minor_version = 0;    // minimum alpine minor version required
+    bool hard_reject = false;     // reject non-alpine clients outright, also decides if they will be kicked on map change
 
-    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= 3 ||
-        g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
+    if (g_alpine_server_config.vote_match.enabled) {
+        requires_alpine = true;
+        min_minor_version = std::max(min_minor_version, 1);
+    }
+
+    if (g_alpine_server_config_active_rules.spawn_loadout.loadouts_active ||
         g_alpine_server_config_active_rules.no_player_collide ||
         g_alpine_server_config_active_rules.location_pinging) {
         requires_alpine = true;
         min_minor_version = std::max(min_minor_version, 2);
     }
 
-    return {requires_alpine, min_minor_version};
+    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= 3) {
+        requires_alpine = true;
+        hard_reject = true;
+        min_minor_version = std::max(min_minor_version, 2);
+    }
+
+    return {requires_alpine, min_minor_version, hard_reject};
 }
 
 bool server_weapon_items_give_full_ammo()
@@ -2838,18 +3024,19 @@ bool server_is_modded()
 
 bool server_is_match_mode_enabled()
 {
-    return g_alpine_server_config.alpine_restricted_config.vote_match.enabled;
+    return g_alpine_server_config.vote_match.enabled;
 }
 
 bool server_is_alpine_only_enabled()
 {
-    return g_alpine_server_config.alpine_restricted_config.clients_require_alpine;
+    const auto [auto_require_alpine, min_ver, hard_reject] = server_features_require_alpine_client();
+    return g_alpine_server_config.alpine_restricted_config.clients_require_alpine || auto_require_alpine;
 }
 
 bool server_rejects_legacy_clients()
 {
-    const auto [auto_require_alpine, _] = server_features_require_alpine_client();
-    return g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients || auto_require_alpine;
+    const auto [auto_require_alpine, min_ver, hard_reject] = server_features_require_alpine_client();
+    return g_alpine_server_config.alpine_restricted_config.reject_non_alpine_clients || hard_reject;
 }
 
 bool server_enforces_click_limiter()

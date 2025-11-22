@@ -433,7 +433,7 @@ struct VoteMatch : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_alpine_server_config.alpine_restricted_config.vote_match;
+        return g_alpine_server_config.vote_match;
     }
 };
 
@@ -468,7 +468,7 @@ struct VoteCancelMatch : public Vote
 
     [[nodiscard]] const VoteConfig& get_config() const override
     {
-        return g_alpine_server_config.alpine_restricted_config.vote_match;
+        return g_alpine_server_config.vote_match;
     }
 };
 

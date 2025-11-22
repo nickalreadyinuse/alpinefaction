@@ -97,6 +97,8 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Inspect weapon` control bind
 - Add `cl_locationpings` command to toggle location pinging functionality
 - Fit scoreboard on screen by splitting into columns when server has > 16 players
+- Deprecate `enforce_min_server_version` Alpine restrict setting
+- Add `sv_restrict_status` command to check status of client restrictions on the current map and ruleset
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `ui_simple_server_chat_messages` command to display automated server chat messages without `Server: `
