@@ -236,7 +236,7 @@ void handle_gungame_weapon_switch(rf::Player* player, rf::Entity* entity,
     const GunGameWeaponManager& weapon_manager, bool just_spawned)
 {
     if (!player || !entity) {
-        xlog::error("Invalid player or entity passed to handle_gungame_weapon_switch.");
+        //xlog::error("Invalid player or entity passed to handle_gungame_weapon_switch.");
         return;
     }
 
