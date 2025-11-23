@@ -3,6 +3,7 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
 #include "../rf/os/timer.h"
+#include "../rf/multi.h"
 
 static LARGE_INTEGER g_qpc_frequency;
 
