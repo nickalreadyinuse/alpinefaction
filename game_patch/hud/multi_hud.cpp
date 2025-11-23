@@ -1,9 +1,16 @@
+#include <ranges>
+#include <algorithm>
+#include <tuple>
+#include <cstdint>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
+#include <common/utils/list-utils.h>
+#include <common/utils/string-utils.h>
 #include <xlog/xlog.h>
 #include "../multi/multi.h"
+#include "../multi/gametype.h"
 #include "../input/input.h"
 #include "../rf/input.h"
 #include "../rf/hud.h"
@@ -13,8 +20,11 @@
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/os/frametime.h"
+#include "../rf/os/timer.h"
+#include "../rf/os/timestamp.h"
 #include "../rf/os/console.h"
 #include "../rf/os/os.h"
+#include "../rf/gameseq.h"
 #include "../misc/player.h"
 #include "../main/main.h"
 #include "../graphics/gr.h"
@@ -24,6 +34,9 @@
 #include "../os/console.h"
 #include "hud_internal.h"
 #include "hud.h"
+#include "../misc/player.h"
+#include "multi_scoreboard.h"
+#include "../multi/alpine_packets.h"
 
 static bool g_big_team_scores_hud = false;
 constexpr bool g_debug_team_scores_hud = false;
@@ -31,10 +44,15 @@ static bool g_draw_vote_notification = false;
 static std::string g_active_vote_type = "";
 static bool g_draw_ready_notification = false;
 bool g_pre_match_active = false;
+static bool g_draw_respawn_timer_notification = false;
+static bool g_draw_respawn_timer_can_respawn = false;
 static std::string time_left_string_format = "";
 static int time_left_string_x_pos_offset = 135;
 static int time_left_string_y_pos_offset = 21;
 static std::tuple time_left_string_color = {0, 255, 0, 255};
+static rf::TimestampRealtime g_run_life_start_timestamp;
+static bool g_run_timer_reset_by_respawn_key = false;
+static bool g_run_timer_fade_active = false;
 
 // Radio messages
 static const ChatMenuList radio_messages_menu{
@@ -368,7 +386,7 @@ bool is_element_valid(const ChatMenuElement& element) {
     if (element.type == ChatMenuListType::CTF && rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
         return true;
     }
-    if (element.type == ChatMenuListType::TeamMode && rf::multi_get_game_type() != rf::NG_TYPE_DM) {
+    if (element.type == ChatMenuListType::TeamMode && multi_is_team_game_type()) {
         return true;
     }
     if (element.type == ChatMenuListType::Map && g_level_chat_menu_present && !element.display_string.empty()) {
@@ -391,26 +409,340 @@ namespace rf
     auto& hud_flag_gr_mode = addr_as_ref<rf::gr::Mode>(0x01775B30);
 }
 
-void hud_render_team_scores()
+static inline void cp_owner_color(HillOwner owner, rf::ubyte& r, rf::ubyte& g, rf::ubyte& b, rf::ubyte& a)
+{
+    a = 220;
+    switch (owner) {
+        case HillOwner::HO_Red:
+            r = 167; g = 0;b = 0;
+            return;
+        case HillOwner::HO_Blue:
+            r = 52; g = 78; b = 167;
+            return;
+        default: // neutral
+            r = 0; g = 0; b = 0;
+            return; 
+    }
+}
+
+static inline void cp_steal_color(HillOwner steal_dir, rf::ubyte& r, rf::ubyte& g, rf::ubyte& b, rf::ubyte& a)
+{
+    a = 230;
+    if (steal_dir == HillOwner::HO_Red) {
+        r = 200; g = 40; b = 40;
+        return;
+    }
+    if (steal_dir == HillOwner::HO_Blue) {
+        r = 70; g = 100; b = 200;
+        return;
+    }
+    r = 180; g = 180; b = 180;
+}
+
+static void hud_draw_cp_row_fullwidth(int x, int y, int w, int h, const HillInfo& hinfo, int font_id)
+{
+    // background base colour
+    rf::gr::set_color(0, 0, 0, 150);
+    rf::gr::rect(x, y, w, h);
+
+    // fill with owner colour
+    rf::ubyte or_, og, ob, oa;
+    cp_owner_color(hinfo.ownership, or_, og, ob, oa);
+    rf::gr::set_color(or_, og, ob, 130);
+    rf::gr::rect(x + 1, y + 1, w - 2, h - 2);
+
+    // cap progress bar
+    if (hinfo.steal_dir != HillOwner::HO_Neutral) {
+        rf::ubyte pr, pg, pb, pa;
+        cp_steal_color(hinfo.steal_dir, pr, pg, pb, pa);
+
+        const float t = std::clamp(hinfo.capture_progress, (uint8_t)0, (uint8_t)100) / 100.0f;
+        const int inner = std::max(1, int((w - 2) * t));
+
+        rf::gr::set_color(pr, pg, pb, pa);
+        rf::gr::rect(x + 1, y + 1, inner, h - 2);
+    }
+
+    // border
+    rf::gr::set_color(150, 150, 150, 170);
+    rf::gr::rect_border(x, y, w, h);
+
+    // text
+    const int pad_l = 6;
+    const int pad_r = 6;
+    const bool contested = (hinfo.steal_dir != HillOwner::HO_Neutral);
+    const bool locked = (hinfo.lock_status != HillLockStatus::HLS_Available);
+    const int pct_w_room = (contested || locked) ? 40 : 0; // show progress if contested or locked
+    std::string name_to_show = hinfo.name.empty() ? "Point" : hinfo.name;
+    std::string fit_name = hud_fit_string(name_to_show.c_str(), (w - pad_l - pad_r - pct_w_room), nullptr, font_id);
+
+    // name
+    int tw, th;
+    rf::gr::get_string_size(&tw, &th, fit_name.c_str(), -1, font_id);
+    rf::gr::set_color(0, 0, 0, 220);
+    rf::gr::string(x + pad_l + 1, y + (h - th) / 2 + 1, fit_name.c_str(), font_id); // shadow
+    rf::gr::set_color(255, 255, 255, 255);
+    rf::gr::string(x + pad_l, y + (h - th) / 2, fit_name.c_str(), font_id); // main
+
+    // padlock or progress percentage
+    if (locked) {
+        static constexpr char kPadlockGlyph[] = {static_cast<char>(0xA7), '\0'}; // padlock
+        static constexpr char kPermalockGlyph[] = {static_cast<char>(0xAB), '\0'}; // filled checkbox
+        const char* lock_glyph =
+            (hinfo.lock_status == HillLockStatus::HLS_Permalocked) ? kPermalockGlyph : kPadlockGlyph;
+        int lw, lh;
+        rf::gr::get_string_size(&lw, &lh, lock_glyph, -1, font_id);
+        rf::gr::set_color(0, 0, 0, 220);
+        rf::gr::string(x + w - pad_r - lw + 1, y + (h - lh) / 2 + 1, lock_glyph, font_id); // shadow
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::string(x + w - pad_r - lw, y + (h - lh) / 2, lock_glyph, font_id); // main
+    }
+    else if (contested) {
+        char pct_buf[5];
+        std::snprintf(pct_buf, sizeof(pct_buf), "%d%%", (int)std::clamp(hinfo.capture_progress, (uint8_t)0, (uint8_t)100));
+        int pw, ph;
+        rf::gr::get_string_size(&pw, &ph, pct_buf, -1, font_id);
+        rf::gr::set_color(0, 0, 0, 220);
+        rf::gr::string(x + w - pad_r - pw + 1, y + (h - ph) / 2 + 1, pct_buf, font_id); // shadow
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::string(x + w - pad_r - pw, y + (h - ph) / 2, pct_buf, font_id); // main
+    }
+}
+
+static void hud_render_cp_strip_koth_dc_fullwidth(int anchor_x, int anchor_y, int anchor_w)
+{
+    if (!multi_is_game_type_with_hills())
+        return;
+
+    const int count = (int)g_koth_info.hills.size();
+    if (count <= 0)
+        return;
+
+    const int font_id = hud_get_default_font();
+
+    // size cp rows
+    const bool big_ui = g_big_team_scores_hud;
+    int row_h = big_ui ? 28 : 22;
+    int gap_y = 4;
+    int margin = 6; // margin above team scores box
+    const int clip_h = rf::gr::clip_height();
+    int total_h = count * row_h + (count - 1) * gap_y;
+    int y0 = anchor_y - total_h - margin;
+
+    if (y0 < 4) {
+        // compress rows proportionally to keep gap ratio
+        const int avail_h = std::max(8, anchor_y - margin - 4);
+        if (avail_h < total_h) {
+            const float s = std::max(14.0f, float(avail_h - (count - 1) * gap_y)) / float(count);
+            row_h = int(std::floor(s));
+            total_h = count * row_h + (count - 1) * gap_y;
+            y0 = anchor_y - total_h - margin;
+        }
+    }
+
+    // draw from top row to bottom, stacked
+    int cur_y = y0;
+    for (int i = 0; i < count; ++i) {
+        const HillInfo& H = g_koth_info.hills[i];
+        hud_draw_cp_row_fullwidth(anchor_x, cur_y, anchor_w, row_h, H, font_id);
+        cur_y += row_h + gap_y;
+    }
+}
+
+static void hud_render_koth_dc_split_scores(
+    int x, int y, int w, int h, int red_score, int blue_score, int font, int bm_red, int bm_blue,
+    int bm_hilight, rf::gr::Mode bm_mode, bool hilight_red, bool hilight_blue, float miniflag_scale
+) {
+    // base frame
+    rf::gr::set_color(0, 0, 0, 150);
+    rf::gr::rect(x, y, w, h);
+
+    // halves
+    const int half_w = w / 2;
+    const int left_x = x;
+    const int right_x = x + half_w;
+    rf::gr::set_color(0, 0, 0, 160); // red
+    rf::gr::rect(left_x + 1, y + 1, half_w - 2, h - 2);
+    rf::gr::set_color(0, 0, 0, 160); // blue
+    rf::gr::rect(right_x + 1, y + 1, w - half_w - 2, h - 2);
+
+    // vertical separator
+    rf::gr::set_color(255, 255, 255, 120);
+    rf::gr::rect(x + half_w - 1, y + 2, 2, h - 4);
+
+    // padding
+    const int mid_y = y + h / 2;
+    const int pad_outer = g_big_team_scores_hud ? 12 : 8; // dist from edge to flag
+    const int pad_sep = g_big_team_scores_hud ? 10 : 8; // dist from separator to score text
+
+    // miniflags pos
+    const int kMiniW = int(16 * miniflag_scale);
+    const int kMiniH = int(12 * miniflag_scale);
+
+    // scores
+    std::string rs = std::to_string(red_score);
+    std::string bs = std::to_string(blue_score);
+    int rtw = 0, rth = 0, btw = 0, bth = 0;
+    rf::gr::get_string_size(&rtw, &rth, rs.c_str(), -1, font);
+    rf::gr::get_string_size(&btw, &bth, bs.c_str(), -1, font);
+    const int red_flag_x = left_x + pad_outer;
+    const int red_flag_y = mid_y - (kMiniH);
+    const int blue_flag_x = x + w - pad_outer - kMiniW;
+    const int blue_flag_y = mid_y - (kMiniH);
+
+    // red: right aligned to left side of separator
+    const int red_tx = (x + half_w - pad_sep) - rtw;
+    const int red_ty = mid_y - rth / 2;
+
+    // blue: left aligned to right side of separator
+    const int blue_tx = (x + half_w + pad_sep);
+    const int blue_ty = mid_y - bth / 2;
+
+    // miniflag highlight
+    if (hilight_red)
+        hud_scaled_bitmap(bm_hilight, red_flag_x, red_flag_y, miniflag_scale, bm_mode);
+    if (hilight_blue)
+        hud_scaled_bitmap(bm_hilight, blue_flag_x, blue_flag_y, miniflag_scale, bm_mode);
+
+    // render miniflags
+    hud_scaled_bitmap(bm_red, red_flag_x, red_flag_y, miniflag_scale, bm_mode);
+    hud_scaled_bitmap(bm_blue, blue_flag_x, blue_flag_y, miniflag_scale, bm_mode);
+
+    // render score text with shadow
+    auto draw_text = [&](int tx, int ty, const std::string& s) {
+        rf::gr::set_color(0, 0, 0, 230);
+        rf::gr::string(tx + 1, ty + 1, s.c_str(), font);
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::string(tx, ty, s.c_str(), font);
+    };
+    draw_text(red_tx, red_ty, rs);
+    draw_text(blue_tx, blue_ty, bs);
+
+    // main border
+    rf::gr::set_color(255, 255, 255, 170);
+    rf::gr::rect_border(x, y, w, h);
+}
+
+static uint32_t run_timer_elapsed_milliseconds()
+{
+    if (!g_run_life_start_timestamp.valid() || !rf::local_player) {
+        return 0;
+    }
+
+    return static_cast<uint32_t>(g_run_life_start_timestamp.time_since());
+}
+
+static std::string build_run_timer_string()
+{
+    if (!g_run_life_start_timestamp.valid()) {
+        return "00:00:00.000";
+    }
+
+    const uint32_t elapsed_ms = run_timer_elapsed_milliseconds();
+    const uint32_t total_seconds = elapsed_ms / 1000;
+
+    const int hours = static_cast<int>(total_seconds / 3600);
+    const int minutes = static_cast<int>((total_seconds % 3600) / 60);
+    const int seconds = static_cast<int>(total_seconds % 60);
+    const int milliseconds = static_cast<int>(elapsed_ms % 1000);
+
+    return std::format("{:02}:{:02}:{:02}.{:03}", hours, minutes, seconds, milliseconds);
+}
+
+static std::tuple<int, int, int, int> get_run_timer_color()
+{
+    if (g_run_timer_reset_by_respawn_key && !g_run_life_start_timestamp.valid()) {
+        return {255, 0, 0, 255};
+    }
+
+    if (g_run_timer_fade_active && g_run_life_start_timestamp.valid()) {
+        const float elapsed_seconds = static_cast<float>(run_timer_elapsed_milliseconds()) / 1000.0f;
+        const float t = std::clamp(elapsed_seconds / 10.0f, 0.0f, 1.0f);
+
+        const int r = 255;
+        const int g = static_cast<int>(255.0f * t);
+        const int b = g;
+
+        if (t >= 1.0f) {
+            g_run_timer_fade_active = false;
+        }
+
+        return {r, g, b, 255};
+    }
+
+    return {255, 255, 255, 255};
+}
+
+static void hud_render_run_timer_widget(int x, int y, int w, int h, int font_id)
+{
+    rf::gr::set_color(0, 0, 0, 150);
+    rf::gr::rect(x, y, w, h);
+
+    const int half_w = w / 2;
+    rf::gr::set_color(0, 0, 0, 160);
+    rf::gr::rect(x + 1, y + 1, half_w - 1, h - 2);
+    rf::gr::rect(x + half_w, y + 1, w - half_w - 1, h - 2);
+
+    rf::gr::set_color(255, 255, 255, 170);
+    rf::gr::rect_border(x, y, w, h);
+
+    auto draw_shadow_text = [&](int tx, int ty, const std::string& text) {
+        rf::gr::set_color(0, 0, 0, 230);
+        rf::gr::string(tx + 1, ty + 1, text.c_str(), font_id);
+        const auto [r, g, b, a] = get_run_timer_color();
+        rf::gr::set_color(r, g, b, a);
+        rf::gr::string(tx, ty, text.c_str(), font_id);
+    };
+
+    const std::string timer_string = build_run_timer_string();
+    int timer_w = 0;
+    int timer_h = 0;
+    rf::gr::get_string_size(&timer_w, &timer_h, timer_string.c_str(), -1, font_id);
+    const bool big_ui = g_big_team_scores_hud;
+    const int timer_margin_x = big_ui ? 33 : 42;
+    const int timer_x = x + timer_margin_x;
+    const int timer_y = y + (h - timer_h) / 2;
+    draw_shadow_text(timer_x, timer_y, timer_string);
+}
+
+void multi_hud_render_team_scores()
 {
     int clip_h = rf::gr::clip_height();
     rf::gr::set_color(0, 0, 0, 150);
-    int box_w = g_big_team_scores_hud ? 370 : 185;
-    int box_h = g_big_team_scores_hud ? 80 : 55;
+
+    const auto game_type = rf::multi_get_game_type();
+    const bool is_koth_dc = (game_type == rf::NG_TYPE_KOTH || game_type == rf::NG_TYPE_DC);
+    const bool is_rev = (game_type == rf::NG_TYPE_REV);
+    const bool is_run = (game_type == rf::NG_TYPE_RUN);
+
+    int box_w = 0, box_h = 0;
+    if (is_koth_dc || is_run) {
+        box_w = g_big_team_scores_hud ? 240 : 185;
+        box_h = g_big_team_scores_hud ? 60  : 40;
+    }
+    else if (is_rev) {
+        box_w = g_big_team_scores_hud ? 240 : 185;
+    }
+    else {
+        box_w = g_big_team_scores_hud ? 370 : 185;
+        box_h = g_big_team_scores_hud ? 80  : 55;
+    }
+
     int box_x = 10;
-    int box_y = clip_h - box_h - 10; // clip_h - 65
-    int miniflag_x = box_x + 7; // 17
-    int miniflag_label_x = box_x + (g_big_team_scores_hud ? 45 : 33); // 43
-    int max_miniflag_label_w = box_w - (g_big_team_scores_hud ? 80 : 55);
-    int red_miniflag_y = box_y + 4; // clip_h - 61
-    int blue_miniflag_y = box_y + (g_big_team_scores_hud ? 42 : 30); // clip_h - 35
-    int red_miniflag_label_y = red_miniflag_y + 4; // clip_h - 57
-    int blue_miniflag_label_y = blue_miniflag_y + 4; // clip_h - 31
+    int box_y = clip_h - box_h - 10;
+    int miniflag_x = box_x + 7;
+    int miniflag_label_x = box_x + (g_big_team_scores_hud ? (is_koth_dc ? 40 : 45) : (is_koth_dc ? 30 : 33));
+    int max_miniflag_label_w = box_w - (g_big_team_scores_hud ? (is_koth_dc ? 70 : 80) : (is_koth_dc ? 50 : 55));
+    int red_miniflag_y = box_y + 4;
+    int blue_miniflag_y = box_y + (g_big_team_scores_hud ? (is_koth_dc ? 38 : 42) : (is_koth_dc ? 28 : 30));
+    int red_miniflag_label_y  = red_miniflag_y  + 4;
+    int blue_miniflag_label_y = blue_miniflag_y + 4;
     int flag_x = g_big_team_scores_hud ? 410 : 205;
     float flag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
 
-    rf::gr::rect(10, clip_h - box_h - 10, box_w, box_h);
-    auto game_type = rf::multi_get_game_type();
+    if (!is_koth_dc && !is_run && !is_rev) {
+        rf::gr::rect(box_x, box_y, box_w, box_h);
+    }
     int font_id = hud_get_default_font();
 
     if (game_type == rf::NG_TYPE_CTF) {
@@ -469,7 +801,7 @@ void hud_render_team_scores()
         }
     }
 
-    if (game_type == rf::NG_TYPE_CTF || game_type == rf::NG_TYPE_TEAMDM) {
+    if (multi_is_team_game_type() && !is_koth_dc && !is_run && !is_rev) {
         float miniflag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
         rf::gr::set_color(255, 255, 255, 255);
         if (rf::local_player) {
@@ -486,34 +818,64 @@ void hud_render_team_scores()
         hud_scaled_bitmap(rf::hud_miniflag_blue_bmh, miniflag_x, blue_miniflag_y, miniflag_scale, rf::hud_flag_gr_mode);
     }
 
-    int red_score, blue_score;
-    if (g_debug_team_scores_hud) {
-        red_score = 15;
-        blue_score = 15;
+    int red_score = 0;
+    int blue_score = 0;
+    if (!is_run) {
+        if (g_debug_team_scores_hud) {
+            red_score = 15;
+            blue_score = 15;
+        }
+        else if (game_type == rf::NG_TYPE_CTF) {
+            red_score = rf::multi_ctf_get_red_team_score();
+            blue_score = rf::multi_ctf_get_blue_team_score();
+        }
+        else if (game_type == rf::NG_TYPE_TEAMDM) {
+            rf::gr::set_color(53, 207, 22, 255);
+            red_score = rf::multi_tdm_get_red_team_score();
+            blue_score = rf::multi_tdm_get_blue_team_score();
+        }
+        else if (game_type == rf::NG_TYPE_KOTH || game_type == rf::NG_TYPE_DC) {
+            red_score = multi_koth_get_red_team_score();
+            blue_score = multi_koth_get_blue_team_score();
+        }
     }
-    else if (game_type == rf::NG_TYPE_CTF) {
-        red_score = rf::multi_ctf_get_red_team_score();
-        blue_score = rf::multi_ctf_get_blue_team_score();
-    }
-    else if (game_type == rf::NG_TYPE_TEAMDM) {
-        rf::gr::set_color(53, 207, 22, 255);
-        red_score = rf::multi_tdm_get_red_team_score();
-        blue_score = rf::multi_tdm_get_blue_team_score();
-    }
-    else {
-        red_score = 0;
-        blue_score = 0;
-    }
+
     auto red_score_str = std::to_string(red_score);
     auto blue_score_str = std::to_string(blue_score);
     int str_w, str_h;
-    rf::gr::get_string_size(&str_w, &str_h, red_score_str.c_str(), -1, font_id);
-    rf::gr::string(box_x + box_w - 5 - str_w, red_miniflag_label_y, red_score_str.c_str(), font_id);
-    rf::gr::get_string_size(&str_w, &str_h, blue_score_str.c_str(), -1, font_id);
-    rf::gr::string(box_x + box_w - 5 - str_w, blue_miniflag_label_y, blue_score_str.c_str(), font_id);
+    if (is_koth_dc) {
+        hud_render_koth_dc_split_scores(
+            box_x, box_y, box_w, box_h, red_score, blue_score, font_id, rf::hud_miniflag_red_bmh,
+            rf::hud_miniflag_blue_bmh, rf::hud_miniflag_hilight_bmh, rf::hud_flag_gr_mode,
+            (rf::local_player && rf::local_player->team == rf::TEAM_RED),
+            (rf::local_player && rf::local_player->team == rf::TEAM_BLUE), (g_big_team_scores_hud ? 1.5f : 1.0f));
+    }
+    else if (is_run) {
+        hud_render_run_timer_widget(box_x, box_y, box_w, box_h, font_id);
+    }
+    else if (game_type != rf::NG_TYPE_REV) {
+        rf::gr::get_string_size(&str_w, &str_h, red_score_str.c_str(), -1, font_id);
+        rf::gr::string(box_x + box_w - 5 - str_w, red_miniflag_label_y, red_score_str.c_str(), font_id);
+        rf::gr::get_string_size(&str_w, &str_h, blue_score_str.c_str(), -1, font_id);
+        rf::gr::string(box_x + box_w - 5 - str_w, blue_miniflag_label_y, blue_score_str.c_str(), font_id);
+    }
+
+    // render capture point bars
+    if (is_koth_dc || is_rev) {
+        hud_render_cp_strip_koth_dc_fullwidth(box_x, box_y, box_w);
+    }
 }
 
-CallHook<void(int, int, int, rf::gr::Mode)> hud_render_power_ups_gr_bitmap_hook{
+CodeInjection multi_hud_render_team_scores_new_gamemodes_patch {
+    0x00476DEB,
+    [](auto& regs) {
+        if (gt_is_koth() || gt_is_dc() || gt_is_rev() || gt_is_run()) {
+            regs.eip = 0x00476E06; // multi_hud_render_team_scores
+        }
+    }
+};
+
+CallHook<void(int, int, int, rf::gr::Mode)> multi_powerup_render_gr_bitmap_hook{
     {
         0x0047FF2F,
         0x0047FF96,
@@ -528,11 +890,11 @@ CallHook<void(int, int, int, rf::gr::Mode)> hud_render_power_ups_gr_bitmap_hook{
     },
 };
 
-FunHook<void()> render_level_info_hook{
+FunHook<void()> multi_hud_render_level_info_hook{
     0x00477180,
     []() {
         gr_font_run_with_default(hud_get_default_font(), [&]() {
-            render_level_info_hook.call_target();
+            multi_hud_render_level_info_hook.call_target();
         });
     },
 };
@@ -548,6 +910,27 @@ FunHook<void()> multi_hud_init_hook{
         multi_hud_init_hook.call_target();
     },
 };
+
+void hud_render_respawn_timer_notification()
+{
+    auto notif_string = build_local_spawn_string(g_draw_respawn_timer_can_respawn);
+    rf::gr::set_color(255, 255, 255, 225);
+    int center_x = rf::gr::screen_width() / 2;
+    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.925f);
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, notif_string.c_str(), 0);
+}
+
+void stop_draw_respawn_timer_notification()
+{
+    g_draw_respawn_timer_notification = false;
+    g_draw_respawn_timer_can_respawn = false;
+}
+
+void draw_respawn_timer_notification(bool can_respawn, bool force_respawn, int spawn_delay)
+{
+    g_draw_respawn_timer_notification = true;
+    g_draw_respawn_timer_can_respawn = can_respawn;
+}
 
 void hud_render_ready_notification()
 {
@@ -565,7 +948,7 @@ void hud_render_ready_notification()
 
 void draw_hud_ready_notification(bool draw)
 {
-    draw ? g_draw_ready_notification = true : g_draw_ready_notification = false;
+    g_draw_ready_notification = draw;
 }
 
 void set_local_pre_match_active(bool set_active) {
@@ -604,15 +987,360 @@ void remove_hud_vote_notification()
     g_active_vote_type = "";
 }
 
-CodeInjection hud_render_patch_alpine {
-    0x00476D9D,
-    [](auto& regs) {
+void build_local_player_spectators_strings() {
+    g_local_player_spectators_spawned_string.clear();
+    g_local_player_spectators_unspawned_string.clear();
+
+    int num_players = 0;
+    std::string names{};
+    for (const rf::Player* const player : g_local_player_spectators) {
+        if (num_players++) {
+            if (num_players == g_local_player_spectators.size()) {
+                if (g_local_player_spectators.size() == 2) {
+                    names += " and ";
+                } else {
+                    names += ", and ";
+                }
+            } else {
+                names += ", ";
+            }
+        }
+        names += player->name.c_str();
+    }
+
+    g_local_player_spectators_unspawned_string = num_players == 1
+        ? names + " is waiting to spectate you"
+        : names + " are waiting to spectate you";
+    g_local_player_spectators_spawned_string = num_players == 1
+        ? names + " is spectating you"
+        : names + " are spectating you";
+}
+
+void multi_hud_render_local_player_spectators() {
+#if DBG_LOCAL_PLAYER_SPECTATORS
+    g_local_player_spectators.clear();
+    for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+        g_local_player_spectators.emplace(&player);
+    }
+    build_local_player_spectators_strings();
+#endif
+    const bool show_spectators = g_alpine_game_config.always_show_spectators
+        || multi_scoreboard_is_visible();
+    if (show_spectators
+        && !g_local_player_spectators.empty()
+        && !rf::hud_disabled
+        && rf::gameseq_get_state() == rf::GS_GAMEPLAY) {
+        const rf::NetGameType game_type = rf::multi_get_game_type();
+        const bool is_koth_or_dc = game_type == rf::NG_TYPE_KOTH
+            || game_type == rf::NG_TYPE_DC;
+        const bool is_rev = game_type == rf::NG_TYPE_REV;
+        const int box_w = is_koth_or_dc || is_rev
+            ? g_alpine_game_config.big_hud ? 240 : 185
+            : g_alpine_game_config.big_hud ? 370 : 185;
+        constexpr int box_x = 10;
+
+        int x = 10;
+        if (multi_is_team_game_type()) {
+            x += box_x + box_w;
+            if (rf::multi_get_game_type() == rf::NG_TYPE_CTF) {
+                const bool has_flag = rf::multi_ctf_get_blue_flag_player() == rf::local_player
+                    || rf::multi_ctf_get_red_flag_player() == rf::local_player;
+                if (has_flag) {
+                    constexpr int flag_and_space_w = 111;
+                    x += flag_and_space_w;
+                }
+            }
+        }
+        const int y = rf::gr::clip_height() - (g_alpine_game_config.big_hud ? 30 : 20);
+
+        rf::gr::set_color(0, 255, 0, 255);
+        const std::string& text = rf::player_is_dead(rf::local_player)
+            || rf::player_is_dying(rf::local_player)
+            ? g_local_player_spectators_unspawned_string
+            : g_local_player_spectators_spawned_string;
+        rf::gr::string_aligned(
+            rf::gr::ALIGN_LEFT,
+            x,
+            y,
+            text.c_str(),
+            hud_get_default_font()
+        );
+    }
+}
+
+void RemoteServerCfgPopup::reset() {
+    *this = RemoteServerCfgPopup{};
+}
+
+void RemoteServerCfgPopup::add_content(const std::string_view content) {
+    size_t i = 0;
+    const size_t len = content.size();
+
+    while (i < len) {
+        const size_t new_line = content.find('\n', i);
+        const bool complete = new_line != std::string_view::npos;
+        std::string_view fragment = complete
+            ? content.substr(i, new_line - i)
+            : content.substr(i);
+
+        if (!m_partial_line.empty() && !m_lines.empty()) {
+            m_lines.pop_back();
+        }
+
+        m_partial_line += fragment;
+        add_line(m_partial_line);
+
+        if (complete && !m_partial_line.empty()) {
+            m_partial_line.clear();
+        }
+
+        i = complete ? new_line + 1 : len;
+    }
+}
+
+void RemoteServerCfgPopup::add_line(const std::string_view line) {
+    const size_t colon = line.find(':');
+    if (colon != std::string::npos
+        && line.size() > colon + 1
+        && line[colon + 1] != '/') {
+        const std::string key{line.substr(0, colon + 1)};
+        const std::string value{ltrim(line.substr(colon + 1))};
+        m_lines.emplace_back(std::make_pair(std::move(key), std::move(value)));
+    } else {
+        m_lines.emplace_back(std::string{line});
+    }
+}
+
+bool RemoteServerCfgPopup::is_active() {
+    return m_is_active;
+}
+
+void RemoteServerCfgPopup::toggle() {
+    if (!m_is_active && m_cfg_changed) {
+        reset();
+    }
+    m_is_active = !m_is_active;
+    if (m_is_active && m_lines.empty()) {
+        af_send_server_cfg_request();
+    }
+}
+
+CallHook<void(int *dx, int *dy, int *dz)> control_config_get_mouse_delta_hook{
+    0x0043D6D6,
+    [] (int* const dx, int* const dy, int* dz) {
+        // If active, do not write mouse wheel scroll delta.
+        if (g_remote_server_cfg_popup.is_active()) {
+            int tmp{};
+            dz = &tmp;
+        }
+        control_config_get_mouse_delta_hook.call_target(dx, dy, dz);
+    }
+};
+
+void RemoteServerCfgPopup::render() {
+    constexpr float ref_width  = 1280.f;
+    constexpr float ref_height = 800.f;
+
+    const float scale_x = rf::gr::clip_width()  / ref_width;
+    const float scale_y = rf::gr::clip_height() / ref_height;
+    const float ui_scale = std::min(scale_x, scale_y);
+
+    constexpr float base_x = 300.f;
+    constexpr float base_y = 75.f;
+
+    int x = static_cast<int>(base_x * ui_scale);
+    int y = static_cast<int>(base_y * ui_scale);
+    int w = rf::gr::clip_width() - (x * 2);
+    int h = rf::gr::clip_height() - (y * 2);
+
+    const int font_id = hud_get_default_font();
+    const int label_font_id = font_id;
+    const int line_height = rf::gr::get_font_height(font_id);
+
+    int clip_x = 0, clip_y = 0, clip_w = 0, clip_h = 0;
+    rf::gr::get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
+
+    const float scroll_step = 40.f;
+    int mouse_dx = 0, mouse_dy = 0, mouse_dz = 0;
+    rf::mouse_get_delta(mouse_dx, mouse_dy, mouse_dz);
+    if (mouse_dz != 0) {
+        m_scroll.target += mouse_dz > 0 ? -scroll_step : scroll_step;
+    }
+
+    const float key_scroll_speed = 400.f;
+    if (rf::key_is_down(rf::KEY_UP)) {
+        m_scroll.target -= key_scroll_speed * rf::frametime;
+    }
+    if (rf::key_is_down(rf::KEY_DOWN)) {
+        m_scroll.target += key_scroll_speed * rf::frametime;
+    }
+
+    const int total_height = m_lines.size() * line_height;
+    const int label_h = 10 + rf::gr::get_font_height(label_font_id) + 10;
+    const float max_scroll = static_cast<float>(
+        std::max(0, total_height - h + (label_h * 2) + (10 * 2))
+    );
+    m_scroll.target = std::clamp(m_scroll.target, 0.f, max_scroll);
+
+    const float delta = std::fabs(m_scroll.target - m_scroll.current);
+    // HACKFIX: If its delta falls below 1.0, it can cause stutter.
+    if (delta >= 1.f) {
+        const auto smooth_cd = [] (
+            const float from,
+            const float to,
+            float &vel,
+            const float smooth_time
+        ) {
+            const float omega = 2.f / smooth_time;
+            const float x = omega * rf::frametime;
+            const float exp = 1.f / (1.f + x + .48f * x * x + .235f * x * x * x);
+            const float change = from - to;
+            const float tmp = (vel + omega * change) * rf::frametime;
+            vel = (vel - omega * tmp) * exp;
+            return to + (change + tmp) * exp;
+        };
+
+        m_scroll.current = smooth_cd(
+            m_scroll.current,
+            m_scroll.target,
+            m_scroll.velocity,
+            .1f
+        );
+    }
+
+    rf::gr::set_color(0, 0, 0, 128);
+    // rf::gr::rect(x, y + label_h, w, h - (label_h * 2));
+    rf::gr::rect(x, y, w, h);
+
+    // rf::gr::set_color(100, 100, 100, 30);
+    // rf::gr::rect(x, y, w, label_h);
+    rf::gr::set_color(255, 255, 255, 255);
+    // rf::gr::set_color(255, 200, 100, 255);
+    rf::gr::string_aligned(
+        rf::gr::ALIGN_CENTER,
+        x + (w / 2),
+        y + 10,
+        m_cfg_changed ? "REMOTE SERVER CONFIG | OUTDATED" : "REMOTE SERVER CONFIG",
+        label_font_id
+    );
+
+    const int content_x = x;
+    const int content_y = y + label_h;
+    const int content_w = w;
+    const int content_h = h - label_h - label_h;
+    rf::gr::set_clip(0, content_y, rf::gr::clip_width(), content_h);
+
+    int line_y = std::lround(10.f - m_scroll.current);
+
+    for (const auto& line : m_lines) {
+        if (line_y + line_height < 0) {
+            line_y += line_height;
+            continue;
+        } else if (line_y > content_h) {
+            break;
+        }
+
+        rf::gr::set_color(255, 255, 255, 255);
+        if (std::holds_alternative<std::pair<std::string, std::string>>(line)) {
+            const auto& [key, value] =
+                std::get<std::pair<std::string, std::string>>(line);
+            rf::gr::string_aligned(
+                rf::gr::ALIGN_LEFT,
+                content_x + 20,
+                line_y,
+                key.c_str(),
+                font_id
+            );
+            if (value == "true") {
+                rf::gr::set_color(0, 220, 130, 255);
+            } else if (value == "false") {
+                rf::gr::set_color(255, 80, 80, 255);
+            } else {
+                rf::gr::set_color(100, 200, 255, 255);
+            }
+            rf::gr::string_aligned(
+                rf::gr::ALIGN_RIGHT,
+                content_x + content_w - static_cast<int>(50.f * ui_scale),
+                line_y,
+                value.c_str(),
+                font_id
+            );
+        } else if (std::holds_alternative<std::string>(line)) {
+            rf::gr::string_aligned(
+                rf::gr::ALIGN_LEFT,
+                content_x + 20,
+                line_y,
+                std::get<std::string>(line).c_str(),
+                font_id
+            );
+        }
+
+        line_y += line_height;
+    }
+
+    if (total_height > content_h) {
+        const float scroll_ratio = m_scroll.current / max_scroll;
+        const float scroll_bar_height = static_cast<float>(content_h)
+            * static_cast<float>(content_h)
+            / total_height;
+        const float scroll_bar_y = scroll_ratio
+            * (static_cast<float>(content_h) - scroll_bar_height);
+
+        const int bar_x = content_x + content_w - 6;
+        const int bar_w = 6;
+
+        // rf::gr::set_color(100, 100, 100, 128);
+        // rf::gr::rect(bar_x, y, bar_w, h);
+
+        // rf::gr::set_color(200, 200, 200, 128);
+        rf::gr::set_color(100, 255, 200, 255);
+        rf::gr::rect(
+            bar_x,
+            std::lround(scroll_bar_y),
+            bar_w,
+            std::lround(scroll_bar_height)
+        );
+    }
+
+    rf::gr::set_clip(clip_x, clip_y, clip_w, clip_h);
+
+    const rf::String key = get_action_bind_name(
+        get_af_control(rf::AlpineControlConfigAction::AF_ACTION_REMOTE_SERVER_CFG)
+    );
+    rf::gr::set_color(255, 255, 255, 255);
+    rf::gr::string_aligned(
+        rf::gr::ALIGN_CENTER,
+        x + (w / 2),
+        y + h - label_h + 10,
+        std::format("PRESS {} TO CLOSE", key).c_str(),
+        label_font_id
+    );
+}
+
+
+CodeInjection multi_hud_render_patch{
+    0x00476D76,
+    [] {
+        if (g_remote_server_cfg_popup.is_active()) {
+            g_remote_server_cfg_popup.render();
+        }
+
+        if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO) {
+            return;
+        }
+
+        multi_hud_render_local_player_spectators();
+
         if (g_draw_vote_notification) {
             hud_render_vote_notification();
         }
 
         if (g_draw_ready_notification) {
             hud_render_ready_notification();
+        }
+
+        if (g_draw_respawn_timer_notification) {
+            hud_render_respawn_timer_notification();
         }
 
         if (g_chat_menu_active != ChatMenuType::None) {
@@ -625,7 +1353,13 @@ CodeInjection hud_render_patch_alpine {
     }
 };
 
-void build_chat_menu_comms_messages() {
+void multi_hud_level_init() {
+    g_draw_respawn_timer_notification = false;
+    g_draw_respawn_timer_can_respawn = false;
+    g_run_life_start_timestamp.invalidate();
+    g_run_timer_reset_by_respawn_key = false;
+    g_run_timer_fade_active = false;
+
     level_menu = ChatMenuList{
         .display_string = "MAP MESSAGES",
         .type = ChatMenuListType::Map,
@@ -648,7 +1382,7 @@ void build_chat_menu_comms_messages() {
 
     for (const auto& id : map_keys) {
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, id)) {
-            std::string msg = get_level_info_value<std::string>(rf::level.filename, id);
+            std::string msg = get_level_info_value<std::string>(id);
             level_menu.elements.push_back(
                 {false, ChatMenuListName::Null, ChatMenuListType::Map, msg, msg}
             );
@@ -763,7 +1497,7 @@ void toggle_chat_menu(ChatMenuType type) {
         // Determine the new active menu
         switch (type) {
             case ChatMenuType::Comms:
-                g_active_menu = (rf::multi_get_game_type() == rf::NG_TYPE_DM) ? &express_menu : &radio_messages_menu;
+                g_active_menu = multi_is_team_game_type() ? &radio_messages_menu : &express_menu;
                 break;
             case ChatMenuType::Taunts:
                 g_active_menu = &taunt_menu;
@@ -854,7 +1588,7 @@ void chat_menu_action_handler(rf::Key key) {
             // Commands do not play a chat sound or display for user
             const std::string msg = selected_element.long_string;
             if (!msg.empty()) {
-                send_chat_line_packet(msg.c_str(), nullptr);
+                send_chat_line_packet(msg, nullptr);
             }
         }
         else if (g_chat_menu_active == ChatMenuType::Spectate) {
@@ -897,24 +1631,24 @@ FunHook<void(rf::Player*, const char*, int)> chat_add_msg_hook{
 };
 
 // displays name of player you're pointing at
-CallHook<void(int, int, const char*, int, rf::gr::Mode)> display_target_player_name_hook{
+CallHook<void(int, int, const char*, int, rf::gr::Mode)> multi_hud_render_target_player_name_hook{
     0x00478140,
     [](int x, int y, const char* s, int font_num, rf::gr::Mode mode) {
         if (!g_alpine_game_config.display_target_player_names) {
             return;
         }
-        display_target_player_name_hook.call_target(x, y, s, font_num, mode);
+        multi_hud_render_target_player_name_hook.call_target(x, y, s, font_num, mode);
     },
 };
 
-ConsoleCommand2 playernames_cmd{
-    "mp_playernames",
+ConsoleCommand2 ui_playernames_cmd{
+    "ui_playernames",
     []() {
         g_alpine_game_config.display_target_player_names = !g_alpine_game_config.display_target_player_names;
         rf::console::print("Display of names of targeted players is {}", g_alpine_game_config.display_target_player_names ? "enabled" : "disabled");
     },
     "Toggle displaying names of targeted players",
-    "mp_playernames",
+    "ui_playernames",
 };
 
 FunHook<void()> multi_hud_render_time_left_hook{
@@ -947,6 +1681,20 @@ FunHook<void()> multi_hud_render_time_left_hook{
 
     rf::gr::string_aligned(rf::gr::ALIGN_LEFT, x_pos, y_pos, time_left_string.c_str(), 0, rf::gr::text_2d_mode);
     },
+};
+
+CodeInjection multi_hud_handle_final_countdown_injection {
+    0x00476EC5,
+    []() {
+        const int min_plus_sec = rf::time_left_minutes * 60 + rf::time_left_seconds;
+
+        if (min_plus_sec > 60)
+            rf::played_one_minute_left_sound = 0;
+        if (min_plus_sec > 30)
+            rf::played_half_minute_left_sound = 0;
+        if (min_plus_sec > 10)
+            memset(&rf::played_n_seconds_left_sound[0], 0, 10);
+    }
 };
 
 void build_time_left_string_format() {
@@ -992,27 +1740,65 @@ void build_time_left_string_format() {
     }
 }
 
-ConsoleCommand2 verbosetimer_cmd{
-    "mp_verbosetimer",
+ConsoleCommand2 ui_verbosetimer_cmd{
+    "ui_verbosetimer",
     []() {
         g_alpine_game_config.verbose_time_left_display = !g_alpine_game_config.verbose_time_left_display;
         build_time_left_string_format();
         rf::console::print("Verbose in-game timer display is {}", g_alpine_game_config.verbose_time_left_display ? "enabled" : "disabled");
     },
     "Control whether the in-game timer displays the 'Time Left:' text",
-    "mp_verbosetimer",
+    "ui_verbosetimer",
+};
+
+ConsoleCommand2 ui_always_show_specators_cmd{
+    "ui_always_show_specators",
+    [] {
+        g_alpine_game_config.always_show_spectators = !g_alpine_game_config.always_show_spectators;
+        rf::console::print(
+            "Always show spectators is {}",
+            g_alpine_game_config.always_show_spectators ? "enabled" : "disabled"
+        );
+    },
+    "Toggle display of spectators on your HUD",
+    "ui_always_show_specators",
+};
+
+ConsoleCommand2 ui_remote_server_cfg_cmd{
+    "ui_remote_server_cfg",
+    [] {
+        if (is_server_minimum_af_version(1, 2)) {
+            g_remote_server_cfg_popup.toggle();
+        }
+    },
+    "Toggle display of a remote server's config",
+};
+
+ConsoleCommand2 ui_simple_server_chat_messages_cmd{
+    "ui_simple_server_chat_messages",
+    [] {
+        g_alpine_game_config.simple_server_chat_msgs =
+            !g_alpine_game_config.simple_server_chat_msgs;
+        rf::console::print(
+            "Simple server chat messages is {}",
+            g_alpine_game_config.simple_server_chat_msgs ? "enabled" : "disabled"
+        );
+    },
+    "Toggle simple server chat messages",
+    "ui_simple_server_chat_messages",
 };
 
 void multi_hud_apply_patches()
 {
-    hud_render_patch_alpine.install();
-    AsmWriter{0x00477790}.jmp(hud_render_team_scores);
-    hud_render_power_ups_gr_bitmap_hook.install();
-    render_level_info_hook.install();
+    multi_hud_render_patch.install();
+    AsmWriter{0x00477790}.jmp(multi_hud_render_team_scores);
+    multi_hud_render_team_scores_new_gamemodes_patch.install();
+    multi_powerup_render_gr_bitmap_hook.install();
+    multi_hud_render_level_info_hook.install();
     multi_hud_init_hook.install();
 
     // Drawing of targeted player names in multi
-    display_target_player_name_hook.install();
+    multi_hud_render_target_player_name_hook.install();
 
     // Play radio message and taunt sounds
     chat_add_msg_hook.install();
@@ -1020,9 +1806,35 @@ void multi_hud_apply_patches()
     // Draw Time Left label
     multi_hud_render_time_left_hook.install();
 
+    // Reset final countdown sounds (allows "one minute remaining", etc. to play again if map is extended)
+    multi_hud_handle_final_countdown_injection.install();
+
     // Console commands
-    playernames_cmd.register_cmd();
-    verbosetimer_cmd.register_cmd();
+    ui_playernames_cmd.register_cmd();
+    ui_verbosetimer_cmd.register_cmd();
+    ui_always_show_specators_cmd.register_cmd();
+    ui_remote_server_cfg_cmd.register_cmd();
+    ui_simple_server_chat_messages_cmd.register_cmd();
+
+    control_config_get_mouse_delta_hook.install();
+}
+
+void multi_hud_on_local_spawn()
+{
+    if (gt_is_run() && !g_run_life_start_timestamp.valid()) {
+        g_run_life_start_timestamp.set(0);
+        if (g_run_timer_reset_by_respawn_key) {
+            g_run_timer_fade_active = true;
+        }
+        g_run_timer_reset_by_respawn_key = false;
+    }
+}
+
+void multi_hud_reset_run_gt_timer(bool triggered_by_respawn_key)
+{
+    g_run_life_start_timestamp.invalidate();
+    g_run_timer_reset_by_respawn_key = triggered_by_respawn_key;
+    g_run_timer_fade_active = false;
 }
 
 void multi_hud_set_big(bool is_big)

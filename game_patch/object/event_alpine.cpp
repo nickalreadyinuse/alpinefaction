@@ -9,7 +9,9 @@
 #include "event_alpine.h"
 #include "../hud/hud_world.h"
 #include "../misc/misc.h"
+#include "../misc/level.h"
 #include "../misc/achievements.h"
+#include "../multi/gametype.h"
 #include "../rf/object.h"
 #include "../rf/event.h"
 #include "../rf/entity.h"
@@ -81,6 +83,12 @@ FunHook<int(const rf::String* name)> event_lookup_type_hook{
                 {"Light_State", 134},
                 {"World_HUD_Sprite", 135},
                 {"Set_Light_Color", 136},
+                {"Capture_Point_Handler", 137},
+                {"Respawn_Point_State", 138},
+                {"Modify_Respawn_Point", 139},
+                {"When_Captured", 140},
+                {"Set_Capture_Point_Owner", 141},
+                {"Owner_Gate", 142},
             };
 
             auto it = custom_event_ids.find(name->c_str());
@@ -143,6 +151,12 @@ FunHook<rf::Event*(int event_type)> event_allocate_hook{
                 {134, []() { return new rf::EventLightState(); }},
                 {135, []() { return new rf::EventWorldHUDSprite(); }},
                 {136, []() { return new rf::EventSetLightColor(); }},
+                {137, []() { return new rf::EventCapturePointHandler(); }},
+                {138, []() { return new rf::EventRespawnPointState(); }},
+                {139, []() { return new rf::EventModifyRespawnPoint(); }},
+                {140, []() { return new rf::EventWhenCaptured(); }},
+                {141, []() { return new rf::EventSetCapturePointOwner(); }},
+                {142, []() { return new rf::EventOwnerGate(); }},
             };
 
             // find type and allocate
@@ -209,6 +223,12 @@ FunHook<void(rf::Event*)> event_deallocate_hook{
                 {134, [](rf::Event* e) { delete static_cast<rf::EventLightState*>(e); }},
                 {135, [](rf::Event* e) { delete static_cast<rf::EventWorldHUDSprite*>(e); }},
                 {136, [](rf::Event* e) { delete static_cast<rf::EventSetLightColor*>(e); }},
+                {137, [](rf::Event* e) { delete static_cast<rf::EventCapturePointHandler*>(e); }},
+                {138, [](rf::Event* e) { delete static_cast<rf::EventRespawnPointState*>(e); }},
+                {139, [](rf::Event* e) { delete static_cast<rf::EventModifyRespawnPoint*>(e); }},
+                {140, [](rf::Event* e) { delete static_cast<rf::EventWhenCaptured*>(e); }},
+                {141, [](rf::Event* e) { delete static_cast<rf::EventSetCapturePointOwner*>(e); }},
+                {142, [](rf::Event* e) { delete static_cast<rf::EventOwnerGate*>(e); }},
             };
 
             // find type and deallocate
@@ -249,7 +269,11 @@ bool is_forward_exempt(rf::EventType event_type) {
         rf::EventType::Set_Entity_Flag,
         rf::EventType::Light_State,
         rf::EventType::World_HUD_Sprite,
-        rf::EventType::Set_Light_Color
+        rf::EventType::Set_Light_Color,
+        rf::EventType::Capture_Point_Handler,
+        rf::EventType::Set_Capture_Point_Owner,
+        rf::EventType::When_Captured,
+        rf::EventType::Owner_Gate
     };
 
     return forward_exempt_ids.find(event_type) != forward_exempt_ids.end();
@@ -260,11 +284,16 @@ CodeInjection event_type_forwards_messages_patch{
         if (af_rfl_version(rf::level.version)) {
             auto event_type = rf::int_to_event_type(static_cast<int>(regs.eax));
 
-            // stock events handled by original code
-            if (is_forward_exempt(event_type)) {
+            // handle Alpine events that shouldn't forward messages
+            // also do not forward for Cyclic_Timer unless legacy cyclic timers are disabled
+            if (is_forward_exempt(event_type) ||
+                (event_type == rf::EventType::Cyclic_Timer && !AlpineLevelProperties::instance().legacy_cyclic_timers)
+                ) {
                 regs.al = false;
                 regs.eip = 0x004B8C5D;
             }
+
+            // stock events are handled by original code
         }
     }
 };
@@ -630,6 +659,57 @@ static std::unordered_map<rf::EventType, EventFactory> event_factories {
             if (event) {
                 event->light_color = params.str1;
                 event->randomize = params.bool1;
+            }
+            return event;
+        }
+    },
+    // Capture_Point_Handler
+    {
+        rf::EventType::Capture_Point_Handler, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Capture_Point_Handler));
+            auto* event = dynamic_cast<rf::EventCapturePointHandler*>(base_event);
+            if (event) {
+                event->name = params.str1;
+                event->outline_offset = params.float1;
+                event->capture_rate = params.float2;
+                event->sphere_to_cylinder = params.bool1;
+                event->stage = params.int1;
+                event->position = params.int2;
+            }
+            return event;
+        }
+    },
+    // Modify_Respawn_Point
+    {
+        rf::EventType::Modify_Respawn_Point, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Modify_Respawn_Point));
+            auto* event = dynamic_cast<rf::EventModifyRespawnPoint*>(base_event);
+            if (event) {
+                event->red = params.bool1;
+                event->blue = params.bool2;
+            }
+            return event;
+        }
+    },
+    // Set_Capture_Point_Owner
+    {
+        rf::EventType::Set_Capture_Point_Owner, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Set_Capture_Point_Owner));
+            auto* event = dynamic_cast<rf::EventSetCapturePointOwner*>(base_event);
+            if (event) {
+                event->owner = params.int1;
+            }
+            return event;
+        }
+    },
+    // Owner_Gate
+    {
+        rf::EventType::Owner_Gate, [](const rf::EventCreateParams& params) {
+            auto* base_event = rf::event_create(params.pos, rf::event_type_to_int(rf::EventType::Owner_Gate));
+            auto* event = dynamic_cast<rf::EventOwnerGate*>(base_event);
+            if (event) {
+                event->handler_uid = params.int1;
+                event->required_owner = params.int2;
             }
             return event;
         }

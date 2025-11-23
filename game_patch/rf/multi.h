@@ -115,6 +115,10 @@ namespace rf
         NG_TYPE_DM = 0,
         NG_TYPE_CTF = 1,
         NG_TYPE_TEAMDM = 2,
+        NG_TYPE_KOTH = 3,   // as of AF v1.2
+        NG_TYPE_DC = 4,     // as of AF v1.2
+        NG_TYPE_REV = 5,    // as of AF v1.2
+        NG_TYPE_RUN = 6,    // as of AF v1.2
     };
 
     enum NetGameFlags
@@ -125,9 +129,11 @@ namespace rf
         NG_FLAG_RANDOM_MAP_ROTATION = 0x8,
         NG_FLAG_WEAPON_STAY = 0x10,
         NG_FLAG_FORCE_RESPAWN = 0x20,
+        NG_FLAG_TEAM_DAMAGE_LOW = 0x40,
         NG_FLAG_FALL_DAMAGE = 0x80,
         NG_FLAG_REAL_FALL_DAMAGE = 0x100,
-        NG_FLAG_TEAM_DAMAGE = 0x240,
+        NG_FLAG_TEAM_DAMAGE_HIGH = 0x200,
+        NG_FLAG_TEAM_DAMAGE = 0x240, // unsure why this is split into two
         NG_FLAG_NOT_LAN_ONLY = 0x400,
         NG_FLAG_BALANCE_TEAMS = 0x2000,
     };
@@ -147,7 +153,15 @@ namespace rf
         int max_captures;
         NetAddr server_addr;
         int current_level_index;
-        VArray<String> levels;
+        VArray_String<String> levels;
+    };
+
+    struct JoinRequest
+    {
+        String password;
+        String name;
+        int entity_type;
+        int ac_info[4];
     };
 
     enum class ChatMsgColor
@@ -158,6 +172,7 @@ namespace rf
         blue_blue = 3,
         white_white = 4,
         default_ = 5,
+        gold_white = 6,
     };
 
     constexpr size_t max_packet_size = 512;
@@ -174,6 +189,11 @@ namespace rf
     static auto& multi_time_limit = addr_as_ref<float>(0x0064EC4C);
     static auto& multi_kill_limit = addr_as_ref<int>(0x0064EC50);
     static auto& multi_cap_limit = addr_as_ref<int>(0x0064EC58);
+    static auto& multi_geo_limit = addr_as_ref<int>(0x0064EC54);
+    static auto& multi_max_players = addr_as_ref<int>(0x0064EC44);
+    static auto& multi_server_flags = addr_as_ref<NetGameFlags>(0x0064EC40);
+    static auto& multi_game_type = addr_as_ref<int>(0x0064EC3C);
+    static auto& multi_level_switch_queued = addr_as_ref<int>(0x0064EC64);
     static auto& ctf_flag_cooldown_timestamp = addr_as_ref<Timestamp>(0x006C74F4);
     static auto& multi_ctf_drop_flag = addr_as_ref<void(Player* pp)>(0x00473F40);
     static auto& multi_ctf_get_red_team_score = addr_as_ref<uint8_t()>(0x00475020);
@@ -184,6 +204,8 @@ namespace rf
     static auto& multi_ctf_is_blue_flag_in_base = addr_as_ref<bool()>(0x00474EA0);
     static auto& multi_ctf_get_blue_flag_pos = addr_as_ref<Vector3*(Vector3*)>(0x00474F40);
     static auto& multi_ctf_get_red_flag_pos = addr_as_ref<Vector3*(Vector3*)>(0x00474EC0);
+    static auto& multi_ctf_flag_blue_stolen_timestamp = addr_as_ref<Timestamp>(0x006C7544);
+    static auto& multi_ctf_flag_red_stolen_timestamp = addr_as_ref<Timestamp>(0x006C754C);
     static auto& ctf_red_flag_item = addr_as_ref<Object*>(0x006C7560);
     static auto& ctf_blue_flag_item = addr_as_ref<Object*>(0x006C7564);
     static auto& ctf_red_flag_pos = addr_as_ref<Vector3>(0x006C7500);
@@ -198,11 +220,10 @@ namespace rf
     static auto& multi_ping_player = addr_as_ref<void(Player*)>(0x00484D00);
     static auto& send_entity_create_packet = addr_as_ref<void(Entity *entity, Player* player)>(0x00475160);
     static auto& send_entity_create_packet_to_all = addr_as_ref<void(Entity *entity)>(0x00475110);
-    static auto& multi_respawn_create_point = addr_as_ref<int(const char* name, uint8_t team, const rf::Vector3* pos,
-        rf::Matrix3* orient, bool red_team, bool blue_team, bool bot)>(0x00470190);
     static auto& multi_find_character = addr_as_ref<int(const char *name)>(0x00476270);
     static auto& multi_chat_print = addr_as_ref<void(String::Pod text, ChatMsgColor color, String::Pod prefix)>(0x004785A0);
     static auto& multi_chat_say = addr_as_ref<void(const char *msg, bool is_team_msg)>(0x00444150);
+    static auto& multi_chat_add_msg = addr_as_ref<void(Player* pp, const char* msg, bool is_team_msg)>(0x00443FB0);
     static auto& multi_is_connecting_to_server = addr_as_ref<uint8_t(const NetAddr& addr)>(0x0044AD80);
     using MultiIoProcessPackets_Type = void(const void* data, size_t len, const NetAddr& addr, Player* player);
     static auto& multi_io_process_packets = addr_as_ref<MultiIoProcessPackets_Type>(0x004790D0);
@@ -216,6 +237,11 @@ namespace rf
     static auto& multi_powerup_remove_all_for_player = addr_as_ref<void(Player* pp)>(0x00480310);
     static auto& send_reload_packet = addr_as_ref<void(Entity* ep, int weapon_type, int clip_ammo, int ammo)>(0x00485B50);
     static auto& send_obj_kill_packet = addr_as_ref<void(Entity* killed_entity, Item* item, int* a3)>(0x0047E8C0);
+    static auto& send_item_create_packet = addr_as_ref<void(Item* item, int16_t* index)>(0x00479A20); // send_item_create_packet3
+    static auto& send_respawn_req_packet = addr_as_ref<void(uint32_t multi_character, uint8_t player_id)>(0x004809D0); // client -> server
+    static auto& multi_spawn_player_server_side = addr_as_ref<void(Player* pp)>(0x00480820);
+    static auto& multi_limbo_timer = addr_as_ref<Timestamp>(0x006D6138);
+    static auto& local_spawn_attempt_timer = addr_as_ref<Timestamp>(0x007C718C);
 
 
     static auto& set_in_mp_flag = addr_as_ref<void()>(0x0046ED50);

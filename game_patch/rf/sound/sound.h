@@ -94,6 +94,7 @@ namespace rf
 
     static auto snd_load_hint = addr_as_ref<int(int handle)>(0x005054D0);
     static auto snd_play = addr_as_ref<int(int handle, int group, float pan, float volume)>(0x00505560);
+    static auto snd_stop = addr_as_ref<void(int handle)>(0x00505A40);
     static auto snd_play_3d = addr_as_ref<int(int handle, const Vector3& pos, float vol_scale, const Vector3& unused, int group)>(0x005056A0);
     static auto snd_init_instance = addr_as_ref<int(SoundInstance* instance)>(0x00505680);
     static auto snd_stop_all_paused = addr_as_ref<void()>(0x005059F0);

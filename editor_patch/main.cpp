@@ -594,7 +594,7 @@ CodeInjection LoadSaveLevel_patch2{
         int* version = regs.edi;
 
         if (*version < 300 && !g_skip_legacy_level_warning) {
-            xlog::warn("Displaying legacy level warning dialog");
+            xlog::info("Displaying legacy level warning dialog");
             ShowLegacyLevelDialog(*version, MAXIMUM_RFL_VERSION);
         }
     }
@@ -640,6 +640,9 @@ void apply_af_level_editor_changes()
     // Note: Doesn't need to be updated when MAXIMUM_RFL_VERSION is incremented
     AsmWriter(0x0041D0AF).push(0x12C);
     AsmWriter(0x0041D0BC).push(0x12C);
+
+    // Allow linking to multiplayer respawn points
+    AsmWriter(0x004698C7).nop(2);
 
     // Remove legacy geometry maximums from build output window
     static char new_faces_string[] = "Faces: %d\n";                                  // Replace "Faces: %d/%d\n"
@@ -748,7 +751,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Load DashEditor.vpp
     vpackfile_init_injection.install();
 
-    // Add maps_df.txt to the collection of files scanned for default textures in order to add more textures from the
+    // Add maps_af.txt to the collection of files scanned for default textures in order to add more textures from the
     // base game to the texture browser
     // Especially add Rck_DefaultP.tga to default textures to fix error when packing a level containing a particle
     // emitter with default properties
@@ -758,7 +761,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
         "maps2.txt",
         "maps3.txt",
         "maps4.txt",
-        "maps_df.txt",
+        "maps_af.txt",
         nullptr,
     };
     write_mem_ptr(0x0041B813 + 1, maps_files_names);

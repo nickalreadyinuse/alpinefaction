@@ -221,7 +221,8 @@ namespace df::gr::d3d11
 
         geometry_buffers_.bind_buffers(render_context);
         for (SolidBatch& b : batches) {
-            render_context.set_mode(b.mode);
+            bool lightmap_only = rf::gr::show_lightmaps && what != FaceRenderType::alpha;
+            render_context.set_mode(b.mode, {255, 255, 255, 255}, lightmap_only);
             render_context.set_textures(b.textures[0], b.textures[1]);
             //xlog::warn("DrawIndexed {} {}", b.num_indices, b.start_index);
             render_context.draw_indexed(b.num_indices, b.start_index, b.base_vertex);
@@ -299,11 +300,8 @@ namespace df::gr::d3d11
         for (GFace& face : room->face_list) {
             add_face(&face, solid);
         }
-        if (room->is_sky) {
-            for (GRoom* detail_room : room->detail_rooms) {
-                add_room(detail_room, solid);
-            }
-            // TODO: sort
+        for (GRoom* detail_room : room->detail_rooms) {
+            add_room(detail_room, solid);
         }
     }
 
@@ -320,6 +318,10 @@ namespace df::gr::d3d11
 
     void GRenderCacheBuilder::add_face(GFace* face, GSolid* solid)
     {
+        // HACKFIX: fix skybox rendering issue in dm-rfu-friday.rfl caused by "Show Sky" flag being set on skybox faces
+        if (is_sky_ && face->attributes.is_show_sky() && string_equals_ignore_case(rf::level.filename, "dm-rfu-friday.rfl")) {
+            face->attributes.flags &= ~FACE_SHOW_SKY;
+        }
         if (!should_render_face(face)) {
             return;
         }

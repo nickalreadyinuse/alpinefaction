@@ -198,9 +198,14 @@ namespace rf
     static auto& player_start_death_fade = addr_as_ref<void(Player *pp, float time_sec, void (*callback)(Player *))>(0x004A73E0);
     static auto& get_player_entity_parent_vmesh = addr_as_ref<VMesh*(Player*)>(0x004A7830);
     static auto& game_get_skill_level = addr_as_ref<GameDifficultyLevel()>(0x004369D0);
-    static auto& game_set_skill_level = addr_as_ref<void(GameDifficultyLevel)>(0x00436970);    
+    static auto& game_set_skill_level = addr_as_ref<void(GameDifficultyLevel)>(0x00436970);
+    static auto& player_get_current_weapon = addr_as_ref<int(Player* pp)>(0x004A5910);
+    static auto& player_set_default_primary = addr_as_ref<void(Player* pp, int weapon_type)>(0x004A4070);
+    static auto& player_add_weapon = addr_as_ref<void(Player* pp, int weapon_type, int ammo)>(0x004A4000);  
     static auto& game_get_gore_level = addr_as_ref<int()>(0x00436A20);
     static auto& game_set_gore_level = addr_as_ref<void(int gore_setting)>(0x00436A10);
     static auto& player_settings_apply_graphics_options = addr_as_ref<void(Player* player)>(0x004A8D20);
-
+    static auto& local_screen_flash = addr_as_ref<void(Player* pp, uint8_t r, uint8_t g, uint8_t b, uint8_t a)>(0x00416450);
+    static auto& g_player_flashlight_intensity = addr_as_ref<float>(0x005A00FC);
+    static auto& g_player_flashlight_range = addr_as_ref<float>(0x005A0108);
 }

@@ -49,6 +49,11 @@ namespace df::gr::d3d11
         renderer.emplace(hwnd);
         rf::os_add_msg_handler(msg_handler);
 
+        // set these here to prevent a crash during realtime creation or clearing of bitmaps
+        // stock game sets these in gr_d3d_init_device
+        rf::bm::max_d3d_texture_resolution_h = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        rf::bm::max_d3d_texture_resolution_w = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+
         // Switch FPU to single-precision mode for backward compatibility
         // Direct3D 8/9 does it automatically unless D3DCREATE_FPU_PRESERVE flag is used,
         // but Direct3D 11 no longer does it.
@@ -144,6 +149,13 @@ namespace df::gr::d3d11
     void texture_remove_ref(int bm_handle)
     {
         renderer->texture_remove_ref(bm_handle);
+    }
+
+    void update_texture_filtering()
+    {
+        if (renderer) {
+            renderer->reset_sampler_states();
+        }
     }
 
     void render_solid(rf::GSolid* solid, rf::GRoom** rooms, int num_rooms)
@@ -261,10 +273,10 @@ namespace df::gr::d3d11
         },
     };
 
-    static CodeInjection vif_lod_mesh_dtor_injection{
+    static CodeInjection vif_lod_mesh_destroy_injection{
         0x005695D0,
         [](auto& regs) {
-            rf::VifLodMesh* lod_mesh = regs.ecx;
+            const auto lod_mesh = addr_as_ref<rf::VifLodMesh*>(regs.esp + 4);
             if (renderer) {
                 renderer->clear_vif_cache(lod_mesh);
             }
@@ -321,7 +333,7 @@ void gr_d3d11_apply_patch()
     gr_d3d_setup_3d_injection.install();
     gr_d3d_setup_fustrum_injection.install();
     vif_lod_mesh_ctor_injection.install();
-    vif_lod_mesh_dtor_injection.install();
+    vif_lod_mesh_destroy_injection.install();
     v3d_page_in_injection.install();
     character_instance_page_in_injection.install();
     level_page_in_injection.install();

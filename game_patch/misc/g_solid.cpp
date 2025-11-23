@@ -254,14 +254,14 @@ CodeInjection level_load_lightmaps_color_conv_patch{
 
         // Check if the level explicitly defines clamp floor
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
-            clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+            clamp_floor = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampFloor);
             floor_clamp_defined = true;
             should_clamp = true;
         }
 
         // Check if the level explicitly defines clamp ceiling
         if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
-            clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
+            clamp_ceiling = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampCeiling);
             should_clamp = true;
         }
 
@@ -487,6 +487,26 @@ static ConsoleCommand2 dbg_room_clip_wnd_cmd{
     },
 };
 
+ConsoleCommand2 dbg_num_geomods_cmd{
+    "dbg_numgeos",
+    []() {
+        if (!(rf::level.flags & rf::LEVEL_LOADED)) {
+            rf::console::print("No level loaded!");
+            return;
+        }
+
+        if (rf::is_multi && !rf::is_server) {
+            rf::console::print("In multiplayer, this command can only be run by the server.");
+            return;
+        }
+
+        int max_geos = rf::is_multi ? rf::netgame.geomod_limit : 128;
+
+        rf::console::print("{} craters in the current level out of a maximum of {}", rf::g_num_geomods_this_level, max_geos);
+    },
+    "Count the number of geomod craters in the current level",
+};
+
 void g_solid_render_ui()
 {
     if (g_show_room_clip_wnd && rf::gameseq_in_gameplay()) {
@@ -513,28 +533,12 @@ CodeInjection levelmod_do_blast_autotexture_ppm_patch{
 
 void set_levelmod_autotexture_ppm() {
     if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::CraterTexturePPM)) {
-        g_crater_autotexture_ppm = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::CraterTexturePPM);
+        g_crater_autotexture_ppm = get_level_info_value<float>(AlpineLevelInfoID::CraterTexturePPM);
     }
     else {
         g_crater_autotexture_ppm = 32.0f;
     }
 }
-
-// currently unused
-CallHook<void(rf::GSolid*, rf::GSolid*, rf::GBooleanOperation, bool, rf::Vector3*, rf::Matrix3*, rf::GSolid*,
-    rf::GBooleanOperation, float, float*, bool, rf::Vector3*, rf::Vector3*)> g_boolean_begin_hook{
-    0x00466D9D,
-        [](rf::GSolid* a, rf::GSolid* b, rf::GBooleanOperation op, bool verbose, rf::Vector3* b_pos,
-            rf::Matrix3* b_orient, rf::GSolid* other_solid, rf::GBooleanOperation other_op, float scale,
-            float* other_area, bool propagate_textures, rf::Vector3* a12, rf::Vector3* a13) {
-        
-        xlog::warn("g_boolean_begin hook called: verbose={}, scale={}, propagate_textures={}", verbose, scale, propagate_textures);
-        
-
-        // Call the original function
-        g_boolean_begin_hook.call_target(a, b, op, verbose, b_pos, b_orient, other_solid, other_op, scale, other_area, propagate_textures, a12, a13);
-    },
-};
 
 // verify proposed new sky room UID is a sky room and if so, set it as the override
 void set_sky_room_uid_override(int room_uid, int anchor_uid, bool relative_position, float position_scale)
@@ -650,9 +654,6 @@ void g_solid_do_patch()
     sky_room_eye_position_patch.install();
     level_release_sky_room_shutdown_patch.install();
 
-    // geomod experimental
-    //g_boolean_begin_hook.install();
-
     // Buffer overflows in solid_read
     // Note: Buffer size is 1024 but opcode allows only 1 byte size
     //       What is more important bm_load copies texture name to 32 bytes long buffers
@@ -713,6 +714,7 @@ void g_solid_do_patch()
     // Commands
     max_decals_cmd.register_cmd();
     dbg_room_clip_wnd_cmd.register_cmd();
+    dbg_num_geomods_cmd.register_cmd();
     lighting_color_range_cmd.register_cmd();
     clamp_official_lightmaps_cmd.register_cmd();
 }

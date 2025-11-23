@@ -167,7 +167,7 @@ bool should_use_gaussian_spread()
     if (!rf::is_multi && g_alpine_game_config.gaussian_spread) {
         return true;
     }
-    else if ((rf::is_dedicated_server || rf::is_server) && g_additional_server_config.gaussian_spread) {
+    else if ((rf::is_dedicated_server || rf::is_server) && g_alpine_server_config.gaussian_spread) {
         return true;
     }
     else if (rf::is_multi && get_df_server_info().has_value() && get_df_server_info()->gaussian_spread) {
@@ -272,8 +272,30 @@ CodeInjection entity_get_weapon_spread_first_shot_patch {
     },
 };
 
+CodeInjection autoswitch_empty_weapon_patch {
+    0x004A6F41,
+    [](auto& regs) {
+        if (g_alpine_game_config.always_autoswitch_empty) {
+            regs.eip = 0x004A6F57;
+        }
+    },
+};
+
+ConsoleCommand2 always_autoswitch_empty_cmd{
+    "cl_autoswitchempty",
+    []() {
+        g_alpine_game_config.always_autoswitch_empty = !g_alpine_game_config.always_autoswitch_empty;
+        rf::console::print("Always autoswitch empty weapons is {}",
+                           g_alpine_game_config.always_autoswitch_empty ? "enabled" : "disabled");
+    },
+    "Toggles whether weapons with no ammo will autoswitch even if autoswitch is turned off",
+};
+
 void apply_weapon_patches()
 {
+    // Enable autoswitching when weapon ammo is empty, even when autoswitch is turned off
+    autoswitch_empty_weapon_patch.install();
+
     // Apply new spread method using gaussian distribution and first shot accuracy
     Vector3_rand_around_dir_hook.install();
     entity_get_weapon_spread_first_shot_patch.install();
@@ -319,4 +341,5 @@ void apply_weapon_patches()
     show_enemy_bullets_cmd.register_cmd();
     gaussian_spread_cmd.register_cmd();
     unlimited_semi_auto_cmd.register_cmd();
+    always_autoswitch_empty_cmd.register_cmd();
 }

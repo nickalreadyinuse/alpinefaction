@@ -165,6 +165,12 @@ enum RF_GameType
     RF_GT_DM     = 0x00,
     RF_GT_CTF    = 0x01,
     RF_GT_TEAMDM = 0x02,
+    // Below types are supported in Alpine v1.2+, but game_info packets
+    // delivered to legacy clients uses 0x02 instead to prevent them crashing
+    RF_GT_KOTH = 0x03,
+    RF_GT_DC = 0x04,
+    RF_GT_REV = 0x05,
+    RF_GT_RUN = 0x06,
 };
 
 enum RF_ServerFlags

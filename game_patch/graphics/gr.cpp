@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cctype>
 #include <common/error/d3d-error.h>
 #include <common/utils/list-utils.h>
 #include <common/utils/os-utils.h>
@@ -25,6 +26,7 @@
 #include "gr.h"
 #include "gr_internal.h"
 #include "legacy/gr_d3d.h"
+#include "d3d11/gr_d3d11_hooks.h"
 
 namespace df::gr::d3d11
 {
@@ -56,6 +58,46 @@ CodeInjection gr_init_injection{
         rf::gr::screen.aspect = 1.0f;
     },
 };
+
+static inline void set_uv(rf::gr::Vertex& v, float u, float w)
+{
+    v.u1 = u;
+    v.v1 = w;
+    v.u2 = u;
+    v.v2 = w;
+}
+
+bool gr_3d_bitmap_oriented_wh(const rf::Vector3* pnt, const rf::Matrix3* M, float half_w, float half_h, rf::gr::Mode mode)
+{
+    if (half_w <= 1e-5f || half_h <= 1e-5f)
+        return false;
+
+    const rf::Vector3& R = M->rvec;
+    const rf::Vector3& U = M->uvec;
+
+    rf::gr::Vertex va{}; // (-w,+h)
+    rf::gr::Vertex vb{}; // (+w,+h)
+    rf::gr::Vertex vc{}; // (+w,-h)
+    rf::gr::Vertex vd{}; // (-w,-h)
+
+    auto prep = [](rf::gr::Vertex& out, const rf::Vector3& pos, float u, float v) {
+        rf::Vector3 tmp = pos;
+        rf::gr::rotate_vertex(&out, &tmp);
+        set_uv(out, u, v);
+        // keep colors sane
+        out.r = out.g = out.b = out.a = 255;
+    };
+
+    // build corners
+    prep(va, *pnt + (R * -half_w) + (U * +half_h), 1.f, 0.f);
+    prep(vb, *pnt + (R * +half_w) + (U * +half_h), 0.f, 0.f);
+    prep(vc, *pnt + (R * +half_w) + (U * -half_h), 0.f, 1.f);
+    prep(vd, *pnt + (R * -half_w) + (U * -half_h), 1.f, 1.f);
+
+    // winding
+    rf::gr::Vertex* verts[4] = {&vd, &vc, &vb, &va};
+    return rf::gr::poly(4, verts, rf::gr::TMapperFlags::TMAP_FLAG_TEXTURED, mode, 0, 0.0f);
+}
 
 float gr_scale_fov_hor_plus(float horizontal_fov)
 {
@@ -138,6 +180,32 @@ ConsoleCommand2 gamma_cmd{
     },
     "Sets gamma.",
     "gamma [value]",
+};
+
+ConsoleCommand2 colorblind_cmd{
+    "r_colorblind",
+    [](std::optional<std::string> mode_opt) {
+        static const char* names[] = {"off", "protanopia", "deuteranopia", "tritanopia"};
+        if (!mode_opt) {
+            rf::console::print("Colorblind mode: {} (Direct3D 11 mode only)", names[g_alpine_game_config.colorblind_mode]);
+            return;
+        }
+        std::string mode = mode_opt.value();
+        std::transform(mode.begin(), mode.end(), mode.begin(), [](unsigned char c) { return std::tolower(c); });
+        int new_mode = g_alpine_game_config.colorblind_mode;
+        if (mode == "off" || mode == "0") new_mode = 0;
+        else if (mode == "protanopia" || mode == "1") new_mode = 1;
+        else if (mode == "deuteranopia" || mode == "2") new_mode = 2;
+        else if (mode == "tritanopia" || mode == "3") new_mode = 3;
+        else {
+            rf::console::print("Usage: r_colorblind <off|protanopia|deuteranopia|tritanopia>");
+            return;
+        }
+        g_alpine_game_config.colorblind_mode = new_mode;
+        rf::console::print("Colorblind mode set to {} (Direct3D 11 mode only)", names[new_mode]);
+    },
+    "Configure colorblind mode rendering filter (Direct3D 11 mode only)",
+    "r_colorblind <off|protanopia|deuteranopia|tritanopia>",
 };
 
 void evaluate_lightmaps_only()
@@ -235,7 +303,10 @@ void gr_set_window_mode(rf::gr::WindowMode window_mode)
 void gr_update_texture_filtering()
 {
     if (rf::gr::screen.mode == rf::gr::DIRECT3D) {
-        if (g_game_config.renderer != GameConfig::Renderer::d3d11) {
+        if (g_game_config.renderer == GameConfig::Renderer::d3d11) {
+            df::gr::d3d11::update_texture_filtering();
+        }
+        else {
             gr_d3d_update_texture_filtering();
         }
     }
@@ -263,6 +334,26 @@ ConsoleCommand2 nearest_texture_filtering_cmd{
         rf::console::print("Nearest texture filtering is {}", g_alpine_game_config.nearest_texture_filtering ? "enabled" : "disabled");
     },
     "Toggle nearest texture filtering",
+};
+
+ConsoleCommand2 picmip_cmd{
+    "r_picmip",
+    [](std::optional<int> picmip_opt) {
+        if (picmip_opt) {
+            int divisor = picmip_opt.value();
+            if (divisor < 1) {
+                divisor = 1;
+            }
+            g_alpine_game_config.set_picmip(divisor);
+            gr_update_texture_filtering();
+        }
+        rf::console::print(
+            "Texture resolution divisor is set to {} (Direct3D 11 mode only, 1 = full resolution)",
+            g_alpine_game_config.picmip
+        );
+    },
+    "Sets the global texture resolution divisor (Direct3D 11 mode only)",
+    "r_picmip <divisor>",
 };
 
 ConsoleCommand2 lod_distance_scale_cmd{
@@ -364,4 +455,6 @@ void gr_apply_patch()
     windowed_cmd.register_cmd();
     nearest_texture_filtering_cmd.register_cmd();
     lod_distance_scale_cmd.register_cmd();
+    picmip_cmd.register_cmd();
+    colorblind_cmd.register_cmd();
 }

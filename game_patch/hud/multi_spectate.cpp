@@ -23,11 +23,11 @@
 #include <patch_common/AsmWriter.h>
 #include <shlwapi.h>
 #include <windows.h>
+#include "../multi/alpine_packets.h"
 
 static rf::Player* g_spectate_mode_target;
 static rf::Camera* g_old_target_camera = nullptr;
 static bool g_spectate_mode_enabled = false;
-static bool g_spawned_in_current_level = false;
 static bool g_spectate_mode_follow_killer = false;
 
 void player_fpgun_set_player(rf::Player* pp);
@@ -62,7 +62,7 @@ void multi_spectate_set_target_player(rf::Player* player)
         return;
 
     if (is_force_respawn()) {
-        rf::String msg{"You cannot use Spectate Mode because Force Respawn option is enabled in this server!"};
+        rf::String msg{"You cannot use Spectate Mode because Force Respawn is enabled in this server!"};
         rf::String prefix;
         rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
         return;
@@ -74,21 +74,31 @@ void multi_spectate_set_target_player(rf::Player* player)
         g_old_target_camera = nullptr;
 
 #if SPECTATE_MODE_SHOW_WEAPON
-        g_spectate_mode_target->flags &= ~(1 << 4);
+        g_spectate_mode_target->flags &= ~(1u << 4);
         rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
         if (entity)
             entity->local_player = nullptr;
 #endif // SPECTATE_MODE_SHOW_WEAPON
     }
 
-    g_spectate_mode_enabled = (player != rf::local_player);
-    g_spectate_mode_target = player;
+    bool entering_player_spectate = (player != rf::local_player);
+    
+    if (entering_player_spectate) {
+        g_local_queued_delayed_spawn = false;
+        stop_draw_respawn_timer_notification();
+    }
+
+    g_spectate_mode_enabled = entering_player_spectate;
+    if (g_spectate_mode_target != player) {
+        af_send_spectate_start_packet(player);
+        g_spectate_mode_target = player;
+    }
 
     rf::multi_kill_local_player();
     set_camera_target(player);
 
 #if SPECTATE_MODE_SHOW_WEAPON
-    player->flags |= 1 << 4;
+    player->flags |= 1u << 4;
     player->fpgun_data.fpgun_weapon_type = -1;
     player->weapon_mesh_handle = nullptr;
     rf::Entity* entity = rf::entity_from_handle(player->entity_handle);

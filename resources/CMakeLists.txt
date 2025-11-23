@@ -20,7 +20,7 @@ endfunction()
 
 
 add_packfile(alpinefaction.vpp
-    tables/maps_df.txt
+    tables/maps_af.txt
     tables/events.tbl
     tables/af_level_quirks.tbl
 
@@ -116,6 +116,20 @@ add_packfile(alpinefaction.vpp
     images/af_wh_mp_spawn.tga
     images/af_wh_ping1.tga
     images/af_achtrophy1.tga
+    images/af_wh_koth_base_neutral.tga
+    images/af_wh_koth_atk_neutral.tga
+    images/af_wh_koth_def_neutral.tga
+    images/af_wh_koth_base_red.tga
+    images/af_wh_koth_base_blue.tga
+    images/af_wh_koth_cont_neutral.tga
+    images/af_wh_koth_cont_red.tga
+    images/af_wh_koth_cont_blue.tga
+    images/af_wh_koth_lock_neutral.tga
+    images/af_wh_koth_lock_red.tga
+    images/af_wh_koth_lock_blue.tga
+    images/af_wh_koth_fill_red.tga
+    images/af_wh_koth_fill_blue.tga
+    images/af_wh_koth_ring_fade.tga
     images/DF_green.tga
     images/DF_red.tga
     images/scope_zoom_corner256_red.tga

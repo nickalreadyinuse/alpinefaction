@@ -109,7 +109,7 @@ bm_read_header_hook{
         }
 
         if (bm_type == rf::bm::TYPE_NONE) {
-            xlog::warn("Failed load bitmap header for '{}'", filename);
+            xlog::warn("Failed to load bitmap header for '{}'", filename);
         }
 
         return bm_type;

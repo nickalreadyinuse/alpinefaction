@@ -64,6 +64,34 @@ CodeInjection entity_water_decelerate_fix{
     },
 };
 
+FunHook<void(rf::Entity*)> entity_maybe_apply_exposure_damage_hook{
+    0x00421170,
+    [](rf::Entity* ep) {
+        if (g_alpine_game_config.apply_exposure_damage) {
+            entity_maybe_apply_exposure_damage_hook.call_target(ep);
+        }
+    },
+};
+
+CodeInjection player_exposure_damage_sound_patch{
+    0x004A2A95,
+    [](auto& regs) {
+        if (!g_alpine_game_config.apply_exposure_damage) {
+            regs.eip = 0x004A2AC2;
+        }
+    },
+};
+
+ConsoleCommand2 sp_exposuredamage_cmd{
+    "sp_exposuredamage",
+    []() {
+        g_alpine_game_config.apply_exposure_damage = !g_alpine_game_config.apply_exposure_damage;
+        rf::console::print("Exposure damage is {}", g_alpine_game_config.apply_exposure_damage ? "enabled" : "disabled");
+    },
+    "Toggle exposure damage when outside without armor",
+    "sp_exposuredamage"
+};
+
 FunHook<void(rf::Entity&, rf::Vector3&)> entity_on_land_hook{
     0x00419830,
     [](rf::Entity& entity, rf::Vector3& pos) {
@@ -409,6 +437,10 @@ void entity_do_patch()
     entity_on_land_hook.install();
     entity_make_run_after_climbing_patch.install();
 
+    // Control whether exposure damage is applied when player is outside without armor
+    entity_maybe_apply_exposure_damage_hook.install();
+    player_exposure_damage_sound_patch.install();
+
     // Fix crash when particle emitter allocation fails during entity ignition
     entity_fire_switch_parent_to_corpse_hook.install();
 
@@ -444,6 +476,7 @@ void entity_do_patch()
     //entity_damage_gib_no_pain_sound_patch.install();
 
     // Commands
+    sp_exposuredamage_cmd.register_cmd();
     cl_gorelevel_cmd.register_cmd();
     cl_painsounds_cmd.register_cmd();
 }

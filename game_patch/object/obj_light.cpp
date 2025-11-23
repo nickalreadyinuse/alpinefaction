@@ -29,6 +29,7 @@ bool server_side_restrict_disable_muzzle_flash = false;
 static float g_character_ambient_light_r = 1.0f;
 static float g_character_ambient_light_g = 1.0f;
 static float g_character_ambient_light_b = 1.0f;
+bool g_character_meshes_are_fullbright = false;
 
 void obj_mesh_lighting_alloc_one(rf::Object *objp)
 {
@@ -85,7 +86,7 @@ void evaluate_fullbright_meshes()
     if (!rf::LEVEL_LOADED)
         return;
 
-    bool should_fullbright = false;
+    g_character_meshes_are_fullbright = false; // reset
 
     if (g_alpine_game_config.try_fullbright_characters) {
         bool server_side_restrict_fb_mesh =
@@ -95,19 +96,22 @@ void evaluate_fullbright_meshes()
             rf::console::print("This server does not allow you to force fullbright meshes!");
         }
         else {
-            should_fullbright = true;
+            g_character_meshes_are_fullbright = true;
         }
     }
 
-    // Use fullbright (1.0) for each channel if selected and allowed, otherwise use level ambient light
-    if (should_fullbright) {
-        g_character_ambient_light_r = 1.0f;
-        g_character_ambient_light_g = 1.0f;
-        g_character_ambient_light_b = 1.0f;
-    }
-    else {
-        // sets all 3 g_character_ambient_light floats
-        std::memcpy(&g_character_ambient_light_r, reinterpret_cast<const void*>(0x005A38D4), sizeof(float) * 3);
+    // DX11 is set in gr_d3d11_mesh.cpp
+    if (g_game_config.renderer != GameConfig::Renderer::d3d11) {
+        // Use fullbright (1.0) for each channel if selected and allowed, otherwise use level ambient light
+        if (g_character_meshes_are_fullbright) {
+            g_character_ambient_light_r = 1.0f;
+            g_character_ambient_light_g = 1.0f;
+            g_character_ambient_light_b = 1.0f;
+        }
+        else {
+            // sets all 3 g_character_ambient_light floats
+            std::memcpy(&g_character_ambient_light_r, reinterpret_cast<const void*>(0x005A38D4), sizeof(float) * 3);
+        }
     }
 }
 

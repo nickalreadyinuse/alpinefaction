@@ -94,6 +94,7 @@ struct AlpineGameSettings
     bool world_hud_damage_numbers = true;
     bool world_hud_spectate_player_labels = false;
     bool world_hud_team_player_labels = false;
+    bool show_location_pings = true;
     bool play_hit_sounds = true;
     bool play_taunt_sounds = true;
     bool play_global_rad_msg_sounds = true;
@@ -124,7 +125,19 @@ struct AlpineGameSettings
     bool static_bomb_code = false;
     bool entity_pain_sounds = true;
     bool real_armor_values = false;
+    bool always_show_spectators = false;
+    bool simple_server_chat_msgs = true;
+    bool quick_exit = false;
+    int colorblind_mode = 0; // 0=off,1=protanopia,2=deuteranopia,3=tritanopia
     int suppress_autoswitch_alias = -1;
+    bool always_autoswitch_empty = true;
+    bool apply_exposure_damage = true;
+
+    int picmip = 1;
+    void set_picmip(int value)
+    {
+        picmip = std::clamp(value, 1, 256);
+    }
 
     int suppress_autoswitch_fire_wait = 0;
     void set_suppress_autoswitch_fire_wait(int value)
@@ -171,6 +184,30 @@ struct AlpineGameSettings
     void set_desired_handicap(int value)
     {
         desired_handicap = std::clamp(value, 0, 99);
+    }
+
+    float control_point_outline_height_scale = 5.0f;
+    void set_control_point_outline_height_scale(float scale)
+    {
+        control_point_outline_height_scale = std::clamp(scale, 0.0f, 1000.0f);
+    }
+
+    int control_point_outline_segments = 32;
+    void set_control_point_outline_segments(int segments)
+    {
+        control_point_outline_segments = std::clamp(segments, 3, 256);
+    }
+
+    int control_point_column_segments = 8;
+    void set_control_point_column_segments(int segments)
+    {
+        control_point_column_segments = std::clamp(segments, 3, 256);
+    }
+
+    float control_point_column_height_scale = 1.0f;
+    void set_control_point_column_height_scale(float scale)
+    {
+        control_point_column_height_scale = std::clamp(scale, 0.0f, 1000.0f);
     }
 };
 

@@ -220,9 +220,30 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.real_armor_values = std::stoi(settings["RealArmorValues"]);
         processed_keys.insert("RealArmorValues");
     }
+    if (settings.count("AlwaysShowSpectators")) {
+        g_alpine_game_config.always_show_spectators = std::stoi(settings["AlwaysShowSpectators"]);
+        processed_keys.insert("AlwaysShowSpectators");
+    }
+    if (settings.count("SimpleServerChatMsgs")) {
+        g_alpine_game_config.simple_server_chat_msgs = std::stoi(settings["SimpleServerChatMsgs"]);
+        processed_keys.insert("SimpleServerChatMsgs");
+    }
+    if (settings.count("QuickExit")) {
+        g_alpine_game_config.quick_exit = std::stoi(settings["QuickExit"]);
+        processed_keys.insert("QuickExit");
+    }
+    if (settings.count("ColorblindMode")) {
+        int mode = std::stoi(settings["ColorblindMode"]);
+        g_alpine_game_config.colorblind_mode = std::clamp(mode, 0, 3);
+        processed_keys.insert("ColorblindMode");
+    }
     if (settings.count("AutoswitchFireWait")) {
         g_alpine_game_config.suppress_autoswitch_fire_wait = std::stoi(settings["AutoswitchFireWait"]);
         processed_keys.insert("AutoswitchFireWait");
+    }
+    if (settings.count("AlwaysAutoswitchEmpty")) {
+        g_alpine_game_config.always_autoswitch_empty = std::stoi(settings["AlwaysAutoswitchEmpty"]);
+        processed_keys.insert("AlwaysAutoswitchEmpty");
     }
 
     // Load weapon autoswitch priority
@@ -340,6 +361,11 @@ bool alpine_player_settings_load(rf::Player* player)
         recalc_mesh_static_lighting();
         processed_keys.insert("MeshStaticLighting");
     }
+    if (settings.count("Picmip")) {
+        g_alpine_game_config.set_picmip(std::stoi(settings["Picmip"]));
+        gr_update_texture_filtering();
+        processed_keys.insert("Picmip");
+    }
     if (settings.count("NearestTextureFiltering")) {
         g_alpine_game_config.nearest_texture_filtering = std::stoi(settings["NearestTextureFiltering"]);
         gr_update_texture_filtering();
@@ -401,6 +427,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.static_bomb_code = std::stoi(settings["StaticBombCode"]);
         processed_keys.insert("StaticBombCode");
     }
+    if (settings.count("ExposureDamage")) {
+        g_alpine_game_config.apply_exposure_damage = std::stoi(settings["ExposureDamage"]);
+        processed_keys.insert("ExposureDamage");
+    }
 
     // Load multiplayer settings
     if (settings.count("MultiplayerCharacter")) {
@@ -430,6 +460,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("WorldHUDTeamLabels")) {
         g_alpine_game_config.world_hud_team_player_labels = std::stoi(settings["WorldHUDTeamLabels"]);
         processed_keys.insert("WorldHUDTeamLabels");
+    }
+    if (settings.count("ShowLocationPings")) {
+        g_alpine_game_config.show_location_pings = std::stoi(settings["ShowLocationPings"]);
+        processed_keys.insert("ShowLocationPings");
     }
     if (settings.count("PlayHitsounds")) {
         g_alpine_game_config.play_hit_sounds = std::stoi(settings["PlayHitsounds"]);
@@ -497,6 +531,22 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("DesiredHandicap")) {
         g_alpine_game_config.set_desired_handicap(std::stoi(settings["DesiredHandicap"]));
         processed_keys.insert("DesiredHandicap");
+    }
+    if (settings.count("CPOutlineHeightScale")) {
+        g_alpine_game_config.set_control_point_outline_height_scale(std::stof(settings["CPOutlineHeightScale"]));
+        processed_keys.insert("CPOutlineHeightScale");
+    }
+    if (settings.count("CPOutlineSegments")) {
+        g_alpine_game_config.set_control_point_outline_segments(std::stoi(settings["CPOutlineSegments"]));
+        processed_keys.insert("CPOutlineSegments");
+    }
+    if (settings.count("CPColumnSegments")) {
+        g_alpine_game_config.set_control_point_column_segments(std::stoi(settings["CPColumnSegments"]));
+        processed_keys.insert("CPColumnSegments");
+    }
+    if (settings.count("CPColumnHeightScale")) {
+        g_alpine_game_config.set_control_point_column_height_scale(std::stof(settings["CPColumnHeightScale"]));
+        processed_keys.insert("CPColumnHeightScale");
     }
 
     // Load input settings
@@ -696,7 +746,12 @@ void alpine_player_settings_save(rf::Player* player)
     file << "SaveConsoleHistory=" << g_alpine_game_config.save_console_history << "\n";
     file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
     file << "RealArmorValues=" << g_alpine_game_config.real_armor_values << "\n";
+    file << "AlwaysShowSpectators=" << g_alpine_game_config.always_show_spectators << "\n";
+    file << "SimpleServerChatMsgs=" << g_alpine_game_config.simple_server_chat_msgs << "\n";
+    file << "QuickExit=" << g_alpine_game_config.quick_exit << "\n";
+    file << "ColorblindMode=" << g_alpine_game_config.colorblind_mode << "\n";
     file << "AutoswitchFireWait=" << g_alpine_game_config.suppress_autoswitch_fire_wait << "\n";
+    file << "AlwaysAutoswitchEmpty=" << g_alpine_game_config.always_autoswitch_empty << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";
@@ -741,6 +796,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ReticleScale=" << g_alpine_game_config.reticle_scale << "\n";
     file << "ShowGlares=" << g_alpine_game_config.show_glares << "\n";
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
+    file << "Picmip=" << g_alpine_game_config.picmip << "\n";
     file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
     file << "FastAnimations=" << rf::g_fast_animations << "\n";
     file << "MonitorResolutionScale=" << g_alpine_game_config.monitor_resolution_scale << "\n";
@@ -758,6 +814,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DisableAllCameraShake=" << g_alpine_game_config.screen_shake_force_off << "\n";
     file << "Autosave=" << g_alpine_game_config.autosave << "\n";
     file << "StaticBombCode=" << g_alpine_game_config.static_bomb_code << "\n";
+    file << "ExposureDamage=" << g_alpine_game_config.apply_exposure_damage << "\n";
 
     // Multiplayer
     file << "\n[MultiplayerSettings]\n";
@@ -768,6 +825,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "WorldHUDDamageNumbers=" << g_alpine_game_config.world_hud_damage_numbers << "\n";
     file << "WorldHUDSpectateLabels=" << g_alpine_game_config.world_hud_spectate_player_labels << "\n";
     file << "WorldHUDTeamLabels=" << g_alpine_game_config.world_hud_team_player_labels << "\n";
+    file << "ShowLocationPings=" << g_alpine_game_config.show_location_pings << "\n";
     file << "PlayHitsounds=" << g_alpine_game_config.play_hit_sounds << "\n";
     file << "PlayTaunts=" << g_alpine_game_config.play_taunt_sounds << "\n";
     file << "VisualRicochet=" << g_alpine_game_config.multi_ricochet << "\n";
@@ -784,6 +842,10 @@ void alpine_player_settings_save(rf::Player* player)
     file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
     file << "WorldHUDAltDamageIndicators=" << g_alpine_game_config.world_hud_alt_damage_indicators << "\n";
     file << "DesiredHandicap=" << g_alpine_game_config.desired_handicap << "\n";
+    file << "CPOutlineHeightScale=" << g_alpine_game_config.control_point_outline_height_scale << "\n";
+    file << "CPOutlineSegments=" << g_alpine_game_config.control_point_outline_segments << "\n";
+    file << "CPColumnSegments=" << g_alpine_game_config.control_point_column_segments << "\n";
+    file << "CPColumnHeightScale=" << g_alpine_game_config.control_point_column_height_scale << "\n";
     
     alpine_control_config_serialize(file, player->settings.controls);
 

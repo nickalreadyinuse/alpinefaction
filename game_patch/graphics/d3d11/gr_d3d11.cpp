@@ -358,6 +358,11 @@ namespace df::gr::d3d11
         texture_manager_->remove_ref(bm_handle);
     }
 
+    void Renderer::reset_sampler_states()
+    {
+        state_manager_->clear_sampler_state_cache();
+    }
+
     bool Renderer::lock(int bm_handle, int section, rf::gr::LockInfo *lock)
     {
         return texture_manager_->lock(bm_handle, section, lock);
