@@ -1615,7 +1615,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
         auto& ot = cfg.overtime;
         std::format_to(iter, "    Overtime:                            {}\n", ot.enabled);
         if (ot.enabled) {
-            std::format_to(iter, "      Additional time:                   {}\n", ot.additional_time);
+            std::format_to(iter, "      Additional time:                   {} min\n", ot.additional_time);
             std::format_to(iter, "      Tie when flag stolen:              {}\n", ot.consider_tie_if_flag_stolen);
         }
     }
