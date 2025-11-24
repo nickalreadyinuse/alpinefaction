@@ -730,6 +730,11 @@ void multi_hud_render_team_scores()
     const bool is_koth_dc = (game_type == rf::NG_TYPE_KOTH || game_type == rf::NG_TYPE_DC);
     const bool is_rev = (game_type == rf::NG_TYPE_REV);
     const bool is_run = (game_type == rf::NG_TYPE_RUN);
+    const bool show_run_timer = g_alpine_game_config.show_run_timer;
+
+    if (is_run && !show_run_timer) {
+        return;
+    }
 
     int box_w = 0, box_h = 0;
     if (is_koth_dc || is_run) {
@@ -2043,6 +2048,17 @@ ConsoleCommand2 ui_verbosetimer_cmd{
     "ui_verbosetimer",
 };
 
+ConsoleCommand2 ui_runtimer_cmd{
+    "ui_runtimer",
+    [] {
+        g_alpine_game_config.show_run_timer = !g_alpine_game_config.show_run_timer;
+        rf::console::print("RUN game type timer display is {}", g_alpine_game_config.show_run_timer ? "enabled" : "disabled"
+        );
+    },
+    "Toggle the RUN game type timer display",
+    "ui_runtimer",
+};
+
 ConsoleCommand2 ui_always_show_specators_cmd{
     "ui_always_show_specators",
     [] {
@@ -2095,6 +2111,7 @@ void multi_hud_apply_patches()
     // Console commands
     ui_playernames_cmd.register_cmd();
     ui_verbosetimer_cmd.register_cmd();
+    ui_runtimer_cmd.register_cmd();
     ui_always_show_specators_cmd.register_cmd();
     ui_simple_server_chat_messages_cmd.register_cmd();
 
