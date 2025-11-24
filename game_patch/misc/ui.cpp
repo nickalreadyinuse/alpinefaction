@@ -170,6 +170,8 @@ static rf::ui::Checkbox ao_unclamplights_cbox;
 static rf::ui::Label ao_unclamplights_label;
 static rf::ui::Checkbox ao_bombrng_cbox;
 static rf::ui::Label ao_bombrng_label;
+static rf::ui::Checkbox ao_exposuredamage_cbox;
+static rf::ui::Label ao_exposuredamage_label;
 static rf::ui::Checkbox ao_painsounds_cbox;
 static rf::ui::Label ao_painsounds_label;
 
@@ -743,6 +745,12 @@ void ao_bombrng_cbox_on_click(int x, int y) {
     ao_play_button_snd(!g_alpine_game_config.static_bomb_code);
 }
 
+void ao_exposuredamage_cbox_on_click(int x, int y) {
+    g_alpine_game_config.apply_exposure_damage = !g_alpine_game_config.apply_exposure_damage;
+    ao_exposuredamage_cbox.checked = g_alpine_game_config.apply_exposure_damage;
+    ao_play_button_snd(g_alpine_game_config.apply_exposure_damage);
+}
+
 void ao_painsounds_cbox_on_click(int x, int y) {
     g_alpine_game_config.entity_pain_sounds = !g_alpine_game_config.entity_pain_sounds;
     ao_painsounds_cbox.checked = g_alpine_game_config.entity_pain_sounds;
@@ -1210,6 +1218,8 @@ void alpine_options_panel_init() {
         &ao_gaussian_cbox, &ao_gaussian_label, &alpine_options_panel3, ao_gaussian_cbox_on_click, g_alpine_game_config.gaussian_spread, 280, 114, "Gaussian spread");
     alpine_options_panel_checkbox_init(
         &ao_bombrng_cbox, &ao_bombrng_label, &alpine_options_panel3, ao_bombrng_cbox_on_click, !g_alpine_game_config.static_bomb_code, 280, 144, "Randomize bomb");
+    alpine_options_panel_checkbox_init(
+        &ao_exposuredamage_cbox, &ao_exposuredamage_label, &alpine_options_panel3, ao_exposuredamage_cbox_on_click, g_alpine_game_config.apply_exposure_damage, 280, 174, "Exposure damage");
 
     // fflink text (panel3)
     std::string fflink_username = g_game_config.fflink_username.value();
