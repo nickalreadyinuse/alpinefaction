@@ -101,6 +101,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `sv_restrict_status` command to check status of client restrictions on the current map and ruleset
 - Add tracking of `Loads` to scoreboard in RUN game type
 - Add `ui_runtimer` command to toggle display of timer in RUN game type
+- Allow `K` link hotkey in level editor to create multiple links at once
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `ui_simple_server_chat_messages` command to display automated server chat messages without `Server: `
