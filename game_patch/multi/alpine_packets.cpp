@@ -873,6 +873,7 @@ static void af_process_koth_hill_state_packet(const void* data, size_t len, cons
     h->net_last_state = h->state;
     h->net_last_dir = h->steal_dir;
     h->net_last_prog_bucket = static_cast<uint8_t>(h->capture_progress / 5);
+    h->net_last_lock_status = h->lock_status;
     h->client_hold_ms_accum = 0; // reset prediction accumulator
 
     // Scores are authoritative
@@ -1136,6 +1137,7 @@ static void build_af_server_info_packet(af_server_info_packet& pkt)
             break;
         case rf::NetGameType::NG_TYPE_RUN:
         case rf::NetGameType::NG_TYPE_REV:
+        case rf::NetGameType::NG_TYPE_ESC:
             pkt.win_condition = static_cast<uint32_t>(0); // no wincon necessary
             break;
         default:
@@ -1234,6 +1236,7 @@ static void af_process_server_info_packet(const void* data, size_t len, const rf
                 break;
             case rf::NetGameType::NG_TYPE_RUN:
             case rf::NetGameType::NG_TYPE_REV:
+            case rf::NetGameType::NG_TYPE_ESC:
                 break; // no wincon necessary
             default:
                 rf::netgame.max_kills = static_cast<int>(pkt.win_condition);

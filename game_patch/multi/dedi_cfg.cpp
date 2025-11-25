@@ -346,6 +346,22 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
             break;
         }
 
+        case rf::NetGameType::NG_TYPE_ESC: {
+            rules.spawn_delay.enabled = true;
+            rules.spawn_delay.set_base_value(3.0f);
+            rules.location_pinging = true;
+
+            // secondary weapon
+            rules.spawn_loadout.add("Remote Charge", 3, false, true);
+
+            // primary weapon
+            rules.spawn_loadout.remove("12mm handgun", false);
+            rules.default_player_weapon.set_weapon("Machine Pistol");
+
+            rules.spawn_loadout.loadouts_active = true;
+            break;
+        }
+
         case rf::NetGameType::NG_TYPE_RUN: {
             rules.set_pvp_damage_modifier(0.0f);
             rules.no_player_collide = true;
@@ -1087,6 +1103,9 @@ std::string get_game_type_string(rf::NetGameType game_type) {
         case rf::NetGameType::NG_TYPE_RUN:
             out_string = "RUN";
             break;
+        case rf::NetGameType::NG_TYPE_ESC:
+            out_string = "ESC";
+            break;
         default:
             out_string = "DM";
             break;
@@ -1115,9 +1134,12 @@ std::string get_game_type_string_long(rf::NetGameType game_type) {
         case rf::NetGameType::NG_TYPE_RUN:
             out_string = "Run";
             break;
+        case rf::NetGameType::NG_TYPE_ESC:
+            out_string = "Escalation";
+            break;
         default:
             out_string = "Deathmatch";
-             break;
+            break;
     }
     return out_string;
 }
