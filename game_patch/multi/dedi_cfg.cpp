@@ -1723,6 +1723,7 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
     // on launch does this before tracker registration
     if (!on_launch) {
         load_ads_server_config(ads_config_name);
+        g_alpine_server_config.printed_cfg.clear();
         cfg.signal_cfg_changed = true;
     }
 
