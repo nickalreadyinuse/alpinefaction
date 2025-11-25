@@ -330,6 +330,7 @@ static int scaled_capture_rate(const HillInfo& h, int base_rate, int player_coun
 
     float multiplier = (h.capture_rate > 0.0f) ? h.capture_rate : 1.0f;
     multiplier *= rate_bonus_for_players(player_count);
+    multiplier *= 0.25f; // internal cap rate multiplier knob
 
     int scaled = static_cast<int>(std::lround(base_rate * multiplier));
     if (base_rate > 0)
