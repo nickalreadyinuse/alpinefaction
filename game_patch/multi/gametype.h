@@ -4,6 +4,7 @@
 #include <xlog/xlog.h>
 #include "../rf/trigger.h"
 #include "../rf/os/string.h"
+#include "../rf/os/timestamp.h"
 #include "../rf/multi.h"
 
 // forward declarations
@@ -90,6 +91,8 @@ struct HillInfo
     int capture_milli = 0; // 0 - 100000 (100% = 100000)
     std::vector<int> mp_spawn_uids;
     int stage = 0; // order of hills in REV
+    int cap_gain_sfx_handle = -1;
+    bool cap_gain_sfx_playing = false;
 
     // debug tracking
     int dbg_last_red = -1;

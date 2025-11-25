@@ -29,9 +29,29 @@ static char* run_slot = run_name;
 
 KothInfo g_koth_info; // KOTH and DC
 rf::Timestamp g_local_contest_alarm_cooldown;
-static bool g_local_cap_gain_sfx_playing = false;
-static int g_local_cap_gain_sfx_handle = -1;
 static int g_cap_alarm_sound_id = -1;
+
+static bool hill_sound_position(const HillInfo& hill, rf::Vector3& pos)
+{
+    if (hill.trigger) {
+        pos = hill.trigger->pos;
+        return true;
+    }
+
+    return false;
+}
+
+static void stop_hill_sounds()
+{
+    for (auto& hill : g_koth_info.hills) {
+        if (hill.cap_gain_sfx_playing && hill.cap_gain_sfx_handle > -1) {
+            rf::snd_stop(hill.cap_gain_sfx_handle);
+        }
+
+        hill.cap_gain_sfx_playing = false;
+        hill.cap_gain_sfx_handle = -1;
+    }
+}
 
 void populate_gametype_table() {
     g_af_gametype_names[0] = &rf::strings::dm;
@@ -1233,66 +1253,75 @@ void koth_do_frame() // fires every frame on both server and client
 
     // play progress sounds locally
     if (!rf::is_dedicated_server) {
-        bool any_local_owned_enemy_progress = false;
-        bool should_play_cap_gain = false;
-
         if (rf::local_player && !multi_spectate_is_spectating() && multi_is_game_type_with_hills() && rf::gameseq_get_state() == rf::GameState::GS_GAMEPLAY) {
             const bool local_is_blue = (rf::local_player->team != 0);
             const HillOwner local_team_owner = local_is_blue ? HillOwner::HO_Blue : HillOwner::HO_Red;
             const HillState enemy_growing_state = local_is_blue ? HillState::HS_LeanRedGrowing : HillState::HS_LeanBlueGrowing;
             const HillState my_growing_state = local_is_blue ? HillState::HS_LeanBlueGrowing : HillState::HS_LeanRedGrowing;
+            bool any_local_owned_enemy_progress = false;
 
             for (auto& h : g_koth_info.hills) {
                 if (h.hill_uid < 0)
                     continue;
 
-                // decide if play capture hum
-                if (h.state == my_growing_state && h.capture_milli < 100000) {
-                    // in REV, blue can never grow
-                    if (!gt_is_rev() || (gt_is_rev() && !local_is_blue)) {
-                        should_play_cap_gain = true;
-                    }
-                }
+                rf::Vector3 hill_pos{};
+                const bool have_pos = hill_sound_position(h, hill_pos);
+
+                const bool should_play_cap_gain =
+                    (h.state == my_growing_state) &&
+                    (h.capture_milli < 100000) &&
+                    (!gt_is_rev() || (gt_is_rev() && !local_is_blue));
 
                 // decide if play alarm
                 // KOTH/REV = when capturing from neutral or my team, DC = only when capturing from my team
                 const bool ours_or_neutral =
                     (h.ownership == local_team_owner) || ((gt_is_koth() || gt_is_rev()) && (h.ownership == HillOwner::HO_Neutral));
-                if (ours_or_neutral && h.state == enemy_growing_state) {
+
+                const bool play_alarm = ours_or_neutral && h.state == enemy_growing_state;
+
+                if (play_alarm) {
                     any_local_owned_enemy_progress = true;
                 }
-            }
-        }
 
-        // play alarm if enemy is capturing our owned hill
-        if (any_local_owned_enemy_progress) {
-            if (!g_local_contest_alarm_cooldown.valid() || g_local_contest_alarm_cooldown.elapsed()) {
-                rf::snd_play(g_cap_alarm_sound_id, 0, 0.0, 1.0);
-                g_local_contest_alarm_cooldown.set(950);
-            }
-        }
-        else if (g_local_contest_alarm_cooldown.valid() && g_local_contest_alarm_cooldown.elapsed()) {
-            g_local_contest_alarm_cooldown.invalidate();
-        }
+                // play hum while gaining capture progress for our team
+                if (should_play_cap_gain) {
+                    if (!h.cap_gain_sfx_playing) {
+                        h.cap_gain_sfx_handle =
+                            have_pos ? rf::snd_play_3d(get_custom_sound_id(4), hill_pos, 5.0f, rf::Vector3{}, 0)
+                                     : rf::snd_play(get_custom_sound_id(4), 0, 0.0, 5.0);
+                        h.cap_gain_sfx_playing = true;
+                    }
+                }
+                else if (h.cap_gain_sfx_playing) {
+                    if (h.cap_gain_sfx_handle > -1) {
+                        rf::snd_stop(h.cap_gain_sfx_handle);
+                    }
 
-        // play hum while gaining capture progress for our team
-        if (should_play_cap_gain) {
-            if (!g_local_cap_gain_sfx_playing) {
-                g_local_cap_gain_sfx_handle = rf::snd_play(get_custom_sound_id(4), 0, 0.0, 5.0);
-                g_local_cap_gain_sfx_playing = true;
+                    h.cap_gain_sfx_playing = false;
+                    h.cap_gain_sfx_handle = -1;
+                }
+            }
+
+            // play alarm if enemy is capturing our owned hill
+            if (any_local_owned_enemy_progress) {
+                if (!g_local_contest_alarm_cooldown.valid() || g_local_contest_alarm_cooldown.elapsed()) {
+                    rf::snd_play(g_cap_alarm_sound_id, 0, 0.0, 1.0);
+                    g_local_contest_alarm_cooldown.set(950);
+                }
+            }
+            else if (g_local_contest_alarm_cooldown.valid() && g_local_contest_alarm_cooldown.elapsed()) {
+                g_local_contest_alarm_cooldown.invalidate();
             }
         }
         else {
-            if (g_local_cap_gain_sfx_playing && g_local_cap_gain_sfx_handle > -1) {
-                rf::snd_stop(g_local_cap_gain_sfx_handle);
-                g_local_cap_gain_sfx_playing = false;
-            }
+            stop_hill_sounds();
         }
     }
 }
 
 static int build_hills_from_capture_point_events()
 {
+    stop_hill_sounds();
     g_koth_info.hills.clear();
 
     const auto gt = rf::multi_get_game_type();
@@ -1385,8 +1414,7 @@ static int build_hills_from_capture_point_events()
 void hill_mode_level_init()
 {
     clear_koth_name_textures(); // clear hill labels
-    g_local_cap_gain_sfx_handle = -1;
-    g_local_cap_gain_sfx_playing = false;
+    stop_hill_sounds();
     multi_koth_reset_scores();
     g_cap_alarm_sound_id = rf::snd_pc_find_by_name("Alarm_02.wav");
 }
