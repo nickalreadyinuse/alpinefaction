@@ -93,6 +93,8 @@ static OvertimeConfig parse_overtime_config(const toml::table& t)
             v.set_additional_time(*x);
         if (auto x = t["tie_when_flag_stolen"].value<bool>())
             v.consider_tie_if_flag_stolen = *x;
+        if (auto x = t["tie_when_hill_contested"].value<bool>())
+            v.consider_tie_if_hill_contested = *x;
     }
     return v;
 }
@@ -1187,13 +1189,15 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
     const bool overtime_changed =
         rules.overtime.enabled != b.overtime.enabled ||
         (rules.overtime.enabled && (rules.overtime.additional_time != b.overtime.additional_time ||
-            rules.overtime.consider_tie_if_flag_stolen != b.overtime.consider_tie_if_flag_stolen));
+          rules.overtime.consider_tie_if_flag_stolen != b.overtime.consider_tie_if_flag_stolen ||
+          rules.overtime.consider_tie_if_hill_contested != b.overtime.consider_tie_if_hill_contested));
 
     if (base || overtime_changed) {
         std::format_to(iter, "  Overtime:                              {}\n", rules.overtime.enabled);
         if (rules.overtime.enabled) {
             std::format_to(iter, "    Additional time:                     {} min\n", rules.overtime.additional_time);
-            std::format_to(iter, "    Tie when flag stolen:                {}\n", rules.overtime.consider_tie_if_flag_stolen);
+            std::format_to(iter, "    Tie when flag stolen (CTF):          {}\n", rules.overtime.consider_tie_if_flag_stolen);
+            std::format_to(iter, "    Tie when hill contested (KOTH):      {}\n", rules.overtime.consider_tie_if_hill_contested);
         }
     }
 

@@ -2125,7 +2125,6 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_CTF: {
         int red_score = rf::multi_ctf_get_red_team_score();
         int blue_score = rf::multi_ctf_get_blue_team_score();
-        //xlog::warn("red: {}, blue: {}", red_score, blue_score);
 
         if (red_score == blue_score) {
             return true;
@@ -2145,9 +2144,32 @@ bool round_is_tied(rf::NetGameType game_type)
     case rf::NG_TYPE_TEAMDM: {
         return rf::multi_tdm_get_red_team_score() == rf::multi_tdm_get_blue_team_score();
     }
-    case rf::NG_TYPE_DC:
-    case rf::NG_TYPE_KOTH: {
+    case rf::NG_TYPE_DC: {
         return multi_koth_get_red_team_score() == multi_koth_get_blue_team_score();
+    }
+    case rf::NG_TYPE_KOTH: {
+        const int red_score = multi_koth_get_red_team_score();
+        const int blue_score = multi_koth_get_blue_team_score();
+
+        if (red_score == blue_score)
+            return true;
+
+        if (g_koth_info.hills.empty() || !g_alpine_server_config_active_rules.overtime.consider_tie_if_hill_contested)
+            return false;
+
+        const auto& hill = g_koth_info.hills.front(); // koth has only 1 hill
+
+        const HillOwner leading_team = (red_score > blue_score) ? HillOwner::HO_Red : HillOwner::HO_Blue;
+        const HillOwner trailing_team = opposite(leading_team);
+        const bool trailing_present = (trailing_team == HillOwner::HO_Red) ? hill.net_last_red > 0 : hill.net_last_blue > 0;
+        const bool trailing_capturing = hill.steal_dir == trailing_team && hill.capture_progress > 0;
+        const bool trailing_controls = hill.ownership == trailing_team;
+
+        // tied if trailing team is present, is owner, is actively stealing, or has remaining capture progress
+        if (trailing_present || trailing_capturing || trailing_controls)
+            return true;
+
+        return false;
     }
     case rf::NG_TYPE_REV: {
         if (g_koth_info.hills.empty())

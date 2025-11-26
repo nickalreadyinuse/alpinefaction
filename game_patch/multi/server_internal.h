@@ -251,6 +251,7 @@ struct OvertimeConfig
     bool enabled = false;
     int additional_time = 5;
     bool consider_tie_if_flag_stolen = false;
+    bool consider_tie_if_hill_contested = true;
 
     // =============================================
 
