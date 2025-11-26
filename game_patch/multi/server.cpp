@@ -2131,7 +2131,7 @@ bool round_is_tied(rf::NetGameType game_type)
             return true;
         }
 
-        if (g_alpine_server_config.overtime.consider_tie_if_flag_stolen) {
+        if (g_alpine_server_config_active_rules.overtime.consider_tie_if_flag_stolen) {
             bool red_flag_stolen = !rf::multi_ctf_is_red_flag_in_base();
             bool blue_flag_stolen = !rf::multi_ctf_is_blue_flag_in_base();
 
@@ -2202,6 +2202,11 @@ bool rev_all_points_permalocked()
             return false;
     }
     return true;
+}
+
+bool server_is_match_mode_enabled()
+{
+    return g_alpine_server_config.vote_match.enabled;
 }
 
 FunHook<void()> multi_check_for_round_end_hook{
@@ -2280,15 +2285,16 @@ FunHook<void()> multi_check_for_round_end_hook{
         }
 
         if (round_over && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
-            //xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_alpine_server_config.overtime.enabled, g_is_overtime, round_is_tied(game_type));
+            //xlog::warn("round time up {}, overtime? {}, already? {}, tied? {}", time_up, g_alpine_server_config_active_rules.overtime.enabled, g_is_overtime, round_is_tied(game_type));
+            const bool overtime_allowed = !server_is_match_mode_enabled() || g_match_info.match_active;
 
-            if (time_up && g_alpine_server_config.overtime.enabled && !g_is_overtime && g_match_info.match_active && round_is_tied(game_type)) {
+            if (time_up && g_alpine_server_config_active_rules.overtime.enabled && !g_is_overtime && overtime_allowed && round_is_tied(game_type)) {
                 g_is_overtime = true;
-                extend_round_time(g_alpine_server_config.overtime.additional_time);
+                extend_round_time(g_alpine_server_config_active_rules.overtime.additional_time);
 
                 std::string msg = std::format("\xA6 OVERTIME! Game will end when the tie is broken");
-                msg += g_alpine_server_config.overtime.additional_time > 0
-                           ? std::format(", or in {} minutes!", g_alpine_server_config.overtime.additional_time)
+                msg += g_alpine_server_config_active_rules.overtime.additional_time > 0
+                           ? std::format(", or in {} minutes!", g_alpine_server_config_active_rules.overtime.additional_time)
                            : "!";
                 af_broadcast_automated_chat_msg(msg);
             }
@@ -3077,11 +3083,6 @@ const AlpineServerConfig& server_get_alpine_config()
 bool server_is_modded()
 {
     return !g_alpine_server_config.require_client_mod && rf::mod_param.found();
-}
-
-bool server_is_match_mode_enabled()
-{
-    return g_alpine_server_config.vote_match.enabled;
 }
 
 bool server_is_alpine_only_enabled()

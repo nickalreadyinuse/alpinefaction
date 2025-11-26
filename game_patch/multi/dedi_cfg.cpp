@@ -82,6 +82,21 @@ void handle_log_param()
     g_ads_full_console_log = get_log_cmd_line_param().found();
 }
 
+static OvertimeConfig parse_overtime_config(const toml::table& t)
+{
+    OvertimeConfig v;
+    if (auto x = t["enabled"].value<bool>())
+        v.enabled = *x;
+
+    if (v.enabled) {
+        if (auto x = t["time"].value<int>())
+            v.set_additional_time(*x);
+        if (auto x = t["tie_when_flag_stolen"].value<bool>())
+            v.consider_tie_if_flag_stolen = *x;
+    }
+    return v;
+}
+
 static DefaultPlayerWeaponConfig parse_default_player_weapon(const toml::table& t, DefaultPlayerWeaponConfig c)
 {
     if (auto x = t["weapon_name"].value<std::string>()) {
@@ -417,6 +432,9 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 
     if (auto v = t["time_limit"].value<float>())
         o.set_time_limit(*v);
+    if (auto v = t["overtime"].as_table())
+        o.overtime = parse_overtime_config(*v);
+
     if (auto v = t["individual_kill_limit"].value<int>())
         o.set_individual_kill_limit(*v);
     if (auto v = t["team_kill_limit"].value<int>())
@@ -556,21 +574,6 @@ static VoteConfig parse_vote_config(const toml::table& t)
             v.ignore_nonvoters = *x;
         if (auto x = t["time"].value<float>())
             v.set_time_limit_seconds(*x);
-    }
-    return v;
-}
-
-static OvertimeConfig parse_overtime_config(const toml::table& t)
-{
-    OvertimeConfig v;
-    if (auto x = t["enabled"].value<bool>())
-        v.enabled = *x;
-
-    if (v.enabled) {
-        if (auto x = t["time"].value<int>())
-            v.set_additional_time(*x);
-        if (auto x = t["tie_when_flag_stolen"].value<bool>())
-            v.consider_tie_if_flag_stolen = *x;
     }
     return v;
 }
@@ -925,13 +928,8 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
         cfg.alpine_restricted_config = parse_alpine_restrict_config(tbl);
     else if (key == "click_limiter")
         cfg.click_limiter_config = parse_click_limiter_config(tbl);
-    else if (key == "vote_match") {
+    else if (key == "vote_match")
         cfg.vote_match = parse_vote_config(tbl);
-        if (cfg.vote_match.enabled) {
-            if (auto sub = tbl["overtime"].as_table())
-                cfg.overtime = parse_overtime_config(*sub);
-        }
-    }
     else if (key == "vote_kick")
         cfg.vote_kick = parse_vote_config(tbl);
     else if (key == "vote_level")
@@ -1185,6 +1183,19 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
     // time limit
     if (base || rules.time_limit != b.time_limit)
         std::format_to(iter, "  Time limit:                            {} min\n", rules.time_limit / 60.0f);
+
+    const bool overtime_changed =
+        rules.overtime.enabled != b.overtime.enabled ||
+        (rules.overtime.enabled && (rules.overtime.additional_time != b.overtime.additional_time ||
+            rules.overtime.consider_tie_if_flag_stolen != b.overtime.consider_tie_if_flag_stolen));
+
+    if (base || overtime_changed) {
+        std::format_to(iter, "  Overtime:                              {}\n", rules.overtime.enabled);
+        if (rules.overtime.enabled) {
+            std::format_to(iter, "    Additional time:                     {} min\n", rules.overtime.additional_time);
+            std::format_to(iter, "    Tie when flag stolen:                {}\n", rules.overtime.consider_tie_if_flag_stolen);
+        }
+    }
 
     // score limits
     if (base || rules.individual_kill_limit != b.individual_kill_limit)
@@ -1572,12 +1583,6 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     if (vm.enabled) {
         std::format_to(iter, "    Ignore nonvoters:                    {}\n", vm.ignore_nonvoters);
         std::format_to(iter, "    Time limit:                          {} sec\n", vm.time_limit_seconds);
-        auto& ot = cfg.overtime;
-        std::format_to(iter, "    Overtime:                            {}\n", ot.enabled);
-        if (ot.enabled) {
-            std::format_to(iter, "      Additional time:                   {} min\n", ot.additional_time);
-            std::format_to(iter, "      Tie when flag stolen:              {}\n", ot.consider_tie_if_flag_stolen);
-        }
     }
 
     auto print_vote = [&](std::string name, const VoteConfig& v) {

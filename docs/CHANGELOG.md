@@ -44,7 +44,6 @@ Version 1.2.0 (Willow): Not yet released
 - Support weapon stay exemption functionality for any weapons, including stock fusion behaviour and weapons from TC mods
 - Deprecate `$Max FOV` dedicated server setting
 - Support GunGame configuration using weapon names (from `weapons.tbl`) rather than weapon indices
-- Restrict overtime configuration to match mode
 - Add support for custom weapon loadouts in dedicated servers
 - Identify Alpine Faction and Dash Faction players in server console on join and when `info` command is run
 - Log player join request rejection reason to server console on attempted join
@@ -135,7 +134,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix `Advertise AF` sometimes sending the wrong advert to players running old Alpine versions
 - Fix inactivity incorrectly being tracked when endgame scoreboard is displayed
 - Fix very niche case where server could crash if gungame is on and a weapon type is invalid
-- Fix overtime initiating even if no match is active
+- Fix overtime initiating in match mode even if no match is active
 - Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
 - Fix Direct3D 11 renderer crashing when generating realtime bitmaps
 - Fix Direct3D 11 renderer not rendering dynamic lighting on skeletal meshes
