@@ -106,6 +106,7 @@ Version 1.2.0 (Willow): Not yet released
 - Dynamically scale `Spectating:` name plate based on player name length
 - Color player name on name plate based on their team in team game types
 - Exclude clients from votes if they don't meet the server's minimum requirements
+- Add winter seasonal effect to main menu background
 
 [@is-this-c](https://github.com/is-this-c)
 - Support `•` in TrueType fonts
