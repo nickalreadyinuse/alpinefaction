@@ -27,6 +27,7 @@
 #include "../multi/alpine_packets.h"
 #include "../hud/hud_world.h"
 #include <common/utils/list-utils.h>
+#include <common/version/version.h>
 #include <common/config/GameConfig.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
@@ -56,7 +57,8 @@ PlayerAdditionalData& get_player_additional_data(const rf::Player* const player)
 }
 
 // used for compatibility checks
-bool is_player_minimum_af_client_version(rf::Player* player, int version_major, int version_minor) {
+bool is_player_minimum_af_client_version(rf::Player* player, int version_major, int version_minor, bool only_release)
+{
     if (!player) {
         return false;
     }
@@ -71,9 +73,14 @@ bool is_player_minimum_af_client_version(rf::Player* player, int version_major, 
         return false;
     }
 
+    if (only_release && info.client_version_type != VERSION_TYPE_RELEASE) {
+        return false;
+    }
+
     if (info.client_version_major > version_major) {
         return true;
     }
+
     if (info.client_version_major < version_major) {
         return false;
     }
