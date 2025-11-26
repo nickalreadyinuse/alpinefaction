@@ -14,6 +14,7 @@
 #include "../misc/alpine_settings.h"
 #include "../main/main.h"
 #include "../os/console.h"
+#include "../misc/vpackfile.h"
 
 static int g_cutscene_bg_sound_sig = -1;
 static int g_custom_sound_entry_start = -1;
@@ -423,7 +424,7 @@ FunHook<bool(const char*)> snd_pc_file_exists_hook{
             // To reduce spam ignore space-only filenames and avoid logging the same filename multiple times in a row
             bool has_only_spaces = std::string_view{filename}.find_first_not_of(" ") == std::string_view::npos;
             static std::string last_file_not_found;
-            if (!has_only_spaces && filename != last_file_not_found) {
+            if (!has_only_spaces && !is_known_missing_asset(filename) && filename != last_file_not_found) {
                 xlog::warn("Sound file not found: {}", filename);
                 last_file_not_found = filename;
             }

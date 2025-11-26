@@ -107,6 +107,7 @@ Version 1.2.0 (Willow): Not yet released
 - Color player name on name plate based on their team in team game types
 - Exclude clients from votes if they don't meet the server's minimum requirements
 - Add winter seasonal effect to main menu background
+- Suppress missing asset warnings for files known to be referenced by but missing from the stock game
 
 [@is-this-c](https://github.com/is-this-c)
 - Support `•` in TrueType fonts
