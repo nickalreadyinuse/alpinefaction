@@ -107,6 +107,7 @@ Version 1.2.0 (Willow): Not yet released
 - Exclude clients from votes if they don't meet the server's minimum requirements
 - Add winter seasonal effect to main menu background
 - Suppress missing asset warnings for files known to be referenced by but missing from the stock game
+- Add `Play in multi (camera)` button to level editor
 
 [@is-this-c](https://github.com/is-this-c)
 - Support `•` in TrueType fonts
