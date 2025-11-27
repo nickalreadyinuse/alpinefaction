@@ -22,7 +22,7 @@ Version 1.2.0 (Willow): Not yet released
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Raise maximum confgurable pixels/m apply map texture setting in level editor to 8192
-- Default level ambient light and fog color to flat black (0, 0, 0) instead of stock game default (40, 40, 40)
+- Default level fog color to flat black (0, 0, 0) instead of stock game default (40, 40, 40)
 - Update Level Properties window strings to be more descriptive
 - Add `cl_wh_altdmgindicators` command to toggle cumulative world HUD damage indicators
 - Add `ui_realarmor` command to toggle real armor display on HUD (1:1 with health instead of the 2:1 default)
@@ -108,6 +108,10 @@ Version 1.2.0 (Willow): Not yet released
 - Add winter seasonal effect to main menu background
 - Suppress missing asset warnings for files known to be referenced by but missing from the stock game
 - Add `Play in multi (camera)` button to level editor
+- Add `Player starts with headlamp` setting to level properties window in level editor
+- Add `Set_Gameplay_Rule` event and first supported rule `Player has headlamp`
+- Rearrange quick access buttons on level editor toolbar
+- Add level editor hotkey `F9` to play in multi, and `F10` to play in multi (camera))
 
 [@is-this-c](https://github.com/is-this-c)
 - Support `•` in TrueType fonts
