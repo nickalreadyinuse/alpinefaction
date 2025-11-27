@@ -782,7 +782,7 @@ extern "C" DWORD DF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Fix random crash when opening cutscene properties
     CCutscenePropertiesDialog_ct_crash_fix.install();
 
-    // Load DashEditor.vpp
+    // Load alpinefaction.vpp
     vpackfile_init_injection.install();
 
     // Add maps_af.txt to the collection of files scanned for default textures in order to add more textures from the

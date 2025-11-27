@@ -21,7 +21,7 @@
 #include "../rf/trigger.h"
 #include "../rf/particle_emitter.h"
 #include "../main/main.h"
-#include "../object/object.h"
+#include "object.h"
 #include "../misc/player.h"
 #include "../multi/gametype.h"
 #include "../rf/player/player.h"
