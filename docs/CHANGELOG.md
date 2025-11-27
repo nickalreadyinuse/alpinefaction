@@ -114,6 +114,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add level editor hotkey `F9` to play in multi, and `F10` to play in multi (camera))
 
 [@is-this-c](https://github.com/is-this-c)
+- Add `bighud` support for chat menus
 - Support `•` in TrueType fonts
 - Add the year and the number of spawned players to the scoreboard
 - Add `ui_simple_server_chat_messages` command to display automated server chat messages without `Server: `
