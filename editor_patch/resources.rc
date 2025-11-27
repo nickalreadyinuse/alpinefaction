@@ -31,6 +31,7 @@ FONT 8, "MS Sans Serif"
     PUSHBUTTON  "Play", 0x800B, 660, 4, 29, 14
     PUSHBUTTON  "Play (camera)", 0x8078, 690, 4, 49, 14
     PUSHBUTTON  "Play (multi)", ID_PLAY_MULTI, 740, 4, 49, 14
+    PUSHBUTTON  "Play (multi+camera)", ID_PLAY_MULTI_CAMERA, 790, 4, 69, 14
 }
 
 LANGUAGE LANG_ENGLISH, SUBLANG_DEFAULT
