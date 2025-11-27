@@ -37,6 +37,15 @@
 std::unordered_map<const rf::Player*, PlayerAdditionalData> g_player_additional_data_map;
 static rf::PlayerHeadlampSettings g_local_headlamp_settings;
 
+void set_headlamp_toggle_enabled(bool enabled)
+{
+    g_headlamp_toggle_enabled = enabled;
+
+    if (!g_headlamp_toggle_enabled && rf::local_player_entity && rf::entity_headlamp_is_on(rf::local_player_entity)) {
+        rf::entity_headlamp_turn_off(rf::local_player_entity);
+    }
+}
+
 void find_player(const StringMatcher& query, std::function<void(rf::Player*)> consumer)
 {
     auto player_list = SinglyLinkedList{rf::player_list};
