@@ -707,9 +707,7 @@ static void hud_render_run_timer_widget(int x, int y, int w, int h, int font_id)
 
     const std::string timer_string = build_run_timer_string();
     const auto [timer_w, timer_h] = rf::gr::get_string_size(timer_string, font_id);
-    const bool big_ui = g_big_team_scores_hud;
-    const int timer_margin_x = big_ui ? 33 : 42;
-    const int timer_x = x + timer_margin_x;
+    const int timer_x = x + (w - timer_w) / 2;
     const int center_x = x + w / 2;
     const int label_x = center_x - (label_w / 2);
     const int vertical_spacing = 2;
