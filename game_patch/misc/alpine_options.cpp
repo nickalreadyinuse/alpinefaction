@@ -36,6 +36,7 @@ AlpineOptionsConfig g_alpine_options_config;
 AlpineLevelInfoConfig g_alpine_level_info_config;
 
 static std::unordered_set<std::string> g_p2t_fix_levels; // list of levels to apply power2tex fix
+static std::unordered_set<std::string> g_known_run_levels; // list of run mode levels manually added
 static std::string af_default_player_entity = "miner1";
 static std::string af_suit_player_entity = "parker_suit";
 static std::string af_sci_player_entity = "parker_sci";
@@ -43,6 +44,17 @@ static std::string af_sci_player_entity = "parker_sci";
 bool is_p2t_fix_level(const std::string& filename)
 {
     return g_p2t_fix_levels.contains(string_to_lower(filename));
+}
+
+bool is_known_run_level(const std::string& filename)
+{
+    std::string level_name = filename;
+    
+    if (!string_ends_with_ignore_case(level_name, ".rfl")) {
+        level_name += ".rfl";
+    }
+
+    return g_known_run_levels.contains(string_to_lower(level_name));
 }
 
 // trim leading and trailing whitespace
@@ -802,15 +814,22 @@ void load_single_af_options_file(const std::string& file_name)
         std::string option_value = trim(line.substr(delimiter_pos + 1), false);
 
         // Handle af_level_quirks.tbl
-        if (file_name == "af_level_quirks.tbl" && option_name == "$P2T Fix") {
+        if (file_name == "af_level_quirks.tbl" &&
+            (option_name == "$P2T Fix" || option_name == "$Known Run Maps")) {
             std::regex filename_pattern("\\\"([^\"]+)\\\"");
             auto begin = std::sregex_iterator(option_value.begin(), option_value.end(), filename_pattern);
             auto end = std::sregex_iterator();
 
             for (std::sregex_iterator i = begin; i != end; ++i) {
                 std::string filename = (*i)[1].str();
-                g_p2t_fix_levels.insert(string_to_lower(filename));
-                //xlog::warn("P2T Fix level added: {}", filename);
+                if (option_name == "$P2T Fix") {
+                    g_p2t_fix_levels.insert(string_to_lower(filename));
+                    //xlog::warn("P2T Fix level added: {}", filename);
+                }
+                else if (option_name == "$Known Run Maps") {
+                    g_known_run_levels.insert(string_to_lower(filename));
+                    //xlog::warn("Run mode level added: {}", filename);
+                }
             }
 
             continue;

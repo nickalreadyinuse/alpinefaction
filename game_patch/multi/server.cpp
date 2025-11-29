@@ -26,6 +26,7 @@
 #include "../os/os.h"
 #include "../hud/hud.h"
 #include "../misc/player.h"
+#include "../misc/alpine_options.h"
 #include "../main/main.h"
 #include "../misc/achievements.h"
 #include "../misc/alpine_settings.h"
@@ -1227,7 +1228,7 @@ FunHook<bool (const char*, int)> multi_is_level_matching_game_type_hook{
             return string_starts_with_ignore_case(filename, "rev");
         }
         else if (ng_type == rf::NetGameType::NG_TYPE_RUN) {
-            return string_contains_ignore_case(filename, "run");
+            return string_starts_with_ignore_case(filename, "run") || is_known_run_level(filename);
         }
         else if (ng_type == rf::NetGameType::NG_TYPE_ESC) {
             return string_starts_with_ignore_case(filename, "esc");
