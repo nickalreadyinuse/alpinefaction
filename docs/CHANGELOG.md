@@ -112,6 +112,9 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Set_Gameplay_Rule` event and first supported rule `Player has headlamp`
 - Rearrange quick access buttons on level editor toolbar
 - Add level editor hotkey `F9` to play in multi, and `F10` to play in multi (camera))
+- Deprecate `level_info_ext` and `map_info_ext`, use `level_info` and `map_info` instead
+- Add `Override static mesh ambient light scale` setting to level properties window in level editor
+- Update output of `level_info` command to include advanced level properties
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud` support for chat menus
