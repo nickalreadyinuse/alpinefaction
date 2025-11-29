@@ -8,6 +8,7 @@
 #include "console.h"
 #include "../misc/alpine_options.h"
 #include "../misc/alpine_settings.h"
+#include "../misc/level.h"
 #include "../main/main.h"
 #include "../rf/player/camera.h"
 #include "../rf/multi.h"
@@ -140,24 +141,6 @@ ConsoleCommand2 level_info_cmd{
     "level_info",
     []() {
         if (rf::level.flags & rf::LEVEL_LOADED) {
-            print_basic_level_info();
-        }
-        else {
-            rf::console::print("No level loaded!");
-        }
-    },
-    "Shows basic information about the current level",
-};
-
-DcCommandAlias map_info_cmd{
-    "map_info",
-    level_info_cmd,
-};
-
-ConsoleCommand2 level_info_ext_cmd{
-    "level_info_ext",
-    []() {
-        if (rf::level.flags & rf::LEVEL_LOADED) {
             print_basic_level_info(); // print basic info before continuing
 
             rf::console::print("Has Skybox? {}", rf::level.has_skyroom);
@@ -167,6 +150,24 @@ ConsoleCommand2 level_info_ext_cmd{
             rf::console::print("Distance Fog: {}, {}, {}, near clip: {}, far clip: {}",
                 rf::level.distance_fog_color.red, rf::level.distance_fog_color.green, rf::level.distance_fog_color.blue,
                 rf::level.distance_fog_near_clip, rf::level.distance_fog_far_clip);
+
+            // Alpine level properties
+            const auto& level_props = AlpineLevelProperties::instance();
+            rf::console::print("Alpine level properties:");
+            rf::console::print("- Alpine props chunk version: {}", level_props.chunk_version > 0 ? std::to_string(level_props.chunk_version) : "not found");
+            rf::console::print("- Legacy cyclic timers: {}", level_props.legacy_cyclic_timers);
+            rf::console::print("- Legacy movers: {}", level_props.legacy_movers);
+            rf::console::print("- Starts with headlamp: {}", level_props.starts_with_headlamp);
+            rf::console::print("- Override static mesh ambient light scale: {}", level_props.override_static_mesh_ambient_light_modifier);
+            rf::console::print("- Mesh static ambient light scale: {}", level_props.static_mesh_ambient_light_modifier);
+
+            // Dash level properties (if found)
+            const auto& dash_level_props = DashLevelProps::instance();
+            if (dash_level_props.chunk_version > 0) {
+                rf::console::print("Dash level properties:");
+                rf::console::print("- Dash props chunk version: {}", dash_level_props.chunk_version);
+                rf::console::print("- Lightmaps full depth: {}", dash_level_props.lightmaps_full_depth);
+            }
 
             // Lightmap clamping floor
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
@@ -246,12 +247,12 @@ ConsoleCommand2 level_info_ext_cmd{
             rf::console::print("No level loaded!");
         }
     },
-    "Shows extended information about the current level",
+    "Shows information about the current level",
 };
 
-DcCommandAlias map_info_ext_cmd{
-    "map_info_ext",
-    level_info_ext_cmd,
+DcCommandAlias map_info_cmd{
+    "map_info",
+    level_info_cmd,
 };
 
 ConsoleCommand2 version_cmd{
@@ -554,8 +555,6 @@ void console_commands_init()
     map_cmd.register_cmd();
     level_info_cmd.register_cmd();
     map_info_cmd.register_cmd();
-    level_info_ext_cmd.register_cmd();
-    map_info_ext_cmd.register_cmd();
     version_cmd.register_cmd();
     dbg_berserk_cmd.register_cmd();
     server_password_cmd.register_cmd();
