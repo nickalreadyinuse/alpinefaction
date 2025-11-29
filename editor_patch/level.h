@@ -19,8 +19,11 @@ struct AlpineLevelProperties
     // v2
     bool legacy_movers = false;
     bool starts_with_headlamp = true;
+    // v3
+    bool override_static_mesh_ambient_light_modifier = false;
+    float static_mesh_ambient_light_modifier = 2.0f;
 
-    static constexpr std::uint32_t current_alpine_chunk_version = 2u;
+    static constexpr std::uint32_t current_alpine_chunk_version = 3u;
 
     // defaults for existing levels, overwritten for maps with these fields in their alpine level props chunk
     // relevant for maps without alpine level props and maps with older alpine level props versions
@@ -30,6 +33,8 @@ struct AlpineLevelProperties
         legacy_cyclic_timers = true;
         legacy_movers = true;
         starts_with_headlamp = true;
+        override_static_mesh_ambient_light_modifier = false;
+        static_mesh_ambient_light_modifier = 2.0f;
     }
 
     void Serialize(rf::File& file) const
@@ -41,6 +46,9 @@ struct AlpineLevelProperties
         // v2
         file.write<std::uint8_t>(legacy_movers ? 1u : 0u);
         file.write<std::uint8_t>(starts_with_headlamp ? 1u : 0u);
+        // v3
+        file.write<std::uint8_t>(override_static_mesh_ambient_light_modifier ? 1u : 0u);
+        file.write<float>(static_mesh_ambient_light_modifier);
     }
 
     void Deserialize(rf::File& file, std::size_t chunk_len)
@@ -105,6 +113,17 @@ struct AlpineLevelProperties
                 return;
             starts_with_headlamp = (u8 != 0);
             xlog::debug("[AlpineLevelProps] starts_with_headlamp {}", starts_with_headlamp);
+        }
+
+        if (version >= 3) {
+            std::uint8_t u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            override_static_mesh_ambient_light_modifier = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] override_static_mesh_ambient_light_modifier {}", override_static_mesh_ambient_light_modifier);
+            if (!read_bytes(&static_mesh_ambient_light_modifier, sizeof(static_mesh_ambient_light_modifier)))
+                return;
+            xlog::debug("[AlpineLevelProps] static_mesh_ambient_light_modifier {}", static_mesh_ambient_light_modifier);
         }
     }
 };

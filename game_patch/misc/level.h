@@ -9,12 +9,16 @@ constexpr int dash_level_props_chunk_id = 0xDA58FA00;
 // should match structure in editor_patch\level.h
 struct AlpineLevelProperties
 {
+    uint32_t chunk_version;
     // default values if not set by level file
     // v1
     bool legacy_cyclic_timers = true;
     // v2
     bool legacy_movers = true;
     bool starts_with_headlamp = true;
+    // v3
+    bool override_static_mesh_ambient_light_modifier = false;
+    float static_mesh_ambient_light_modifier = 2.0f;
 
     static AlpineLevelProperties& instance()
     {
@@ -60,6 +64,7 @@ struct AlpineLevelProperties
             xlog::warn("[AlpineLevelProps] chunk too small for version header (len={})", chunk_len);
             return;
         }
+        chunk_version = version;
         if (version < 1) {
             xlog::warn("[AlpineLevelProps] unexpected version {} (chunk_len={})", version, chunk_len);
             return;
@@ -85,11 +90,23 @@ struct AlpineLevelProperties
             starts_with_headlamp = (u8 != 0);
             xlog::debug("[AlpineLevelProps] starts_with_headlamp {}", starts_with_headlamp);
         }
+
+        if (version >= 3) {
+            std::uint8_t u8 = 0;
+            if (!read_bytes(&u8, sizeof(u8)))
+                return;
+            override_static_mesh_ambient_light_modifier = (u8 != 0);
+            xlog::debug("[AlpineLevelProps] override_static_mesh_ambient_light_modifier {}", override_static_mesh_ambient_light_modifier);
+            if (!read_bytes(&static_mesh_ambient_light_modifier, sizeof(static_mesh_ambient_light_modifier)))
+                return;
+            xlog::debug("[AlpineLevelProps] static_mesh_ambient_light_modifier {}", static_mesh_ambient_light_modifier);
+        }
     }
 };
 
 struct DashLevelProps
 {
+    uint32_t chunk_version;
     // default values for if not set
     bool lightmaps_full_depth = false; // since DashLevelProps v1
 
@@ -103,5 +120,6 @@ struct DashLevelProps
     {
         lightmaps_full_depth = file.read<std::uint8_t>();
         xlog::debug("[DashLevelProps] lightmaps_full_depth {}", lightmaps_full_depth);
+        chunk_version = 1u; // latest supported version
     }
 };

@@ -6,6 +6,7 @@
 #include <patch_common/CodeInjection.h>
 #include <common/utils/list-utils.h>
 #include "../misc/misc.h"
+#include "../misc/level.h"
 #include "../misc/alpine_settings.h"
 #include "../rf/gr/gr_light.h"
 #include "../rf/object.h"
@@ -115,6 +116,17 @@ void evaluate_fullbright_meshes()
         }
     }
 }
+
+CodeInjection vmesh_update_lighting_scale_patch{
+    0x00504289,
+    [](auto& regs) {
+        const auto& level_props = AlpineLevelProperties::instance();
+        if (level_props.override_static_mesh_ambient_light_modifier) {
+            regs.ecx = level_props.static_mesh_ambient_light_modifier;
+            regs.eip = 0x0050428D;
+        }
+    }
+};
 
 FunHook<void()> obj_light_calculate_hook{
     0x0048B0E0,
@@ -241,6 +253,9 @@ void obj_light_apply_patch()
 
     // Allow dynamic lights in levels
     dynamic_light_load_patch.install(); // in LevelLight__load
+
+    // Allow level to override static mesh ambient light scale
+    vmesh_update_lighting_scale_patch.install();
 
     // Fix/improve items and clutters static lighting calculation: fix matrices being zero and use static lights
     obj_light_calculate_hook.install();
