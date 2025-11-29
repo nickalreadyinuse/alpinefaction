@@ -27,66 +27,6 @@ void pf_send_reliable_packet(rf::Player* player, const void* data, int len)
 #endif
 }
 
-static void send_pf_announce_player_packet(rf::Player* player, pf_pure_status pure_status)
-{
-    // Send: server -> client
-    assert(rf::is_server);
-
-    pf_player_announce_packet announce_packet{};
-    announce_packet.hdr.type = static_cast<uint8_t>(pf_packet_type::announce_player);
-    announce_packet.hdr.size = sizeof(announce_packet) - sizeof(announce_packet.hdr);
-    announce_packet.version = pf_announce_player_packet_version;
-    announce_packet.player_id = player->net_data->player_id;
-    announce_packet.is_pure = static_cast<uint8_t>(
-        get_player_additional_data(player).client_version == ClientVersion::browser ? pf_pure_status::rfsb : pure_status
-    );
-
-    auto player_list = SinglyLinkedList(rf::player_list);
-    for (auto& other_player : player_list) {
-        pf_send_reliable_packet(&other_player, &announce_packet, sizeof(announce_packet));
-    }
-}
-
-static void process_pf_player_announce_packet(const void* data, size_t len, [[ maybe_unused ]] const rf::NetAddr& addr)
-{
-    // Receive: client <- server
-    if (rf::is_server) {
-        return;
-    }
-
-    pf_player_announce_packet announce_packet{};
-    if (len < sizeof(announce_packet)) {
-        xlog::trace("Invalid length in PF player_announce packet");
-        return;
-    }
-
-    std::memcpy(&announce_packet, data, sizeof(announce_packet));
-
-    if (announce_packet.version != pf_announce_player_packet_version) {
-        xlog::trace("Invalid version in PF player_announce packet");
-        return;
-    }
-
-    xlog::trace("PF player_announce packet: player {} is_pure {}", announce_packet.player_id, announce_packet.is_pure);
-    
-    if (rf::Player* player = rf::multi_find_player_by_id(announce_packet.player_id); player
-        && announce_packet.is_pure <= static_cast<uint8_t>(pf_pure_status::_last_variant)) {
-        get_player_additional_data(player).received_ac_status
-            = std::optional{static_cast<pf_pure_status>(announce_packet.is_pure)};
-    }
-
-    if (announce_packet.player_id == rf::local_player->net_data->player_id) {
-        static constinit const std::array<std::string_view, 6> pf_verification_status_names{
-            {"none", "blue", "gold", "fail", "old_blue", "rfsb"}
-        };
-        const std::string_view pf_verification_status
-            = announce_packet.is_pure < std::size(pf_verification_status_names)
-            ? pf_verification_status_names[announce_packet.is_pure]
-            : "unknown";
-        xlog::info("PF Verification Status: {} ({})", pf_verification_status, announce_packet.is_pure);
-    }
-}
-
 void send_pf_player_stats_packet(rf::Player* player)
 {
     // Send: server -> client
@@ -236,10 +176,6 @@ bool pf_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
 
     switch (packet_type)
     {
-        case pf_packet_type::announce_player:
-            process_pf_player_announce_packet(data, len, addr);
-            break;
-
         case pf_packet_type::player_stats:
             process_pf_player_stats_packet(data, len, addr);
             break;
@@ -285,7 +221,6 @@ void pf_player_level_load(rf::Player* player)
 void pf_player_verified(rf::Player* player, pf_pure_status pure_status)
 {
     assert(rf::is_server);
-    send_pf_announce_player_packet(player, pure_status);
     send_pf_player_stats_packet(player);
 }
 
