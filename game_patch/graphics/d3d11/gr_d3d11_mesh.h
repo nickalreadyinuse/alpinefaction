@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cstddef>
 #include <unordered_map>
+#include <vector>
 #include <d3d11.h>
 #include <common/ComPtr.h>
 #include "gr_d3d11_shader.h"
@@ -36,6 +38,8 @@ namespace df::gr::d3d11
             bool double_sided = false;
         };
 
+        struct Mesh;
+
         virtual ~BaseMeshRenderCache() {}
         BaseMeshRenderCache(rf::VifLodMesh* lod_mesh) :
             lod_mesh_(lod_mesh)
@@ -46,14 +50,27 @@ namespace df::gr::d3d11
             return meshes_[lod_level].batches;
         }
 
+        const Mesh& get_mesh(int lod_level) const
+        {
+            return meshes_[lod_level];
+        }
+
+        std::size_t base_vertex_offset() const
+        {
+            return base_vertex_offset_;
+        }
+
     protected:
         struct Mesh
         {
             std::vector<Batch> batches;
+            std::size_t vertex_offset = 0;
+            std::size_t vertex_count = 0;
         };
 
         rf::VifLodMesh* lod_mesh_;
         std::vector<Mesh> meshes_;
+        std::size_t base_vertex_offset_ = 0;
     };
 
 

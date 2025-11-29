@@ -143,8 +143,9 @@ Version 1.2.0 (Willow): Not yet released
 - Fix overtime initiating in match mode even if no match is active
 - Fix scanner and scope sensitivity set in options menu not applying until new level is loaded
 - Fix Direct3D 11 renderer crashing when generating realtime bitmaps
-- Fix Direct3D 11 renderer not rendering dynamic lighting on skeletal meshes
-- Fix static meshes appearing much darker than expected on Direct3D 11 renderer
+- Fix dynamic lights not rendering on meshes (fixed in Direct3D 11 only)
+- Fix dynamic lights not rendering on mover brushes (fixed in Direct3D 11 only)
+- Fix Direct3D 11 renderer not properly rendering vertex lighting for static meshes
 - Fix `r_fullbright`, `r_lightmaps`, and `r_nearest` not working properly on Direct3D 11 renderer
 - Fix `Winner` and `Game Over` sounds played at the end of a match usually being wrong
 - Fix `Try Avoid Players` behaviour for spawn point selection not working properly
