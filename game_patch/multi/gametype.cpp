@@ -1833,7 +1833,7 @@ CodeInjection multi_level_init_gametypes_injection{
 CodeInjection send_team_score_server_do_frame_patch{
     0x0046E5B4,
     [](auto& regs) {
-        if (multi_is_team_game_type() && !gt_is_rev()) {
+        if (multi_is_team_game_type() && !gt_is_rev() && !gt_is_esc()) {
             regs.eip = 0x0046E5C3; // send team_scores packet
         }
     },
