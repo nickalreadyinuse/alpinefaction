@@ -38,7 +38,12 @@ namespace df::gr::d3d11
             bool double_sided = false;
         };
 
-        struct Mesh;
+        struct Mesh
+        {
+            std::vector<Batch> batches;
+            std::size_t vertex_offset = 0;
+            std::size_t vertex_count = 0;
+        };
 
         virtual ~BaseMeshRenderCache() {}
         BaseMeshRenderCache(rf::VifLodMesh* lod_mesh) :
@@ -53,7 +58,7 @@ namespace df::gr::d3d11
         const Mesh& get_mesh(int lod_level) const
         {
             return meshes_[lod_level];
-        }
+        };
 
         std::size_t base_vertex_offset() const
         {
@@ -61,13 +66,6 @@ namespace df::gr::d3d11
         }
 
     protected:
-        struct Mesh
-        {
-            std::vector<Batch> batches;
-            std::size_t vertex_offset = 0;
-            std::size_t vertex_count = 0;
-        };
-
         rf::VifLodMesh* lod_mesh_;
         std::vector<Mesh> meshes_;
         std::size_t base_vertex_offset_ = 0;
