@@ -122,7 +122,7 @@ CodeInjection vmesh_update_lighting_scale_patch{
     [](auto& regs) {
         const auto& level_props = AlpineLevelProperties::instance();
         if (level_props.override_static_mesh_ambient_light_modifier) {
-            regs.ecx = level_props.static_mesh_ambient_light_modifier;
+            regs.ecx = static_cast<uint32_t>(level_props.static_mesh_ambient_light_modifier);
             regs.eip = 0x0050428D;
         }
     }
