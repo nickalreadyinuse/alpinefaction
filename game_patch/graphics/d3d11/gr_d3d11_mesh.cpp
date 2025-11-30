@@ -516,7 +516,8 @@ namespace df::gr::d3d11
                 }
                 else {
                     // replicate approximate light level from stock game DX9
-                    color = get_character_light_level(rf::level.ambient_light, params.ambient_color);
+                    //color = get_character_light_level(rf::level.ambient_light, params.ambient_color); // ambient_color shifts randomly sometimes, needs to be further looked into
+                    color = add_clamped(rf::level.ambient_light, {64, 64, 64, 64});
                 }
             } else { // static meshes
                 // replicate approximate light level from stock game DX9
