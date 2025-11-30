@@ -186,7 +186,9 @@ enum packet_type : uint8_t {
     obj_kill               = 0x27,
     item_apply             = 0x28,
     boolean_               = 0x29,
-    mover_update           = 0x2A, // unused
+    // Note: `mover_update` overlaps with `pf_player_stats`.
+    // Has an empty handler in stock netcode.
+    mover_update           = 0x2A,
     respawn                = 0x2B,
     entity_create          = 0x2C,
     item_create            = 0x2D,
@@ -199,6 +201,7 @@ enum packet_type : uint8_t {
     sound                  = 0x34,
     team_score             = 0x35,
     glass_kill             = 0x36,
+    pf_player_stats        = 0x2A,
     af_ping_location_req   = 0x50,
     af_ping_location       = 0x51,
     af_damage_notify       = 0x52,
@@ -276,8 +279,6 @@ std::array g_client_side_packet_whitelist{
     obj_kill,
     item_apply,
     boolean_,
-    // Note: mover_update packet is sent by PF server. Handler is empty so it is safe to enable it.
-    mover_update,
     respawn,
     entity_create,
     item_create,
@@ -286,6 +287,7 @@ std::array g_client_side_packet_whitelist{
     sound,
     team_score,
     glass_kill,
+    pf_player_stats,
     af_ping_location,
     af_damage_notify,
     af_obj_update,
@@ -1928,6 +1930,29 @@ CodeInjection send_players_obj_update_packets_injection{
     },
 };
 
+FunHook<void(rf::Player*)> send_netgame_update_packet_hook{
+    0x00484DD0,
+    [] (rf::Player* const player) {
+        const auto send_stats = [] (rf::Player* const player) {
+            const auto& pdata = get_player_additional_data(player);
+            if (pdata.client_version == ClientVersion::pure_faction
+                || is_player_minimum_af_client_version(player, 1, 2)) {
+                send_pf_player_stats_packet(player);
+            }
+        };
+
+        if (!player) {
+            for (rf::Player& p : SinglyLinkedList{rf::player_list}) {
+                send_stats(&p);
+            }
+        } else {
+            send_stats(player);
+        }
+
+        send_netgame_update_packet_hook.call_target(player);
+    },
+};
+
 void network_init()
 {
     // Support af_obj_update packet
@@ -2100,4 +2125,7 @@ void network_init()
 
     // Ignore browsers when calculating player count for info requests
     game_info_num_players_hook.install();
+
+    // Send `pf_player_stats_packet` with score.
+    send_netgame_update_packet_hook.install();
 }
