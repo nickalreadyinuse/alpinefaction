@@ -118,13 +118,17 @@ void evaluate_fullbright_meshes()
 }
 
 CodeInjection vmesh_update_lighting_scale_patch{
-    0x00504289,
+    0x00504290,
     [](auto& regs) {
         const auto& level_props = AlpineLevelProperties::instance();
-        if (level_props.override_static_mesh_ambient_light_modifier) {
-            regs.ecx = static_cast<uint32_t>(level_props.static_mesh_ambient_light_modifier);
-            regs.eip = 0x0050428D;
+        if (!level_props.override_static_mesh_ambient_light_modifier) {
+            return;
         }
+
+        const float scale = static_cast<float>(level_props.static_mesh_ambient_light_modifier);
+        auto esp_value = static_cast<std::uintptr_t>(regs.esp);
+        auto* scale_ptr = reinterpret_cast<float*>(esp_value);
+        *scale_ptr = scale;
     }
 };
 
