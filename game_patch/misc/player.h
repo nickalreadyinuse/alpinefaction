@@ -33,6 +33,7 @@ struct PlayerAdditionalData
     uint8_t client_version_type = 0;
     uint32_t max_rfl_version = 200;
     std::optional<pf_pure_status> received_ac_status{};
+    bool is_bot_player = false;
     bool is_muted = false;
     int last_hitsound_sent_ms = 0;
     int last_critsound_sent_ms = 0;
@@ -47,6 +48,28 @@ struct PlayerAdditionalData
     uint8_t damage_handicap = 0; // percentile
     std::optional<rf::Player*> spectatee{};
     bool remote_server_cfg_sent = false;
+
+    bool is_bot() const
+    {
+        if (rf::is_server) {
+            return is_bot_player;
+        }
+    }
+
+    bool is_spawn_disabled_bot() const
+    {
+        if (rf::is_server) {
+            return is_bot_player && g_alpine_server_config_active_rules.ideal_player_count < 32 &&
+                   multi_num_spawned_players() >= g_alpine_server_config_active_rules.ideal_player_count;
+        }
+    }
+
+    bool is_browser() const
+    {
+        if (rf::is_server) {
+            return client_version == ClientVersion::browser;
+        }
+    }
 };
 
 inline rf::Timestamp g_respawn_timer_local;

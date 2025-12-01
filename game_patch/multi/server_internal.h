@@ -754,7 +754,7 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
 void cleanup_win32_server_console();
 void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, rf::Player* sender);
 void handle_player_set_handicap(rf::Player* player, uint8_t amount);
-std::vector<rf::Player*> get_current_player_list(bool include_browsers);
+std::vector<rf::Player*> get_clients(bool include_browsers, bool include_bots);
 std::pair<bool, std::string> is_level_name_valid(std::string_view level_name_input);
 std::optional<ManualRulesOverride> load_rules_preset_alias(std::string_view preset_name);
 void set_manual_rules_override(ManualRulesOverride override_rules);

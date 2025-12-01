@@ -100,7 +100,7 @@ public:
         else {
             players_who_voted[source] = is_yes_vote;
 
-            const auto current_player_list = get_current_player_list(false);
+            const auto current_player_list = get_clients(false, false);
 
             auto yes_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](const auto& pair) {
                 return pair.second;
@@ -124,7 +124,7 @@ public:
             return false;
         }
         if (passed_time_sec >= vote_config.time_limit_seconds / 2 && !reminder_sent) {
-            const auto current_player_list = get_current_player_list(false);
+            const auto current_player_list = get_clients(false, false);
 
             for (rf::Player* player : current_player_list) {
                 if (players_who_voted.find(player) == players_who_voted.end()) {
@@ -208,7 +208,7 @@ protected:
         std::string msg_alpine = "\n=============== VOTE STARTING ===============\n" + base_msg;
 
         // Send the message to other players
-        for (rf::Player* player : get_current_player_list(false)) {
+        for (rf::Player* player : get_clients(false, false)) {
             if (!player || player == source) {
                 continue; // skip the player who started the vote
             }
@@ -254,7 +254,7 @@ protected:
         int no_votes = std::count_if(players_who_voted.begin(), players_who_voted.end(), [](auto& p)
                 { return !p.second; });
 
-        const auto current = get_current_player_list(false);
+        const auto current = get_clients(false, false);
         int remaining = 0;
         for (auto* p : current) {
             if (is_eligible_voter(p) && players_who_voted.count(p) == 0)

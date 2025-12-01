@@ -479,7 +479,7 @@ std::string get_ready_player_names(bool is_blue_team)
 
 std::string get_unready_player_names()
 {
-    const auto& all_players = get_current_player_list(false);
+    const auto& all_players = get_clients(false, false);
 
     // Create sets
     std::unordered_set<rf::Player*> ready_players(g_match_info.ready_players_blue.begin(),
@@ -1336,7 +1336,7 @@ static bool check_player_ac_status([[maybe_unused]] rf::Player* player)
     return true;
 }
 
-std::vector<rf::Player*> get_current_player_list(bool include_browsers)
+std::vector<rf::Player*> get_clients(bool include_browsers, bool include_bots)
 {
     std::vector<rf::Player*> player_list;
 
@@ -1345,7 +1345,11 @@ std::vector<rf::Player*> get_current_player_list(bool include_browsers)
     for (auto& player : linked_player_list) {
         auto additional_data = get_player_additional_data(&player);
 
-        if (include_browsers || !(additional_data.client_version == ClientVersion::browser || ends_with(player.name, " (Bot)"))) {
+        if (include_browsers || !additional_data.is_browser()) {
+            player_list.push_back(&player);
+        }
+
+        if (include_bots || !additional_data.is_bot()) {
             player_list.push_back(&player);
         }
     }
@@ -1431,7 +1435,7 @@ void cancel_match()
 
     g_match_info.reset();
 
-    for (rf::Player* player : get_current_player_list(false)) {
+    for (rf::Player* player : get_clients(false, false)) {
         update_pre_match_powerups(player);
     }
 }
@@ -1448,7 +1452,7 @@ void start_pre_match()
         g_match_info.time_limit_on_pre_match_start = rf::multi_time_limit;
         rf::multi_time_limit = 0.0f;
 
-        for (rf::Player* player : get_current_player_list(false)) {
+        for (rf::Player* player : get_clients(false, false)) {
             if (!player) continue;
 
             std::string msg = std::format(
@@ -1461,7 +1465,7 @@ void start_pre_match()
 
 
 
-        for (rf::Player* player : get_current_player_list(false)) {
+        for (rf::Player* player : get_clients(false, false)) {
             update_pre_match_powerups(player);
         }
     }
@@ -1535,7 +1539,7 @@ void remove_ready_player(rf::Player* player)
     af_send_automated_chat_msg(msg_source, player);
 
     // send the message to other players
-    for (rf::Player* proc_player : get_current_player_list(false)) {
+    for (rf::Player* proc_player : get_clients(false, false)) {
         if (!proc_player || proc_player == player) {
             continue; // skip the player who started the vote
         }
@@ -1630,7 +1634,7 @@ void match_do_frame()
             const auto ready_red = g_match_info.ready_players_red.size();
             const auto ready_blue = g_match_info.ready_players_blue.size();
 
-            for (rf::Player* player : get_current_player_list(false)) {
+            for (rf::Player* player : get_clients(false, false)) {
                 if (!is_player_ready(player)) {                    
                     auto msg = std::format(
                         "\xA6 You are NOT ready! {}v{} match queued, waiting for players - RED: {}, BLUE: {}.\n"
@@ -2100,7 +2104,7 @@ bool round_is_tied(rf::NetGameType game_type)
 
     switch (game_type) {
     case rf::NG_TYPE_DM: {
-        const auto current_players = get_current_player_list(false);
+        const auto current_players = get_clients(false, true);
 
         if (current_players.empty())
             return false;
@@ -2249,7 +2253,7 @@ FunHook<void()> multi_check_for_round_end_hook{
         else {
             switch (game_type) {
             case rf::NG_TYPE_DM: {
-                auto current_players = get_current_player_list(true);
+                auto current_players = get_clients(false, true);
 
                 if (current_players.empty())
                     break;
@@ -2367,7 +2371,7 @@ FunHook<void()> multi_respawn_level_init_hook {
     []() {
         g_alpine_respawn_points.clear();    
         
-        auto player_list = get_current_player_list(false);
+        auto player_list = get_clients(false, true);
         std::for_each(player_list.begin(), player_list.end(),
             [](rf::Player* player) { get_player_additional_data(player).last_spawn_point_index.reset(); });        
 
@@ -2382,7 +2386,7 @@ float get_nearest_other_player(const rf::Player* player, const rf::Vector3* spaw
     const bool is_team_game = multi_is_team_game_type();
     const int player_team = player->team;
 
-    auto player_list = get_current_player_list(false);
+    auto player_list = get_clients(false, true);
 
     for (const auto* other_player : player_list) {
         if (other_player == player) {
