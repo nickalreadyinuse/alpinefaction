@@ -190,11 +190,9 @@ CodeInjection free_camera_do_frame_patch{
                 float accel_mod = 1.0f;
                 if (should_apply_accel_mod) {
                     accel_mod = get_accel_mod(g_alpine_game_config.spectate_freelook_modifier_mode);
-                    xlog::warn("mode {}", g_alpine_game_config.spectate_freelook_modifier_mode);
                 }
                 else {
                     accel_mod = get_accel_mod(g_alpine_game_config.spectate_freelook_mode);
-                    xlog::warn("modeb {}", g_alpine_game_config.spectate_freelook_mode);
                 }
 
                 cep->info->acceleration = freelook_cam_base_accel * accel_mod;
