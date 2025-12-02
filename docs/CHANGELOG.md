@@ -113,6 +113,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Override static mesh ambient light scale` setting to level properties window in level editor
 - Update output of `level_info` command to include advanced level properties
 - Add browser and spectator icon assets
+- Add freelook spectate acceleration modes and modifier
 
 [@is-this-c](https://github.com/is-this-c)
 - Send `pf_player_stats_packet` with score
