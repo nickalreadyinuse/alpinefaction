@@ -273,4 +273,11 @@ namespace rf::ui
     static auto& options_panel_y = addr_as_ref<int>(0x00598FE0);
     static auto& options_animated_offset = addr_as_ref<float>(0x0063FA14);
     static auto& options_back_button = addr_as_ref<Button>(0x0063FB28);
+
+    // listen server create
+    static auto& create_game_map_list_up_on_click = addr_as_ref<void(int x, int y)>(0x004451F0);
+    static auto& create_game_map_list_down_on_click = addr_as_ref<void(int x, int y)>(0x00445260);
+    static auto& create_game_options_current_gadget = addr_as_ref<int>(0x0063CA8C);
+    static auto& create_game_current_tab = addr_as_ref<int>(0x0063F850);
+
 }

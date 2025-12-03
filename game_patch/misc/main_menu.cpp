@@ -24,6 +24,7 @@
 #include "../main/main.h"
 #include "../graphics/gr.h"
 #include "../os/os.h"
+#include "../input/input.h"
 #include "misc.h"
 #include "alpine_settings.h"
 
@@ -349,6 +350,25 @@ CodeInjection snd_music_update_volume_hook{
     0x00505E9E,
     [](auto& regs) {
         if (rf::is_multi && g_game_music_start_sig != -1 && regs.ecx == g_game_music_start_sig) regs.eip = 0x00505EA3;
+    },
+};
+
+CodeInjection multi_create_game_do_frame_patch{
+    0x0044EA8D,
+    [](auto& regs) {
+        if (rf::ui::create_game_current_tab == 0 &&          // options tab
+            rf::ui::create_game_options_current_gadget == 5) // map list gadget
+        {
+            int mouse_dz = get_mouse_scroll_wheel_value();
+            if (mouse_dz != 0) {
+                if (mouse_dz > 0) {
+                    rf::ui::create_game_map_list_up_on_click(-1, -1);
+                }
+                else {
+                    rf::ui::create_game_map_list_down_on_click(-1, -1);
+                }
+            }
+        }
     },
 };
 
