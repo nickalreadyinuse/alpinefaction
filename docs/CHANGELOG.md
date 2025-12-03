@@ -113,8 +113,9 @@ Version 1.2.0 (Willow): Not yet released
 - Add `Override static mesh ambient light scale` setting to level properties window in level editor
 - Update output of `level_info` command to include advanced level properties
 - Add browser and spectator icon assets
-- Support scroll wheel to set freelook spectator camera accel; alias `Ping Location` control to reset to base
-- Add scroll wheel support to listen server create game map list selection
+- Support setting freelook spectator camera accel with scroll wheel
+- Alias `Ping Location` control to reset to freelook spectator camera accel to base value
+- Add scroll wheel support to message log panel and scrollable item lists in menus
 
 [@is-this-c](https://github.com/is-this-c)
 - Send `pf_player_stats_packet` with score
