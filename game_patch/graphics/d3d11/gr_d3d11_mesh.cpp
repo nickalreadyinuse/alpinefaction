@@ -48,12 +48,24 @@ namespace df::gr::d3d11
             return vertices_;
         }
 
+        bool vertex_colors_uploaded(int lod_index) const
+        {
+            return vertex_colors_uploaded_[lod_index];
+        }
+
+        void mark_vertex_colors_uploaded(int lod_index) const
+        {
+            vertex_colors_uploaded_[lod_index] = true;
+        }
+
     private:
         std::vector<GpuVertex> vertices_;
+        mutable std::vector<bool> vertex_colors_uploaded_;
     };
 
     MeshRenderCache::MeshRenderCache(VifLodMesh* lod_mesh, BufferWrapper& vertex_buffer, BufferWrapper& index_buffer, RenderContext& render_context) :
-        BaseMeshRenderCache(lod_mesh)
+        BaseMeshRenderCache(lod_mesh),
+        vertex_colors_uploaded_(lod_mesh->num_levels, false)
     {
         std::size_t num_verts = 0;
         std::size_t num_inds = 0;
@@ -509,32 +521,35 @@ namespace df::gr::d3d11
 
         if (use_vertex_colors) {
             if (auto mesh_cache = dynamic_cast<const MeshRenderCache*>(&cache)) {
-                const auto& mesh = mesh_cache->get_mesh(lod_index);
-                if (mesh.vertex_count > 0) {
-                    const auto& base_vertices = mesh_cache->vertices();
-                    auto start_it = base_vertices.begin() + mesh.vertex_offset;
-                    auto end_it = start_it + mesh.vertex_count;
-                    std::vector<GpuVertex> updated_vertices(start_it, end_it);
+                if (!mesh_cache->vertex_colors_uploaded(lod_index)) {
+                    const auto& mesh = mesh_cache->get_mesh(lod_index);
+                    if (mesh.vertex_count > 0) {
+                        const auto& base_vertices = mesh_cache->vertices();
+                        auto start_it = base_vertices.begin() + mesh.vertex_offset;
+                        auto end_it = start_it + mesh.vertex_count;
+                        std::vector<GpuVertex> updated_vertices(start_it, end_it);
 
-                    struct PackedRgb
-                    {
-                        ubyte red;
-                        ubyte green;
-                        ubyte blue;
-                    };
+                        struct PackedRgb
+                        {
+                            ubyte red;
+                            ubyte green;
+                            ubyte blue;
+                        };
 
-                    auto vertex_colors = reinterpret_cast<const PackedRgb*>(params.vertex_colors);
-                    for (std::size_t i = 0; i < mesh.vertex_count; ++i) {
-                        const auto& rgb = vertex_colors[i];
-                        rf::Color color{rgb.red, rgb.green, rgb.blue, 255};
-                        updated_vertices[i].diffuse = pack_color(color);
-                    }
+                        auto vertex_colors = reinterpret_cast<const PackedRgb*>(params.vertex_colors);
+                        for (std::size_t i = 0; i < mesh.vertex_count; ++i) {
+                            const auto& rgb = vertex_colors[i];
+                            rf::Color color{rgb.red, rgb.green, rgb.blue, 255};
+                            updated_vertices[i].diffuse = pack_color(color);
+                        }
 
                     UINT vertex_offset_bytes = static_cast<UINT>((mesh_cache->base_vertex_offset() + mesh.vertex_offset) * sizeof(GpuVertex));
-                    UINT bytes_to_write = static_cast<UINT>(mesh.vertex_count * sizeof(GpuVertex));
-                    D3D11_BOX box{vertex_offset_bytes, 0, 0, vertex_offset_bytes + bytes_to_write, 1, 1};
-                    render_context_.device_context()->UpdateSubresource(
-                        v3d_vb_.buffer(), 0, &box, updated_vertices.data(), bytes_to_write, bytes_to_write);
+                        UINT bytes_to_write = static_cast<UINT>(mesh.vertex_count * sizeof(GpuVertex));
+                        D3D11_BOX box{vertex_offset_bytes, 0, 0, vertex_offset_bytes + bytes_to_write, 1, 1};
+                        render_context_.device_context()->UpdateSubresource(
+                            v3d_vb_.buffer(), 0, &box, updated_vertices.data(), bytes_to_write, bytes_to_write);
+                        mesh_cache->mark_vertex_colors_uploaded(lod_index);
+                    }
                 }
             }
         }
