@@ -224,24 +224,9 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.real_armor_values = std::stoi(settings["RealArmorValues"]);
         processed_keys.insert("RealArmorValues");
     }
-    if (settings.count("AlwaysShowSpectators")) {
-        g_alpine_game_config.always_show_spectators = std::stoi(settings["AlwaysShowSpectators"]);
-        processed_keys.insert("AlwaysShowSpectators");
-    }
-    if (settings.count("SimpleServerChatMsgs")) {
-        g_alpine_game_config.simple_server_chat_msgs = std::stoi(settings["SimpleServerChatMsgs"]);
-        processed_keys.insert("SimpleServerChatMsgs");
-    }
     if (settings.count("QuickExit")) {
         g_alpine_game_config.quick_exit = std::stoi(settings["QuickExit"]);
         processed_keys.insert("QuickExit");
-    }
-    if (settings.count("RemoteServerCfgDisplayMode")) {
-        g_alpine_game_config.remote_server_cfg_display_mode =
-            static_cast<RemoteServerCfgPopup::DisplayMode>(
-                std::stoi(settings["RemoteServerCfgDisplayMode"]) % RemoteServerCfgPopup::_DISPLAY_MODE_COUNT
-            );
-        processed_keys.insert("RemoteServerCfgDisplayMode");
     }
     if (settings.count("ColorblindMode")) {
         int mode = std::stoi(settings["ColorblindMode"]);
@@ -563,6 +548,25 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_control_point_column_height_scale(std::stof(settings["CPColumnHeightScale"]));
         processed_keys.insert("CPColumnHeightScale");
     }
+    if (settings.count("AlwaysShowSpectators")) {
+        g_alpine_game_config.always_show_spectators = std::stoi(settings["AlwaysShowSpectators"]);
+        processed_keys.insert("AlwaysShowSpectators");
+    }
+    if (settings.count("SimpleServerChatMsgs")) {
+        g_alpine_game_config.simple_server_chat_msgs = std::stoi(settings["SimpleServerChatMsgs"]);
+        processed_keys.insert("SimpleServerChatMsgs");
+    }
+    if (settings.count("RemoteServerCfgDisplayMode")) {
+        g_alpine_game_config.remote_server_cfg_display_mode =
+            static_cast<RemoteServerCfgPopup::DisplayMode>(
+                std::stoi(settings["RemoteServerCfgDisplayMode"]) % RemoteServerCfgPopup::_DISPLAY_MODE_COUNT
+            );
+        processed_keys.insert("RemoteServerCfgDisplayMode");
+    }
+    if (settings.count("BotSharedSecret")) {
+        g_alpine_game_config.bot_shared_secret = std::stoul(settings["BotSharedSecret"]);
+        processed_keys.insert("BotSharedSecret");
+    }
 
     // Load input settings
     if (settings.count("MouseSensitivity")) {
@@ -686,6 +690,7 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "StaticScopeSensitivity=" << g_alpine_game_config.scope_static_sensitivity << "\n";
     file << "ScopeSensitivityModifier=" << g_alpine_game_config.scope_sensitivity_modifier << "\n";
     file << "ScannerSensitivityModifier=" << g_alpine_game_config.scanner_sensitivity_modifier << "\n";
+    file << "QuickExit=" << g_alpine_game_config.quick_exit << "\n";
 
     file << "\n[ActionBinds]\n";
     file << "; Format is Bind:{Name}={ID},{ScanCode0},{ScanCode1},{MouseButtonID}\n";
@@ -762,10 +767,6 @@ void alpine_player_settings_save(rf::Player* player)
     file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
     file << "SeasonalEffect=" << g_alpine_game_config.seasonal_effect << "\n";
     file << "RealArmorValues=" << g_alpine_game_config.real_armor_values << "\n";
-    file << "AlwaysShowSpectators=" << g_alpine_game_config.always_show_spectators << "\n";
-    file << "RemoteServerCfgDisplayMode=" << static_cast<int>(g_alpine_game_config.remote_server_cfg_display_mode) << "\n";
-    file << "SimpleServerChatMsgs=" << g_alpine_game_config.simple_server_chat_msgs << "\n";
-    file << "QuickExit=" << g_alpine_game_config.quick_exit << "\n";
     file << "ColorblindMode=" << g_alpine_game_config.colorblind_mode << "\n";
     file << "AutoswitchFireWait=" << g_alpine_game_config.suppress_autoswitch_fire_wait << "\n";
     file << "AlwaysAutoswitchEmpty=" << g_alpine_game_config.always_autoswitch_empty << "\n";
@@ -864,7 +865,11 @@ void alpine_player_settings_save(rf::Player* player)
     file << "CPOutlineSegments=" << g_alpine_game_config.control_point_outline_segments << "\n";
     file << "CPColumnSegments=" << g_alpine_game_config.control_point_column_segments << "\n";
     file << "CPColumnHeightScale=" << g_alpine_game_config.control_point_column_height_scale << "\n";
-    
+    file << "AlwaysShowSpectators=" << g_alpine_game_config.always_show_spectators << "\n";
+    file << "RemoteServerCfgDisplayMode=" << static_cast<int>(g_alpine_game_config.remote_server_cfg_display_mode) << "\n";
+    file << "SimpleServerChatMsgs=" << g_alpine_game_config.simple_server_chat_msgs << "\n";
+    file << "BotSharedSecret=" << g_alpine_game_config.bot_shared_secret << "\n";
+
     alpine_control_config_serialize(file, player->settings.controls);
 
     file.close();

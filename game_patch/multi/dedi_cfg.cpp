@@ -873,6 +873,11 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
         if (auto v = node.value<std::string>())
             cfg.set_rcon_password(*v);
     }
+    else if (key == "bot_shared_secret") {
+        if (const auto v = node.value<uint32_t>()) {
+            cfg.set_bot_shared_secret(*v);
+        }
+    }
     else if (key == "upnp") {
         if (auto v = node.value<bool>())
             cfg.upnp_enabled = *v;
@@ -1526,6 +1531,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     if (!sanitize) {
         std::format_to(iter, "  Password:                              {}\n", netgame.password);
         std::format_to(iter, "  Rcon password:                         {}\n", rf::rcon_password);
+        std::format_to(iter, "  Bot shared secret:                     {}\n", cfg.bot_shared_secret);
     }
     std::format_to(iter, "  Max players:                           {}\n", netgame.max_players);
     std::format_to(iter, "  Levels in rotation:                    {}\n", cfg.levels.size());

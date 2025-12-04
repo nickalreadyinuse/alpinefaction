@@ -133,6 +133,7 @@ struct AlpineGameSettings
         RemoteServerCfgPopup::DISPLAY_MODE_ALIGN_RIGHT_HIGHLIGHT_BOX;
     bool simple_server_chat_msgs = true;
     bool quick_exit = false;
+    uint32_t bot_shared_secret = 0;
     int colorblind_mode = 0; // 0=off,1=protanopia,2=deuteranopia,3=tritanopia
     int suppress_autoswitch_alias = -1;
     bool always_autoswitch_empty = true;

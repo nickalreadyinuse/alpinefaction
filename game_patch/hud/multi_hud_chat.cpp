@@ -107,7 +107,7 @@ void multi_hud_render_chat()
             rf::gr::set_color(255, 255, 255, text_alpha);
         } else if (msg.color_id == 6) {
             if (g_alpine_game_config.simple_server_chat_msgs) {
-                rf::gr::set_color(255, 238, 140, text_alpha);
+                rf::gr::set_color(255, 250, 205, text_alpha);
             } else {
                 rf::gr::set_color(255, 215, 0, text_alpha);
                 rf::gr::string(x, y, msg.name.c_str(), chatbox_font);
@@ -232,12 +232,16 @@ ConsoleCommand2 mute_all_players_cmd{
 
 ConsoleCommand2 mute_player_cmd{
     "mute_player",
-    [](std::string player_name) {
-        rf::Player* pp = find_best_matching_player(player_name.c_str());
+    [] (const std::string_view player_name) {
+        const rf::Player* const pp = find_best_matching_player(player_name.data());
         if (pp) {
             auto& pdata = get_player_additional_data(pp);
             pdata.is_muted = !pdata.is_muted;
-            rf::console::print("Player {} is {}", pp->name, pdata.is_muted ? "muted" : "unmuted");
+            rf::console::print(
+                "Player {} is {}",
+                pp->name,
+                pdata.is_muted ? "muted" : "unmuted"
+            );
         }
     },
     "Mutes a single player in multiplayer chat",

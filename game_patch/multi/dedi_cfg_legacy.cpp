@@ -54,7 +54,7 @@ void parse_boolean_option(rf::Parser& parser, const char* key, bool& option, con
     }
 }
 
-void parse_uint_option(rf::Parser& parser, const char* key, int& option, const char* label = nullptr)
+void parse_uint_option(rf::Parser& parser, const char* key, unsigned int& option, const char* label = nullptr)
 {
     if (parser.parse_optional(key)) {
         option = parser.parse_uint();

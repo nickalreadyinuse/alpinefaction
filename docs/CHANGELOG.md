@@ -112,14 +112,20 @@ Version 1.2.0 (Willow): Not yet released
 - Deprecate `level_info_ext` and `map_info_ext`, use `level_info` and `map_info` instead
 - Add `Override static mesh ambient light scale` setting to level properties window in level editor
 - Update output of `level_info` command to include advanced level properties
-- Add browser and spectator icon assets
+- Add browser, spectator, and idle icon assets
 - Support setting freelook spectator camera accel with scroll wheel
 - Alias `Ping Location` control to reset to freelook spectator camera accel to base value
 - Add scroll wheel support to message log panel and scrollable item lists in menus
 
 [@is-this-c](https://github.com/is-this-c)
+- Add `Tlv{Writer, Reader}` and `HighResTimer`
+- Prevent idle players from voting
+- Add colored `bot` text to a bot's name
+- Add `bot`, `browser`, `spectator`, and `idle` text to `info` command's output
+- Add `bot_shared_secret` command to signal your client as a bot
+- Add a `bot_shared_secret` ADS option for dedicated servers
 - Send `pf_player_stats_packet` with score
-- Add browser and spectator icon logic
+- Add browser, spectator, and idle icon logic
 - Ignore browsers in spectate mode
 - Add `bighud` support for chat menus
 - Support `•` in TrueType fonts
@@ -127,10 +133,10 @@ Version 1.2.0 (Willow): Not yet released
 - Add `ui_simple_server_chat_messages` command to display automated server chat messages without `Server: `
 - Color automated server chat messages with a gold name instead of a red name
 - Add `key_quick_exit` command to restore keyboard shortcut `Shift+Esc` to quit out of Red Faction
-- Support `Alt+F4` or pressing X on the window to quit out of Red Faction
+- Support Alt+F4 or window close button (X) to quit out of Red Faction
 - Add a configurable control to display a remote server's config
-- Add `ui_always_show_spectators` command to display spectators in multiplayer
-- Simplify code that fixed broken events if their delay parameter was set
+- Add `ui_always_show_spectators` command to always display spectators in multiplayer
+- Improve code that fixed broken events if their delay parameter was set
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Improve dedicated server framerate consistency
@@ -174,6 +180,7 @@ Version 1.2.0 (Willow): Not yet released
 - Fix rare crash when starting to spectate a player immediately when they land on a surface
 
 [@is-this-c](https://github.com/is-this-c)
+- For console arguments, parse hexadecimal values as unsigned integers
 - Set `rf::gr::text_2d_mode` to ignore fog
 - Fix `gr_d3d_bitmap`, so `gr_d3d_set_state` is called earlier
 - Support `PgUp`, `PgDown`, `End`, and `Home` on numeric keypads
