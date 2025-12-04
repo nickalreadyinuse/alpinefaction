@@ -2,6 +2,7 @@
 
 #include "../rf/os/timestamp.h"
 #include "../rf/math/vector.h"
+#include "../rf/gr/gr.h"
 #include "../os/os.h"
 
 struct WorldHUDAssets
@@ -87,6 +88,7 @@ struct EphemeralWorldHUDString
     HighResTimer timestamp;
     bool float_away = false;
     float wind_phase_offset = 0.0f;
+    rf::Color color = {255, 255, 255, 255};
 };
 
 struct NameLabelTex

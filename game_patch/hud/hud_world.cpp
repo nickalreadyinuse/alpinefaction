@@ -659,7 +659,7 @@ void build_ephemeral_world_hud_strings() {
         int half_text_width = text_width / 2;
 
         render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, -25,
-            font, 255, 255, 0, 255);
+            font, es.color.red, es.color.green, es.color.blue, es.color.alpha);
     }
 }
 
@@ -1104,6 +1104,14 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_
     es.timestamp.set_ms(1000);
     es.float_away = true;
     es.wind_phase_offset = wind_offset_dist(g_rng);
+
+    if (g_alpine_game_config.damage_notify_color_override)
+    {
+        es.color = rf::Color::from_hex(*g_alpine_game_config.damage_notify_color_override);
+    }
+    else {
+        es.color = {255, 255, 0, 255};
+    }
 
     ephemeral_world_hud_strings.push_back(es);
 }
