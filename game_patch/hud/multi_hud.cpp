@@ -51,10 +51,24 @@ static bool g_draw_respawn_timer_can_respawn = false;
 static std::string time_left_string_format = "";
 static int time_left_string_x_pos_offset = 135;
 static int time_left_string_y_pos_offset = 21;
-static std::tuple time_left_string_color = {0, 255, 0, 255};
+static rf::Color time_left_string_color = {0, 255, 0, 255};
 static rf::TimestampRealtime g_run_life_start_timestamp;
 static bool g_run_timer_reset_by_respawn_key = false;
 static bool g_run_timer_fade_active = false;
+
+void multi_hud_update_timer_color()
+{
+    // default
+    time_left_string_color = {0, 255, 0, 255};
+
+    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiTimerColor)) {
+        auto timer_color = get_option_value<uint32_t>(AlpineOptionID::MultiTimerColor);
+        time_left_string_color = rf::Color::from_hex(timer_color);
+    }
+    else if (g_alpine_game_config.multi_timer_color_override) {
+        time_left_string_color = rf::Color::from_hex(*g_alpine_game_config.multi_timer_color_override);
+    }
+}
 
 // Radio messages
 static const ChatMenuList radio_messages_menu{
@@ -2008,11 +2022,9 @@ FunHook<void()> multi_hud_render_time_left_hook{
         rf::time_left_hours, rf::time_left_minutes, rf::time_left_seconds);
 
     // set timer color, including alpha adjustment for fade in
-    rf::gr::set_color(
-        std::get<0>(time_left_string_color),
-        std::get<1>(time_left_string_color),
-        std::get<2>(time_left_string_color),
-        static_cast<int>(std::get<3>(time_left_string_color) * (rf::time_left_alpha / 255.0f)));
+    rf::Color render_color = time_left_string_color;
+    render_color.alpha = static_cast<uint8_t>(time_left_string_color.alpha * (rf::time_left_alpha / 255.0f));
+    rf::gr::set_color(render_color);
 
     int x_pos = rf::gr::clip_width() - time_left_string_x_pos_offset;
     int y_pos = rf::gr::clip_height() - time_left_string_y_pos_offset;
@@ -2067,12 +2079,7 @@ void build_time_left_string_format() {
         time_left_string_y_pos_offset -= y_offset;
     }
 
-    if (g_alpine_options_config.is_option_loaded(AlpineOptionID::MultiTimerColor)) {
-        auto timer_color = std::get<uint32_t>(g_alpine_options_config.options[AlpineOptionID::MultiTimerColor]);
-        int red, green, blue, alpha;
-        std::tie(red, green, blue, alpha) = extract_color_components(timer_color);
-        time_left_string_color = {red, green, blue, alpha};
-    }
+    multi_hud_update_timer_color();
 }
 
 ConsoleCommand2 ui_verbosetimer_cmd{

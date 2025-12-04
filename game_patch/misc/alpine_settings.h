@@ -144,6 +144,8 @@ struct AlpineGameSettings
     std::optional<uint32_t> rail_scope_color_override{};
     std::optional<uint32_t> ar_ammo_digit_color_override{};
     std::optional<uint32_t> damage_notify_color_override{};
+    std::optional<uint32_t> location_ping_color_override{};
+    std::optional<uint32_t> multi_timer_color_override{};
 
     int picmip = 1;
     void set_picmip(int value)

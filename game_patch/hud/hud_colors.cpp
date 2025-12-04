@@ -141,6 +141,37 @@ ConsoleCommand2 damage_notify_color_cmd{
     "ui_color_damage_notify <RRGGBB|RRGGBBAA>",
 };
 
+ConsoleCommand2 location_ping_color_cmd{
+    "ui_color_location_ping",
+    [](std::optional<std::string> color_opt) {
+        handle_hex_color_console_command(
+            color_opt,
+            "Location ping color override",
+            g_alpine_game_config.location_ping_color_override);
+    },
+    "Set location ping color override using a hex RGB[A] value (use `clear` to remove)",
+    "ui_color_location_ping <RRGGBB|RRGGBBAA>",
+};
+
+ConsoleCommand2 multi_timer_color_cmd{
+    "ui_color_multi_timer",
+    [](std::optional<std::string> color_opt) {
+        bool set_opt = handle_hex_color_console_command(
+            color_opt,
+            "Multiplayer timer color override",
+            g_alpine_game_config.multi_timer_color_override);
+
+        if (set_opt) {
+            warn_if_overridden_by_alpine_option(
+                "Multiplayer timer color override",
+                AlpineOptionID::MultiTimerColor);
+            multi_hud_update_timer_color();
+        }
+    },
+    "Set multiplayer timer color override using a hex RGB[A] value (use `clear` to remove)",
+    "ui_color_multi_timer <RRGGBB|RRGGBBAA>",
+};
+
 void hud_colors_apply_patch()
 {
     sniper_scope_color_cmd.register_cmd();
@@ -148,4 +179,6 @@ void hud_colors_apply_patch()
     rail_scope_color_cmd.register_cmd();
     ar_ammo_color_cmd.register_cmd();
     damage_notify_color_cmd.register_cmd();
+    location_ping_color_cmd.register_cmd();
+    multi_timer_color_cmd.register_cmd();
 }

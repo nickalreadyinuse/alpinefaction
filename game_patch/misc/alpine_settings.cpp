@@ -524,6 +524,26 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("DamageNotifyColor");
     }
+    if (settings.count("LocationPingColor")) {
+        auto color_override = parse_hex_color_string(settings["LocationPingColor"]);
+        if (color_override) {
+            g_alpine_game_config.location_ping_color_override = color_override;
+        }
+        else {
+            xlog::warn("Invalid location ping color override: {}", settings["LocationPingColor"]);
+        }
+        processed_keys.insert("LocationPingColor");
+    }
+    if (settings.count("MultiTimerColor")) {
+        auto color_override = parse_hex_color_string(settings["MultiTimerColor"]);
+        if (color_override) {
+            g_alpine_game_config.multi_timer_color_override = color_override;
+        }
+        else {
+            xlog::warn("Invalid multiplayer timer color override: {}", settings["MultiTimerColor"]);
+        }
+        processed_keys.insert("MultiTimerColor");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -967,6 +987,12 @@ void alpine_player_settings_save(rf::Player* player)
     }
     if (g_alpine_game_config.damage_notify_color_override) {
         file << "DamageNotifyColor=" << format_hex_color_string(*g_alpine_game_config.damage_notify_color_override) << "\n";
+    }
+    if (g_alpine_game_config.location_ping_color_override) {
+        file << "LocationPingColor=" << format_hex_color_string(*g_alpine_game_config.location_ping_color_override) << "\n";
+    }
+    if (g_alpine_game_config.multi_timer_color_override) {
+        file << "MultiTimerColor=" << format_hex_color_string(*g_alpine_game_config.multi_timer_color_override) << "\n";
     }
 
     // Singleplayer

@@ -120,6 +120,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `ui_color_sniper_scope`, `ui_color_precision_scope`, and `ui_color_rail_scope` commands
 - Add `ui_color_ar_ammo` and `ui_color_damage_notify` commands
 - Add `RFL version` to level editor `Level Properties` window
+- Add `ui_color_location_ping` and `ui_color_multi_timer` commands
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `Tlv{Writer, Reader}` and `HighResTimer`
