@@ -1533,7 +1533,7 @@ void af_broadcast_automated_chat_msg(const std::string_view msg) {
             continue;
         }
 
-        if (is_player_minimum_af_client_version(&player, 1, 2, true)) {
+        if (is_player_minimum_af_client_version(&player, 1, 2)) {
             rf::multi_io_send_reliable(
                 &player,
                 &buf.packet,
@@ -1551,7 +1551,7 @@ void af_send_automated_chat_msg(const std::string_view msg, rf::Player* player) 
         return;
     }
 
-    if (is_player_minimum_af_client_version(player, 1, 2, true)) {
+    if (is_player_minimum_af_client_version(player, 1, 2)) {
         const af_server_msg_packet_buf buf = build_automated_chat_msg_packet(msg);
 
         rf::multi_io_send_reliable(
