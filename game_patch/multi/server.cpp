@@ -3076,9 +3076,17 @@ std::tuple<bool, int, bool> server_features_require_alpine_client()
     bool requires_alpine = false; // alpine required to spawn
     int min_minor_version = 0;    // minimum alpine minor version required
     bool hard_reject = false;     // reject non-alpine clients outright, also decides if they will be kicked on map change
+    constexpr int match_mode_minimum_trusted_minor_version =
+        VERSION_TYPE == VERSION_TYPE_RELEASE // match mode requires players use the latest stable release
+        ? VERSION_MINOR                      // we are a release build, require our version
+        : VERSION_MINOR - 1;                 // we are a beta/dev build, require the previous version
 
-    if (g_alpine_server_config.vote_match.enabled ||
-        g_alpine_server_config_active_rules.no_player_collide ||
+    if (g_alpine_server_config.vote_match.enabled) {
+        requires_alpine = true;
+        min_minor_version = std::max(min_minor_version, match_mode_minimum_trusted_minor_version);
+    }
+
+    if (g_alpine_server_config_active_rules.no_player_collide ||
         g_alpine_server_config_active_rules.location_pinging) {
         requires_alpine = true;
         min_minor_version = std::max(min_minor_version, 1);
