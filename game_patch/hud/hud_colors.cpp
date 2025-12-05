@@ -38,7 +38,9 @@ bool handle_hex_color_console_command(
 
     auto parsed_color = parse_hex_color_string(*input);
     if (!parsed_color) {
-        rf::console::print("Invalid color. Use hex RRGGBB or RRGGBBAA.");
+        rf::console::print(
+            "Invalid input. Specify 'clear' to remove override. Specify override color as hex RRGGBB / RRGGBBAA or comma-separated RGB[A] values enclosed in quotes."
+        );
         return false;
     }
 
@@ -71,8 +73,8 @@ ConsoleCommand2 sniper_scope_color_cmd{
                 AlpineOptionID::SniperRifleScopeColor);
         }
     },
-    "Set sniper scope color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_sniper_scope <RRGGBB|RRGGBBAA>",
+    "Set sniper scope color override.",
+    "ui_color_sniper_scope <RRGGBB|RRGGBBAA|clear>",
 };
 
 ConsoleCommand2 precision_scope_color_cmd{
@@ -89,8 +91,8 @@ ConsoleCommand2 precision_scope_color_cmd{
                 AlpineOptionID::PrecisionRifleScopeColor);
         }
     },
-    "Set precision rifle scope color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_precision_scope <RRGGBB|RRGGBBAA>",
+    "Set precision rifle scope color override.",
+    "ui_color_precision_scope <RRGGBB|RRGGBBAA|clear>",
 };
 
 ConsoleCommand2 rail_scope_color_cmd{
@@ -107,8 +109,8 @@ ConsoleCommand2 rail_scope_color_cmd{
                 AlpineOptionID::RailDriverScannerColor);
         }
     },
-    "Set rail driver scope color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_rail_scope <RRGGBB|RRGGBBAA>",
+    "Set rail driver scope color override.",
+    "ui_color_rail_scope <RRGGBB|RRGGBBAA|clear>",
 };
 
 ConsoleCommand2 ar_ammo_color_cmd{
@@ -125,8 +127,8 @@ ConsoleCommand2 ar_ammo_color_cmd{
                 AlpineOptionID::AssaultRifleAmmoColor);
         }
     },
-    "Set assault rifle ammo digit color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_ar_ammo <RRGGBB|RRGGBBAA>",
+    "Set assault rifle ammo digit color override.",
+    "ui_color_ar_ammo <RRGGBB|RRGGBBAA|clear>",
 };
 
 ConsoleCommand2 damage_notify_color_cmd{
@@ -137,8 +139,8 @@ ConsoleCommand2 damage_notify_color_cmd{
             "Damage notification color override",
             g_alpine_game_config.damage_notify_color_override);
     },
-    "Set damage notification color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_damage_notify <RRGGBB|RRGGBBAA>",
+    "Set damage notification color override.",
+    "ui_color_damage_notify <RRGGBB|RRGGBBAA|clear>",
 };
 
 ConsoleCommand2 location_ping_color_cmd{
@@ -149,8 +151,8 @@ ConsoleCommand2 location_ping_color_cmd{
             "Location ping color override",
             g_alpine_game_config.location_ping_color_override);
     },
-    "Set location ping color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_location_ping <RRGGBB|RRGGBBAA>",
+    "Set location ping color override.",
+    "ui_color_location_ping <RRGGBB|RRGGBBAA|clear>",
 };
 
 ConsoleCommand2 multi_timer_color_cmd{
@@ -168,8 +170,8 @@ ConsoleCommand2 multi_timer_color_cmd{
             multi_hud_update_timer_color();
         }
     },
-    "Set multiplayer timer color override using a hex RGB[A] value (use `clear` to remove)",
-    "ui_color_multi_timer <RRGGBB|RRGGBBAA>",
+    "Set multiplayer timer color override.",
+    "ui_color_multi_timer <RRGGBB|RRGGBBAA|clear>",
 };
 
 void hud_colors_apply_patch()

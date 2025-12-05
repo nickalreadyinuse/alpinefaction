@@ -43,39 +43,84 @@ AlpineGameSettings g_alpine_game_config;
 
 std::optional<uint32_t> parse_hex_color_string(const std::string& value)
 {
-    std::string sanitized;
-    sanitized.reserve(value.size());
+    auto value_view = std::string_view{value};
 
-    // Remove whitespace
-    for (unsigned char c : value) {
-        if (!std::isspace(c)) {
-            sanitized.push_back(static_cast<char>(c));
+    constexpr auto is_separator = [](unsigned char c) {
+        return c == ',' || std::isspace(c) != 0;
+    };
+
+    const bool has_decimal_separator = std::ranges::any_of(value_view, is_separator);
+
+    if (has_decimal_separator) {
+        std::array<uint32_t, 4> rgba{};
+        std::size_t component_count = 0;
+        std::size_t position = 0;
+
+        while (position < value_view.size()) {
+            while (position < value_view.size() && is_separator(static_cast<unsigned char>(value_view[position]))) {
+                ++position;
+            }
+
+            if (position == value_view.size()) {
+                break;
+            }
+
+            const auto start = position;
+            while (position < value_view.size() && !is_separator(static_cast<unsigned char>(value_view[position]))) {
+                ++position;
+            }
+
+            const auto component_view = value_view.substr(start, position - start);
+            int parsed_value = 0;
+            const auto result = std::from_chars(component_view.data(), component_view.data() + component_view.size(), parsed_value, 10);
+
+            if (result.ec != std::errc{} || parsed_value < 0 || parsed_value > 255) {
+                return std::nullopt;
+            }
+
+            if (component_count >= rgba.size()) {
+                return std::nullopt;
+            }
+
+            rgba[component_count++] = static_cast<uint32_t>(parsed_value);
         }
+
+        if (component_count != 3 && component_count != 4) {
+            return std::nullopt;
+        }
+
+        if (component_count == 3) {
+            rgba[3] = 0xFF;
+        }
+
+        return (rgba[0] << 24) | (rgba[1] << 16) | (rgba[2] << 8) | rgba[3];
     }
 
-    // Remove 0x prefix
-    if (string_starts_with_ignore_case(sanitized, "0x")) {
-        sanitized.erase(0, 2);
+    std::string hex_buffer;
+    hex_buffer.reserve(value_view.size());
+    std::ranges::copy_if(value_view, std::back_inserter(hex_buffer), [](unsigned char c) { return std::isspace(c) == 0; });
+
+    auto hex_view = std::string_view{hex_buffer};
+    if (hex_view.starts_with("0x") || hex_view.starts_with("0X")) {
+        hex_view.remove_prefix(2);
     }
 
-    // Validate length
-    if (sanitized.size() != 6 && sanitized.size() != 8) {
+    if (hex_view.size() != 6 && hex_view.size() != 8) {
         return std::nullopt;
     }
 
-    // Validate format
-    if (!std::all_of(sanitized.begin(), sanitized.end(), [](unsigned char c) { return std::isxdigit(c) != 0; })) {
+    if (!std::ranges::all_of(hex_view, [](unsigned char c) { return std::isxdigit(c) != 0; })) {
         return std::nullopt;
     }
 
     // Set color, assuming fully opaque if alpha value is not specified
     uint32_t color = 0;
-    auto result = std::from_chars(sanitized.data(), sanitized.data() + sanitized.size(), color, 16);
+    const auto result = std::from_chars(hex_view.data(), hex_view.data() + hex_view.size(), color, 16);
     if (result.ec != std::errc{}) {
         return std::nullopt;
     }
 
-    if (sanitized.size() == 6) {
+    if (hex_view.size() == 6) {
         color = (color << 8) | 0xFF;
     }
 
