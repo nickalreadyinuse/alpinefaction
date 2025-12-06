@@ -427,6 +427,14 @@ void handle_vote_or_ready_up_msg(const std::string_view msg) {
         }
     }
 
+    // remove ready up prompt if match is cancelled prematurely
+    constexpr std::string_view match_canceled_msg = "\xA6 Vote passed: The match has been canceled";
+    if (string_istarts_with(msg, match_canceled_msg) || string_istarts_with(msg, match_canceled_msg.substr(2))) {
+        remove_hud_vote_notification();
+        set_local_pre_match_active(false);
+        return;
+    }
+
     // possible messages that end a vote
     constexpr std::array<std::string_view, 4> vote_end_messages = {
         "\xA6 Vote failed",
@@ -444,7 +452,7 @@ void handle_vote_or_ready_up_msg(const std::string_view msg) {
         }
     }
 
-     // For initial match queue
+    // For initial match queue
     if (string_istarts_with(msg, "\n>>>>>>>>>>>>>>>>> ")) {
         set_local_pre_match_active(true);
         return;
@@ -464,14 +472,6 @@ void handle_vote_or_ready_up_msg(const std::string_view msg) {
             set_local_pre_match_active(true);
             return;
         }
-    }
-
-    // remove ready up prompt if match is cancelled prematurely
-    constexpr std::string_view match_canceled_msg =
-        "\xA6 Vote passed: The match has been canceled";
-    if (string_istarts_with(msg, match_canceled_msg)
-        || string_istarts_with(msg, match_canceled_msg.substr(2))) {
-        set_local_pre_match_active(false);
     }
 }
 
