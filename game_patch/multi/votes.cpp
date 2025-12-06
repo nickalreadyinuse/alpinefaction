@@ -441,11 +441,21 @@ struct VoteMatch : public Vote
             m_manual_rules_override = std::move(*preset_result);
         }
 
+        if (!multi_game_type_is_team_type(g_alpine_server_config.base_rules.game_type)) {
+            af_send_automated_chat_msg("Cannot start vote: server base game type is not a team game type.", source);
+            return false;
+        }
+
+        const bool using_current_level = g_match_info.match_level_name == rf::level.filename.c_str();
+
         const auto desired_game_type =
-            m_manual_rules_override ? m_manual_rules_override->rules.game_type : g_alpine_server_config_active_rules.game_type;
+            m_manual_rules_override
+            ? m_manual_rules_override->rules.game_type
+            : (using_current_level ? g_alpine_server_config_active_rules.game_type
+                                   : g_alpine_server_config.base_rules.game_type);
 
         if (!multi_game_type_is_team_type(desired_game_type)) {
-            af_send_automated_chat_msg("Matches must be played on a team game type.", source);
+            af_send_automated_chat_msg("Cannot start vote: matches must be played on a team game type.", source);
             return false;
         }
 
