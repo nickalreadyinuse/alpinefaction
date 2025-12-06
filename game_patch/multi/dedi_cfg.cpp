@@ -7,6 +7,7 @@
 #include <common/version/version.h>
 #include <common/rfproto.h>
 #include <common/utils/list-utils.h>
+#include <common/utils/string-utils.h>
 #include <xlog/xlog.h>
 #include <algorithm>
 #include <filesystem>
@@ -565,6 +566,25 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
     return o;
 }
 
+static std::vector<std::string> parse_allowed_maps(const toml::table& t)
+{
+    std::vector<std::string> allowed_maps;
+
+    if (auto arr = t["allowed_levels"].as_array()) {
+        for (auto& node : *arr) {
+            if (auto value = node.value<std::string>()) {
+                std::string map_name = *value;
+                if (!string_iends_with(map_name, ".rfl")) {
+                    map_name += ".rfl";
+                }
+                allowed_maps.emplace_back(std::move(map_name));
+            }
+        }
+    }
+
+    return allowed_maps;
+}
+
 static VoteConfig parse_vote_config(const toml::table& t)
 {
     VoteConfig v;
@@ -797,6 +817,12 @@ static void add_level_entry_from_table(AlpineServerConfig& cfg, const toml::tabl
     }
 
     auto tmp_filename = lvl_tbl["filename"].value_or<std::string>("");
+
+    // add .rfl extension if it's missing
+    if (!string_iends_with(tmp_filename, ".rfl")) {
+        tmp_filename += ".rfl";
+    }
+
     rf::File f;
     if (!f.find(tmp_filename.c_str())) {
         rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
@@ -943,8 +969,11 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
         cfg.vote_match = parse_vote_config(tbl);
     else if (key == "vote_kick")
         cfg.vote_kick = parse_vote_config(tbl);
-    else if (key == "vote_level")
+    else if (key == "vote_level") {
         cfg.vote_level = parse_vote_config(tbl);
+        if (cfg.vote_level.enabled)
+            cfg.vote_level.allowed_maps = parse_allowed_maps(tbl);
+    }
     else if (key == "vote_gametype")
         cfg.vote_gametype = parse_vote_config(tbl);
     else if (key == "vote_extend")
@@ -1607,6 +1636,16 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
         if (v.enabled) {
             std::format_to(iter, "    Ignore nonvoters:                    {}\n", v.ignore_nonvoters);
             std::format_to(iter, "    Time limit:                          {} sec\n", v.time_limit_seconds);
+            if (!v.allowed_maps.empty()) {
+                std::string allowed_maps;
+                for (size_t i = 0; i < v.allowed_maps.size(); ++i) {
+                    if (i != 0) {
+                        allowed_maps += ", ";
+                    }
+                    allowed_maps += v.allowed_maps[i];
+                }
+                std::format_to(iter, "    Allowed levels:                      {}\n", allowed_maps);
+            }
         }
     };
 

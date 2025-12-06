@@ -1,4 +1,5 @@
 #include <string_view>
+#include <algorithm>
 #include <map>
 #include <set>
 #include <ctime>
@@ -363,6 +364,26 @@ std::tuple<int, bool, std::string, std::optional<std::string>> parse_match_vote_
     return {team_size, valid_level, level_name, preset_alias};
 }
 
+static bool is_level_allowed_for_vote(const std::string& level_name, rf::Player* source)
+{
+    const auto& allowed_maps = g_alpine_server_config.vote_level.allowed_maps;
+    if (allowed_maps.empty()) {
+        return true;
+    }
+
+    const bool is_allowed = std::any_of(
+        allowed_maps.begin(), allowed_maps.end(),
+        [&](const std::string& allowed_name) { return string_iequals(allowed_name, level_name); });
+
+    if (!is_allowed) {
+        auto msg = std::format("Cannot start vote: the server does not allow voting for level {}!", level_name);
+        af_send_automated_chat_msg(msg, source);
+        return false;
+    }
+
+    return true;
+}
+
 struct VoteMatch : public Vote
 {
     std::optional<ManualRulesOverride> m_manual_rules_override;
@@ -386,6 +407,10 @@ struct VoteMatch : public Vote
         }
         else {
             af_send_automated_chat_msg("Invalid level specified! Try again, or omit level filename to use the current level.", source);
+            return false;
+        }
+
+        if (!is_level_allowed_for_vote(g_match_info.match_level_name, source)) {
             return false;
         }
 
@@ -625,6 +650,10 @@ struct VoteLevel : public Vote
         if (!is_valid) {
             auto msg = std::format("Cannot start vote: level {} is not available on the server!", level_name);
             af_send_automated_chat_msg(msg, source);
+            return false;
+        }
+
+        if (!is_level_allowed_for_vote(level_name, source)) {
             return false;
         }
 

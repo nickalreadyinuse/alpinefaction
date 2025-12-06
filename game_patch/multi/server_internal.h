@@ -98,6 +98,7 @@ struct VoteConfig
     bool enabled = false;
     bool ignore_nonvoters = false;
     int time_limit_seconds = 60;
+    std::vector<std::string> allowed_maps;
 
     // =============================================
     
