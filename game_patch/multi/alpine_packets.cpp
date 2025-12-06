@@ -1541,7 +1541,8 @@ void af_broadcast_automated_chat_msg(const std::string_view msg) {
                 0
             );
         } else {
-            send_chat_line_packet(msg, &player);
+            std::string legacy_msg = std::string("\xA6 ") + std::string(msg);
+            send_chat_line_packet(legacy_msg, &player);
         }
     }
 }
@@ -1561,7 +1562,8 @@ void af_send_automated_chat_msg(const std::string_view msg, rf::Player* player) 
             0
         );
     } else {
-        send_chat_line_packet(msg, player);
+        std::string legacy_msg = std::string("\xA6 ") + std::string(msg);
+        send_chat_line_packet(legacy_msg, player);
     }
 }
 

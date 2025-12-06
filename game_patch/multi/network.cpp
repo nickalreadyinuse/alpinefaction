@@ -510,11 +510,14 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             }
         }
 
-        const bool msg_from_server = data[0] == -1;
-        if (msg_from_server) {
-            handle_vote_or_ready_up_msg(msg);
-        } else {
-            handle_sound_msg(msg);
+        if (!rf::is_dedicated_server) {
+            const bool msg_from_server = data[0] == -1;
+            if (msg_from_server) {
+                handle_vote_or_ready_up_msg(msg);
+            }
+            else {
+                handle_sound_msg(msg);
+            }
         }
 
         process_chat_line_packet_hook.call_target(data, addr);
