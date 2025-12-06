@@ -600,6 +600,20 @@ static VoteConfig parse_vote_config(const toml::table& t)
     return v;
 }
 
+static VoteConfig parse_vote_level_config(const toml::table& t)
+{
+    VoteConfig v = parse_vote_config(t);
+
+    if (v.enabled) {
+        if (auto x = t["add_rotation_to_allowed_levels"].value<bool>())
+            v.add_rotation_to_allowed_levels = *x;
+        if (auto x = t["only_allow_gametype_prefix"].value<bool>())
+            v.only_allow_gametype_prefix = *x;
+    }
+
+    return v;
+}
+
 static InactivityConfig parse_inactivity_config(const toml::table &t)
 {
     InactivityConfig o;
@@ -970,9 +984,10 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
     else if (key == "vote_kick")
         cfg.vote_kick = parse_vote_config(tbl);
     else if (key == "vote_level") {
-        cfg.vote_level = parse_vote_config(tbl);
-        if (cfg.vote_level.enabled)
+        cfg.vote_level = parse_vote_level_config(tbl);
+        if (cfg.vote_level.enabled) {
             cfg.vote_level.allowed_maps = parse_allowed_maps(tbl);
+        }
     }
     else if (key == "vote_gametype")
         cfg.vote_gametype = parse_vote_config(tbl);
@@ -1636,21 +1651,10 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
         if (v.enabled) {
             std::format_to(iter, "    Ignore nonvoters:                    {}\n", v.ignore_nonvoters);
             std::format_to(iter, "    Time limit:                          {} sec\n", v.time_limit_seconds);
-            if (!v.allowed_maps.empty()) {
-                std::string allowed_maps;
-                for (size_t i = 0; i < v.allowed_maps.size(); ++i) {
-                    if (i != 0) {
-                        allowed_maps += ", ";
-                    }
-                    allowed_maps += v.allowed_maps[i];
-                }
-                std::format_to(iter, "    Allowed levels:                      {}\n", allowed_maps);
-            }
         }
     };
 
     print_vote("Vote kick:    ", cfg.vote_kick);
-    print_vote("Vote level:   ", cfg.vote_level);
     print_vote("Vote gametype:", cfg.vote_gametype);
     print_vote("Vote extend:  ", cfg.vote_extend);
     print_vote("Vote restart: ", cfg.vote_restart);
@@ -1658,6 +1662,23 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     print_vote("Vote random:  ", cfg.vote_rand);
     print_vote("Vote previous:", cfg.vote_previous);
 
+    std::format_to(iter, "  Vote level:                            {}\n", cfg.vote_level.enabled);
+    if (cfg.vote_level.enabled) {
+        std::format_to(iter, "    Ignore nonvoters:                    {}\n", cfg.vote_level.ignore_nonvoters);
+        std::format_to(iter, "    Time limit:                          {} sec\n", cfg.vote_level.time_limit_seconds);
+        std::format_to(iter, "    Add rotation to allowed levels:      {}\n", cfg.vote_level.add_rotation_to_allowed_levels);
+        std::format_to(iter, "    Only allow gametype prefix:          {}\n", cfg.vote_level.only_allow_gametype_prefix);
+        if (!cfg.vote_level.allowed_maps.empty()) {
+            std::string allowed_maps;
+            for (size_t i = 0; i < cfg.vote_level.allowed_maps.size(); ++i) {
+                if (i != 0) {
+                    allowed_maps += ", ";
+                }
+                allowed_maps += cfg.vote_level.allowed_maps[i];
+            }
+            std::format_to(iter, "    Allowed levels:                      {}\n", allowed_maps);
+        }
+    }
     
     if (!cfg.rules_preset_aliases.empty()) {
         std::format_to(iter, "\n---- Rules preset alias mappings ----\n");

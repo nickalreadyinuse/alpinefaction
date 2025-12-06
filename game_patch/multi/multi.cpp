@@ -595,6 +595,31 @@ std::string_view multi_game_type_name_short(const rf::NetGameType game_type) {
     }
 }
 
+std::string_view multi_game_type_prefix(const rf::NetGameType game_type) {
+    if (game_type == rf::NG_TYPE_DM) {
+        return std::string_view{"dm"};
+    } else if (game_type == rf::NG_TYPE_TEAMDM) {
+        return std::string_view{"dm"};
+    } else if (game_type == rf::NG_TYPE_CTF) {
+        return std::string_view{"ctf"};
+    } else if (game_type == rf::NG_TYPE_KOTH) {
+        return std::string_view{"koth"};
+    } else if (game_type == rf::NG_TYPE_DC) {
+        return std::string_view{"dc"};
+    } else if (game_type == rf::NG_TYPE_REV) {
+        return std::string_view{"rev"};
+    } else if (game_type == rf::NG_TYPE_RUN) {
+        return std::string_view{"run"};
+    } else if (game_type == rf::NG_TYPE_ESC) {
+        return std::string_view{"esc"};
+    } else {
+        if (game_type != rf::NG_TYPE_TEAMDM) {
+            xlog::warn("{} is an invalid `NetGameType`", static_cast<int>(game_type));
+        }
+        return std::string_view{"dm"};
+    }
+}
+
 int multi_num_spawned_players() {
     return std::ranges::count_if(SinglyLinkedList{rf::player_list}, [] (const auto& p) {
         return !rf::player_is_dead(&p) && !rf::player_is_dying(&p);

@@ -14,6 +14,7 @@
 #include "../rf/misc.h"
 #include "../rf/os/timestamp.h"
 #include "../os/console.h"
+#include "../misc/alpine_options.h"
 #include "../misc/player.h"
 #include "../main/main.h"
 #include <common/utils/list-utils.h>
@@ -364,11 +365,63 @@ std::tuple<int, bool, std::string, std::optional<std::string>> parse_match_vote_
     return {team_size, valid_level, level_name, preset_alias};
 }
 
-static bool is_level_allowed_for_vote(const std::string& level_name, rf::Player* source)
+static bool does_level_match_gametype_prefix(const std::string& level_name)
 {
-    const auto& allowed_maps = g_alpine_server_config.vote_level.allowed_maps;
-    if (allowed_maps.empty()) {
+    const auto game_type = rf::multi_get_game_type();
+    std::string map_name = level_name;
+
+    if (!string_iends_with(map_name, ".rfl")) {
+        map_name += ".rfl";
+    }
+
+    if (game_type == rf::NG_TYPE_RUN && is_known_run_level(level_name)) {
         return true;
+    }
+
+    const auto base_prefix = multi_game_type_prefix(game_type);
+
+    auto matches_prefix = [&](std::string_view prefix) {
+        return string_istarts_with(map_name, prefix);
+    };
+
+    if (matches_prefix(base_prefix)) {
+        return true;
+    }
+
+    if ((game_type == rf::NG_TYPE_DM || game_type == rf::NG_TYPE_TEAMDM) && matches_prefix("pdm")) {
+        return true;
+    }
+
+    if (game_type == rf::NG_TYPE_CTF && matches_prefix("pctf")) {
+        return true;
+    }
+
+    return false;
+}
+
+static bool is_level_allowed_for_vote(const std::string& level_name, rf::Player* source, bool check_gametype = true)
+{
+    const auto& vote_level_cfg = g_alpine_server_config.vote_level;
+
+    if (check_gametype && vote_level_cfg.only_allow_gametype_prefix && !does_level_match_gametype_prefix(level_name)) {
+        auto msg = std::format("Cannot start vote: level {} does not match the current gametype!", level_name);
+        af_send_automated_chat_msg(msg, source);
+        return false; // level does not match gametype prefix
+    }
+
+    if (vote_level_cfg.allowed_maps.empty() && !vote_level_cfg.add_rotation_to_allowed_levels) {
+        return true; // no allowed_levels configured and not adding rotation, so all levels are allowed
+    }
+
+    std::vector<std::string> allowed_maps = vote_level_cfg.allowed_maps;
+    if (vote_level_cfg.add_rotation_to_allowed_levels) {
+        for (const auto& level_entry : g_alpine_server_config.levels) {
+            allowed_maps.push_back(level_entry.level_filename);
+        }
+    }
+
+    if (allowed_maps.empty()) {
+        return true; // still empty after all, so all levels are allowed
     }
 
     const bool is_allowed = std::any_of(
@@ -378,7 +431,7 @@ static bool is_level_allowed_for_vote(const std::string& level_name, rf::Player*
     if (!is_allowed) {
         auto msg = std::format("Cannot start vote: the server does not allow voting for level {}!", level_name);
         af_send_automated_chat_msg(msg, source);
-        return false;
+        return false; // level not in allowed_levels
     }
 
     return true;
@@ -765,18 +818,23 @@ struct VoteGametype : public Vote
 
         if (level_part.empty()) {
             m_level_name = rf::level.filename.c_str();
-            return true;
+        }
+        else {
+            auto [is_valid, normalized_level_name] = is_level_name_valid(level_part);
+            if (!is_valid) {
+                auto msg = std::format("Cannot start vote: level {} is not available on the server!", normalized_level_name);
+                af_send_automated_chat_msg(msg, source);
+                return false;
+            }
+
+            m_level_name = std::move(normalized_level_name);
         }
 
-        auto [is_valid, normalized_level_name] = is_level_name_valid(level_part);
-        if (!is_valid) {
-            auto msg = std::format("Cannot start vote: level {} is not available on the server!", normalized_level_name);
-            af_send_automated_chat_msg(msg, source);
-            return false;
+        if (string_iequals(m_level_name, rf::level.filename.c_str())) {
+            return true; // level is current level, skip further checks
         }
 
-        m_level_name = std::move(normalized_level_name);
-        return true;
+        return is_level_allowed_for_vote(m_level_name, source, false); // skip gametype prefix check for gametype votes
     }
 
     [[nodiscard]] std::string get_title() const override

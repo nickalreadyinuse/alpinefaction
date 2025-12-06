@@ -123,7 +123,7 @@ Version 1.2.0 (Willow): Not yet released
 - Add `ui_color_location_ping` and `ui_color_multi_timer` commands
 - Use team colors for player name labels when spectating in team gametypes
 - Add `ui_color_team_label` command
-- Add `allowed_levels` option for `vote level` config in ADS dedicated servers
+- Add `allowed_levels`, `add_rotation_to_allowed_levels`, and `only_allow_gametype_prefix` options for `vote level` configs
 - Automatically add `.rfl` extension if not present in level filenames for ADS dedicated server config
 
 [@is-this-c](https://github.com/is-this-c)

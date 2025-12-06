@@ -99,6 +99,8 @@ struct VoteConfig
     bool ignore_nonvoters = false;
     int time_limit_seconds = 60;
     std::vector<std::string> allowed_maps;
+    bool add_rotation_to_allowed_levels = false;
+    bool only_allow_gametype_prefix = false;
 
     // =============================================
     
