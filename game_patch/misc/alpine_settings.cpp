@@ -591,6 +591,16 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("MultiTimerColor");
     }
+    if (settings.count("TeammateLabelColor")) {
+        auto color_override = parse_hex_color_string(settings["TeammateLabelColor"]);
+        if (color_override) {
+            g_alpine_game_config.teammate_label_color_override = color_override;
+        }
+        else {
+            xlog::warn("Invalid teammate label color override: {}", settings["TeammateLabelColor"]);
+        }
+        processed_keys.insert("TeammateLabelColor");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -1040,6 +1050,9 @@ void alpine_player_settings_save(rf::Player* player)
     }
     if (g_alpine_game_config.multi_timer_color_override) {
         file << "MultiTimerColor=" << format_hex_color_string(*g_alpine_game_config.multi_timer_color_override) << "\n";
+    }
+    if (g_alpine_game_config.teammate_label_color_override) {
+        file << "TeammateLabelColor=" << format_hex_color_string(*g_alpine_game_config.teammate_label_color_override) << "\n";
     }
 
     // Singleplayer

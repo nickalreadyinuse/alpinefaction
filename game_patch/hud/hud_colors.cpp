@@ -174,6 +174,18 @@ ConsoleCommand2 multi_timer_color_cmd{
     "ui_color_multi_timer <RRGGBB|RRGGBBAA|clear>",
 };
 
+ConsoleCommand2 teammate_label_color_cmd{
+    "ui_color_team_label",
+    [](std::optional<std::string> color_opt) {
+        handle_hex_color_console_command(
+            color_opt,
+            "Teammate world label color override",
+            g_alpine_game_config.teammate_label_color_override);
+    },
+    "Set teammate world label color override.",
+    "ui_color_team_label <RRGGBB|RRGGBBAA|clear>",
+};
+
 void hud_colors_apply_patch()
 {
     sniper_scope_color_cmd.register_cmd();
@@ -183,4 +195,5 @@ void hud_colors_apply_patch()
     damage_notify_color_cmd.register_cmd();
     location_ping_color_cmd.register_cmd();
     multi_timer_color_cmd.register_cmd();
+    teammate_label_color_cmd.register_cmd();
 }

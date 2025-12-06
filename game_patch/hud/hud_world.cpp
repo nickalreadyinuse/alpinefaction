@@ -554,6 +554,21 @@ void build_player_labels() {
     auto spectate_target = multi_spectate_get_target_player();
 
     const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+    bool has_teammate_override_color = false;
+    uint8_t teammate_override_r = 0;
+    uint8_t teammate_override_g = 0;
+    uint8_t teammate_override_b = 0;
+    uint8_t teammate_override_a = 0;
+
+    if (g_alpine_game_config.teammate_label_color_override) {
+        auto [r, g, b, a] = extract_color_components(*g_alpine_game_config.teammate_label_color_override);
+        teammate_override_r = static_cast<uint8_t>(r);
+        teammate_override_g = static_cast<uint8_t>(g);
+        teammate_override_b = static_cast<uint8_t>(b);
+        teammate_override_a = static_cast<uint8_t>(a);
+        has_teammate_override_color = true;
+    }
+
     auto player_list = SinglyLinkedList{rf::player_list};
 
     for (auto& player : player_list) {
@@ -588,7 +603,33 @@ void build_player_labels() {
         const auto [text_width, text_height] = rf::gr::get_string_size(label, font);
         int half_text_width = text_width / 2;
 
-        render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, -25, font, 200, 200, 200, 223);
+        uint8_t label_r = 200;
+        uint8_t label_g = 200;
+        uint8_t label_b = 200;
+        uint8_t label_a = 223;
+
+        if (is_spectating) {
+            if (is_team_mode) {
+                if (player.team) {
+                    label_r = 0x34;
+                    label_g = 0x4E;
+                    label_b = 0xA7;
+                }
+                else {
+                    label_r = 0xA7;
+                    label_g = 0x00;
+                    label_b = 0x00;
+                }
+            }
+        }
+        else if (has_teammate_override_color) {
+            label_r = teammate_override_r;
+            label_g = teammate_override_g;
+            label_b = teammate_override_b;
+            label_a = teammate_override_a;
+        }
+
+        render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, -25, font, label_r, label_g, label_b, label_a);
     }
 }
 
