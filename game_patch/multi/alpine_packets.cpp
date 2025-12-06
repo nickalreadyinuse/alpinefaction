@@ -23,7 +23,17 @@
 void af_send_packet(rf::Player* player, const void* data, int len, bool is_reliable)
 {
     if (!player || !player->net_data) {
-        xlog::error("af_send_packet: Attempted to send to invalid player");
+        if (data && len >= static_cast<int>(sizeof(RF_GamePacketHeader))) {
+            RF_GamePacketHeader header{};
+            std::memcpy(&header, data, sizeof(header));
+            xlog::error("af_send_packet: Attempted to send to invalid player (type 0x{:x}, size {}, buf_len {})",
+                header.type,
+                header.size,
+                len);
+        }
+        else {
+            xlog::error("af_send_packet: Attempted to send to invalid player (unknown type)");
+        }
         return;
     }
     if (len <= 0 || len > rf::max_packet_size) {
