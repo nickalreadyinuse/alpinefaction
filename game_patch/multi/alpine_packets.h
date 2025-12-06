@@ -241,7 +241,7 @@ void af_process_spectate_notify_packet(const void* data, size_t len, const rf::N
 void af_send_server_cfg(rf::Player* player);
 void af_process_server_msg_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_broadcast_automated_chat_msg(std::string_view msg);
-void af_send_automated_chat_msg(std::string_view msg, rf::Player* player);
+void af_send_automated_chat_msg(std::string_view msg, rf::Player* player, bool tell_server = false);
 
 // client requests
 void af_send_handicap_request(uint8_t amount);

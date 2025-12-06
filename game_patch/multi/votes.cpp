@@ -1079,16 +1079,16 @@ void handle_vote_command(std::string_view vote_name, std::string_view vote_arg, 
 {
     const auto& pdata = get_player_additional_data(sender);
     if (pdata.client_version == ClientVersion::browser || pdata.is_bot_player) {
-        af_send_automated_chat_msg("Browsers and bots are not allowed to vote!", sender);
+        af_send_automated_chat_msg("Browsers and bots are not allowed to vote!", sender, true);
         return;
     } else if (!Vote::player_meets_alpine_restrict(sender)) {
         af_send_automated_chat_msg(
             "You can't vote, because your client does not meet the server's requirements. Visit alpinefaction.com to upgrade.",
-            sender
+            sender, true
         );
         return;
     } else if (is_player_idle(sender)) {
-        af_send_automated_chat_msg("Idle players are not allowed to vote!", sender);
+        af_send_automated_chat_msg("Idle players are not allowed to vote!", sender, true);
         return;
     }
 

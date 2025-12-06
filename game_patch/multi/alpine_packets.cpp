@@ -1557,12 +1557,12 @@ void af_broadcast_automated_chat_msg(const std::string_view msg) {
     }
 }
 
-void af_send_automated_chat_msg(const std::string_view msg, rf::Player* player) {
+void af_send_automated_chat_msg(const std::string_view msg, rf::Player* player, bool tell_server) {
     if (!rf::is_server || !player) {
         return;
     }
 
-    if (rf::is_dedicated_server) {
+    if (tell_server && rf::is_dedicated_server) {
         rf::console::print("Server (to {}): {}", player->name, msg);
     }
 
