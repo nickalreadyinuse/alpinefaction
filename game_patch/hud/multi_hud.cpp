@@ -972,7 +972,7 @@ void hud_render_ready_notification() {
         get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY));
 
     const std::string ready_notification_text =
-        "Press " + ready_key_text + " to ready up for this match";
+        "Press " + ready_key_text + " to ready up for the match";
 
     rf::gr::set_color(255, 255, 255, 225);
     const int center_x = rf::gr::screen_width() / 2;

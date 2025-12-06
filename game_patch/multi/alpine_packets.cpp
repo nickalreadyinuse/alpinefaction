@@ -1552,6 +1552,10 @@ void af_send_automated_chat_msg(const std::string_view msg, rf::Player* player) 
         return;
     }
 
+    if (rf::is_dedicated_server) {
+        rf::console::print("Server (to {}): {}", player->name, msg);
+    }
+
     if (is_player_minimum_af_client_version(player, 1, 2)) {
         const af_server_msg_packet_buf buf = build_automated_chat_msg_packet(msg);
 
