@@ -802,21 +802,21 @@ void achievement_check_trigger(rf::Trigger* trigger) {
             // Kava (to be supported in the future)
             /*
             case 26156: {
-                if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+                if (string_iequals(rfl_filename, "rfrev_kva00b.rfl")) {
                     grant_achievement(AchievementName::KavaSurface);
                 }
                 break;
             }
 
             case 26161: {
-                if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+                if (string_iequals(rfl_filename, "rfrev_kva00b.rfl")) {
                     grant_achievement(AchievementName::Kava00bSecret1); // rover
                 }
                 break;
             }
 
             case 26365: {
-                if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+                if (string_iequals(rfl_filename, "rfrev_kva00b.rfl")) {
                     grant_achievement(AchievementName::Kava00bSecret2); // toolshed
                 }
                 break;
@@ -999,7 +999,7 @@ void achievement_check_entity_death(rf::Entity* entity) {
 
         // kava (to be supported in the future)
         /*
-        if (string_equals_ignore_case(rfl_filename, "rfrev_kva00b.rfl")) {
+        if (string_iequals(rfl_filename, "rfrev_kva00b.rfl")) {
             static const std::initializer_list<int> all_aa_turrets = {
                 21, 33469, 33481, 33493, 33505, 33517, 33529, 33541, 33553, 33565, 33577, 33589, 33601, 33613,
                 33625, 33637, 33649, 33661, 33673, 33685, 33697, 33709
@@ -1028,7 +1028,7 @@ void achievement_check_clutter_death(rf::Clutter* clutter) {
 
         //xlog::warn("clutter died {}, {}, {}, {}", clutter_uid, clutter_script_name, clutter_class_name, rfl_filename);
 
-        /* if (string_equals_ignore_case(rfl_filename, "l6s1.rfl")) {
+        /* if (string_iequals(rfl_filename, "l6s1.rfl")) {
             switch (clutter_uid) {
                 case 4638:
                 case 4722:
