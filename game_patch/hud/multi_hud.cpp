@@ -760,7 +760,7 @@ void multi_hud_render_team_scores()
         box_w = g_big_team_scores_hud ? 240 : 185;
     }
     else {
-        box_w = g_big_team_scores_hud ? 370 : 185;
+        box_w = g_big_team_scores_hud ? 350 : 185;
         box_h = g_big_team_scores_hud ? 80  : 55;
     }
 
@@ -771,9 +771,9 @@ void multi_hud_render_team_scores()
     int max_miniflag_label_w = box_w - (g_big_team_scores_hud ? (is_koth_dc ? 70 : 80) : (is_koth_dc ? 50 : 55));
     int red_miniflag_y = box_y + 4;
     int blue_miniflag_y = box_y + (g_big_team_scores_hud ? (is_koth_dc ? 38 : 42) : (is_koth_dc ? 28 : 30));
-    int red_miniflag_label_y  = red_miniflag_y  + 4;
+    int red_miniflag_label_y  = red_miniflag_y + 4;
     int blue_miniflag_label_y = blue_miniflag_y + 4;
-    int flag_x = g_big_team_scores_hud ? 410 : 205;
+    int flag_x = box_x + box_w + (g_big_team_scores_hud ? 30 : 10);
     float flag_scale = g_big_team_scores_hud ? 1.5f : 1.0f;
 
     if (!is_hill_score && !is_run) {
@@ -946,13 +946,13 @@ FunHook<void()> multi_hud_init_hook{
     },
 };
 
-void hud_render_respawn_timer_notification()
-{
-    auto notif_string = build_local_spawn_string(g_draw_respawn_timer_can_respawn);
+void hud_render_respawn_timer_notification() {
+    const std::string notif_string = build_local_spawn_string(g_draw_respawn_timer_can_respawn);
     rf::gr::set_color(255, 255, 255, 225);
-    int center_x = rf::gr::screen_width() / 2;
-    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.925f);
-    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, notif_string.c_str(), 0);
+    const int center_x = rf::gr::screen_width() / 2;
+    const int font = hud_get_default_font();
+    const int notification_y = static_cast<int>(rf::gr::screen_height() * .925f);
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, notif_string.c_str(), font);
 }
 
 void stop_draw_respawn_timer_notification()
@@ -967,18 +967,28 @@ void draw_respawn_timer_notification(bool can_respawn, bool force_respawn, int s
     g_draw_respawn_timer_can_respawn = can_respawn;
 }
 
-void hud_render_ready_notification()
-{
-    std::string ready_key_text =
+void hud_render_ready_notification() {
+    const std::string ready_key_text =
         get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY));
 
-    std::string ready_notification_text =
-        "Press " + ready_key_text + " to ready up for the match";
+    const std::string ready_notification_text =
+        "Press " + ready_key_text + " to ready up for this match";
 
     rf::gr::set_color(255, 255, 255, 225);
-    int center_x = rf::gr::screen_width() / 2;
-    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.25f);
-    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, ready_notification_text.c_str(), 0);
+    const int center_x = rf::gr::screen_width() / 2;
+    const int font = hud_get_default_font();
+    const int font_h = rf::gr::get_font_height(font);
+    const int border = g_alpine_game_config.big_hud ? 3 : 2;
+    const int hist_box_y = 10;
+    const int hist_box_h = 8 * font_h + 2 * border + 6;
+    const int input_box_y = hist_box_y + hist_box_h;
+    const int input_box_content_h = font_h + 3;
+    const int input_box_h = input_box_content_h + 2 * border;
+    int notification_y = input_box_y + input_box_h;
+    if (!g_alpine_game_config.big_hud) {
+        notification_y += 2;
+    }
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, notification_y, ready_notification_text.c_str(), font);
 }
 
 void draw_hud_ready_notification(bool draw)
@@ -992,20 +1002,27 @@ void set_local_pre_match_active(bool set_active) {
     draw_hud_ready_notification(set_active);
 }
 
-void hud_render_vote_notification()
-{
-    std::string vote_yes_key_text =
+void hud_render_vote_notification() {
+    const std::string vote_yes_key_text =
         get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES));
 
-    std::string vote_no_key_text =
+    const std::string vote_no_key_text =
         get_action_bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO));
 
-    std::string vote_notification_text =
-        "ACTIVE QUESTION: \n" + g_active_vote_type + "\n\n" + vote_yes_key_text + " to vote yes\n" + vote_no_key_text + " to vote no";
+    const std::string vote_notification_text =
+        "ACTIVE QUESTION: \n" + g_active_vote_type + "\n\nPress " + vote_yes_key_text + " to vote yes\nPress " + vote_no_key_text + " to vote no";
 
     rf::gr::set_color(255, 255, 255, 225);
-    int notification_y = static_cast<int>(rf::gr::screen_height() * 0.25f);
-    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 8, notification_y, vote_notification_text.c_str(), 0);
+    const int font = hud_get_default_font();
+    const int font_h = rf::gr::get_font_height(font);
+    const int border = g_alpine_game_config.big_hud ? 3 : 2;
+    const int hist_box_y = 10;
+    const int hist_box_h = 8 * font_h + 2 * border + 6;
+    int notification_y = hist_box_y + hist_box_h;
+    if (!g_alpine_game_config.big_hud) {
+        notification_y += 9;
+    }
+    rf::gr::string_aligned(rf::gr::ALIGN_LEFT, 10, notification_y, vote_notification_text.c_str(), font);
 }
 
 void draw_hud_vote_notification(std::string vote_type)
@@ -1072,7 +1089,7 @@ void multi_hud_render_local_player_spectators() {
         const bool is_esc = game_type == rf::NG_TYPE_ESC;
         const int box_w = is_koth_or_dc || is_rev || is_esc
             ? g_alpine_game_config.big_hud ? 240 : 185
-            : g_alpine_game_config.big_hud ? 370 : 185;
+            : g_alpine_game_config.big_hud ? 350 : 185;
         constexpr int box_x = 10;
 
         int x = 10;
@@ -1332,10 +1349,8 @@ void RemoteServerCfgPopup::render() {
     int clip_x = 0, clip_y = 0, clip_w = 0, clip_h = 0;
     rf::gr::get_clip(&clip_x, &clip_y, &clip_w, &clip_h);
 
-    int mouse_dx = 0, mouse_dy = 0, mouse_dz = 0;
-    rf::mouse_get_delta(mouse_dx, mouse_dy, mouse_dz);
-    if (mouse_dz != 0) {
-        m_scroll.target += (mouse_dz > 0 ? -2 : 2) * (line_height + sep_thickness);
+    if (rf::mouse_dz != 0) {
+        m_scroll.target += (rf::mouse_dz > 0 ? -2 : 2) * (line_height + sep_thickness);
         m_last_key_down = 0;
     }
 
@@ -1423,8 +1438,10 @@ void RemoteServerCfgPopup::render() {
 
     int total_w = base_w;
     if (m_cfg_changed) {
-        const auto [sep_w, sep_h] = rf::gr::get_string_size(separator_text, label_font_id);
-        const auto [out_w, out_h] = rf::gr::get_string_size(outdated_text, label_font_id);
+        const auto [sep_w, sep_h]
+            = rf::gr::get_string_size(separator_text, label_font_id);
+        const auto [out_w, out_h]
+            = rf::gr::get_string_size(outdated_text, label_font_id);
         total_w += sep_w + out_w;
     }
 
@@ -1473,9 +1490,6 @@ void RemoteServerCfgPopup::render() {
         rf::gr::set_color(180, 180, 180, 64);
         rf::gr::rect(content_x, line_y + sep_thickness, content_w, sep_thickness);
         rf::gr::set_clip(0, content_y, rf::gr::clip_width(), content_h);
-    } else if (g_remote_server_cfg_popup.is_highlight_box()) {
-        rf::gr::set_color(100, 255, 200, 255);
-        rf::gr::rect(content_x, 0, content_w, sep_thickness);
     }
 
     line_y += sep_thickness;
@@ -1509,7 +1523,12 @@ void RemoteServerCfgPopup::render() {
         }
 
         if (g_remote_server_cfg_popup.uses_line_separators()) {
-            rf::gr::set_clip(0, content_y - sep_thickness, rf::gr::clip_width(), content_h + sep_thickness * 2);
+            rf::gr::set_clip(
+                0,
+                content_y - sep_thickness,
+                rf::gr::clip_width(),
+                content_h + sep_thickness * 2
+            );
             rf::gr::set_color(180, 180, 180, 64);
             rf::gr::rect(content_x, line_y + sep_thickness, content_w, sep_thickness);
             rf::gr::set_clip(0, content_y, rf::gr::clip_width(), content_h);
@@ -1583,6 +1602,7 @@ void RemoteServerCfgPopup::render() {
         rf::gr::set_clip(0, content_y, rf::gr::clip_width(), content_h);
     } else if (g_remote_server_cfg_popup.is_highlight_box()) {
         rf::gr::set_color(100, 255, 200, 255);
+        rf::gr::rect(content_x, 0, content_w, sep_thickness);
         rf::gr::rect(content_x, content_h - 1, content_w, sep_thickness);
     }
 
