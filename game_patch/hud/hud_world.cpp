@@ -500,7 +500,8 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
     }
 
     // hill name label
-    const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+    //const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+    const int font = 0;
     NameLabelTex& lbl = ensure_hill_name_tex(h, font);
 
     const float text_h_world = ring_scale * 0.55f;

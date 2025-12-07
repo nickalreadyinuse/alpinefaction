@@ -341,7 +341,7 @@ void MainDlg::FetchNews()
 {
     try {
         HttpSession session{"Alpine Faction v1.2.0 News"};
-        HttpRequest req{"https://www.redfactionwiki.com/wiki/Alpine_Faction_News_Feed?action=raw", "GET", session};
+        HttpRequest req{"https://update.alpinefaction.com/news.php", "GET", session};
         req.send();
 
         char buf[8192]; // Large enough buffer to store the response
