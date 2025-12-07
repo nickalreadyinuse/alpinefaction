@@ -8,6 +8,7 @@
 // 2 = 1.0.0 (Maple)
 // 3 = 1.1.0 (Tamarack)
 // 4 = 1.2.0 (Willow)
+// 5 = 1.3.0 (TBD)
 
 void UpdateChecker::CheckForUpdates()
 {
@@ -16,7 +17,7 @@ void UpdateChecker::CheckForUpdates()
     xlog::info("Checking for updates...");
 
     // Create an HttpSession
-    HttpSession session("Alpine Faction v1.2.0 Update");
+    HttpSession session("Alpine Faction v1.3.0 Update");
 
     try {
         HttpRequest req(update_url, "GET", session);
