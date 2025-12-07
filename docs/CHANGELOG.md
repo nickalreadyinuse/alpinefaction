@@ -1,7 +1,7 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.2.0 (Willow): Not yet released
+Version 1.2.0 (Willow): Released Dec-06-2025
 --------------------------------
 ### Major features
 [@GooberRF](https://github.com/GooberRF)
