@@ -23,7 +23,7 @@
 void af_send_packet(rf::Player* player, const void* data, int len, bool is_reliable)
 {
     if (!player || !player->net_data) {
-        if (player == nullptr) { // expected for af_spectate_notify packet when using freecam spec
+        if (!player) { // expected for af_spectate_notify packet when using freecam spec
             xlog::debug("af_send_packet: Attempted to send to null player");
         }
         else if (data && len >= static_cast<int>(sizeof(RF_GamePacketHeader))) {
