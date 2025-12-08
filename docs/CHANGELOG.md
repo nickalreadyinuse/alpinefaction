@@ -6,8 +6,12 @@ Version 1.2.1 (TBD): Not yet released
 ### Major features
 
 ### Minor features, changes, and enhancements
+[@GooberRF](https://github.com/GooberRF)
 - Change default spawn delay for KOTH mode from 5 seconds to 2 seconds
 - Drop support for Direct3D 11 renderer on GPUs without D3D level 10_0 (or higher) support
+
+[@is-this-c](https://github.com/is-this-c)
+- Improve freelook spectate logic after level transition
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
