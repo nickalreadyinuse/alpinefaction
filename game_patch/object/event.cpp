@@ -19,6 +19,8 @@
 #include "../rf/player/player.h"
 #include "../rf/os/console.h"
 #include "../os/console.h"
+#include "../rf/v3d.h"
+#include "../graphics/d3d11/gr_d3d11_mesh.h"
 
 bool event_debug_enabled;
 
@@ -118,6 +120,18 @@ CodeInjection switch_model_event_obj_lighting_and_physics_fix{
             }
             rf::physics_delete_object(&obj->p_data);
             rf::physics_create_object(&obj->p_data, &oci);
+
+            // D3D11 renderer: reset static mesh vertex colors for the swapped mesh
+            if (g_game_config.renderer == GameConfig::Renderer::d3d11 &&
+                obj->vmesh &&
+                rf::vmesh_get_type(obj->vmesh) == rf::MESH_TYPE_STATIC) {
+
+                // The VIF LOD mesh instance points at the submesh that was swapped in
+                if (auto* lod_mesh = static_cast<rf::VifLodMesh*>(obj->vmesh->instance)) {
+                    xlog::debug("D3D11 renderer: vertex color state changed for mesh {} on UID {}", obj->vmesh->filename, obj->uid);
+                    df::gr::d3d11::on_static_vertex_color_state_changed(lod_mesh);
+                }
+            }
         }
     },
 };

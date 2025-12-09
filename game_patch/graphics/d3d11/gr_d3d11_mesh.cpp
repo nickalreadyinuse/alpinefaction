@@ -30,6 +30,7 @@ namespace df::gr::d3d11
 
     static uint64_t character_vertex_color_generation = 1;
     static uint64_t static_vertex_color_generation = 1;
+    static std::vector<MeshRenderer*> mesh_renderers;
 
     struct PackedRgb
     {
@@ -78,10 +79,25 @@ namespace df::gr::d3d11
         return static_vertex_color_generation;
     }
 
-    // currently unused
-    void on_static_vertex_color_state_changed()
+    void on_static_vertex_color_state_changed(rf::VifLodMesh* changed_lod_mesh)
     {
-        ++static_vertex_color_generation;
+        // Vertex color changes invalidate cached vertex color batches
+        // bump generation to append new vertex color data to shared buffer
+        const auto generation = ++static_vertex_color_generation;
+
+        xlog::debug("D3D11 static vertex colors: bumped generation to {} for {} ({} renderer(s))",
+            generation,
+            changed_lod_mesh ? "targeted mesh" : "all meshes",
+            mesh_renderers.size());
+
+        // If this happens frequently (like rapid Switch_Model use), bumping this generation causes us
+        // to keep appending new vertex color data to the shared buffers until we run out of memory.
+        // Let each renderer rewind its caches once per generation bump to avoid.
+        // Note this uses uint64 for total safety and because there's no real cost to doing so,
+        // realistically this will never come remotely close to needing a uint64.
+        for (auto* renderer : mesh_renderers) {
+            renderer->handle_static_vertex_color_state_change(changed_lod_mesh, generation);
+        }
     }
 
     static bool is_vif_chunk_double_sided(const VifChunk& chunk)
@@ -622,15 +638,20 @@ namespace df::gr::d3d11
         [[maybe_unused]] StateManager& state_manager, RenderContext& render_context) :
         device_{std::move(device)}, render_context_{render_context},
         v3d_vb_{initial_vb_size, sizeof(GpuVertex), D3D11_BIND_VERTEX_BUFFER, device_},
-        v3d_ib_{initial_ib_size, sizeof(rf::ushort), D3D11_BIND_INDEX_BUFFER, device_}
+        v3d_ib_{initial_ib_size, sizeof(rf::ushort), D3D11_BIND_INDEX_BUFFER, device_},
+        last_static_vertex_color_generation_{current_static_vertex_color_generation()}
     {
         standard_vertex_shader_ = shader_manager.get_vertex_shader(VertexShaderId::standard);
         character_vertex_shader_ = shader_manager.get_vertex_shader(VertexShaderId::character);
         pixel_shader_ = shader_manager.get_pixel_shader(PixelShaderId::standard);
+
+        mesh_renderers.push_back(this);
     }
 
     MeshRenderer::~MeshRenderer()
     {
+        mesh_renderers.erase(std::remove(mesh_renderers.begin(), mesh_renderers.end(), this), mesh_renderers.end());
+
         // Note: meshes are already destroyed here
         render_caches_.clear();
     }
@@ -858,6 +879,52 @@ namespace df::gr::d3d11
 
         v3d_vb_.clear();
         v3d_ib_.clear();
+
+        reset_static_vertex_color_tracking();
+    }
+
+    void MeshRenderer::reset_static_vertex_color_tracking()
+    {
+        static_vertex_color_generation = 1;
+        last_static_vertex_color_generation_ = current_static_vertex_color_generation();
+        xlog::debug(
+            "D3D11 renderer {}: reset static vertex color tracking to generation {}",
+            static_cast<const void*>(this),
+            last_static_vertex_color_generation_);
+    }
+
+    bool MeshRenderer::has_cache(const rf::VifLodMesh* lod_mesh) const
+    {
+        return render_caches_.find(const_cast<rf::VifLodMesh*>(lod_mesh)) != render_caches_.end();
+    }
+
+    void MeshRenderer::handle_static_vertex_color_state_change(rf::VifLodMesh* changed_lod_mesh, uint64_t generation)
+    {
+        if (last_static_vertex_color_generation_ == generation) {
+            return;
+        }
+
+        const bool target_cached = changed_lod_mesh && has_cache(changed_lod_mesh);
+        const std::size_t cached_count = render_caches_.size();
+
+        std::string cache_action;
+        if (cached_count == 0) {
+            cache_action = "no cached meshes to flush";
+        } else {
+            cache_action = "flushing " + std::to_string(cached_count) + " cached mesh(es)";
+            flush_caches();
+        }
+
+        xlog::debug(
+            "D3D11 renderer {}: static vertex colors generation {} -> {} (mesh {} [{}]) - {}",
+            static_cast<const void*>(this),
+            last_static_vertex_color_generation_,
+            generation,
+            static_cast<const void*>(changed_lod_mesh),
+            target_cached ? "cached" : "not cached",
+            cache_action);
+
+        last_static_vertex_color_generation_ = generation;
     }
 
     BufferWrapper::BufferWrapper(unsigned initial_capacity, unsigned el_size, UINT bind_flag, ID3D11Device* device) :

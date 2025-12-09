@@ -391,6 +391,7 @@ namespace df::gr::d3d11
                 for (rf::MoverBrush& mb : DoublyLinkedList{rf::mover_brush_list}) {
                     renderer->page_in_movable_solid(mb.geometry);
                 }
+                renderer->reset_static_vertex_color_tracking();
             }
         },
     };

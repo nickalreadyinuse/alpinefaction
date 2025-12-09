@@ -555,6 +555,11 @@ namespace df::gr::d3d11
         mesh_renderer_->flush_caches();
     }
 
+    void Renderer::reset_static_vertex_color_tracking()
+    {
+        mesh_renderer_->reset_static_vertex_color_tracking();
+    }
+
     float Renderer::z_far() const
     {
         return render_context_->projection().z_far();

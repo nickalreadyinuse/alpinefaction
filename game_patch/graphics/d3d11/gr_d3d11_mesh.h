@@ -21,7 +21,7 @@ namespace df::gr::d3d11
     class RenderContext;
 
     void on_character_fullbright_state_changed();
-    void on_static_vertex_color_state_changed();
+    void on_static_vertex_color_state_changed(rf::VifLodMesh* changed_lod_mesh = nullptr);
 
     class BaseMeshRenderCache
     {
@@ -118,6 +118,10 @@ namespace df::gr::d3d11
         void page_in_v3d_mesh(rf::VifLodMesh* lod_mesh);
         void page_in_character_mesh(rf::VifLodMesh* lod_mesh);
         void flush_caches();
+        void reset_static_vertex_color_tracking();
+
+        bool has_cache(const rf::VifLodMesh* lod_mesh) const;
+        void handle_static_vertex_color_state_change(rf::VifLodMesh* changed_lod_mesh, uint64_t generation);
 
     private:
         void draw_cached_mesh(rf::VifLodMesh *lod_mesh, BaseMeshRenderCache& render_cache, const rf::MeshRenderParams& params, int lod_index);
@@ -130,5 +134,6 @@ namespace df::gr::d3d11
         ComPtr<ID3D11PixelShader> pixel_shader_;
         BufferWrapper v3d_vb_;
         BufferWrapper v3d_ib_;
+        uint64_t last_static_vertex_color_generation_ = 0;
     };
 }
