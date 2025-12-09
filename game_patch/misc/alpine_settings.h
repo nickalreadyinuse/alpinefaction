@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include "../rf/os/timestamp.h"
 #include "../hud/hud.h"
 
 extern bool g_loaded_alpine_settings_file;
@@ -110,6 +111,13 @@ struct AlpineGameSettings
     bool show_glares = true;
     bool show_enemy_bullets = true;
     bool fps_counter = true;
+    static constexpr int min_fps_counter_average_ms = 0;
+    static constexpr int max_fps_counter_average_ms = 60000;
+    int fps_counter_average_ms = 100;
+    void set_fps_counter_average_ms(int window_ms)
+    {
+        fps_counter_average_ms = std::clamp(window_ms, min_fps_counter_average_ms, max_fps_counter_average_ms);
+    }
     bool ping_display = true;
     bool spectate_mode_minimal_ui = false;
     bool save_console_history = false; // checked before config loaded, must be false here
@@ -224,6 +232,15 @@ struct AlpineGameSettings
     {
         control_point_column_height_scale = std::clamp(scale, 0.0f, 1000.0f);
     }
+};
+
+struct FpsCounterState
+{
+    int last_window_ms = -1;
+    float display_fps = 0.0f;
+    int accumulated_frames = 0;
+    float accumulated_time = 0.0f;
+    rf::TimestampRealtime window_timer;
 };
 
 extern AlpineGameSettings g_alpine_game_config;

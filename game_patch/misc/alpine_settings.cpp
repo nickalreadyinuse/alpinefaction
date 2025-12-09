@@ -329,6 +329,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.fps_counter = std::stoi(settings["ShowFPS"]);
         processed_keys.insert("ShowFPS");
     }
+    if (settings.count("FPSCounterAverageMs")) {
+        g_alpine_game_config.set_fps_counter_average_ms(std::stoi(settings["FPSCounterAverageMs"]));
+        processed_keys.insert("FPSCounterAverageMs");
+    }
     if (settings.count("SaveConsoleHistory")) {
         g_alpine_game_config.save_console_history = std::stoi(settings["SaveConsoleHistory"]);
         apply_console_history_setting();
@@ -967,6 +971,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DamageScreenFlash=" << g_alpine_game_config.damage_screen_flash << "\n";
     file << "SpectateMinimalUI=" << g_alpine_game_config.spectate_mode_minimal_ui << "\n";
     file << "ShowFPS=" << g_alpine_game_config.fps_counter << "\n";
+    file << "FPSCounterAverageMs=" << g_alpine_game_config.fps_counter_average_ms << "\n";
     file << "SaveConsoleHistory=" << g_alpine_game_config.save_console_history << "\n";
     file << "AlpineBranding=" << g_alpine_game_config.af_branding << "\n";
     file << "SeasonalEffect=" << g_alpine_game_config.seasonal_effect << "\n";
