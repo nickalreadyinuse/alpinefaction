@@ -21,6 +21,8 @@ Version 1.2.1 (TBD): Not yet released
 - Fix `af_send_packet` errors in dedicated server console when players enter or exit freecam spectate
 - Fix each instance of a mesh in a level sharing the same static lighting data in Direct3D 11 renderer
 - Fix Direct3D 11 renderer enforcing a minimum of 8 dynamic lights per scene, new limit is 32
+- Fix some character meshes derendering when 2 or more rotating movers are active and `Legacy movers` is false
+- Fix dynamic lights not illuminating meshes in Direct3D 11 renderer when 2 or more rotating movers are active and `Legacy movers` is false
 
 Version 1.2.0 (Willow): Released Dec-06-2025
 --------------------------------

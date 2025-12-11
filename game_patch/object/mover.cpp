@@ -725,7 +725,7 @@ FunHook<void(rf::Mover*)> mover_process_pre_hook{
 };
 
 CodeInjection mover_rotating_process_pre_accel_patch{
-    0x0046A55F,
+    0x0046A5D8,
     [](auto& regs) {
         if (AlpineLevelProperties::instance().legacy_movers) {
             return; // legacy behaviour
@@ -735,22 +735,23 @@ CodeInjection mover_rotating_process_pre_accel_patch{
         rf::MoverKeyframe* kf0 = regs.ebp;
 
         if (!mp || !kf0 || mp->stop_at_keyframe == -1) {
-            regs.eip = 0x0046A5D8;
             return;
         }
 
-        const bool forward = (mp->mover_flags & rf::MoverFlags::MF_DIR_FORWARD) != 0;
-        const float T = forward ? kf0->forward_time_seconds : kf0->reverse_time_seconds;
+        const bool forward =
+            (mp->mover_flags & rf::MoverFlags::MF_DIR_FORWARD) != 0;
+
+        const float T = forward
+            ? kf0->forward_time_seconds
+            : kf0->reverse_time_seconds;
 
         if (T <= 0.0f) {
-            regs.eip = 0x0046A6C9;
             return;
         }
 
         const float t = mp->travel_time_seconds;
 
-        if (t >= T) {
-            regs.eip = 0x0046A6C9;
+        if (t < 0.0f || t >= T) {
             return;
         }
 
@@ -761,25 +762,32 @@ CodeInjection mover_rotating_process_pre_accel_patch{
         float v_norm = 0.0f;
         alpine_trans_trapezoid(t, T, accel, decel, s, v_norm);
 
+        s = std::clamp(s, 0.0f, 1.0f);
+
         const float A = kf0->rotation_angle; // radians for this segment
 
-        // Normalized speed
-        float omega = A * v_norm;
-        if (!forward) {
-            omega = -omega;
+        // find absolute angle along the arc
+        float theta;
+        if (forward) {
+            theta = s * A;
+        } else {
+            theta = (1.0f - s) * A;
         }
 
-        // Integrate angle over this frame
-        mp->rot_cur_pos += omega * rf::frametime;
+        mp->rot_cur_pos = theta; // set current angle
+    }
+};
 
-        constexpr float two_pi = 6.2831855f;
-        if (mp->rot_cur_pos >= two_pi || mp->rot_cur_pos < 0.0f) {
-            mp->rot_cur_pos = std::fmod(mp->rot_cur_pos, two_pi);
-            if (mp->rot_cur_pos < 0.0f)
-                mp->rot_cur_pos += two_pi;
+// rotating mover reached the end of its run
+CodeInjection mover_rotating_process_pre_no_snap_patch{
+    0x0046A6D9,
+    [](auto& regs) {
+        if (AlpineLevelProperties::instance().legacy_movers) {
+            return; // legacy behaviour
         }
 
-        regs.eip = 0x0046A5D8;
+        regs.esp += 0x8;
+        regs.eip = 0x0046A708; // skip the snap back
     }
 };
 
@@ -840,6 +848,7 @@ void mover_do_patch()
 
     // Fix accel/decel and "Loop" mode behaviour for rotating movers
     mover_rotating_process_pre_accel_patch.install();
+    mover_rotating_process_pre_no_snap_patch.install();
 
     // Fix "Ping Pong Infinite" mode behaviour for rotating movers
     mover_rotating_process_pre_ping_pong_patch.install();
