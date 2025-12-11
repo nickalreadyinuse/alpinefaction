@@ -98,6 +98,7 @@ set(SRCS
     input/mouse.cpp
     input/key.cpp
     hud/hud_colors.cpp
+    hud/hud_scale.cpp
     hud/hud_personas.cpp
     hud/hud_status.cpp
     hud/hud_weapons.cpp

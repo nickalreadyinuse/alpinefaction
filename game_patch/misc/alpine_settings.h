@@ -92,7 +92,6 @@ struct AlpineGameSettings
     bool world_hud_ctf_icons = true;
     bool world_hud_alt_damage_indicators = false;
     bool world_hud_overdraw = true;
-    bool world_hud_big_text = true;
     bool world_hud_damage_numbers = true;
     bool world_hud_spectate_player_labels = false;
     bool world_hud_team_player_labels = false;
@@ -147,6 +146,7 @@ struct AlpineGameSettings
     bool always_autoswitch_empty = true;
     bool apply_exposure_damage = true;
 
+    // hud color overrides
     std::optional<uint32_t> sniper_scope_color_override{};
     std::optional<uint32_t> precision_scope_color_override{};
     std::optional<uint32_t> rail_scope_color_override{};
@@ -155,6 +155,49 @@ struct AlpineGameSettings
     std::optional<uint32_t> location_ping_color_override{};
     std::optional<uint32_t> multi_timer_color_override{};
     std::optional<uint32_t> teammate_label_color_override{};
+
+    // hud scale overrides
+    std::optional<float> world_hud_damage_text_scale{};
+    float get_world_hud_damage_text_scale() const
+    {
+        return world_hud_damage_text_scale.value_or(1.0f);
+    }
+    void set_world_hud_damage_text_scale(float scale)
+    {
+        world_hud_damage_text_scale = std::clamp(scale, 0.5f, 3.0f);
+    }
+    void clear_world_hud_damage_text_scale()
+    {
+        world_hud_damage_text_scale.reset();
+    }
+
+    std::optional<float> world_hud_label_text_scale{};
+    float get_world_hud_label_text_scale() const
+    {
+        return world_hud_label_text_scale.value_or(1.0f);
+    }
+    void set_world_hud_label_text_scale(float scale)
+    {
+        world_hud_label_text_scale = std::clamp(scale, 0.5f, 3.0f);
+    }
+    void clear_world_hud_label_text_scale()
+    {
+        world_hud_label_text_scale.reset();
+    }
+
+    std::optional<float> world_hud_ping_label_text_scale{};
+    float get_world_hud_ping_label_text_scale() const
+    {
+        return world_hud_ping_label_text_scale.value_or(1.0f);
+    }
+    void set_world_hud_ping_label_text_scale(float scale)
+    {
+        world_hud_ping_label_text_scale = std::clamp(scale, 0.5f, 3.0f);
+    }
+    void clear_world_hud_ping_label_text_scale()
+    {
+        world_hud_ping_label_text_scale.reset();
+    }
 
     int picmip = 1;
     void set_picmip(int value)

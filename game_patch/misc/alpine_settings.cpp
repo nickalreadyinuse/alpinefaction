@@ -605,6 +605,36 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("TeammateLabelColor");
     }
+    if (settings.count("DamageNotifyTextScale")) {
+        const float scale = std::stof(settings["DamageNotifyTextScale"]);
+        if (scale == 1.0f) {
+            g_alpine_game_config.clear_world_hud_damage_text_scale();
+        }
+        else {
+            g_alpine_game_config.set_world_hud_damage_text_scale(scale);
+        }
+        processed_keys.insert("DamageNotifyTextScale");
+    }
+    if (settings.count("TeammateLabelTextScale")) {
+        const float scale = std::stof(settings["TeammateLabelTextScale"]);
+        if (scale == 1.0f) {
+            g_alpine_game_config.clear_world_hud_label_text_scale();
+        }
+        else {
+            g_alpine_game_config.set_world_hud_label_text_scale(scale);
+        }
+        processed_keys.insert("TeammateLabelTextScale");
+    }
+    if (settings.count("PingLabelTextScale")) {
+        const float scale = std::stof(settings["PingLabelTextScale"]);
+        if (scale == 1.0f) {
+            g_alpine_game_config.clear_world_hud_ping_label_text_scale();
+        }
+        else {
+            g_alpine_game_config.set_world_hud_ping_label_text_scale(scale);
+        }
+        processed_keys.insert("PingLabelTextScale");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -648,10 +678,6 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("WorldHUDOverdraw")) {
         g_alpine_game_config.world_hud_overdraw = std::stoi(settings["WorldHUDOverdraw"]);
         processed_keys.insert("WorldHUDOverdraw");
-    }
-    if (settings.count("WorldHUDBigText")) {
-        g_alpine_game_config.world_hud_big_text = std::stoi(settings["WorldHUDBigText"]);
-        processed_keys.insert("WorldHUDBigText");
     }
     if (settings.count("WorldHUDDamageNumbers")) {
         g_alpine_game_config.world_hud_damage_numbers = std::stoi(settings["WorldHUDDamageNumbers"]);
@@ -1059,6 +1085,15 @@ void alpine_player_settings_save(rf::Player* player)
     if (g_alpine_game_config.teammate_label_color_override) {
         file << "TeammateLabelColor=" << format_hex_color_string(*g_alpine_game_config.teammate_label_color_override) << "\n";
     }
+    if (g_alpine_game_config.world_hud_damage_text_scale) {
+        file << "DamageNotifyTextScale=" << *g_alpine_game_config.world_hud_damage_text_scale << "\n";
+    }
+    if (g_alpine_game_config.world_hud_label_text_scale) {
+        file << "TeammateLabelTextScale=" << *g_alpine_game_config.world_hud_label_text_scale << "\n";
+    }
+    if (g_alpine_game_config.world_hud_ping_label_text_scale) {
+        file << "PingLabelTextScale=" << *g_alpine_game_config.world_hud_ping_label_text_scale << "\n";
+    }
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
@@ -1075,7 +1110,6 @@ void alpine_player_settings_save(rf::Player* player)
     file << "MultiplayerCharacter=" << player->settings.multi_character << "\n";
     file << "WorldHUDObjIcons=" << g_alpine_game_config.world_hud_ctf_icons << "\n";
     file << "WorldHUDOverdraw=" << g_alpine_game_config.world_hud_overdraw << "\n";
-    file << "WorldHUDBigText=" << g_alpine_game_config.world_hud_big_text << "\n";
     file << "WorldHUDDamageNumbers=" << g_alpine_game_config.world_hud_damage_numbers << "\n";
     file << "WorldHUDSpectateLabels=" << g_alpine_game_config.world_hud_spectate_player_labels << "\n";
     file << "WorldHUDTeamLabels=" << g_alpine_game_config.world_hud_team_player_labels << "\n";

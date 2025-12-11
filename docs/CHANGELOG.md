@@ -12,6 +12,8 @@ Version 1.2.1 (TBD): Not yet released
 - Improve FPS/ping HUD display
 - Change prefix for `showfps` and `showping` console commands to `ui`
 - Add `ui_fpsavg` command set FPS counter averaging window
+- Add `ui_scale_damage_notify`, `ui_scale_player_label`, and `ui_scale_ping_label` commands
+- Deprecate `cl_wh_bigtext` command
 
 [@is-this-c](https://github.com/is-this-c)
 - Improve freelook spectate logic after level transition

@@ -407,10 +407,20 @@ bool hill_vis_contested(HillInfo& h)
     return h.vis_contested;
 }
 
-static int get_world_hud_font(const bool world_hud_big_text) {
-    static const int large_font = rf::gr::load_font("boldfont.ttf:17");
-    static const int small_font = rf::gr::load_font("boldfont.ttf:14");
-    return world_hud_big_text ? large_font : small_font;
+static int get_world_hud_font(const float world_hud_text_scale) {
+    static constexpr int base_font_size = 14;
+    static std::unordered_map<int, int> font_cache;
+
+    const int font_size = std::max(1, static_cast<int>(std::lround(base_font_size * world_hud_text_scale)));
+
+    if (const auto font_it = font_cache.find(font_size); font_it != font_cache.end()) {
+        return font_it->second;
+    }
+
+    const std::string font_name = "boldfont.ttf:" + std::to_string(font_size);
+    const int font_id = rf::gr::load_font(font_name.c_str());
+    font_cache.emplace(font_size, font_id);
+    return font_id;
 }
 
 static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
@@ -500,7 +510,7 @@ static void render_koth_icon_for_hill(const HillInfo& h, WorldHUDRenderMode rm)
     }
 
     // hill name label
-    //const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+    //const int font = get_world_hud_font(g_alpine_game_config.world_hud_text_scale);
     const int font = 0;
     NameLabelTex& lbl = ensure_hill_name_tex(h, font);
 
@@ -554,7 +564,8 @@ void build_player_labels() {
     bool show_teammates = g_alpine_game_config.world_hud_team_player_labels && is_team_mode && !is_spectating;
     auto spectate_target = multi_spectate_get_target_player();
 
-    const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+    const int font = get_world_hud_font(g_alpine_game_config.get_world_hud_label_text_scale());
+    const int base_font = get_world_hud_font(1.0f);
     bool has_teammate_override_color = false;
     uint8_t teammate_override_r = 0;
     uint8_t teammate_override_g = 0;
@@ -602,7 +613,9 @@ void build_player_labels() {
 
         // determine label width
         const auto [text_width, text_height] = rf::gr::get_string_size(label, font);
+        const int base_text_height = rf::gr::get_string_size(label, base_font).second;
         int half_text_width = text_width / 2;
+        int centered_offset_y = -25 - ((text_height - base_text_height) / 2);
 
         uint8_t label_r = 200;
         uint8_t label_g = 200;
@@ -630,7 +643,7 @@ void build_player_labels() {
             label_a = teammate_override_a;
         }
 
-        render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, -25, font, label_r, label_g, label_b, label_a);
+        render_string_3d_pos_new(string_pos, label.c_str(), -half_text_width, centered_offset_y, font, label_r, label_g, label_b, label_a);
     }
 }
 
@@ -640,7 +653,7 @@ void build_ephemeral_world_hud_sprite_icons() {
     });
 
     for (const auto& es : ephemeral_world_hud_sprites) {
-        const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+        const int font = get_world_hud_font(g_alpine_game_config.get_world_hud_ping_label_text_scale());
 
         rf::gr::set_color(es.color.red, es.color.green, es.color.blue, es.color.alpha);
         if (es.bitmap != -1) {
@@ -664,7 +677,7 @@ void build_ephemeral_world_hud_strings() {
 
     for (const auto& es : ephemeral_world_hud_strings) {
         int label_y_offset = 0;
-        const int font = get_world_hud_font(g_alpine_game_config.world_hud_big_text);
+        const int font = get_world_hud_font(g_alpine_game_config.get_world_hud_damage_text_scale());
         rf::Vector3 string_pos = es.pos;
         string_pos.y += 0.85f;
 
@@ -1185,16 +1198,6 @@ ConsoleCommand2 worldhudoverdraw_cmd{
     "cl_wh_objoverdraw",
 };
 
-ConsoleCommand2 worldhudbigtext_cmd{
-    "cl_wh_bigtext",
-    []() {
-        g_alpine_game_config.world_hud_big_text = !g_alpine_game_config.world_hud_big_text;
-        rf::console::print("World HUD big text is {}", g_alpine_game_config.world_hud_big_text ? "enabled" : "disabled");
-    },
-    "Toggle whether world HUD text labels use big or standard text",
-    "cl_wh_bigtext",
-};
-
 ConsoleCommand2 worldhuddamagenumbers_cmd{
     "cl_wh_hitnumbers",
     []() {
@@ -1294,7 +1297,6 @@ void hud_world_apply_patch()
     worldhudaltdmgindicators_cmd.register_cmd();
     worldhudctf_cmd.register_cmd();
     worldhudoverdraw_cmd.register_cmd();
-    worldhudbigtext_cmd.register_cmd();
     worldhuddamagenumbers_cmd.register_cmd();
     worldhudspectateplayerlabels_cmd.register_cmd();
     worldhudteamplayerlabels_cmd.register_cmd();
