@@ -16,6 +16,7 @@ Version 1.2.1 (TBD): Not yet released
 - Deprecate `cl_wh_bigtext` command
 
 [@is-this-c](https://github.com/is-this-c)
+- Improve bot decommission logic
 - Improve freelook spectate logic after level transition
 
 ### Bug fixes

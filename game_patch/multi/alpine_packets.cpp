@@ -1066,7 +1066,7 @@ static void af_process_just_died_info_packet(const void* data, size_t len, const
         return;
     }
 
-    if (!get_df_server_info().has_value() || !get_df_server_info()->delayed_spawns) {
+    if (!get_af_server_info().has_value() || !get_af_server_info()->delayed_spawns) {
         xlog::warn("just_died_info: delayed spawns are not enabled in this server");
         return; // delayed spawns are disabled in this server, how did you get this packet?
     }
@@ -1362,6 +1362,8 @@ void af_process_spectate_start_packet(
     if (!spectatee && spectate_start_packet.spectatee_id != FREE_SPEC_ID) {
         return;
     }
+
+    update_player_active_status(spectator);
 
     auto& pdata = get_player_additional_data(spectator);
     const bool exited_spectate = spectatee == spectator;
