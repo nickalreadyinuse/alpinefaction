@@ -921,6 +921,12 @@ static void esc_recalculate_stage_locks()
 
         if (hill.lock_status != desired_status) {
             hill.lock_status = desired_status;
+            if (desired_status == HillLockStatus::HLS_Locked) {
+                hill.capture_milli = 0;
+                hill.capture_progress = 0;
+                hill.steal_dir = HillOwner::HO_Neutral;
+                hill.state = HillState::HS_Idle;
+            }
             any_change = true;
         }
     }
