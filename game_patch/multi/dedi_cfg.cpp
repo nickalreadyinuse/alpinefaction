@@ -338,7 +338,7 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
 
         case rf::NetGameType::NG_TYPE_DC: {
             rules.spawn_delay.enabled = true;
-            rules.spawn_delay.set_base_value(2.5f);
+            rules.spawn_delay.set_base_value(2.0f);
             rules.location_pinging = true;
 
             // primary weapon
@@ -366,7 +366,7 @@ void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigR
 
         case rf::NetGameType::NG_TYPE_ESC: {
             rules.spawn_delay.enabled = true;
-            rules.spawn_delay.set_base_value(3.0f);
+            rules.spawn_delay.set_base_value(2.0f);
             rules.location_pinging = true;
 
             // secondary weapon

@@ -7,7 +7,7 @@ Version 1.2.1 (TBD): Not yet released
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
-- Change default spawn delay for KOTH mode from 5 seconds to 2 seconds
+- Change default spawn delay for KOTH, DC, and ESC from 5, 2.5, 3 seconds respectively to 2 seconds
 - Drop support for Direct3D 11 renderer on GPUs without D3D level 10_0 (or higher) support
 - Improve FPS/ping HUD display
 - Change prefix for `showfps` and `showping` console commands to `ui`
