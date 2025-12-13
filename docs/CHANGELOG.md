@@ -27,6 +27,7 @@ Version 1.2.1 (TBD): Not yet released
 - Fix some character meshes derendering when 2 or more rotating movers are active and `Legacy movers` is false
 - Fix dynamic lights not illuminating meshes in Direct3D 11 renderer when 2 or more rotating movers are active and `Legacy movers` is false
 - Fix ESC mode capture progress not being reset when a control point becomes locked
+- Fix Direct3D 11 renderer not always properly applying dynamic lights to static meshes
 
 Version 1.2.0 (Willow): Released Dec-06-2025
 --------------------------------
