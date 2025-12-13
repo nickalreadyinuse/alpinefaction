@@ -14,6 +14,7 @@ Version 1.2.1 (TBD): Not yet released
 - Add `ui_fpsavg` command set FPS counter averaging window
 - Add `ui_scale_damage_notify`, `ui_scale_player_label`, and `ui_scale_ping_label` commands
 - Deprecate `cl_wh_bigtext` command
+- Increase workspace area on UV Unwrap dialog in level editor
 
 [@is-this-c](https://github.com/is-this-c)
 - Improve bot decommission logic

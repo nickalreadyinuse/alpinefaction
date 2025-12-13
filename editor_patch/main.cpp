@@ -151,7 +151,8 @@ CodeInjection CDialog_DoModal_injection{
         // Customize:
         // - 148: trigger properties dialog
         if (lpszTemplateName == MAKEINTRESOURCE(IDD_TRIGGER_PROPERTIES) ||
-            lpszTemplateName == MAKEINTRESOURCE(IDD_LEVEL_PROPERTIES)
+            lpszTemplateName == MAKEINTRESOURCE(IDD_LEVEL_PROPERTIES) ||
+            lpszTemplateName == MAKEINTRESOURCE(IDD_UV_UNWRAP)
         ) {
             hCurrentResourceHandle = reinterpret_cast<int>(g_module);
         }
