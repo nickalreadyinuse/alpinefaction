@@ -48,6 +48,7 @@
 #include "../purefaction/pf.h"
 #include "../sound/sound.h"
 #include "../misc/tlv.h"
+#include <deque>
 
 // NET_IFINDEX_UNSPECIFIED is not defined in MinGW headers
 #ifndef NET_IFINDEX_UNSPECIFIED
@@ -1706,6 +1707,37 @@ FunHook<void()> tracker_do_broadcast_server_hook{
     },
 };
 
+static std::array<
+    std::deque<std::vector<uint8_t>>,
+    rf::NET_MAX_REL_SOCKETS
+> g_send_queues_rel{};
+
+void send_queues_rel_clear_packets(const int socket_id) {
+    if (socket_id >= 0 && socket_id < std::size(g_send_queues_rel)) {
+        g_send_queues_rel[socket_id].clear();
+    }
+}
+
+void send_queues_rel_add_packet(
+    const int socket_id,
+    const uint8_t* const data,
+    const size_t len
+) {
+    if (socket_id >= 0 && socket_id < std::size(g_send_queues_rel)) {
+        g_send_queues_rel[socket_id].emplace_back(data, data + len);
+    }
+}
+
+FunHook<int(int*, bool)> psnet_rel_close_socket_hook{
+    0x0052A750,
+    [] (int* const socket_id, const bool send_dis_conn_packet) {
+        if (socket_id && *socket_id >= 0 && *socket_id < std::size(g_send_queues_rel)) {
+            g_send_queues_rel[*socket_id].clear();
+        }
+        return psnet_rel_close_socket_hook.call_target(socket_id, send_dis_conn_packet);
+    },
+};
+
 FunHook<void()> multi_stop_hook{
     0x0046E2C0,
     []() {
@@ -2031,6 +2063,63 @@ FunHook<void(rf::Player*)> send_netgame_update_packet_hook{
     },
 };
 
+FunHook<void()> multi_io_do_frame_hook{
+    0x004791F0,
+    [] {
+        multi_io_do_frame_hook.call_target();
+
+        if (!rf::is_server) {
+            return;
+        }
+
+        // Drain `g_send_queues_rel`.
+        for (int i = 0; i < std::size(rf::net_rel_sockets); ++i) {
+            if (rf::net_rel_sockets[i].status
+                    != rf::NetReliableSocketStatus::CONNECTED) {
+                continue;
+            }
+
+            std::deque<std::vector<uint8_t>>& queue = g_send_queues_rel[i];
+            if (queue.empty()) {
+                continue;
+            }
+
+            int empty_send_slots = 0;
+            for (const void* const sbuffers : rf::net_rel_sockets[i].sbuffers) {
+                if (!sbuffers) {
+                    ++empty_send_slots;
+                }
+            }
+
+            constexpr int RESERVE_SEND_SLOTS = 32;
+            if (empty_send_slots <= RESERVE_SEND_SLOTS) {
+                continue;
+            }
+
+            constexpr float QUEUE_FACTOR = .3f;
+            int send_limit = static_cast<int>(
+                static_cast<float>(empty_send_slots - RESERVE_SEND_SLOTS)
+                    * QUEUE_FACTOR
+            );
+
+            while (!queue.empty() && send_limit) {
+                std::vector<uint8_t>& packet = queue.front();
+                if (packet.empty()) {
+                    queue.pop_front();
+                } else {
+                    const int res =
+                        rf::net_rel_send(i, packet.data(), packet.size());
+                    if (res <= 0) {
+                        break;
+                    }
+                    queue.pop_front();
+                    --send_limit;
+                }
+            }
+        }
+    },
+};
+
 void network_init()
 {
     // Support af_obj_update packet
@@ -2208,4 +2297,8 @@ void network_init()
 
     // Send `pf_player_stats_packet` with score.
     send_netgame_update_packet_hook.install();
+
+    // Drain queues of reliable packets.
+    multi_io_do_frame_hook.install();
+    psnet_rel_close_socket_hook.install();
 }

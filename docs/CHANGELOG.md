@@ -17,8 +17,11 @@ Version 1.2.1 (TBD): Not yet released
 - Increase workspace area on UV Unwrap dialog in level editor
 
 [@is-this-c](https://github.com/is-this-c)
-- Improve bot decommission logic
-- Improve freelook spectate logic after level transition
+- Improve scoreboard sorting for clients whose scores are equal
+- Improve text formatting in remote server config UI
+- Support `PgUp`, `PgDown`, `End`, and `Home` in remote server config UI
+- Improve bot decommissioning
+- Improve freelook spectate mode after level transition
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
@@ -29,6 +32,10 @@ Version 1.2.1 (TBD): Not yet released
 - Fix dynamic lights not illuminating meshes in Direct3D 11 renderer when 2 or more rotating movers are active and `Legacy movers` is false
 - Fix ESC mode capture progress not being reset when a control point becomes locked
 - Fix Direct3D 11 renderer not always properly applying dynamic lights to static meshes
+
+[@is-this-c](https://github.com/is-this-c)
+- Use packet queues for remote server config transfers
+- Fix key up logic for num pad `PgUp`, `PgDown`, `End`, and `Home`
 
 Version 1.2.0 (Willow): Released Dec-06-2025
 --------------------------------

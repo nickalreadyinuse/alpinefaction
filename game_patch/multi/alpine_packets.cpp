@@ -1479,15 +1479,17 @@ void af_send_server_cfg(rf::Player* player) {
         uint8_t* ptr = buf.data() + sizeof(server_msg_packet);
         std::memcpy(ptr, msg.data(), len);
 
-        rf::multi_io_send_reliable(
-            player,
+        send_queues_rel_add_packet(
+            player->net_data->reliable_socket,
             buf.data(),
-            server_msg_packet.header.size + sizeof(server_msg_packet.header),
-            0
+            server_msg_packet.header.size + sizeof(server_msg_packet.header)
         );
 
         return len;
     };
+
+    // We cannot send multiple server configs at once.
+    send_queues_rel_clear_packets(player->net_data->reliable_socket);
 
     constexpr int chunk_size = rf::max_packet_size - sizeof(af_server_msg_packet);
     for (const auto chunk : g_alpine_server_config.printed_cfg
