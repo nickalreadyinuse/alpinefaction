@@ -15,6 +15,7 @@ Version 1.2.1 (TBD): Not yet released
 - Add `ui_scale_damage_notify`, `ui_scale_player_label`, and `ui_scale_ping_label` commands
 - Deprecate `cl_wh_bigtext` command
 - Increase workspace area on UV Unwrap dialog in level editor
+- Deprecate `cl_wh_objoverdraw` command, split functionality into `cl_wh_flagoverdraw` and `cl_wh_cpoverdraw`
 
 [@is-this-c](https://github.com/is-this-c)
 - Improve scoreboard sorting for clients whose scores are equal
