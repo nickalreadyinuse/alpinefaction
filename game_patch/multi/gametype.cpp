@@ -232,18 +232,6 @@ static std::vector<HillRole> esc_path_for_team(HillOwner team)
     return path;
 }
 
-static HillInfo* esc_hill_before_center_for_team(HillOwner team)
-{
-    const auto path = esc_path_for_team(team);
-    const auto center = std::find(path.begin(), path.end(), HillRole::HR_Center);
-
-    if (center == path.end() || center == path.begin())
-        return nullptr; // no center in path or center is first (will never happen in proper maps)
-
-    const HillRole before_center = *(center - 1);
-    return esc_find_hill_by_role(before_center);
-}
-
 HillInfo* koth_find_hill_by_uid(uint8_t uid)
 {
     for (auto& h : g_koth_info.hills)
