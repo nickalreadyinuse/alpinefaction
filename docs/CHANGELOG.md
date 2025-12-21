@@ -34,6 +34,7 @@ Version 1.2.1 (TBD): Not yet released
 - Fix ESC mode capture progress not being reset when a control point becomes locked
 - Fix Direct3D 11 renderer not always properly applying dynamic lights to static meshes
 - Fix players spawning at the wrong control point in ESC when the center point is neutral
+- Fix rare crash when shooting at alpha-masked surfaces (fixes crash in community level `dm-oranmentsb2.rfl`)
 
 [@is-this-c](https://github.com/is-this-c)
 - Use packet queues for remote server config transfers
