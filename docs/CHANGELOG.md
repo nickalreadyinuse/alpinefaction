@@ -8,7 +8,7 @@ Version 1.2.1 (TBD): Not yet released
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Change default spawn delay for KOTH, DC, and ESC from 5, 2.5, 3 seconds respectively to 2 seconds
-- Drop support for Direct3D 11 renderer on GPUs without D3D level 10_0 (or higher) support
+- Deprecate support for Direct3D 11 renderer on GPUs without D3D level 10_0 (or higher) support
 - Improve FPS/ping HUD display
 - Change prefix for `showfps` and `showping` console commands to `ui`
 - Add `ui_fpsavg` command set FPS counter averaging window
@@ -16,6 +16,7 @@ Version 1.2.1 (TBD): Not yet released
 - Deprecate `cl_wh_bigtext` command
 - Increase workspace area on UV Unwrap dialog in level editor
 - Deprecate `cl_wh_objoverdraw` command, split functionality into `cl_wh_flagoverdraw` and `cl_wh_cpoverdraw`
+- Deprecate legacy `-dedicated` dedicated server functionality, add informational error message when used
 
 [@is-this-c](https://github.com/is-this-c)
 - Improve scoreboard sorting for clients whose scores are equal
