@@ -752,8 +752,13 @@ namespace df::gr::d3d11
             if (is_character_mesh) {
                 color = add_clamped(params.ambient_color, {224, 224, 224, 224});
             } else { // static meshes
-                if (params.flags & MeshRenderFlags::MRF_CUSTOM_AMBIENT_COLOR) {
-                    color = params.ambient_color; // third person weapon models
+                if (params.flags & MeshRenderFlags::MRF_CUSTOM_AMBIENT_COLOR) { // third person weapon models
+                    if (g_character_meshes_are_fullbright) {
+                        color = {255, 255, 255, 255};
+                    }
+                    else {
+                        color = params.ambient_color;
+                    }
                 }
                 else {
                     color = add_clamped(rf::level.ambient_light, {224, 224, 224, 224});

@@ -38,6 +38,7 @@ Version 1.2.1 (TBD): Not yet released
 - Fix rare crash when shooting at alpha-masked surfaces (fixes crash in community level `dm-oranmentsb2.rfl`)
 - Fix skybox rotation not being rendered by Direct3D 11 renderer
 - Fix third person weapon models being rendered fullbright by Direct3D 11 renderer
+- Fix `r_fullbright` not extending in Direct3D 11 renderer to third person weapon models held by players
 
 [@is-this-c](https://github.com/is-this-c)
 - Use packet queues for remote server config transfers
