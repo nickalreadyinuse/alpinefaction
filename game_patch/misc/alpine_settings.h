@@ -127,6 +127,11 @@ struct AlpineGameSettings
     bool nearest_texture_filtering = false;
     bool direct_input = true;
     bool scoreboard_anim = true;
+    bool scoreboard_split_simple = true;
+    bool scoreboard_split_spectators = true;
+    bool scoreboard_split_bots = false;
+    bool scoreboard_split_browsers = true;
+    bool scoreboard_split_idle = false;
     bool autosave = true;
     bool af_branding = true;
     int seasonal_effect = 1; // 0=none, 1=auto, 2=always_snow

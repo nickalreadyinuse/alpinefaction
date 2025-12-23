@@ -643,6 +643,26 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("PingLabelTextScale");
     }
+    if (settings.count("ScoreboardSplitSpectators")) {
+        g_alpine_game_config.scoreboard_split_spectators = std::stoi(settings["ScoreboardSplitSpectators"]);
+        processed_keys.insert("ScoreboardSplitSpectators");
+    }
+    if (settings.count("ScoreboardSplitBots")) {
+        g_alpine_game_config.scoreboard_split_bots = std::stoi(settings["ScoreboardSplitBots"]);
+        processed_keys.insert("ScoreboardSplitBots");
+    }
+    if (settings.count("ScoreboardSplitBrowsers")) {
+        g_alpine_game_config.scoreboard_split_browsers = std::stoi(settings["ScoreboardSplitBrowsers"]);
+        processed_keys.insert("ScoreboardSplitBrowsers");
+    }
+    if (settings.count("ScoreboardSplitIdle")) {
+        g_alpine_game_config.scoreboard_split_idle = std::stoi(settings["ScoreboardSplitIdle"]);
+        processed_keys.insert("ScoreboardSplitIdle");
+    }
+    if (settings.count("SimpleScoreboardSplit")) {
+        g_alpine_game_config.scoreboard_split_simple = std::stoi(settings["SimpleScoreboardSplit"]);
+        processed_keys.insert("SimpleScoreboardSplit");
+    }
 
     // Load singleplayer settings
     if (settings.count("DifficultyLevel")) {
@@ -1106,6 +1126,11 @@ void alpine_player_settings_save(rf::Player* player)
     if (g_alpine_game_config.world_hud_ping_label_text_scale) {
         file << "PingLabelTextScale=" << *g_alpine_game_config.world_hud_ping_label_text_scale << "\n";
     }
+    file << "ScoreboardSplitSpectators=" << g_alpine_game_config.scoreboard_split_spectators << "\n";
+    file << "ScoreboardSplitBots=" << g_alpine_game_config.scoreboard_split_bots << "\n";
+    file << "ScoreboardSplitBrowsers=" << g_alpine_game_config.scoreboard_split_browsers << "\n";
+    file << "ScoreboardSplitIdle=" << g_alpine_game_config.scoreboard_split_idle << "\n";
+    file << "SimpleScoreboardSplit=" << g_alpine_game_config.scoreboard_split_simple << "\n";
 
     // Singleplayer
     file << "\n[SingleplayerSettings]\n";
