@@ -41,7 +41,8 @@ Version 1.2.1 (TBD): Not yet released
 - Fix skybox rotation not being rendered by Direct3D 11 renderer
 - Fix third person weapon models being rendered fullbright by Direct3D 11 renderer
 - Fix `r_fullbright` not extending in Direct3D 11 renderer to third person weapon models held by players
-- Fix Rocket Launcher infrared scanner being drawn semi-transparent by Direct3D 11 renderer
+- Fix Rocket Launcher infrared scanner being drawn semi-transparent in Direct3D 11 renderer
+- Fix vehicles not rendering in Rocket Launcher infrared scanner in Direct3D 11 renderer
 
 [@is-this-c](https://github.com/is-this-c)
 - Use packet queues for remote server config transfers

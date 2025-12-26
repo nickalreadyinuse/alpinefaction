@@ -765,7 +765,10 @@ namespace df::gr::d3d11
                 }
             }
         } else {
-            color = params.self_illum;
+            // IR render colours:
+            // characters are rendered using self_illum (derived from dist + body temp in player_fpgun_render_ir)
+            // vehicles are rendered white
+            color = is_character_mesh ? params.self_illum : rf::Color{255, 255, 255, 255};
         }
         color.alpha = static_cast<ubyte>(params.alpha);
 
