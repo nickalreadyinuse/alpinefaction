@@ -19,14 +19,18 @@ namespace rf
 
     // nw/psnet
 
+#pragma pack(push, 4)
     struct NetAddr
     {
         uint32_t ip_addr;
-        uint32_t port;
+        uint16_t port;
+        // padding byte
+        // padding byte
 
         bool operator==(const NetAddr &other) const = default;
     };
     static_assert(sizeof(NetAddr) == 0x8);
+#pragma pack(pop)
 
     constexpr int NET_MAX_REL_SOCKETS = 40;
 
