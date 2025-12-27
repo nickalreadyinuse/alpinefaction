@@ -147,6 +147,10 @@ add_packfile(alpinefaction.vpp
     images/scope_zoom_corner256_red.tga
     images/128blackcircle.tga
     images/ass2_scope_circle.tga
+    images/reticle_0.tga
+    images/reticle_rocket_0.tga
+    images/reticle_rocketlock_0.tga
+    images/scope_ret_0.tga
     images/reticle_1.tga
     images/reticle_rocket_1.tga
     images/reticle_rocketlock_1.tga

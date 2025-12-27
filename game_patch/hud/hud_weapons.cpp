@@ -52,6 +52,36 @@ CallHook<void(int, int, int, rf::gr::Mode)> render_reticle_gr_bitmap_hook{
     },
 };
 
+CallHook<void(int, int, int, int)> render_reticle_set_color_hook{
+    0x0043A4D7,
+    [](int r, int g, int b, int a) {
+        rf::Color clr{};
+        if (g_alpine_game_config.reticle_color_override) {
+            clr = rf::Color::from_hex(*g_alpine_game_config.reticle_color_override);
+        }
+        else {
+            clr = {0, 255, 0, 255};
+        }
+
+        render_reticle_set_color_hook.call_target(clr.red, clr.green, clr.blue, clr.alpha);
+    },
+};
+
+CallHook<void(int, int, int, int)> render_reticle_locked_set_color_hook{
+    0x0043A472,
+    [](int r, int g, int b, int a) {
+        rf::Color clr{};
+        if (g_alpine_game_config.reticle_locked_color_override) {
+            clr = rf::Color::from_hex(*g_alpine_game_config.reticle_locked_color_override);
+        }
+        else {
+            clr = {255, 0, 0, 255};
+        }
+
+        render_reticle_locked_set_color_hook.call_target(clr.red, clr.green, clr.blue, clr.alpha);
+    },
+};
+
 FunHook<void(rf::Entity*, int, int, bool)> hud_render_ammo_hook{
     0x0043A510,
     [](rf::Entity *entity, int weapon_type, int offset_y, bool is_inactive) {
@@ -111,10 +141,14 @@ bool hud_weapons_is_double_ammo()
 
 void hud_weapons_apply_patches()
 {
-    // Big HUD support
+    // Big HUD support for ammo display
     hud_render_ammo_gr_bitmap_hook.install();
     hud_render_ammo_hook.install();
+
+    // reticle color and scale
     render_reticle_gr_bitmap_hook.install();
+    render_reticle_set_color_hook.install();
+    render_reticle_locked_set_color_hook.install();
 
     // Commands
     reticle_scale_cmd.register_cmd();

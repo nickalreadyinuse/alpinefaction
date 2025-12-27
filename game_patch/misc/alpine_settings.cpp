@@ -613,6 +613,26 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("TeammateLabelColor");
     }
+    if (settings.count("ReticleColor")) {
+        auto color_override = parse_hex_color_string(settings["ReticleColor"]);
+        if (color_override) {
+            g_alpine_game_config.reticle_color_override = color_override;
+        }
+        else {
+            xlog::warn("Invalid reticle color override: {}", settings["ReticleColor"]);
+        }
+        processed_keys.insert("ReticleColor");
+    }
+    if (settings.count("ReticleLockedColor")) {
+        auto color_override = parse_hex_color_string(settings["ReticleLockedColor"]);
+        if (color_override) {
+            g_alpine_game_config.reticle_locked_color_override = color_override;
+        }
+        else {
+            xlog::warn("Invalid reticle color override: {}", settings["ReticleLockedColor"]);
+        }
+        processed_keys.insert("ReticleLockedColor");
+    }
     if (settings.count("DamageNotifyTextScale")) {
         const float scale = std::stof(settings["DamageNotifyTextScale"]);
         if (scale == 1.0f) {
@@ -1113,6 +1133,12 @@ void alpine_player_settings_save(rf::Player* player)
     }
     if (g_alpine_game_config.multi_timer_color_override) {
         file << "MultiTimerColor=" << format_hex_color_string(*g_alpine_game_config.multi_timer_color_override) << "\n";
+    }
+    if (g_alpine_game_config.reticle_color_override) {
+        file << "ReticleColor=" << format_hex_color_string(*g_alpine_game_config.reticle_color_override) << "\n";
+    }
+    if (g_alpine_game_config.reticle_locked_color_override) {
+        file << "ReticleLockedColor=" << format_hex_color_string(*g_alpine_game_config.reticle_locked_color_override) << "\n";
     }
     if (g_alpine_game_config.teammate_label_color_override) {
         file << "TeammateLabelColor=" << format_hex_color_string(*g_alpine_game_config.teammate_label_color_override) << "\n";

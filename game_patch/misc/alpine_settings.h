@@ -161,6 +161,8 @@ struct AlpineGameSettings
     std::optional<uint32_t> location_ping_color_override{};
     std::optional<uint32_t> multi_timer_color_override{};
     std::optional<uint32_t> teammate_label_color_override{};
+    std::optional<uint32_t> reticle_color_override{};
+    std::optional<uint32_t> reticle_locked_color_override{};
 
     // hud scale overrides
     std::optional<float> world_hud_damage_text_scale{};

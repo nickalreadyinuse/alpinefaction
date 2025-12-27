@@ -186,6 +186,30 @@ ConsoleCommand2 teammate_label_color_cmd{
     "ui_color_team_label <RRGGBB|RRGGBBAA|clear>",
 };
 
+ConsoleCommand2 reticle_color_cmd{
+    "ui_color_reticle",
+    [](std::optional<std::string> color_opt) {
+        handle_hex_color_console_command(
+            color_opt,
+            "Reticle color override",
+            g_alpine_game_config.reticle_color_override);
+    },
+    "Set reticle color override.",
+    "ui_color_reticle <RRGGBB|RRGGBBAA|clear>",
+};
+
+ConsoleCommand2 reticle_locked_color_cmd{
+    "ui_color_reticle_locked",
+    [](std::optional<std::string> color_opt) {
+        handle_hex_color_console_command(
+            color_opt,
+            "Locked reticle color override",
+            g_alpine_game_config.reticle_locked_color_override);
+    },
+    "Set locked reticle color override (SP only).",
+    "ui_color_reticle_locked <RRGGBB|RRGGBBAA|clear>",
+};
+
 void hud_colors_apply_patch()
 {
     sniper_scope_color_cmd.register_cmd();
@@ -196,4 +220,6 @@ void hud_colors_apply_patch()
     location_ping_color_cmd.register_cmd();
     multi_timer_color_cmd.register_cmd();
     teammate_label_color_cmd.register_cmd();
+    reticle_color_cmd.register_cmd();
+    reticle_locked_color_cmd.register_cmd();
 }
