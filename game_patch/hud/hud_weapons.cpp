@@ -9,7 +9,6 @@
 #include "../rf/multi.h"
 #include "../main/main.h"
 #include "../misc/alpine_settings.h"
-#include "../os/console.h"
 #include "hud_internal.h"
 
 float g_hud_ammo_scale = 1.0f;
@@ -41,7 +40,7 @@ CallHook<void(int, int, int, rf::gr::Mode)> render_reticle_gr_bitmap_hook{
     },
     [](int bm_handle, int x, int y, rf::gr::Mode mode) {
         float base_scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
-        float scale = base_scale * g_alpine_game_config.reticle_scale;
+        float scale = base_scale * g_alpine_game_config.get_reticle_scale();
         int clip_w = rf::gr::clip_width();
         int clip_h = rf::gr::clip_height();
 
@@ -115,16 +114,6 @@ void hud_weapons_set_big(bool is_big)
     rf::hud_ammo_font = rf::gr::load_font(is_big ? "biggerfont.vf" : "bigfont.vf");
 }
 
-ConsoleCommand2 reticle_scale_cmd{
-    "ui_reticlescale",
-    [](std::optional<float> scale_opt) {
-        if (scale_opt) {
-            g_alpine_game_config.set_reticle_scale(scale_opt.value());
-        }
-        rf::console::print("Reticle scale {:.4f}", g_alpine_game_config.reticle_scale);
-    },
-    "Set reticle scale",
-};
 
 bool hud_weapons_is_double_ammo()
 {
@@ -150,6 +139,4 @@ void hud_weapons_apply_patches()
     render_reticle_set_color_hook.install();
     render_reticle_locked_set_color_hook.install();
 
-    // Commands
-    reticle_scale_cmd.register_cmd();
 }

@@ -20,6 +20,7 @@ Version 1.2.1 (TBD): Not yet released
 - Add `ui_scoreboard_split_spectators`, `ui_scoreboard_split_bots`, `ui_scoreboard_split_browsers`, `ui_scoreboard_split_idle` to control scoreboard division categories
 - Add `ui_scoreboard_simplesplit` to control behaviour of scoreboard divisions for desired categories
 - Add `ui_color_reticle` and `ui_color_reticle_locked` commands
+- Add `ui_scale_reticle` command and apply standardized UI element scaling method
 
 [@is-this-c](https://github.com/is-this-c)
 - Improve scoreboard sorting for clients whose scores are equal
