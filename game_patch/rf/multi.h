@@ -29,8 +29,8 @@ namespace rf
 
         bool operator==(const NetAddr &other) const = default;
     };
-    static_assert(sizeof(NetAddr) == 0x8);
 #pragma pack(pop)
+    static_assert(sizeof(NetAddr) == 0x8);
 
     constexpr int NET_MAX_REL_SOCKETS = 40;
 
