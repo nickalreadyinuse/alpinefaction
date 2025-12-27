@@ -289,8 +289,8 @@ void print_player_info(rf::Player* player, bool new_join) {
 
     std::string client_info;
     if (pdata.client_version == ClientVersion::alpine_faction) {
-        client_info = std::format("Alpine Faction {}.{}-{}",
-            pdata.client_version_major, pdata.client_version_minor, pdata.client_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
+        client_info = std::format("Alpine Faction {}.{}.{}-{}",
+            pdata.client_version_major, pdata.client_version_minor, pdata.client_version_patch, pdata.client_version_type == VERSION_TYPE_RELEASE ? "stable" : "dev");
     }
     else if (pdata.client_version == ClientVersion::dash_faction) {
         client_info = std::format("Dash Faction {}.{}{}",
