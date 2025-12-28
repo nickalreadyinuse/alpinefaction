@@ -669,6 +669,10 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("PingLabelTextScale");
     }
+    if (settings.count("ColorizeCustomReticles")) {
+        g_alpine_game_config.colorize_custom_reticles = std::stoi(settings["ColorizeCustomReticles"]);
+        processed_keys.insert("ColorizeCustomReticles");
+    }
     if (settings.count("ScoreboardSplitSpectators")) {
         g_alpine_game_config.scoreboard_split_spectators = std::stoi(settings["ScoreboardSplitSpectators"]);
         processed_keys.insert("ScoreboardSplitSpectators");
@@ -1160,6 +1164,7 @@ void alpine_player_settings_save(rf::Player* player)
     if (g_alpine_game_config.world_hud_ping_label_text_scale) {
         file << "PingLabelTextScale=" << *g_alpine_game_config.world_hud_ping_label_text_scale << "\n";
     }
+    file << "ColorizeCustomReticles=" << g_alpine_game_config.colorize_custom_reticles << "\n";
     file << "ScoreboardSplitSpectators=" << g_alpine_game_config.scoreboard_split_spectators << "\n";
     file << "ScoreboardSplitBots=" << g_alpine_game_config.scoreboard_split_bots << "\n";
     file << "ScoreboardSplitBrowsers=" << g_alpine_game_config.scoreboard_split_browsers << "\n";

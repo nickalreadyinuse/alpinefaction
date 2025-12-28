@@ -19,7 +19,8 @@ Version 1.2.1 (TBD): Not yet released
 - Deprecate legacy `-dedicated` dedicated server functionality, add informational error message when used
 - Add `ui_scoreboard_split_spectators`, `ui_scoreboard_split_bots`, `ui_scoreboard_split_browsers`, `ui_scoreboard_split_idle` to control scoreboard division categories
 - Add `ui_scoreboard_simplesplit` to control behaviour of scoreboard divisions for desired categories
-- Add `ui_color_reticle` and `ui_color_reticle_locked` commands
+- Add `ui_color_reticle` and `ui_color_reticle_locked` commands to set reticle color overrides
+- Add `ui_colorize_custom_reticles` command to toggle colorization of custom reticles
 - Add `ui_scale_reticle` command and apply standardized UI element scaling method
 - Add compatibility table (lightmap clamp floor) for `Dm-NukeTown2050.rfl`
 

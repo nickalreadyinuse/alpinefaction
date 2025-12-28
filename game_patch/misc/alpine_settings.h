@@ -157,6 +157,7 @@ struct AlpineGameSettings
     std::optional<uint32_t> teammate_label_color_override{};
     std::optional<uint32_t> reticle_color_override{};
     std::optional<uint32_t> reticle_locked_color_override{};
+    bool colorize_custom_reticles = false;
 
     // hud scale overrides
     std::optional<float> reticle_scale{};
