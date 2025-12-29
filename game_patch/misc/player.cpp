@@ -204,7 +204,7 @@ void reset_local_delayed_spawn() {
 }
 
 CodeInjection player_execute_action_respawn_req_patch{ // click to spawn
-    0x004A678B,
+    0x004A6778,
     [] (auto& regs) {
         if (!rf::is_server) {
             constexpr float BOT_SPAWN_WAIT_TIME_SEC = 5.f;
