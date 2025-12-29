@@ -48,6 +48,7 @@ Version 1.2.1 (TBD): Not yet released
 - Fix `r_fullbright` not extending in Direct3D 11 renderer to third person weapon models held by players
 - Fix Rocket Launcher infrared scanner being drawn semi-transparent in Direct3D 11 renderer
 - Fix vehicles not rendering in Rocket Launcher infrared scanner in Direct3D 11 renderer
+- Fix faces with "Full Bright" flag having randomly generated lightmaps applied after the first geo
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix Alpine Faction Launcher's querying of MSAA levels in Direct3D 11
