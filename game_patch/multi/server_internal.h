@@ -536,6 +536,7 @@ struct AlpineServerConfigRules
     bool weapons_stay = false;
     bool force_respawn = false;
     bool balance_teams = false;
+    bool gib_explosive_deaths = true;
     int ideal_player_count = 32;
     bool saving_enabled = false;
     bool flag_dropping = true;

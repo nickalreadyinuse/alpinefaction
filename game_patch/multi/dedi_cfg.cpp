@@ -461,6 +461,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.force_respawn = *v;
     if (auto v = t["balance_teams"].value<bool>())
         o.balance_teams = *v;
+    if (auto v = t["gib_explosive_deaths"].value<bool>())
+        o.gib_explosive_deaths = *v;
     if (auto v = t["ideal_player_count"].value<int>())
         o.set_ideal_player_count(*v);
     if (auto v = t["saving_enabled"].value<bool>())
@@ -1279,6 +1281,8 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
         std::format_to(iter, "  Force respawn:                         {}\n", rules.force_respawn);
     if (base || rules.balance_teams != b.balance_teams)
         std::format_to(iter, "  Balance teams:                         {}\n", rules.balance_teams);
+    if (base || rules.gib_explosive_deaths != b.gib_explosive_deaths)
+        std::format_to(iter, "  Gib on explosive deaths:               {}\n", rules.gib_explosive_deaths);
     if (base || rules.ideal_player_count != b.ideal_player_count)
         std::format_to(iter, "  Ideal player count:                    {}\n", rules.ideal_player_count);
     if (base || rules.saving_enabled != b.saving_enabled)
