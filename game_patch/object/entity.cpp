@@ -6,6 +6,7 @@
 #include "../misc/achievements.h"
 #include "../misc/alpine_settings.h"
 #include "../os/console.h"
+#include "../rf/gr/gr_light.h"
 #include "../rf/entity.h"
 #include "../rf/event.h"
 #include "../rf/corpse.h"
@@ -271,6 +272,11 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
         rf::Corpse* corpse = (objp->type == rf::OT_CORPSE) ? static_cast<rf::Corpse*>(objp) : nullptr;
         if (corpse && (corpse->corpse_flags & 0x400 || corpse->corpse_flags & 0x4)) {
             return;
+        }
+
+        // delete entity muzzle light if active, prevents persistent dynamic lights after entity is deleted
+        if (entity->muzzle_light_handle > -1) {
+            rf::gr::light_delete(entity->muzzle_light_handle, 0);
         }
 
         static constexpr float spin_scale_min = 10.0f;
