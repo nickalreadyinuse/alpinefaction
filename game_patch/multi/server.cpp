@@ -1113,33 +1113,36 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             }
         }
 
-        // should entity gib?
-        if (damaged_ep->life < -5.0f &&
-            damage_type == 3 &&                         // explosive
-            damaged_ep->material == 3 &&                // flesh
-            !(damaged_ep->entity_flags & 0x2000000) &&  // custom_corpse (used by snakes and sea creature)
-            !(damaged_ep->entity_flags & 0x1) &&        // dying
-            !(damaged_ep->entity_flags & 0x1000) &&     // in_water
-            !(damaged_ep->entity_flags & 0x2000))       // eye_under_water
-        {
-            entity_set_gib_flag(damaged_ep);
-        }
+        float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
 
-        // gibbing for multiplayer; less conditions and replicates flag to clients
-        if (rf::is_server && g_alpine_server_config_active_rules.gib_explosive_deaths) {
-            if ((damaged_ep->entity_flags & 0x80) ||    // gib flag is already set
-                (damaged_ep->life < -5.0f &&
-                damage_type == 3 &&                     // explosive
-                damaged_ep->material == 3 &&            // flesh
-                !(damaged_ep->entity_flags & 0x1)))     // dying
+        // should entity gib?
+        if (damaged_ep) { // damaged_ep can sometimes be invalid at this point
+            if (!rf::is_multi) { // SP gibbing
+                if (damaged_ep->life < -100.0f &&               // very dead
+                    damage_type == 3 &&                         // explosive
+                    damaged_ep->material == 3 &&                // flesh
+                    !(damaged_ep->entity_flags & 0x2000000) &&  // custom_corpse (used by snakes and sea creature)
+                    !(damaged_ep->entity_flags & 0x1) &&        // dying
+                    !(damaged_ep->entity_flags & 0x1000) &&     // in_water
+                    !(damaged_ep->entity_flags & 0x2000))       // eye_under_water
+                {
+                    entity_set_gib_flag(damaged_ep);
+                }
+            }
+            else if (rf::is_server && g_alpine_server_config_active_rules.gib_explosive_deaths) { // MP gibbing
+                if (
+                    damaged_ep->life < 0.0f &&              // dead
+                    damage > 100.0f &&                      // big damage
+                    damage_type == 3 &&                     // explosive
+                    damaged_ep->material == 3 &&            // flesh
+                    !(damaged_ep->entity_flags & 0x1))      // dying
             
-            {
-                entity_set_gib_flag(damaged_ep);
-                af_send_should_gib_req(static_cast<uint32_t>(damaged_ep->handle));
+                {
+                    entity_set_gib_flag(damaged_ep);
+                    af_send_should_gib_req(static_cast<uint32_t>(damaged_ep->handle));
+                }
             }
         }
-
-        float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
 
         // damaged_ep may be invalid at this point. If so, assume dead to avoid a rare crash from checking life
         bool is_dead = damaged_ep ? damaged_ep->life <= 0.0f : true;

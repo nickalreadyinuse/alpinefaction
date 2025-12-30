@@ -59,6 +59,7 @@ Version 1.2.1 (TBD): Not yet released
 - Fix hit sounds sometimes being very loud due to multiple playing simultaneously
 - Fix `Spawning...` text appearing on screen in freelook spectate mode after queuing a spawn in a server with spawn delay enabled
 - Fix RFSB 5.1.6 clients being falsely detected as legacy clients
+- Fix gibbing being triggered from explosive damage far more rarely than intended
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix Alpine Faction Launcher's querying of MSAA levels in Direct3D 11
