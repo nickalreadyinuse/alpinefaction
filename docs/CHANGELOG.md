@@ -23,6 +23,10 @@ Version 1.2.1 (TBD): Not yet released
 - Add `ui_colorize_custom_reticles` command to toggle colorization of custom reticles
 - Add `ui_scale_reticle` command and apply standardized UI element scaling method
 - Add compatibility table (lightmap clamp floor) for `Dm-NukeTown2050.rfl`
+- Add `cl_hitsounds_min_interval` command to configure minimum delay between hit sounds
+- Add `af_server_req` packet type
+- Support gibbing from explosive damage in multiplayer
+- Add `gib_explosive_deaths` dedicated server config option to allow server host to restrict gibbing behaviour
 
 [@is-this-c](https://github.com/is-this-c)
 - Add tied-score sorting to the scoreboard, so browsers are below bots, and bots below human players
@@ -51,6 +55,8 @@ Version 1.2.1 (TBD): Not yet released
 - Fix faces with "Full Bright" flag having randomly generated lightmaps applied after the first geo
 - Fix dynamic lights being far dimmer than expected in Direct3D 11 renderer
 - Fix players having to wait 1 second before being able to queue a spawn in a server with spawn delay enabled
+- Fix hit sounds sometimes being very loud due to multiple playing simultaneously
+- Fix `Spawning...` text appearing on screen in freelook spectate mode after queuing a spawn in a server with spawn delay enabled
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix Alpine Faction Launcher's querying of MSAA levels in Direct3D 11
