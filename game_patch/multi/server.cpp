@@ -454,10 +454,11 @@ void handle_load_command(rf::Player* player, std::string_view save_name)
 
 void handle_player_set_handicap(rf::Player* player, uint8_t amount)
 {
+    const uint8_t applied = static_cast<uint8_t>(std::clamp<int>(amount, 0, 99));
     auto& pdata = get_player_additional_data(player);
-    pdata.damage_handicap = amount;
-    rf::console::print("At their request, {} has been given a {}% damage reduction handicap.", player->name, amount);
-    auto msg = std::format("At your request, you have been given a {}% damage reduction handicap.", amount);
+    pdata.damage_handicap = applied;
+    rf::console::print("At their request, {} has been given a {}% damage reduction handicap.", player->name, applied);
+    auto msg = std::format("At your request, you have been given a {}% damage reduction handicap.", applied);
     af_send_automated_chat_msg(msg, player);
 }
 
