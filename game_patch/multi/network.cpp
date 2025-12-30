@@ -2035,7 +2035,7 @@ CodeInjection send_players_obj_update_packets_injection{
         rf::Player* player = regs.esi;
         // use new packet for clients that can process it (Alpine 1.1+)
         if (player) {
-            if (is_player_minimum_af_client_version(player, 1, 1)) {
+            if (is_player_minimum_af_client_version(player, 1, 1, 0)) {
                 af_send_obj_update_packet(player);
             }
         }
@@ -2048,7 +2048,7 @@ FunHook<void(rf::Player*)> send_netgame_update_packet_hook{
         const auto send_stats = [] (rf::Player* const player) {
             const auto& pdata = get_player_additional_data(player);
             if (pdata.client_version == ClientVersion::pure_faction
-                || is_player_minimum_af_client_version(player, 1, 2)) {
+                || is_player_minimum_af_client_version(player, 1, 2, 0)) {
                 send_pf_player_stats_packet(player);
             }
         };

@@ -673,10 +673,6 @@ void af_send_server_req_packet(const af_server_req_packet& packet, rf::Player* p
         return;
     }
 
-    if (!is_player_minimum_af_client_version(player, 1, 2)) { // todo: update for patch 1
-        return;
-    }
-
     std::byte buf[rf::max_packet_size];
     size_t offset = 0;
 
@@ -704,7 +700,9 @@ void af_send_should_gib_req(uint32_t obj_handle)
     packet.payload = ShouldGibPayload{obj_handle};
 
     for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
-        af_send_server_req_packet(packet, &player);
+        if (is_player_minimum_af_client_version(&player, 1, 2, 1)) {
+            af_send_server_req_packet(packet, &player);
+        }
     }
 }
 
@@ -1681,7 +1679,7 @@ void af_broadcast_automated_chat_msg(const std::string_view msg) {
             continue;
         }
 
-        if (is_player_minimum_af_client_version(&player, 1, 2)) {
+        if (is_player_minimum_af_client_version(&player, 1, 2, 0)) {
             rf::multi_io_send_reliable(
                 &player,
                 &buf.packet,
@@ -1704,7 +1702,7 @@ void af_send_automated_chat_msg(const std::string_view msg, rf::Player* player, 
         rf::console::print("Server (to {}): {}", player->name, msg);
     }
 
-    if (is_player_minimum_af_client_version(player, 1, 2)) {
+    if (is_player_minimum_af_client_version(player, 1, 2, 0)) {
         const af_server_msg_packet_buf buf = build_automated_chat_msg_packet(msg);
 
         rf::multi_io_send_reliable(

@@ -109,9 +109,10 @@ PlayerAdditionalData& get_player_additional_data(const rf::Player* player);
 void play_local_hit_sound(bool died);
 bool is_player_minimum_af_client_version(
     const rf::Player* player,
-    int version_major,
-    int version_minor,
-    bool only_release = false
+    const int version_major,
+    const int version_minor,
+    const int version_patch,
+    const bool only_release = false
 );
 bool is_server_minimum_af_version(int version_major, int version_minor);
 void player_multi_level_post_init();
