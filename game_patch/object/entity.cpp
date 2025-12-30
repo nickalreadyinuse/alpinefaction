@@ -244,12 +244,17 @@ void entity_set_gib_flag(rf::Entity* ep) {
 
 FunHook<void(int)> entity_blood_throw_gibs_hook{
     0x0042E3C0, [](int handle) {
-        rf::Object* objp = rf::obj_from_handle(handle);
+        // don't spawn gibs on a dedicated server
+        if (rf::is_dedicated_server) {
+            return;
+        }
 
-        // should only gib on gore level 2 or higher
+        // only gib on gore level 2 or higher
         if (rf::game_get_gore_level() < 2) {
             return;
         }
+
+        rf::Object* objp = rf::obj_from_handle(handle);
 
         // only gib flesh entities and corpses
         if (!objp || (objp->type != rf::OT_ENTITY && objp->type != rf::OT_CORPSE) || objp->material != 3) {

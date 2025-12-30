@@ -1132,8 +1132,8 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             else if (rf::is_server && g_alpine_server_config_active_rules.gibbing.enabled) { // MP gibbing
                 const auto& gibbing = g_alpine_server_config_active_rules.gibbing;
                 if (damaged_ep->life < 0.0f &&                      // dead
-                    damage > gibbing.damage_threshold &&            // big damage
-                    (gibbing.all_damage || damage_type == 3) &&     // explosive or forced
+                    damage > gibbing.damage_threshold &&            // big damage (default 100.0)
+                    (gibbing.all_damage || damage_type == 3) &&     // explosive
                     damaged_ep->material == 3 &&                    // flesh
                     !(damaged_ep->entity_flags & 0x1))              // dying
                 {
