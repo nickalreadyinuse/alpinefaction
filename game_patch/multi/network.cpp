@@ -60,6 +60,7 @@ int g_update_rate = 30; // client netfps
 ClientVersion g_joining_client_version = ClientVersion::unknown;
 AlpineFactionJoinReqPacketExt g_joining_player_info{};
 StashedPacket g_join_request_stashed;
+std::optional<int> g_conn_rate_stashed; // currently only used for detecting RFSB 5.1.6
 static const uint8_t* g_rx_base = nullptr;
 static size_t g_rx_len = 0;
 
@@ -1330,7 +1331,22 @@ static bool parse_af_join_req_any_tail(const uint8_t* pkt, size_t datalen, size_
         }
     }
 
-    // not Alpine or Dash, assume it's a v1.2 retail client
+    // Note: Special case for RFSB 5.1.6, checked last to avoid false positives as much as possible
+    // Uses conn rate 12345 but otherwise join_req is indistinguishable from RF 1.2
+    // Only remaining false positive is a retail/PF client with rate exactly 12345 (possible but extremely unlikely)
+    if (g_conn_rate_stashed.has_value() && g_conn_rate_stashed.value() == 12345) { // rfsb 5.1.6
+        g_joining_client_version = ClientVersion::browser;
+        g_joining_player_info.af_signature = 0u;
+        g_joining_player_info.version_major = 5u;
+        g_joining_player_info.version_minor = 1u;
+        g_joining_player_info.version_patch = 6u;
+        g_joining_player_info.version_type = VERSION_TYPE_RELEASE;
+        g_joining_player_info.max_rfl_version = MAXIMUM_RFL_VERSION;
+        g_joining_player_info.flags = AlpineFactionJoinReqPacketExt::Flags::none;
+        return true;
+    }
+
+    // nothing identifiable in join_req, assume it's a v1.2 retail client
     // could also be PF, but no way implemented yet to detect that
     g_joining_client_version = ClientVersion::unknown;
     g_joining_player_info.af_signature = 0u;
@@ -1439,8 +1455,15 @@ static std::tuple<AlpineRestrictVerdict, std::string, bool> check_join_request_r
 CodeInjection process_join_req_injection{
     0x0047ADAB,
     [](auto& regs) {
+        // RFSB 5.1.6 looks like normal RF 1.2 client except rate is 12345
+        int conn_rate = regs.edi;
+        if (conn_rate == 12345) {
+            g_conn_rate_stashed = conn_rate;
+        }
+        
         bool found_tail = parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len, g_join_request_stashed.rx_len);
         g_join_request_stashed = {};
+        g_conn_rate_stashed.reset();
 
         const auto [verdict, reason, hard_reject] = check_join_request_restrict_status(g_joining_client_version, g_joining_player_info);
 
