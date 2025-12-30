@@ -140,6 +140,21 @@ static SpawnDelayConfig parse_spawn_delay_config(const toml::table& t, SpawnDela
     return c;
 }
 
+static GibConfig parse_gib_config(const toml::table& t, GibConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["damage_threshold"].value<float>())
+            c.set_damage_threshold(*v);
+        if (auto v = t["all_damage_types"].value<bool>())
+            c.all_damage = *v;
+    }
+
+    return c;
+}
+
 
 static ForceCharacterConfig parse_force_character_config(const toml::table& t, ForceCharacterConfig c)
 {
@@ -461,8 +476,6 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.force_respawn = *v;
     if (auto v = t["balance_teams"].value<bool>())
         o.balance_teams = *v;
-    if (auto v = t["gib_explosive_deaths"].value<bool>())
-        o.gib_explosive_deaths = *v;
     if (auto v = t["ideal_player_count"].value<int>())
         o.set_ideal_player_count(*v);
     if (auto v = t["saving_enabled"].value<bool>())
@@ -497,6 +510,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
 
     if (auto sub = t["spawn_delay"].as_table())
         o.spawn_delay = parse_spawn_delay_config(*sub, o.spawn_delay);
+    if (auto sub = t["gibbing"].as_table())
+        o.gibbing = parse_gib_config(*sub, o.gibbing);
 
     if (auto arr = t["spawn_loadout"].as_array()) {
         for (auto& node : *arr) {
@@ -1281,8 +1296,6 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
         std::format_to(iter, "  Force respawn:                         {}\n", rules.force_respawn);
     if (base || rules.balance_teams != b.balance_teams)
         std::format_to(iter, "  Balance teams:                         {}\n", rules.balance_teams);
-    if (base || rules.gib_explosive_deaths != b.gib_explosive_deaths)
-        std::format_to(iter, "  Gib on explosive deaths:               {}\n", rules.gib_explosive_deaths);
     if (base || rules.ideal_player_count != b.ideal_player_count)
         std::format_to(iter, "  Ideal player count:                    {}\n", rules.ideal_player_count);
     if (base || rules.saving_enabled != b.saving_enabled)
@@ -1313,6 +1326,17 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
         std::format_to(iter, "  Welcome message:                       {}\n", rules.welcome_message.enabled);
         if (rules.welcome_message.enabled) {
             std::format_to(iter, "    Text:                                {}\n", rules.welcome_message.welcome_message);
+        }
+    }
+
+    if (base || rules.gibbing.enabled != b.gibbing.enabled ||
+        (rules.gibbing.enabled &&
+            (rules.gibbing.damage_threshold != b.gibbing.damage_threshold ||
+            rules.gibbing.all_damage != b.gibbing.all_damage))) {
+        std::format_to(iter, "  Gibbing:                               {}\n", rules.gibbing.enabled);
+        if (rules.gibbing.enabled) {
+            std::format_to(iter, "    Damage threshold:                    {}\n", rules.gibbing.damage_threshold);
+            std::format_to(iter, "    All damage types:                    {}\n", rules.gibbing.all_damage);
         }
     }
 

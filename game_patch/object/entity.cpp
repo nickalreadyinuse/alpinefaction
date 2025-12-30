@@ -268,11 +268,8 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             return;
         }
 
-        static constexpr int gib_count = 14; // 7 in original
-        static constexpr float velocity_scale = 15.0f;
         static constexpr float spin_scale_min = 10.0f;
         static constexpr float spin_scale_max = 25.0f;
-        static constexpr int lifetime_ms = 7000;
         static constexpr float velocity_factor = 0.5f;
         static const char* snd_set = "gib bounce";
         static const std::vector<const char*> gib_filenames = {
@@ -282,6 +279,9 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             "meatchunk4.v3m",
             "meatchunk5.v3m"};
 
+        const int gib_count = g_alpine_game_config.gib_chunk_count; // 7 from Volition
+        const float velocity_scale = g_alpine_game_config.gib_velocity_scale;
+        const int lifetime_ms = g_alpine_game_config.gib_lifetime_ms;
         for (int i = 0; i < gib_count; ++i) {
             rf::DebrisCreateStruct debris_info;
 
@@ -350,6 +350,45 @@ ConsoleCommand2 cl_gorelevel_cmd{
     },
     "Set gore level.",
     "cl_gorelevel [level]"
+};
+
+ConsoleCommand2 cl_gibchunks_cmd{
+    "cl_gibchunks",
+    [](std::optional<int> count) {
+        if (count) {
+            g_alpine_game_config.set_gib_chunk_count(*count);
+            rf::console::print("Gib chunk count is {}", g_alpine_game_config.gib_chunk_count);
+        }
+        else {
+            rf::console::print("Gib chunk count is {}", g_alpine_game_config.gib_chunk_count);
+        }
+    },
+    "Set gib chunk count.",
+    "cl_gibchunks [count]"
+};
+
+ConsoleCommand2 cl_gibvelocityscale_cmd{
+    "cl_gibvelocityscale",
+    [](std::optional<float> scale) {
+        if (scale) {
+            g_alpine_game_config.set_gib_velocity_scale(*scale);
+        }
+        rf::console::print("Gib velocity scale is {}", g_alpine_game_config.gib_velocity_scale);
+    },
+    "Set gib velocity scale.",
+    "cl_gibvelocityscale [scale]"
+};
+
+ConsoleCommand2 cl_giblifetimems_cmd{
+    "cl_giblifetimems",
+    [](std::optional<int> lifetime_ms) {
+        if (lifetime_ms) {
+            g_alpine_game_config.set_gib_lifetime_ms(*lifetime_ms);
+        }
+        rf::console::print("Gib lifetime is {} ms", g_alpine_game_config.gib_lifetime_ms);
+    },
+    "Set gib lifetime in milliseconds.",
+    "cl_giblifetimems [milliseconds]"
 };
 
 // makes some entities red - unfinished
@@ -444,5 +483,8 @@ void entity_do_patch()
     // Commands
     sp_exposuredamage_cmd.register_cmd();
     cl_gorelevel_cmd.register_cmd();
+    cl_gibchunks_cmd.register_cmd();
+    cl_gibvelocityscale_cmd.register_cmd();
+    cl_giblifetimems_cmd.register_cmd();
     cl_painsounds_cmd.register_cmd();
 }

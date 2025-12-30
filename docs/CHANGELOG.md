@@ -26,8 +26,9 @@ Version 1.2.1 (TBD): Not yet released
 - Add `cl_hitsounds_min_interval` command to configure minimum delay between hit sounds
 - Add `af_server_req` packet type
 - Support gibbing from explosive damage in multiplayer
-- Add `gib_explosive_deaths` dedicated server config option to allow server host to restrict gibbing behaviour
+- Add `gibbing` dedicated server config section to allow server host to configure gibbing behaviour
 - Add `Ctrl + K` hotkey in level editor to create links in the opposite direction from the standard `K` hotkey
+- Add `cl_gibchunks`, `cl_gibvelocityscale`, and `cl_giblifetimems` commands to customize gibbing behaviour
 
 [@is-this-c](https://github.com/is-this-c)
 - Add tied-score sorting to the scoreboard, so browsers are below bots, and bots below human players
