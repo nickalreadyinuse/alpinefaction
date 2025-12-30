@@ -1117,7 +1117,6 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
         if (damaged_ep->life < -5.0f &&
             damage_type == 3 &&                         // explosive
             damaged_ep->material == 3 &&                // flesh
-            rf::game_get_gore_level() >= 2 &&
             !(damaged_ep->entity_flags & 0x2000000) &&  // custom_corpse (used by snakes and sea creature)
             !(damaged_ep->entity_flags & 0x1) &&        // dying
             !(damaged_ep->entity_flags & 0x1000) &&     // in_water
