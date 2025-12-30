@@ -1125,6 +1125,20 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             entity_set_gib_flag(damaged_ep);
         }
 
+        // gibbing for multiplayer; less conditions and replicates flag to clients
+        if (rf::is_server && g_alpine_server_config_active_rules.gib_explosive_deaths) {
+            if ((damaged_ep->entity_flags & 0x80) ||    // gib flag is already set
+                (damaged_ep->life < -5.0f &&
+                damage_type == 3 &&                     // explosive
+                damaged_ep->material == 3 &&            // flesh
+                !(damaged_ep->entity_flags & 0x1)))     // dying
+            
+            {
+                entity_set_gib_flag(damaged_ep);
+                af_send_should_gib_req(static_cast<uint32_t>(damaged_ep->handle));
+            }
+        }
+
         float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
 
         // damaged_ep may be invalid at this point. If so, assume dead to avoid a rare crash from checking life

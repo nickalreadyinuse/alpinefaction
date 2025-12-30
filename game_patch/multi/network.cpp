@@ -216,7 +216,8 @@ enum packet_type : uint8_t {
     af_server_info         = 0x5A,
     af_spectate_start      = 0x5B,
     af_spectate_notify     = 0x5C,
-    af_server_msg          = 0x5D
+    af_server_msg          = 0x5D,
+    af_server_req          = 0x5E
 };
 
 // client -> server
@@ -299,7 +300,8 @@ std::array g_client_side_packet_whitelist{
     af_just_died_info,
     af_server_info,
     af_spectate_notify,
-    af_server_msg
+    af_server_msg,
+    af_server_req
 };
 // clang-format on
 

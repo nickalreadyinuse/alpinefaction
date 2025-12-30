@@ -19,6 +19,7 @@
 #include "../hud/hud.h"
 #include "../sound/sound.h"
 #include "../misc/alpine_settings.h"
+#include "../object/object.h"
 
 void af_send_packet(rf::Player* player, const void* data, int len, bool is_reliable)
 {
@@ -117,6 +118,10 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
         }
         case af_packet_type::af_server_msg: {
             af_process_server_msg_packet(data, static_cast<size_t>(len), addr);
+            return true;
+        }
+        case af_packet_type::af_server_req: {
+            af_process_server_req_packet(data, static_cast<size_t>(len), addr);
             return true;
         }
         default:
@@ -539,6 +544,13 @@ void serialize_payload(const std::monostate& payload, const std::byte* const buf
     // nothing to do
 }
 
+// af_sreq_should_gib
+void serialize_payload(const ShouldGibPayload& payload, std::byte* buf, size_t& offset)
+{
+    std::memcpy(buf + offset, &payload.obj_handle, sizeof(payload.obj_handle));
+    offset += sizeof(payload.obj_handle);
+}
+
 void af_send_server_cfg_request() {
     if (!rf::is_multi || rf::is_server) {
         return;
@@ -651,6 +663,121 @@ static void af_process_client_req_packet(const void* data, size_t len, const rf:
             xlog::debug("af_process_client_req_packet: unknown req_type {}", static_cast<int>(req_type));
             return;
         }
+    }
+}
+
+void af_send_server_req_packet(const af_server_req_packet& packet, rf::Player* player)
+{
+    // Send: server -> client
+    if (!rf::is_server || !player || !player->net_data) {
+        return;
+    }
+
+    if (!is_player_minimum_af_client_version(player, 1, 2)) { // todo: update for patch 1
+        return;
+    }
+
+    std::byte buf[rf::max_packet_size];
+    size_t offset = 0;
+
+    std::memcpy(buf + offset, &packet.header, sizeof(packet.header));
+    offset += sizeof(packet.header);
+
+    buf[offset++] = static_cast<std::byte>(packet.req_type);
+
+    std::visit([&](const auto& payload) { serialize_payload(payload, buf, offset); }, packet.payload);
+
+    int total_len = static_cast<int>(offset);
+    af_send_packet(player, buf, total_len, true);
+}
+
+void af_send_should_gib_req(uint32_t obj_handle)
+{
+    if (!rf::is_server) {
+        return;
+    }
+
+    af_server_req_packet packet{};
+    packet.header.type = static_cast<uint8_t>(af_packet_type::af_server_req);
+    packet.header.size = sizeof(uint8_t) + sizeof(uint32_t);
+    packet.req_type = af_server_req_type::af_sreq_should_gib;
+    packet.payload = ShouldGibPayload{obj_handle};
+
+    for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+        af_send_server_req_packet(packet, &player);
+    }
+}
+
+static void af_process_server_req_packet(const void* data, size_t len, const rf::NetAddr&)
+{
+    // Receive: client <- server
+    if (!rf::is_multi || rf::is_server) {
+        return;
+    }
+
+    if (len < sizeof(RF_GamePacketHeader)) {
+        xlog::warn("af_process_server_req_packet: packet too short for header (len={})", len);
+        return;
+    }
+
+    RF_GamePacketHeader header{};
+    std::memcpy(&header, data, sizeof(header));
+
+    if (header.type != static_cast<uint8_t>(af_packet_type::af_server_req)) {
+        xlog::warn("af_process_server_req_packet: unexpected type {}", header.type);
+        return;
+    }
+
+    const size_t expected_wire_size = sizeof(RF_GamePacketHeader) + static_cast<size_t>(header.size);
+    if (expected_wire_size > len) {
+        xlog::warn("af_process_server_req_packet: truncated packet ({} > {})", expected_wire_size, len);
+        return;
+    }
+
+    if (header.size < sizeof(uint8_t)) {
+        xlog::warn("af_process_server_req_packet: payload too small ({})", header.size);
+        return;
+    }
+
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(data);
+
+    const size_t payload_begin = sizeof(RF_GamePacketHeader);
+    const size_t payload_end = sizeof(RF_GamePacketHeader) + static_cast<size_t>(header.size);
+
+    size_t offset = payload_begin;
+    const auto req_type = static_cast<af_server_req_type>(bytes[offset++]);
+
+    // remaining payload bytes after req_type
+    const size_t remaining = (offset <= payload_end) ? (payload_end - offset) : 0;
+
+    switch (req_type) {
+        case af_server_req_type::af_sreq_should_gib: {
+            if (remaining < sizeof(uint32_t)) {
+                xlog::warn("af_process_server_req_packet: ShouldGib payload too short");
+                return;
+            }
+
+            uint32_t obj_handle = 0;
+            std::memcpy(&obj_handle, bytes + offset, sizeof(obj_handle));
+
+            rf::Object* remote_object = rf::obj_from_remote_handle(obj_handle);
+            if (!remote_object) {
+                xlog::warn("af_process_server_req_packet: invalid remote handle {:x}", obj_handle);
+                return;
+            }
+
+            rf::Entity* entity = rf::entity_from_handle(remote_object->handle);
+            if (!entity) {
+                xlog::warn("af_process_server_req_packet: invalid entity handle {:x}", obj_handle);
+                return;
+            }
+
+            entity_set_gib_flag(entity);
+            break;
+        }
+        default:
+            xlog::debug("af_process_server_req_packet: unknown req_type {}", static_cast<int>(req_type));
+            break;
     }
 }
 
