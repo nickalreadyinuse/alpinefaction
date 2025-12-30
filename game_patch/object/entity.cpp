@@ -234,45 +234,13 @@ CodeInjection entity_process_pre_hide_riot_shield_injection{
     },
 };
 
-// avoids gibbing if gore level is too low or if this specific corpse shouldn't gib
-/* CodeInjection corpse_damage_patch{
-    0x00417C6A,
-    [](auto& regs) {
-        rf::Corpse* cp = regs.esi;
-
-        // don't destroy corpses that should persist
-        if (cp->corpse_flags & 0x400 ||         // drools_slime (used by snakes)
-            cp->corpse_flags & 0x4)             // custom_state_anim (used by sea creature)
-        {
-            regs.eip = 0x00417C97;
-        }
+void entity_set_gib_flag(rf::Entity* ep) {
+    if (rf::game_get_gore_level() < 2) {
+        return;
     }
-};*/
 
-// avoids playing pain sounds for gibbing entities (broken atm)
-CodeInjection entity_damage_gib_no_pain_sound_patch {
-    0x0041A51F,
-    [](auto& regs) {        
-        rf::Entity* ep = regs.esi;
-        //float pain_sound_volume = regs.eax;
-        if (ep->entity_flags & 0x80) {
-            //pain_sound_volume = 0.0f;
-            //xlog::warn("nosound");
-            regs.eip = 0x0041A550;
-        }
-    }
-};
-
-/* CodeInjection entity_damage_gib_no_pain_sound_patch{
-    0x0041A548,
-    [](auto& regs) {        
-        rf::Entity* ep = regs.esi;
-        float pain_sound_volume = regs.eax;
-        if (ep->entity_flags & 0x80) {
-            pain_sound_volume = 0.0f;
-        }
-    }
-};*/
+    ep->entity_flags |= 0x80;
+}
 
 FunHook<void(int)> entity_blood_throw_gibs_hook{
     0x0042E3C0, [](int handle) {
@@ -472,8 +440,6 @@ void entity_do_patch()
 
 	// Restore cut stock game feature for entities and corpses exploding into chunks
 	entity_blood_throw_gibs_hook.install();
-    //corpse_damage_patch.install();
-    //entity_damage_gib_no_pain_sound_patch.install();
 
     // Commands
     sp_exposuredamage_cmd.register_cmd();

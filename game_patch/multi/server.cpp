@@ -1123,7 +1123,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             !(damaged_ep->entity_flags & 0x1000) &&     // in_water
             !(damaged_ep->entity_flags & 0x2000))       // eye_under_water
         {
-            damaged_ep->entity_flags |= 0x80;
+            entity_set_gib_flag(damaged_ep);
         }
 
         float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
