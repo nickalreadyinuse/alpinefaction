@@ -92,6 +92,15 @@ struct AlpineGameSettings
     bool world_hud_team_player_labels = false;
     bool show_location_pings = true;
     bool play_hit_sounds = true;
+
+    static constexpr int min_hit_sound_interval_ms = 0;
+    static constexpr int max_hit_sound_interval_ms = 1000;
+    int hit_sound_min_interval_ms = 20;
+    void set_hit_sound_min_interval_ms(int interval_ms)
+    {
+        hit_sound_min_interval_ms = std::clamp(interval_ms, min_hit_sound_interval_ms, max_hit_sound_interval_ms);
+    }
+
     bool play_taunt_sounds = true;
     bool play_global_rad_msg_sounds = true;
     bool play_team_rad_msg_sounds = true;
