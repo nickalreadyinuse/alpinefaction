@@ -6,6 +6,8 @@ Version 1.3.0 (TBD): Not yet released
 ### Major features
 
 ### Minor features, changes, and enhancements
+[@GooberRF](https://github.com/GooberRF)
+- Add values to scope param for `Scope_Gate` event to test for team regardless of whether local player is spawned
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

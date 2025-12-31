@@ -101,9 +101,11 @@ namespace rf
         dedicated,
         client,
         triggered_by,
+        blue_team_spawned,
+        red_team_spawned,
+        has_flag,
         blue_team,
-        red_team,
-        has_flag
+        red_team
     };
 
     enum class GoalInsideCheckSubject : int
@@ -1044,14 +1046,20 @@ namespace rf
             case ScopeGateTests::triggered_by:
                 pass = (local_player && (local_player->entity_handle == this->triggered_by_handle));
                 break;
-            case ScopeGateTests::red_team:
+            case ScopeGateTests::blue_team_spawned:
                 pass = (local_player_entity && (local_player_entity->team == 1));
                 break;
-            case ScopeGateTests::blue_team:
+            case ScopeGateTests::red_team_spawned:
                 pass = (local_player_entity && (local_player_entity->team == 0));
                 break;
             case ScopeGateTests::has_flag:
                 pass = (local_player && (multi_ctf_get_blue_flag_player() == local_player || multi_ctf_get_red_flag_player() == local_player));
+                break;
+            case ScopeGateTests::blue_team:
+                pass = (local_player && (local_player->team == 1));
+                break;
+            case ScopeGateTests::red_team:
+                pass = (local_player && (local_player->team == 0));
                 break;
             default:
                 break;
