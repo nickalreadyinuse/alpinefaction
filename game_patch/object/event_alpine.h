@@ -2375,5 +2375,44 @@ namespace rf
         }
     };
 
+    // id 144
+    struct EventWhenRoundEnds : Event
+    {
+        void turn_on() override
+        {
+            activate_links(this->trigger_handle, this->triggered_by_handle, true);
+        }
+
+        void do_activate_links(int trigger_handle, int triggered_by_handle, bool on) override
+        {
+            for (int link_handle : this->links) {
+                Object* obj = obj_from_handle(link_handle);
+
+                if (obj) {
+                    ObjectType type = obj->type;
+                    switch (type) {
+                    case OT_MOVER: {
+                        mover_activate_from_trigger(obj->handle, -1, -1);
+                        break;
+                    }
+                    case OT_TRIGGER: {
+                        Trigger* trigger = static_cast<Trigger*>(obj);
+                        trigger_enable(trigger);
+                        break;
+                    }
+                    case OT_EVENT: {
+                        Event* event = static_cast<Event*>(obj);
+                        // Note can't use activate because it isn't allocated for stock events
+                        event_signal_on(link_handle, -1, -1);
+                        break;
+                    }
+                    default:
+                        break;
+                    }
+                }
+            }
+        }
+    };
+
 } // namespace rf
 

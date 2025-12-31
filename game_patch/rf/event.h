@@ -339,7 +339,8 @@ namespace rf
         When_Captured,
         Set_Capture_Point_Owner,
         Owner_Gate,
-        Set_Gameplay_Rule
+        Set_Gameplay_Rule,
+        When_Round_Ends
     };
 
     // int to EventType
