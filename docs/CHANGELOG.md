@@ -1,7 +1,7 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.2.1 (TBD): Not yet released
+Version 1.2.1 (Willow): Released Dec-30-2025
 --------------------------------
 ### Major features
 
