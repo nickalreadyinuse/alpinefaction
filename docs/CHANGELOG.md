@@ -8,6 +8,8 @@ Version 1.3.0 (TBD): Not yet released
 ### Minor features, changes, and enhancements
 
 ### Bug fixes
+[@GooberRF](https://github.com/GooberRF)
+- Fix `Blue team` and `Red team` labels being swapped in `Scope_Gate` int1 field in level editor
 
 Version 1.2.1 (Willow): Released Dec-30-2025
 --------------------------------

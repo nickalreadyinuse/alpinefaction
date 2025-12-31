@@ -403,8 +403,8 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
                 "Dedicated server",
                 "Client",
                 "Triggering player",
-                "Red team",
                 "Blue team",
+                "Red team",
                 "Player that has flag"
                 }
             }
