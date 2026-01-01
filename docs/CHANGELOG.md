@@ -9,6 +9,7 @@ Version 1.2.2 (Willow): Not yet released
 [@GooberRF](https://github.com/GooberRF)
 - Add values to scope param for `Scope_Gate` event to test for team regardless of whether local player is spawned
 - Add `When_Round_Ends` event
+- Bump RFL version to 303
 - Add dynamic light flashes for explosions from weapons and clutter/entity deaths
 - Add `cl_explosionflashweapons` and `cl_explosionflashenv` commands
 
