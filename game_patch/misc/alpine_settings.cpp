@@ -341,6 +341,14 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.damage_screen_flash = std::stoi(settings["DamageScreenFlash"]);
         processed_keys.insert("DamageScreenFlash");
     }
+    if (settings.count("ExplosionFlashLightsWeapons")) {
+        g_alpine_game_config.explosion_weapon_flash_lights = std::stoi(settings["ExplosionFlashLightsWeapons"]);
+        processed_keys.insert("ExplosionFlashLightsWeapons");
+    }
+    if (settings.count("ExplosionFlashLightsEnv")) {
+        g_alpine_game_config.explosion_env_flash_lights = std::stoi(settings["ExplosionFlashLightsEnv"]);
+        processed_keys.insert("ExplosionFlashLightsEnv");
+    }
     if (settings.count("SpectateMinimalUI")) {
         g_alpine_game_config.spectate_mode_minimal_ui = std::stoi(settings["SpectateMinimalUI"]);
         processed_keys.insert("SpectateMinimalUI");
@@ -1076,6 +1084,8 @@ void alpine_player_settings_save(rf::Player* player)
     file << "NeverAutoswitchExplosives=" << player->settings.dont_autoswitch_to_explosives << "\n";
     file << "ToggleCrouch=" << player->settings.toggle_crouch << "\n";
     file << "DamageScreenFlash=" << g_alpine_game_config.damage_screen_flash << "\n";
+    file << "ExplosionFlashLightsWeapons=" << g_alpine_game_config.explosion_weapon_flash_lights << "\n";
+    file << "ExplosionFlashLightsEnv=" << g_alpine_game_config.explosion_env_flash_lights << "\n";
     file << "SpectateMinimalUI=" << g_alpine_game_config.spectate_mode_minimal_ui << "\n";
     file << "ShowFPS=" << g_alpine_game_config.fps_counter << "\n";
     file << "FPSCounterAverageMs=" << g_alpine_game_config.fps_counter_average_ms << "\n";

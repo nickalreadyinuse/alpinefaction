@@ -109,6 +109,8 @@ struct AlpineGameSettings
     bool show_run_timer = true;
     bool multi_ricochet = false;
     bool damage_screen_flash = true;
+    bool explosion_weapon_flash_lights = false;
+    bool explosion_env_flash_lights = false;
     bool death_bars = true;
     bool mesh_static_lighting = true;
     bool show_glares = true;

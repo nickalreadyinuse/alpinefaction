@@ -16,6 +16,7 @@
 #include "../multi/multi.h"
 #include "../misc/alpine_settings.h"
 #include "../rf/gr/gr.h"
+#include "../rf/gameseq.h"
 #include "../rf/level.h"
 #include "../rf/geometry.h"
 #include "../rf/player/player.h"
@@ -248,6 +249,66 @@ FunHook<float(const rf::Vector3&)> gr_get_apparent_distance_from_camera_hook{
     },
 };
 
+FunHook<void()> vclip_init_hook{
+    0x004C12A0,
+    []() {
+        vclip_init_hook.call_target();
+        explosion_flash_lights_init();
+    },
+};
+
+FunHook<void()> explosion_do_frame_hook{
+    0x0048E290,
+    []() {
+        explosion_do_frame_hook.call_target();
+        explosion_flash_lights_do_frame();
+    },
+};
+
+CallHook<int(int index, rf::GRoom* src_room, rf::Vector3* src_pos, rf::Vector3* pos,
+    float radius, int parent_handle, rf::Vector3* dir, bool play_sound)> vclip_play_3d_weapon_hook{
+    0x004C8A5C,
+    [](int index, rf::GRoom* src_room, rf::Vector3* src_pos, rf::Vector3* pos,
+        float radius, int parent_handle, rf::Vector3* dir, bool play_sound) {
+        int success = vclip_play_3d_weapon_hook.call_target(index, src_room, src_pos, pos, radius, parent_handle, dir, play_sound);
+
+        if (!rf::is_dedicated_server &&
+            g_alpine_game_config.explosion_weapon_flash_lights &&
+            rf::gameseq_get_state() != rf::GameState::GS_MULTI_LIMBO &&
+            success >= 0) {
+            float radius_scale, intensity, r, g, b;
+            int duration_ms;
+            if (vclip_should_do_explosion_flash(true, index, &radius_scale, &intensity, &r, &g, &b, &duration_ms)) {
+                explosion_flash_light_create_offset(*pos, *dir, 0.5f, radius * radius_scale, intensity, r, g, b, duration_ms);
+            }
+        }
+
+        return success;
+    },
+};
+
+CallHook<int(int index, rf::GRoom* src_room, rf::Vector3* src_pos, rf::Vector3* pos,
+    float radius, int parent_handle, rf::Vector3* dir, bool play_sound)> vclip_play_3d_env_hook{
+    0x004364BC,
+    [](int index, rf::GRoom* src_room, rf::Vector3* src_pos, rf::Vector3* pos,
+        float radius, int parent_handle, rf::Vector3* dir, bool play_sound) {
+        int success = vclip_play_3d_env_hook.call_target(index, src_room, src_pos, pos, radius, parent_handle, dir, play_sound);
+
+        if (!rf::is_dedicated_server &&
+            g_alpine_game_config.explosion_env_flash_lights &&
+            rf::gameseq_get_state() != rf::GameState::GS_MULTI_LIMBO &&
+            success >= 0) {
+            float radius_scale, intensity, r, g, b;
+            int duration_ms;
+            if (vclip_should_do_explosion_flash(false, index, &radius_scale, &intensity, &r, &g, &b, &duration_ms)) {
+                explosion_flash_light_create(*pos, radius * radius_scale, intensity, r, g, b, duration_ms);
+            }
+        }
+
+        return success;
+    },
+};
+
 bool gr_is_texture_format_supported(rf::bm::Format format)
 {
     if (rf::gr::screen.mode == rf::gr::DIRECT3D) {
@@ -443,6 +504,12 @@ void gr_apply_patch()
     // Increase mesh details
     gr_get_apparent_distance_from_camera_hook.install();
     gr_d3d_render_lod_vif_injection.install();
+
+    // Handle explosion dynamic light flashes
+    vclip_init_hook.install();
+    explosion_do_frame_hook.install();
+    vclip_play_3d_weapon_hook.install();
+    vclip_play_3d_env_hook.install();
 
     // Fix gr_rect_border not drawing left border
     AsmWriter{0x0050DF2D}.push(asm_regs::ebp).push(asm_regs::ebx);
