@@ -12,11 +12,13 @@ Version 1.2.2 (Willow): Not yet released
 - Bump RFL version to 303
 - Add dynamic light flashes for explosions from weapons and clutter/entity deaths
 - Add `cl_explosionflashweapons` and `cl_explosionflashenv` commands
+- Add `r_precache_rooms` command to toggle front-loaded precaching (Direct3D 11 renderer only)
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix `Blue team` and `Red team` labels being swapped in `Scope_Gate` int1 field in level editor
 - Fix crash when gibbing some corpses in single player
+- Fix crash due to overflowing room cache buffer in Direct3D 11 renderer when loading very complex levels
 
 Version 1.2.1 (Willow): Released Dec-30-2025
 --------------------------------

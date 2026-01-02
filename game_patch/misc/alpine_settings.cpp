@@ -383,8 +383,7 @@ bool alpine_player_settings_load(rf::Player* player)
         processed_keys.insert("QuickExit");
     }
     if (settings.count("ColorblindMode")) {
-        int mode = std::stoi(settings["ColorblindMode"]);
-        g_alpine_game_config.colorblind_mode = std::clamp(mode, 0, 3);
+        g_alpine_game_config.set_colorblind_mode(std::stoi(settings["ColorblindMode"]));
         processed_keys.insert("ColorblindMode");
     }
     if (settings.count("AutoswitchFireWait")) {
@@ -506,6 +505,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.set_picmip(std::stoi(settings["Picmip"]));
         gr_update_texture_filtering();
         processed_keys.insert("Picmip");
+    }
+    if (settings.count("PrecacheRooms")) {
+        g_alpine_game_config.precache_rooms = std::stoi(settings["PrecacheRooms"]);
+        processed_keys.insert("PrecacheRooms");
     }
     if (settings.count("NearestTextureFiltering")) {
         g_alpine_game_config.nearest_texture_filtering = std::stoi(settings["NearestTextureFiltering"]);
@@ -1139,6 +1142,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShowGlares=" << g_alpine_game_config.show_glares << "\n";
     file << "MeshStaticLighting=" << g_alpine_game_config.mesh_static_lighting << "\n";
     file << "Picmip=" << g_alpine_game_config.picmip << "\n";
+    file << "PrecacheRooms=" << g_alpine_game_config.precache_rooms << "\n";
     file << "NearestTextureFiltering=" << g_alpine_game_config.nearest_texture_filtering << "\n";
     file << "FastAnimations=" << rf::g_fast_animations << "\n";
     file << "MonitorResolutionScale=" << g_alpine_game_config.monitor_resolution_scale << "\n";

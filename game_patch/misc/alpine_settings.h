@@ -173,7 +173,6 @@ struct AlpineGameSettings
     bool simple_server_chat_msgs = true;
     bool quick_exit = false;
     uint32_t bot_shared_secret = 0;
-    int colorblind_mode = 0; // 0=off,1=protanopia,2=deuteranopia,3=tritanopia
     int suppress_autoswitch_alias = -1;
     bool always_autoswitch_empty = true;
     bool apply_exposure_damage = true;
@@ -248,11 +247,19 @@ struct AlpineGameSettings
         world_hud_ping_label_text_scale.reset();
     }
 
-    int picmip = 1;
+    int picmip = 1; // d3d11 only
     void set_picmip(int value)
     {
         picmip = std::clamp(value, 1, 256);
     }
+
+    int colorblind_mode = 0;    // 0=off,1=protanopia,2=deuteranopia,3=tritanopia (d3d11 only)
+    void set_colorblind_mode(int value)
+    {
+        colorblind_mode = std::clamp(value, 0, 3);
+    }
+
+    bool precache_rooms = true; // d3d11 only
 
     int suppress_autoswitch_fire_wait = 0;
     void set_suppress_autoswitch_fire_wait(int value)
