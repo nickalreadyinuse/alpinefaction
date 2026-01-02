@@ -519,7 +519,7 @@ ConsoleCommand2 weapon_explosion_flash_lights_cmd{
         rf::console::print("Explosion flash lights from weapons are {}",
             g_alpine_game_config.explosion_weapon_flash_lights ? "enabled" : "disabled");
     },
-    "Toggle explosion flash dynamic lights from weapons",
+    "Toggle explosion flash dynamic lights from weapons (Direct3D 11 renderer only)",
 };
 
 ConsoleCommand2 env_explosion_flash_lights_cmd{
@@ -529,7 +529,17 @@ ConsoleCommand2 env_explosion_flash_lights_cmd{
         rf::console::print("Explosion flash lights from environmental sources are {}",
             g_alpine_game_config.explosion_env_flash_lights ? "enabled" : "disabled");
     },
-    "Toggle explosion flash dynamic lights from environmental sources",
+    "Toggle explosion flash dynamic lights from environmental sources (Direct3D 11 renderer only)",
+};
+
+ConsoleCommand2 burning_entity_lights_cmd{
+    "cl_burningentityglow",
+    []() {
+        g_alpine_game_config.burning_entity_lights = !g_alpine_game_config.burning_entity_lights;
+        rf::console::print("Dynamic light glow from burning entities is {}",
+            g_alpine_game_config.burning_entity_lights ? "enabled" : "disabled");
+    },
+    "Toggle dynamic light glow from burning entities (Direct3D 11 renderer only)",
 };
 
 void play_local_sound_3d(uint16_t sound_id, rf::Vector3 pos, int group, float volume) {
@@ -878,6 +888,7 @@ void player_do_patch()
     damage_screen_flash_cmd.register_cmd();
     weapon_explosion_flash_lights_cmd.register_cmd();
     env_explosion_flash_lights_cmd.register_cmd();
+    burning_entity_lights_cmd.register_cmd();
     death_bars_cmd.register_cmd();
     swap_assault_rifle_controls_cmd.register_cmd();
     swap_grenade_controls_cmd.register_cmd();

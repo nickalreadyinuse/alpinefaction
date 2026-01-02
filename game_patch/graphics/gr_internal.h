@@ -35,6 +35,7 @@ struct ExplosionFlashLight
     float blue = 1.0f;
     int duration_ms = 1000;
     float elapsed_ms = 0.0f;
+    bool fade_only = false;
     rf::gr::LightShadowcastCondition shadow_condition = rf::gr::SHADOWCAST_EDITOR;
     int attenuation_algorithm = 0;
     int light_handle = -1;
@@ -68,7 +69,7 @@ constexpr std::array<ExplosionFlashVclipSpec, 10> k_explosion_flash_vclip_specs_
 void explosion_flash_lights_init();
 bool vclip_should_do_explosion_flash(bool from_weapon, int vclip_id, float* radius_scale, float* intensity, float* r, float* g, float* b, int* duration_ms);
 void explosion_flash_light_create(
-    const rf::Vector3& pos, float radius, float intensity, float r, float g, float b, int duration_ms);
+    const rf::Vector3& pos, float radius, float intensity, float r, float g, float b, int duration_ms, bool fade_only);
 void explosion_flash_light_create_offset(
     const rf::Vector3& pos, const rf::Vector3& dir, float offset_meters, float radius, float intensity, float r, float g, float b, int duration_ms);
 void explosion_flash_lights_do_frame();

@@ -109,8 +109,9 @@ struct AlpineGameSettings
     bool show_run_timer = true;
     bool multi_ricochet = false;
     bool damage_screen_flash = true;
-    bool explosion_weapon_flash_lights = false;
-    bool explosion_env_flash_lights = false;
+    bool explosion_weapon_flash_lights = true;
+    bool explosion_env_flash_lights = true;
+    bool burning_entity_lights = true;
     bool death_bars = true;
     bool mesh_static_lighting = true;
     bool show_glares = true;
@@ -360,3 +361,4 @@ void gr_update_texture_filtering();
 void set_play_sound_events_volume_scale();
 void apply_entity_sim_distance();
 void gr_d3d_update_vsync();
+bool is_d3d11();

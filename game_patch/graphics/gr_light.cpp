@@ -1,16 +1,26 @@
 #include <xlog/xlog.h>
+#include <patch_common/CodeInjection.h>
+#include "../rf/multi.h"
+#include "../rf/entity.h"
 #include "../rf/gr/gr.h"
 #include "../rf/os/frametime.h"
 #include "../rf/vmesh.h"
 #include "gr_internal.h"
+#include "../misc/alpine_settings.h"
 
 bool is_find_static_lights = false;
 std::vector<ExplosionFlashLight> g_active_explosion_flash_lights;
 std::vector<ExplosionFlashVclipEntry> g_explosion_flash_vclip_entries_weapon;
 std::vector<ExplosionFlashVclipEntry> g_explosion_flash_vclip_entries_env;
+float g_explosion_flash_flicker_phase = 0.0f;
+float g_fire_light_flicker_phase = 0.0f;
 
 void explosion_flash_lights_init()
 {
+    if (!is_d3d11()) {
+        return;
+    }
+
     g_explosion_flash_vclip_entries_weapon.clear();
     for (const auto& vclip_spec : k_explosion_flash_vclip_specs_weapon) {
         const int vclip_id = rf::vclip_lookup(vclip_spec.name);
@@ -93,6 +103,13 @@ float explosion_flash_light_intensity(const ExplosionFlashLight& light)
     }
 
     const float progress = std::clamp(light.elapsed_ms / static_cast<float>(light.duration_ms), 0.0f, 1.0f);
+    if (light.fade_only) {
+        float phase = g_explosion_flash_flicker_phase / 0.15f;
+        float flicker = 1.0f + 0.05f * std::sin(2.0f * 3.14159265358979323846f * phase);
+        float fade = light.max_intensity * (1.0f - progress);
+        return fade * flicker;
+    }
+
     constexpr float ramp_up_portion = 0.2f;
     if (progress < ramp_up_portion) {
         const float ramp = progress / ramp_up_portion;
@@ -103,7 +120,7 @@ float explosion_flash_light_intensity(const ExplosionFlashLight& light)
     return light.max_intensity * (1.0f - fade);
 }
 
-void explosion_flash_light_create(const rf::Vector3& pos, float radius, float intensity, float r, float g, float b, int duration_ms)
+void explosion_flash_light_create(const rf::Vector3& pos, float radius, float intensity, float r, float g, float b, int duration_ms, bool fade_only)
 {
     g_active_explosion_flash_lights.emplace_back(ExplosionFlashLight{
         .pos = pos,
@@ -113,6 +130,7 @@ void explosion_flash_light_create(const rf::Vector3& pos, float radius, float in
         .green = g,
         .blue = b,
         .duration_ms = duration_ms,
+        .fade_only = fade_only,
     });
 }
 
@@ -129,16 +147,20 @@ void explosion_flash_light_create_offset(const rf::Vector3& pos, const rf::Vecto
         }
     }
 
-    explosion_flash_light_create(offset_pos, radius, intensity, r, g, b, duration_ms);
+    explosion_flash_light_create(offset_pos, radius, intensity, r, g, b, duration_ms, false);
 }
 
 void explosion_flash_lights_do_frame()
 {
-    if (g_active_explosion_flash_lights.empty()) {
+    if (!is_d3d11() || g_active_explosion_flash_lights.empty()) {
         return;
     }
 
     const float delta_ms = rf::frametime * 1000.0f;
+    g_explosion_flash_flicker_phase += rf::frametime;
+    if (g_explosion_flash_flicker_phase > 0.15f) {
+        g_explosion_flash_flicker_phase -= 0.15f;
+    }
     for (auto& light : g_active_explosion_flash_lights) {
         if (light.light_handle > -1) {
             rf::gr::light_delete(light.light_handle, 0);
@@ -180,6 +202,75 @@ void explosion_flash_lights_do_frame()
         g_active_explosion_flash_lights.end());
 }
 
+CodeInjection entity_process_post_fire_injection{
+    0x0041EBC1,
+    [](auto& regs) {
+        if (!is_d3d11() || !g_alpine_game_config.burning_entity_lights || rf::is_multi) {
+            return;
+        }
+        rf::Entity* ep = regs.esi;
+        const bool on_fire = ep->entity_fire_handle != nullptr;
+
+        if (ep->powerup_light_handle != -1) {
+            rf::gr::light_delete(ep->powerup_light_handle, 0);
+            ep->powerup_light_handle = -1;
+        }
+
+        if (on_fire) {
+            g_fire_light_flicker_phase += rf::frametime;
+            if (g_fire_light_flicker_phase > 0.15f) {
+                g_fire_light_flicker_phase -= 0.15f;
+            }
+
+            float phase = g_fire_light_flicker_phase / 0.15f;
+            float flicker = 1.0f + 0.05f * std::sin(2.0f * 3.14159265358979323846f * phase);
+            float radius = 8.0f * (0.95f + 0.1f * flicker);
+
+            // attach a flickering light to the burning entity
+            // this light will be removed when the entity transitions to corpse
+            ep->powerup_light_handle = rf::gr::light_create_point(
+                &ep->pos,
+                radius,
+                flicker,
+                0.95f,
+                0.72f,
+                0.16f,
+                true,
+                rf::gr::LightShadowcastCondition::SHADOWCAST_EDITOR,
+                0);
+            return;
+        }
+    },
+};
+
+CodeInjection entity_fire_on_dead_light_injection{
+    0x0041937A,
+    [](auto& regs) {
+        if (!is_d3d11() || !g_alpine_game_config.burning_entity_lights || rf::is_multi) {
+            return;
+        }
+        rf::EntityFireInfo* ef = regs.eax;
+        if (!ef) {
+            return;
+        }
+        rf::Object* obj = rf::obj_from_handle(ef->parent_hobj);
+        if (!obj) {
+            return;
+        }
+
+        // spawn a throwaway light at the position of the flaming corpse and fade it out over time as the flames dissipate
+        explosion_flash_light_create(
+            obj->pos,
+            8.0f,   // flickers in explosion_flash_lights_do_frame
+            1.0f,   // flickers in explosion_flash_lights_do_frame
+            0.95f,
+            0.72f,
+            0.16f,
+            12500,  // 12.5 seconds is roughly the duration of the fire on the corpse
+            true);
+    },
+};
+
 void gr_light_use_static(bool use_static)
 {
     // Enable some experimental flag that causes static lights to be included in computations
@@ -198,4 +289,8 @@ void gr_light_apply_patch()
     write_mem_ptr(0x004D96CD + 1, &is_find_static_lights); // gr_light_find_all_in_room
     write_mem_ptr(0x004D9761 + 1, &is_find_static_lights); // gr_light_find_all_in_room
     write_mem_ptr(0x004D98B3 + 1, &is_find_static_lights); // gr_light_find_all_by_gsolid
+    
+    // Add dynamic fire glow around burning entities
+    entity_process_post_fire_injection.install();
+    entity_fire_on_dead_light_injection.install();
 }

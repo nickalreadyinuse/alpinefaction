@@ -41,6 +41,10 @@ std::optional<std::string> afs_cmd_line_filename;
 
 AlpineGameSettings g_alpine_game_config;
 
+bool is_d3d11() {
+    return g_game_config.renderer == GameConfig::Renderer::d3d11;
+}
+
 std::optional<uint32_t> parse_hex_color_string(const std::string& value)
 {
     auto value_view = std::string_view{value};
@@ -348,6 +352,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("ExplosionFlashLightsEnv")) {
         g_alpine_game_config.explosion_env_flash_lights = std::stoi(settings["ExplosionFlashLightsEnv"]);
         processed_keys.insert("ExplosionFlashLightsEnv");
+    }
+    if (settings.count("BurningEntityLights")) {
+        g_alpine_game_config.burning_entity_lights = std::stoi(settings["BurningEntityLights"]);
+        processed_keys.insert("BurningEntityLights");
     }
     if (settings.count("SpectateMinimalUI")) {
         g_alpine_game_config.spectate_mode_minimal_ui = std::stoi(settings["SpectateMinimalUI"]);
@@ -1089,6 +1097,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DamageScreenFlash=" << g_alpine_game_config.damage_screen_flash << "\n";
     file << "ExplosionFlashLightsWeapons=" << g_alpine_game_config.explosion_weapon_flash_lights << "\n";
     file << "ExplosionFlashLightsEnv=" << g_alpine_game_config.explosion_env_flash_lights << "\n";
+    file << "BurningEntityLights=" << g_alpine_game_config.burning_entity_lights << "\n";
     file << "SpectateMinimalUI=" << g_alpine_game_config.spectate_mode_minimal_ui << "\n";
     file << "ShowFPS=" << g_alpine_game_config.fps_counter << "\n";
     file << "FPSCounterAverageMs=" << g_alpine_game_config.fps_counter_average_ms << "\n";

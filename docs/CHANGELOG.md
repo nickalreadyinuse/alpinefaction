@@ -10,9 +10,11 @@ Version 1.2.2 (Willow): Not yet released
 - Add values to scope param for `Scope_Gate` event to test for team regardless of whether local player is spawned
 - Add `When_Round_Ends` event
 - Bump RFL version to 303
-- Add dynamic light flashes for explosions from weapons and clutter/entity deaths
+- Add dynamic light flashes for explosions from weapons and clutter/entity deaths (Direct3D 11 renderer only)
 - Add `cl_explosionflashweapons` and `cl_explosionflashenv` commands
 - Add `r_precache_rooms` command to toggle front-loaded precaching (Direct3D 11 renderer only)
+- Add dynamic light glows from entities that are on fire (Direct3D 11 renderer only)
+- Add `cl_burningentityglow` command
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
