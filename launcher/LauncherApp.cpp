@@ -170,7 +170,9 @@ int LauncherApp::Run()
     }
 
     // Check for updates
-    UpdateChecker::CheckForUpdates();
+    if (UpdateChecker::CheckForUpdates()) {
+        return 0;
+    }
 
     // Show main dialog
     xlog::info("Showing main dialog");

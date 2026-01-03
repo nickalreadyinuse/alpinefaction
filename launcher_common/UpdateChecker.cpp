@@ -13,7 +13,7 @@
 // 7 = 1.2.2 (Willow)
 // 8 = 1.3.0 (TBD)
 
-void UpdateChecker::CheckForUpdates()
+bool UpdateChecker::CheckForUpdates()
 {
     // Construct update check URL
     std::string update_url = "https://update.alpinefaction.com/update_check.php?current=" BUILDNUM;
@@ -51,7 +51,7 @@ void UpdateChecker::CheckForUpdates()
         // If response is empty or "0", assume no update
         if (response.empty() || response == "0") {
             xlog::info("No update available.");
-            return;
+            return false;
         }
 
         // If response is "1", notify the user
@@ -66,12 +66,15 @@ void UpdateChecker::CheckForUpdates()
                 // Open update redirect page in default browser
                 std::string redirect_url = "https://update.alpinefaction.com/update_redirect.php?current=" BUILDNUM;
                 ShellExecuteA(nullptr, "open", redirect_url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                return true;
             }
         }
     }
     catch (const std::exception& e) {
         // Log the error and assume no update
         xlog::warn("Update check failed: {}. Assuming no update available.", e.what());
-        return;
+        return false;
     }
+
+    return false;
 }
