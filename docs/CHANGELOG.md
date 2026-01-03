@@ -16,6 +16,7 @@ Version 1.2.2 (Willow): Not yet released
 - Add dynamic light glows from entities that are on fire (Direct3D 11 renderer only)
 - Add `cl_burningentityglow` command
 - Suppress main launcher window if user clicks `OK` to be redirected to download a new Alpine update
+- Add `What's New` window on first launch of launcher after an update has been installed
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
