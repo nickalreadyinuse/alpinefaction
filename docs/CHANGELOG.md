@@ -23,6 +23,7 @@ Version 1.2.2 (Willow): Not yet released
 - Fix `Blue team` and `Red team` labels being swapped in `Scope_Gate` int1 field in level editor
 - Fix crash when gibbing some corpses in single player
 - Fix crash due to overflowing room cache buffer in Direct3D 11 renderer when loading very complex levels
+- Fix label offset for FPS/Ping display when `bighud` is disabled
 
 Version 1.2.1 (Willow): Released Dec-30-2025
 --------------------------------
