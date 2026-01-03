@@ -415,7 +415,7 @@ bool MainDlg::ShouldShowWhatsNew()
 
 std::string MainDlg::FetchWhatsNewContent()
 {
-    constexpr std::string_view kWhatsNewContent = R"(
+    constexpr std::string_view content = R"(
 Thanks for updating, and welcome to Alpine Faction v1.2.2!
 
 Main highlights from this release are listed below. This is is not a complete changelog.
@@ -432,7 +432,7 @@ Fixes:
 If you run into issues, have questions, or just want to join the active community, click the Discord icon in the main launcher window to drop by the Red Faction Community Discord.
 )";
 
-    return std::string{kWhatsNewContent};
+    return std::string{content};
 }
 
 void MainDlg::ClearWhatsNewFlag()
