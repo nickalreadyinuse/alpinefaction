@@ -418,10 +418,10 @@ std::string MainDlg::FetchWhatsNewContent()
     constexpr std::string_view content = R"(
 Thanks for updating, and welcome to Alpine Faction v1.2.2!
 
-Main highlights from this release are listed below. This is is not a complete changelog.
+Highlights from this release are listed below. This is not a complete changelog.
 
 Changes:
-- New event: When_Round_Ends
+- New event for use in custom maps: When_Round_Ends
 - Add dynamic light flashes from explosions
 - Add dynamic light glows from burning entities
 
