@@ -1,10 +1,8 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.2.2 (Willow): Not yet released
+Version 1.2.2 (Willow): Released Jan-04-2025
 --------------------------------
-### Major features
-
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Add values to scope param for `Scope_Gate` event to test for team regardless of whether local player is spawned
@@ -28,8 +26,6 @@ Version 1.2.2 (Willow): Not yet released
 
 Version 1.2.1 (Willow): Released Dec-30-2025
 --------------------------------
-### Major features
-
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Change default spawn delay for KOTH, DC, and ESC from 5, 2.5, 3 seconds respectively to 2 seconds
