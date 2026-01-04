@@ -3,7 +3,7 @@
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
-#define BUILDNUM "6" // build number - tick up during release process
+#define BUILDNUM "7" // build number - tick up during release process
 // 1 = dev/beta builds
 // 2 = 1.0.0 (Maple)
 // 3 = 1.1.0 (Tamarack)
