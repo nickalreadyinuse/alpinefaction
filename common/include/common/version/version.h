@@ -20,7 +20,7 @@
 #define VERSION_PATCH          2
 #define VERSION_TYPE           VERSION_TYPE_DEV
 #define VERSION_TYPE_REVISION  0
-#define VERSION_CODE           "TBD"
+#define VERSION_CODE           "Willow"
 
 // Version used for Alpine settings files
 #define ADS_VERSION            2      // .toml dedicated server config files
