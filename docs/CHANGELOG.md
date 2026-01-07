@@ -1,7 +1,7 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.3.0 (TBD): Not yet released
+Version 1.3.0 (Bakeapple): Not yet released
 --------------------------------
 ### Major features
 
