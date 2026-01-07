@@ -1,5 +1,6 @@
 #include "UpdateChecker.h"
 #include <common/HttpRequest.h>
+#include <common/version/version.h>
 #include <shellapi.h>
 #include <xlog/xlog.h>
 
@@ -20,7 +21,7 @@ bool UpdateChecker::CheckForUpdates()
     xlog::info("Checking for updates...");
 
     // Create an HttpSession
-    HttpSession session("Alpine Faction v1.2.2 Update");
+    HttpSession session(AF_USER_AGENT_SUFFIX("Update"));
 
     try {
         HttpRequest req(update_url, "GET", session);
