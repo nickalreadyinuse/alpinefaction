@@ -361,7 +361,7 @@ std::string replace_html_breaks(const std::string& input)
 void MainDlg::FetchNews()
 {
     try {
-        HttpSession session{"Alpine Faction v1.2.2 News"};
+        HttpSession session{AF_USER_AGENT_SUFFIX("News")};
         HttpRequest req{"https://update.alpinefaction.com/news.php", "GET", session};
         req.send();
 

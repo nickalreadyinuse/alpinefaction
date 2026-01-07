@@ -1,6 +1,16 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
+Version 1.3.0 (TBD): Not yet released
+--------------------------------
+### Major features
+
+### Minor features, changes, and enhancements
+[@GooberRF](https://github.com/GooberRF)
+- Standardize user agent string format across all use cases
+
+### Bug fixes
+
 Version 1.2.2 (Willow): Released Jan-04-2026
 --------------------------------
 ### Minor features, changes, and enhancements
