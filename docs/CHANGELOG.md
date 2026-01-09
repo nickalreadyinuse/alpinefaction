@@ -8,6 +8,8 @@ Version 1.3.0 (Bakeapple): Not yet released
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Standardize user agent string format across all use cases
+- Bump RFL version to 304
+- Support `Alpha` field in `Decal` objects placed in version >= 304 levels (Direct3D 11 renderer only)
 
 ### Bug fixes
 

@@ -13,6 +13,7 @@
 #include "../../rf/gr/gr_light.h"
 #include "../../rf/level.h"
 #include "../../os/console.h"
+#include "../../misc/misc.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_solid.h"
 #include "gr_d3d11_shader.h"
@@ -424,6 +425,9 @@ namespace df::gr::d3d11
             std::size_t start_index = ib_data.size();
             std::size_t base_vertex = vb_data.size();
             for (DecalPoly* dp : dps) {
+                GDecal* decal = dp->my_decal;
+                ubyte alpha = rfl_version_minimum(304) ? decal->alpha : 255;
+                int diffuse = pack_color(Color{255, 255, 255, alpha});
                 auto face = dp->face;
                 auto fvert = face->edge_loop;
                 auto face_start_index = static_cast<ushort>(vb_data.size() - base_vertex);
@@ -435,7 +439,7 @@ namespace df::gr::d3d11
                     gpu_vert.z = fvert->vertex->pos.z;
                     Vector3 normal = calculate_face_vertex_normal(fvert, face);
                     gpu_vert.norm = {normal.x, normal.y, normal.z};
-                    gpu_vert.diffuse = 0xFFFFFFFF;
+                    gpu_vert.diffuse = diffuse;
                     gpu_vert.u0 = dp->uvs[fvert_index].x;
                     gpu_vert.v0 = dp->uvs[fvert_index].y;
                     gpu_vert.u0_pan_speed = 0.0f;
