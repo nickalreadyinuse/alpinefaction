@@ -23,6 +23,35 @@
 #include "object.h"
 #include "object_private.h"
 
+std::string get_object_type_string(int type) {
+    switch (type) {
+    case rf::OT_ENTITY:
+        return "entity";
+    case rf::OT_ITEM:
+        return "item";
+    case rf::OT_WEAPON:
+        return "weapon";
+    case rf::OT_DEBRIS:
+        return "debris";
+    case rf::OT_CLUTTER:
+        return "clutter";
+    case rf::OT_TRIGGER:
+        return "trigger";
+    case rf::OT_EVENT:
+        return "event";
+    case rf::OT_CORPSE:
+        return "corpse";
+    case rf::OT_MOVER:
+        return "mover";
+    case rf::OT_MOVER_BRUSH:
+        return "mover_brush";
+    case rf::OT_GLARE:
+        return "glare";
+    default:
+        return "unknown";
+    }
+}
+
 FunHook<rf::Object*(int, int, int, rf::ObjectCreateInfo*, int, rf::GRoom*)> obj_create_hook{
     0x00486DA0,
     [](int type, int sub_type, int parent, rf::ObjectCreateInfo* create_info, int flags, rf::GRoom* room) {
@@ -30,7 +59,8 @@ FunHook<rf::Object*(int, int, int, rf::ObjectCreateInfo*, int, rf::GRoom*)> obj_
         //xlog::warn("Object create request: type={}, sub_type={}, owner_objh={}, flags={}", type, sub_type, parent, flags);
 
         if (!objp) {
-            xlog::info("Failed to create object (type {})", type);
+            std::string type_str = get_object_type_string(type);
+            xlog::info("Failed to create an object - {} ({} : {})", type_str, type, sub_type);
         }
         return objp;
     },

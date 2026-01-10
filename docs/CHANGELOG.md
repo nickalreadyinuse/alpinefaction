@@ -10,6 +10,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Standardize user agent string format across all use cases
 - Bump RFL version to 304
 - Support `Alpha` field in `Decal` objects placed in version >= 304 levels (Direct3D 11 renderer only)
+- Improve output of object create failure log message
 
 ### Bug fixes
 
