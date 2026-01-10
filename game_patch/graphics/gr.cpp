@@ -539,5 +539,5 @@ void gr_apply_patch()
     precache_rooms_cmd.register_cmd();
 
     // Fix `rf::gr::text_2d_mode`.
-    AsmWriter{0x0050BB40}.push(static_cast<uint8_t>(rf::gr::FOG_NOT_ALLOWED));
+    AsmWriter{0x0050BB40}.push<int8_t>(rf::gr::FOG_NOT_ALLOWED);
 }
