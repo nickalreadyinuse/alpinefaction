@@ -125,6 +125,7 @@ struct AlpineGameSettings
     {
         fps_counter_average_ms = std::clamp(window_ms, min_fps_counter_average_ms, max_fps_counter_average_ms);
     }
+    bool speed_display = false;
     bool ping_display = true;
     bool spectate_mode_minimal_ui = false;
     bool save_console_history = false; // checked before config loaded, must be false here

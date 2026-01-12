@@ -12,6 +12,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Support `Alpha` field in `Decal` objects placed in version >= 304 levels (Direct3D 11 renderer only)
 - Improve output of object create failure log message
 - Add `Players in linked triggers` application setting for `AF_Heal` events
+- Add speed meter to HUD, bind to `ui_show_speed` console command
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
