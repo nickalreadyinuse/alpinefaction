@@ -11,6 +11,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Bump RFL version to 304
 - Support `Alpha` field in `Decal` objects placed in version >= 304 levels (Direct3D 11 renderer only)
 - Improve output of object create failure log message
+- Add `Players in linked triggers` application setting for `AF_Heal` events
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
