@@ -13,6 +13,9 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Improve output of object create failure log message
 
 ### Bug fixes
+[@GooberRF](https://github.com/GooberRF)
+- Fix `AF_Heal` event forwarding received messages
+
 [@is-this-c](https://github.com/is-this-c)
 - Fix faulty cull in fpgun infrared scanners
 
