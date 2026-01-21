@@ -51,6 +51,7 @@ bool g_dedicated_launched_from_ads = false; // was the server launched from an a
 std::string g_ads_config_name = "";
 bool g_ads_minimal_server_info = false;     // print only minimal server info when launching
 bool g_ads_full_console_log = false;        // log full console output to file
+bool g_ads_skip_map_download = false;       // skip map auto-download when launching
 int g_ads_loaded_version = ADS_VERSION;
 
 rf::CmdLineParam& get_ads_cmd_line_param()
@@ -73,6 +74,12 @@ rf::CmdLineParam& get_log_cmd_line_param()
     return log_param;
 }
 
+rf::CmdLineParam& get_nodl_cmd_line_param()
+{
+    static rf::CmdLineParam nodl_param{"-nodl", "", false};
+    return nodl_param;
+}
+
 void handle_min_param()
 {
     g_ads_minimal_server_info = get_min_cmd_line_param().found();
@@ -81,6 +88,11 @@ void handle_min_param()
 void handle_log_param()
 {
     g_ads_full_console_log = get_log_cmd_line_param().found();
+}
+
+void handle_nodl_param()
+{
+    g_ads_skip_map_download = get_nodl_cmd_line_param().found();
 }
 
 static OvertimeConfig parse_overtime_config(const toml::table& t)
@@ -838,7 +850,11 @@ std::optional<ManualRulesOverride> load_rules_preset_alias(std::string_view pres
     }
 }
 
-static void add_level_entry_from_table(AlpineServerConfig& cfg, const toml::table& lvl_tbl, const fs::path& base_dir)
+static void add_level_entry_from_table(
+    AlpineServerConfig& cfg,
+    const toml::table& lvl_tbl,
+    const fs::path& base_dir,
+    bool allow_missing_levels)
 {
     for (auto&& [k, v] : lvl_tbl) {
         const std::string key = std::string(k.str());
@@ -856,8 +872,11 @@ static void add_level_entry_from_table(AlpineServerConfig& cfg, const toml::tabl
 
     rf::File f;
     if (!f.find(tmp_filename.c_str())) {
-        rf::console::print("----> Level {} is not installed!\n\n", tmp_filename);
-        return;
+        if (!allow_missing_levels) {
+            rf::console::print("----> Level {} is not installed!\n", tmp_filename);
+            return;
+        }
+        rf::console::print("----> Level {} is not installed! Server will try to download it from FactionFiles before launch.\n", tmp_filename);
     }
 
     AlpineServerConfigLevelEntry entry;
@@ -986,7 +1005,12 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
 }
 
 // apply base config toml tables
-static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::table& tbl, const fs::path& base_dir)
+static void apply_known_table_in_order(
+    AlpineServerConfig& cfg,
+    const std::string& key,
+    const toml::table& tbl,
+    const fs::path& base_dir,
+    bool allow_missing_levels)
 {
     if (key == "inactivity")
         cfg.inactivity_config = parse_inactivity_config(tbl);
@@ -1030,14 +1054,19 @@ static void apply_known_table_in_order(AlpineServerConfig& cfg, const std::strin
                 if (!elem.is_table())
                     continue;
                 auto& lvl_tbl = *elem.as_table();
-                add_level_entry_from_table(cfg, lvl_tbl, base_dir);
+                add_level_entry_from_table(cfg, lvl_tbl, base_dir, allow_missing_levels);
             }
         }
     }
 }
 
 // apply known array toml nodes
-static void apply_known_array_in_order(AlpineServerConfig& cfg, const std::string& key, const toml::array& arr, const fs::path& base_dir)
+static void apply_known_array_in_order(
+    AlpineServerConfig& cfg,
+    const std::string& key,
+    const toml::array& arr,
+    const fs::path& base_dir,
+    bool allow_missing_levels)
 {
     if (key == "levels") {
         for (auto& elem : arr) {
@@ -1046,14 +1075,18 @@ static void apply_known_array_in_order(AlpineServerConfig& cfg, const std::strin
 
             auto& lvl_tbl = *elem.as_table();
 
-            add_level_entry_from_table(cfg, lvl_tbl, base_dir);
+            add_level_entry_from_table(cfg, lvl_tbl, base_dir, allow_missing_levels);
         }
     }
 }
 
 // unified parser for config files
 static void apply_config_table_in_order(
-    AlpineServerConfig& cfg, const toml::table& tbl, const fs::path& base_dir, ParsePass pass)
+    AlpineServerConfig& cfg,
+    const toml::table& tbl,
+    const fs::path& base_dir,
+    ParsePass pass,
+    bool allow_missing_levels)
 {
     struct Entry
     {
@@ -1097,7 +1130,7 @@ static void apply_config_table_in_order(
         if (auto* arr = v.as_array()) {
             if (key == "levels") {
                 if (pass == ParsePass::Levels)
-                    apply_known_array_in_order(cfg, key, *arr, base_dir);
+                    apply_known_array_in_order(cfg, key, *arr, base_dir, allow_missing_levels);
             }
             continue;
         }
@@ -1107,17 +1140,17 @@ static void apply_config_table_in_order(
             if (key == "levels") {
                 if (pass == ParsePass::Levels) {
                     if (auto nested = sub_tbl->as_array())
-                        apply_known_array_in_order(cfg, key, *nested, base_dir);
+                        apply_known_array_in_order(cfg, key, *nested, base_dir, allow_missing_levels);
                 }
                 continue;
             }
 
             // allow root table workaround to allow root config after subsections in parent toml
             if (key == "root") {
-                apply_config_table_in_order(cfg, *sub_tbl, base_dir, pass);
+                apply_config_table_in_order(cfg, *sub_tbl, base_dir, pass, allow_missing_levels);
             }
             else {
-                apply_known_table_in_order(cfg, key, *sub_tbl, base_dir);
+                apply_known_table_in_order(cfg, key, *sub_tbl, base_dir, allow_missing_levels);
             }
 
             continue;
@@ -1125,7 +1158,7 @@ static void apply_config_table_in_order(
     }
 }
 
-void load_ads_server_config(std::string ads_config_name)
+void load_ads_server_config(std::string ads_config_name, bool allow_missing_levels)
 {
     rf::console::print("Loading and applying server configuration from {}...\n\n", ads_config_name);
 
@@ -1143,13 +1176,39 @@ void load_ads_server_config(std::string ads_config_name)
     const fs::path root_path = fs::weakly_canonical(fs::path(ads_config_name));
 
     // config pass
-    apply_config_table_in_order(cfg, root, root_path.parent_path(), ParsePass::Core);
+    apply_config_table_in_order(cfg, root, root_path.parent_path(), ParsePass::Core, allow_missing_levels);
     // level pass
-    apply_config_table_in_order(cfg, root, root_path.parent_path(), ParsePass::Levels);
+    apply_config_table_in_order(cfg, root, root_path.parent_path(), ParsePass::Levels, allow_missing_levels);
 
     rf::console::print("\n");
 
     g_alpine_server_config = std::move(cfg);
+}
+
+static void download_missing_server_levels()
+{
+    auto& cfg = g_alpine_server_config;
+    if (cfg.levels.empty()) {
+        return;
+    }
+
+    rf::console::print("\nChecking for missing maps on server rotation...\n");
+
+    std::vector<AlpineServerConfigLevelEntry> resolved_levels;
+    resolved_levels.reserve(cfg.levels.size());
+
+    for (auto& entry : cfg.levels) {
+        if (download_level_if_missing(entry.level_filename)) {
+            resolved_levels.push_back(std::move(entry));
+        }
+        else {
+            rf::console::print("--> Skipping level {} (download failed).\n", entry.level_filename);
+            rf::console::print("\n");
+        }
+    }
+
+    cfg.levels = std::move(resolved_levels);
+    rf::console::print("\n");
 }
 
 void print_gungame(std::string& output, const GunGameConfig& cur, const GunGameConfig& base_cfg, bool base = true)
@@ -1792,7 +1851,7 @@ void load_and_print_alpine_dedicated_server_config(std::string ads_config_name, 
     // parse toml file and update values
     // on launch does this before tracker registration
     if (!on_launch) {
-        load_ads_server_config(ads_config_name);
+        load_ads_server_config(ads_config_name, false);
         g_alpine_server_config.printed_cfg.clear();
         cfg.signal_cfg_changed = true;
     }
@@ -1949,7 +2008,8 @@ void launch_alpine_dedicated_server() {
 
     auto& netgame = rf::netgame;
 
-    load_ads_server_config(g_ads_config_name);
+    const bool should_download_maps = !g_ads_skip_map_download;
+    load_ads_server_config(g_ads_config_name, should_download_maps);
     const auto& cfg = g_alpine_server_config;
 
     if (!rf::lan_only_cmd_line_param.found()) {
@@ -1960,7 +2020,14 @@ void launch_alpine_dedicated_server() {
         rf::console::print("If it's not visible, visit alpinefaction.com/help for resources.\n\n");
     }
     else {
-        rf::console::print("Not attempting to register server with public game tracker.\n\n");
+        rf::console::print("Skipping registration with public game tracker because -lanonly switch was used.\n");
+    }
+
+    if (should_download_maps) {
+        download_missing_server_levels();
+    }
+    else {
+        rf::console::print("Skipping autodownload of missing levels because -nodl switch was used.\n");
     }
 
     load_and_print_alpine_dedicated_server_config(g_ads_config_name, true);

@@ -118,6 +118,7 @@ bool version_is_older(int aMaj, int aMin, int bMaj, int bMin);
 void enforce_alpine_hard_reject_for_all_players_on_current_level();
 std::tuple<AlpineRestrictVerdict, std::string, bool> evaluate_alpine_restrict_status(const ClientVersionInfoProfile& info, bool check_level_version);
 void multi_level_download_update();
+bool download_level_if_missing(std::string level_filename);
 void multi_do_patch();
 void multi_after_full_game_init();
 void multi_init_player(rf::Player* player);

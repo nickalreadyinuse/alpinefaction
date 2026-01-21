@@ -12,7 +12,9 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Support `Alpha` field in `Decal` objects placed in version >= 304 levels (Direct3D 11 renderer only)
 - Improve output of object create failure log message
 - Add `Players in linked triggers` application setting for `AF_Heal` events
-- Add speed meter to HUD, bind to `ui_show_speed` console command
+- Add speedometer to HUD, bind to `ui_show_speed` console command
+- Make dedicated servers attempt to autodownload missing maps in their rotation from FactionFiles before launching
+- Add `-nodl` command line argument to make dedicated servers not attempt to autodownload missing maps
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
