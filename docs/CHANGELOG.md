@@ -15,6 +15,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add speedometer to HUD, bind to `ui_show_speed` console command
 - Make dedicated servers attempt to autodownload missing maps in their rotation from FactionFiles before launching
 - Add `-nodl` command line argument to make dedicated servers not attempt to autodownload missing maps
+- Add `exclude_bots_from_player_count` option to dedicated server config to exclude bots from player count reported to clients
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)

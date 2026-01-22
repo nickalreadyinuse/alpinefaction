@@ -668,6 +668,7 @@ struct AlpineServerConfig
     bool allow_disable_muzzle_flash = true;
     bool allow_unlimited_fps = false;
     bool use_sp_damage_calculation = false;
+    bool exclude_bots_from_player_count = false;
     AlpineRestrictConfig alpine_restricted_config;
     InactivityConfig inactivity_config;
     DamageNotificationConfig damage_notification_config;
