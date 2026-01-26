@@ -16,6 +16,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Make dedicated servers attempt to autodownload missing maps in their rotation from FactionFiles before launching
 - Add `-nodl` command line argument to make dedicated servers not attempt to autodownload missing maps
 - Add `exclude_bots_from_player_count` option to dedicated server config to exclude bots from player count reported to clients
+- Add `sv_loadpackfiles` console command to load packfiles newly added to `user_maps` after server was launched
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
