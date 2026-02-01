@@ -49,7 +49,9 @@
 #include "../rf/collide.h"
 #include "../purefaction/pf.h"
 
-const char* g_rcon_cmd_whitelist[] = {
+// all commands that can be used by any rcon profiles
+// full_admin gives access to this entire list
+const std::vector<std::string> g_rcon_cmd_masterlist = {
     "gt",
     "kick",
     "level",
@@ -67,7 +69,8 @@ const char* g_rcon_cmd_whitelist[] = {
     "sv_gametype",
     "sv_geolimit",
     "sv_timelimit",
-    "unban_last"
+    "unban_last",
+    "say"
 };
 
 std::vector<rf::AlpineRespawnPoint> g_alpine_respawn_points;
@@ -137,6 +140,16 @@ void set_manual_rules_override(ManualRulesOverride override_rules)
 void clear_manual_rules_override()
 {
     g_manual_rules_override.reset();
+}
+
+bool is_rcon_command_masterlisted(std::string_view command)
+{
+    for (const auto& allowed : g_rcon_cmd_masterlist) {
+        if (string_iequals(command, allowed)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // Weapon stay exemption part 1: remove item when it is picked up and start respawn timer
@@ -2954,10 +2967,6 @@ void server_init()
 
     // new "info" command for ADS servers
     dcf_info_hook.install();
-
-    // Override rcon command whitelist
-    write_mem_ptr(0x0046C794 + 1, g_rcon_cmd_whitelist);
-    write_mem_ptr(0x0046C7D1 + 2, g_rcon_cmd_whitelist + std::size(g_rcon_cmd_whitelist));
 
     // Additional server config
     dedicated_server_load_config_hook.install(); // asd loading

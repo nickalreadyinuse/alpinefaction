@@ -23,6 +23,7 @@
 #include "server.h"
 #include "server_internal.h"
 #include "alpine_packets.h"
+#include "network.h"
 #include "multi.h"
 #include "../os/console.h"
 #include "../misc/player.h"
@@ -53,6 +54,28 @@ bool g_ads_minimal_server_info = false;     // print only minimal server info wh
 bool g_ads_full_console_log = false;        // log full console output to file
 bool g_ads_skip_map_download = false;       // skip map auto-download when launching
 int g_ads_loaded_version = ADS_VERSION;
+
+// all rcon commands that can be executed when holding the legacy rcon profile
+const std::vector<std::string> g_legacy_rcon_allowed_commands = {
+    "gt",
+    "kick",
+    "level",
+    "sv_pass",
+    "map",
+    "ban",
+    "ban_ip",
+    "map_ext",
+    "map_rest",
+    "map_next",
+    "map_rand",
+    "map_prev",
+    "sv_caplimit",
+    "sv_fraglimit",
+    "sv_gametype",
+    "sv_geolimit",
+    "sv_timelimit",
+    "unban_last"
+};
 
 rf::CmdLineParam& get_ads_cmd_line_param()
 {
@@ -679,6 +702,62 @@ static ClickLimiterConfig parse_click_limiter_config(const toml::table& t)
     return o;
 }
 
+static std::optional<AlpineRconProfile> parse_rcon_profile(const toml::table& t)
+{
+    AlpineRconProfile profile;
+
+    if (auto name = t["name"].value<std::string>()) {
+        profile.name = *name;
+    } else {
+        xlog::warn("rcon profile entry is missing the 'name' field; skipping");
+        return std::nullopt;
+    }
+
+    if (auto password = t["password"].value<std::string>()) {
+        if (password->size() > 15) {
+            xlog::warn("password length for rcon profile '{}' exceeds 15 characters; trimming", profile.name);
+            profile.password.assign(password->substr(0, 15));
+        } else {
+            profile.password = *password;
+        }
+    } else {
+        xlog::warn("rcon profile '{}' is missing the 'password' field; skipping", profile.name);
+        return std::nullopt;
+    }
+
+    if (auto full_admin = t["full_admin"].value<bool>()) {
+        profile.full_admin = *full_admin;
+    }
+    if (auto allow_multiple = t["allow_multiple"].value<bool>()) {
+        profile.allow_multiple = *allow_multiple;
+    }
+
+    if (!profile.full_admin) {
+        if (auto arr = t["allowed_commands"].as_array()) {
+            std::unordered_set<std::string> seen;
+            for (auto&& entry : *arr) {
+                auto cmd = entry.value<std::string>();
+                if (!cmd) {
+                    continue;
+                }
+                std::string normalized = string_to_lower(*cmd);
+                if (!is_rcon_command_masterlisted(normalized)) {
+                    xlog::warn("command '{}' specified for rcon profile '{}' is not supported for rcon; skipping", *cmd, profile.name);
+                    continue;
+                }
+                if (seen.insert(normalized).second) {
+                    profile.allowed_commands.push_back(std::move(normalized));
+                }
+            }
+        }
+    }
+    else if (t.contains("allowed_commands")) {
+        xlog::warn("rcon profile '{}' is a full admin; ignoring allowed_commands", profile.name);
+    }
+
+    return profile;
+}
+
 static DamageNotificationConfig parse_damage_notification_config(const toml::table& t)
 {
     DamageNotificationConfig o;
@@ -1082,6 +1161,17 @@ static void apply_known_array_in_order(
             add_level_entry_from_table(cfg, lvl_tbl, base_dir, allow_missing_levels);
         }
     }
+    else if (key == "rcon_profiles") {
+        for (auto& elem : arr) {
+            if (!elem.is_table())
+                continue;
+
+            auto& profile_tbl = *elem.as_table();
+            if (auto profile = parse_rcon_profile(profile_tbl)) {
+                cfg.rcon_profiles.push_back(std::move(*profile));
+            }
+        }
+    }
 }
 
 // unified parser for config files
@@ -1136,6 +1226,10 @@ static void apply_config_table_in_order(
                 if (pass == ParsePass::Levels)
                     apply_known_array_in_order(cfg, key, *arr, base_dir, allow_missing_levels);
             }
+            else if (key == "rcon_profiles") {
+                if (pass == ParsePass::Core)
+                    apply_known_array_in_order(cfg, key, *arr, base_dir, allow_missing_levels);
+            }
             continue;
         }
 
@@ -1143,6 +1237,13 @@ static void apply_config_table_in_order(
         if (auto* sub_tbl = v.as_table()) {
             if (key == "levels") {
                 if (pass == ParsePass::Levels) {
+                    if (auto nested = sub_tbl->as_array())
+                        apply_known_array_in_order(cfg, key, *nested, base_dir, allow_missing_levels);
+                }
+                continue;
+            }
+            if (key == "rcon_profiles") {
+                if (pass == ParsePass::Core) {
                     if (auto nested = sub_tbl->as_array())
                         apply_known_array_in_order(cfg, key, *nested, base_dir, allow_missing_levels);
                 }
@@ -1184,9 +1285,41 @@ void load_ads_server_config(std::string ads_config_name, bool allow_missing_leve
     // level pass
     apply_config_table_in_order(cfg, root, root_path.parent_path(), ParsePass::Levels, allow_missing_levels);
 
+    // build a legacy rcon profile if rcon_password was specified
+    if (!cfg.rcon_password.empty()) {
+        const auto password = cfg.rcon_password;
+        const auto existing = std::find_if(
+            cfg.rcon_profiles.begin(),
+            cfg.rcon_profiles.end(),
+            [&password](const AlpineRconProfile& profile) {
+                return profile.password == password;
+            });
+        if (existing == cfg.rcon_profiles.end()) {
+            AlpineRconProfile legacy_profile;
+            legacy_profile.name = "legacy";
+            legacy_profile.password = password;
+            legacy_profile.full_admin = false;
+            legacy_profile.allow_multiple = false;
+            legacy_profile.allowed_commands.clear();
+            legacy_profile.allowed_commands.reserve(g_legacy_rcon_allowed_commands.size());
+
+            // add legacy rcon command allow list
+            for (const auto& cmd : g_legacy_rcon_allowed_commands) {
+                std::string normalized = string_to_lower(cmd);
+                if (!is_rcon_command_masterlisted(normalized)) {
+                    continue;
+                }
+                legacy_profile.allowed_commands.push_back(std::move(normalized));
+            }
+
+            cfg.rcon_profiles.push_back(std::move(legacy_profile));
+        }
+    }
+
     rf::console::print("\n");
 
     g_alpine_server_config = std::move(cfg);
+    clear_rcon_profile_sessions();
 }
 
 static void download_missing_server_levels()
@@ -1669,7 +1802,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     std::format_to(iter, "  Server name:                           {}\n", netgame.name);
     if (!sanitize) {
         std::format_to(iter, "  Password:                              {}\n", netgame.password);
-        std::format_to(iter, "  Rcon password:                         {}\n", rf::rcon_password);
+        std::format_to(iter, "  Rcon password (legacy):                {}\n", cfg.rcon_password);
         std::format_to(iter, "  Bot shared secret:                     {}\n", cfg.bot_shared_secret);
     }
     std::format_to(iter, "  Max players:                           {}\n", netgame.max_players);
@@ -1685,6 +1818,30 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     if (!verbose) {
         std::format_to(iter, "\n----> Enter sv_printconfig to print verbose server config.\n\n");
         return;
+    }
+
+    if (!sanitize && !cfg.rcon_profiles.empty()) {
+        std::format_to(iter, "  Rcon profiles:\n");
+        for (const auto& profile : cfg.rcon_profiles) {
+            std::format_to(iter, "    Name:                                {}\n", profile.name);
+            std::format_to(iter, "      Password:                          {}\n", profile.password);
+            std::format_to(iter, "      Full admin:                        {}\n", profile.full_admin);
+            std::format_to(iter, "      Allow multiple:                    {}\n", profile.allow_multiple);
+            if (!profile.full_admin) {
+                std::string allowed;
+                if (profile.allowed_commands.empty()) {
+                    allowed = "<none>";
+                } else {
+                    for (size_t i = 0; i < profile.allowed_commands.size(); ++i) {
+                        if (i > 0) {
+                            allowed.append(", ");
+                        }
+                        allowed.append(profile.allowed_commands[i]);
+                    }
+                }
+                std::format_to(iter, "      Allowed commands:                  {}\n", allowed);
+            }
+        }
     }
 
     std::format_to(iter, "  Gaussian bullet spread:                {}\n", cfg.gaussian_spread);

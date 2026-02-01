@@ -18,6 +18,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `exclude_bots_from_player_count` option to dedicated server config to exclude bots from player count reported to clients
 - Add `sv_loadpackfiles` console command to load packfiles newly added to `user_maps` after server was launched
 - Allow `GibEnemy` achievement to be awarded regardless of whether gore level allows the entity to actually gib
+- Support rcon profiles for dedicated servers
 
 [@is-this-c](https://github.com/is-this-c)
 - Default gore level to 1 instead of 2 when creating new `alpine_settings.ini` files

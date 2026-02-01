@@ -652,12 +652,22 @@ struct AlpineServerConfigLevelEntry
     std::vector<std::pair<std::filesystem::path, std::optional<std::string>>> applied_rules_preset_paths;
 };
 
+struct AlpineRconProfile
+{
+    std::string name;
+    std::string password;
+    bool full_admin = false;
+    bool allow_multiple = false;
+    std::vector<std::string> allowed_commands;
+};
+
 struct AlpineServerConfig
 {
     std::string server_name = "Alpine Faction Server";
     int max_players = 8;
     std::string password = "";
     std::string rcon_password = "";
+    std::vector<AlpineRconProfile> rcon_profiles;
     uint32_t bot_shared_secret = 0;
     bool upnp_enabled = false;
     bool require_client_mod = true;
@@ -775,6 +785,7 @@ enum class UpcomingGameTypeSelection {
 
 const rf::NetGameType get_upcoming_game_type();
 UpcomingGameTypeSelection get_upcoming_game_type_selection();
+bool is_rcon_command_masterlisted(std::string_view command);
 bool set_upcoming_game_type(rf::NetGameType gt, UpcomingGameTypeSelection selection = UpcomingGameTypeSelection::Rotation);
 void apply_defaults_for_game_type(rf::NetGameType game_type, AlpineServerConfigRules& rules);
 void cleanup_win32_server_console();
