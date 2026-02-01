@@ -22,7 +22,8 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Support `info` command execution via rcon to display server information
 
 [@is-this-c](https://github.com/is-this-c)
-- Default gore level to 1 instead of 2 when creating new `alpine_settings.ini` files
+- Add `Server version:` to a server's printed config
+- Default gore level to 1
 - Default `gibbing` to disabled for dedicated servers
 
 ### Bug fixes
