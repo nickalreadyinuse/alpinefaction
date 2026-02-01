@@ -26,6 +26,9 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Default gore level to 1
 - Default `gibbing` to disabled for dedicated servers
 
+[@natarii](https://github.com/natarii)
+- Implement FFLink client functionality in launcher
+
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix `AF_Heal` event forwarding received messages
