@@ -52,13 +52,14 @@
 // all commands that can be used by any rcon profiles
 // full_admin gives access to this entire list
 const std::vector<std::string> g_rcon_cmd_masterlist = {
-    "gt",
+    "info",
+    "say",
     "kick",
-    "level",
-    "sv_pass",
-    "map",
     "ban",
     "ban_ip",
+    "unban_last",
+    "level",
+    "map",
     "map_ext",
     "map_rest",
     "map_next",
@@ -67,10 +68,10 @@ const std::vector<std::string> g_rcon_cmd_masterlist = {
     "sv_caplimit",
     "sv_fraglimit",
     "sv_gametype",
+    "gt",
     "sv_geolimit",
+    "sv_pass",
     "sv_timelimit",
-    "unban_last",
-    "say"
 };
 
 std::vector<rf::AlpineRespawnPoint> g_alpine_respawn_points;
@@ -273,16 +274,14 @@ int get_level_file_version(const std::string& file_name)
     return static_cast<int>(version);
 }
 
-void print_player_info(rf::Player* player, bool new_join) {
+std::string build_player_info_line(rf::Player* player, bool new_join) {
     const bool is_bot = player->is_bot;
 
     if (player == rf::local_player) {
         if (is_bot) {
-            rf::console::print("- {} (local bot)", player->name);
-        } else {
-            rf::console::print("- {} (local player)", player->name);
+            return std::format("- {} (local bot)", player->name);
         }
-        return;
+        return std::format("- {} (local player)", player->name);
     }
 
     std::string name = player->name;
@@ -296,8 +295,7 @@ void print_player_info(rf::Player* player, bool new_join) {
 
     // clients have only limited info
     if (!rf::is_server) {
-        rf::console::print("- {} | Ping: {}", name, player->net_data->ping);
-        return;
+        return std::format("- {} | Ping: {}", name, player->net_data->ping);
     }
 
     std::string client_info;
@@ -321,77 +319,83 @@ void print_player_info(rf::Player* player, bool new_join) {
     auto player_addr = player->net_data->addr;
     addr.S_un.S_addr = ntohl(player_addr.ip_addr);
     if (new_join) {
-        rf::console::print("===| {}{} | IP: {}:{} | {} | Max RFL: {} |===",
+        return std::format("===| {}{} | IP: {}:{} | {} | Max RFL: {} |===",
             name, rf::strings::has_joined, inet_ntoa(addr), player->net_data->addr.port, client_info, player->version_info.max_rfl_ver);
     }
-    else {
-        rf::console::print("- {} | IP: {}:{} | {} | Max RFL: {} | Ping: {} | HC: {}%",
-            name, inet_ntoa(addr), player->net_data->addr.port, client_info, player->version_info.max_rfl_ver, player->net_data->ping, player->damage_handicap);
-    }
+    return std::format("- {} | IP: {}:{} | {} | Max RFL: {} | Ping: {} | HC: {}%",
+        name, inet_ntoa(addr), player->net_data->addr.port, client_info, player->version_info.max_rfl_ver, player->net_data->ping, player->damage_handicap);
 }
 
-void print_all_player_info() {
+std::string build_all_player_info_output() {
     if (!rf::player_list) {
-        rf::console::print("No players are currently connected!");
-        return;
+        return "No players are currently connected!\n";
     }
 
     auto player_list = SinglyLinkedList{rf::player_list};
-
-    rf::console::print("Connected players:");    
+    std::string output = "Connected players:\n";
 
     for (auto& player : player_list) {
-        print_player_info(&player, false);
+        output += build_player_info_line(&player, false);
+        output += "\n";
     }
+    return output;
+}
+
+std::string build_info_command_output() {
+    std::string output;
+    int64_t total_sec = static_cast<int64_t>(rf::level.time);
+    int days = int(total_sec / 86'400);
+    int hours = int((total_sec / 3'600) % 24);
+    int minutes = int((total_sec / 60) % 60);
+    int seconds = int(total_sec % 60);
+
+    output += "====================================================\n";
+    if (rf::level.flags & rf::LEVEL_LOADED) {
+        std::format_to(std::back_inserter(output), "{}: {} by {} ({})\n", rf::strings::level_name, rf::level.name, rf::level.author, rf::level.filename);
+        std::format_to(std::back_inserter(output), "{}:  {} {}, {}h {}m {}s\n", rf::strings::level_time, days, rf::strings::days, hours, minutes, seconds);
+        std::format_to(std::back_inserter(output), "{}: {}\n", "Game type", multi_game_type_name(rf::netgame.type));
+    }
+    else {
+        output += "No level loaded\n";
+    }
+
+    std::string framerate_line;
+    bool is_server = rf::is_multi && (rf::is_server || rf::is_dedicated_server);
+    if (is_server) {
+        framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max) | NetFPS: {}\n",
+            rf::frametime,
+            rf::current_fps,
+            rf::is_dedicated_server ? g_alpine_game_config.server_max_fps : g_alpine_game_config.max_fps,
+            g_alpine_game_config.server_netfps
+        );
+    }
+    else {
+        if (rf::local_player) {
+            std::format_to(std::back_inserter(output), "Local player name: {}\n", rf::local_player->name);
+        }
+
+        framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max)\n",
+            rf::frametime, rf::current_fps, g_alpine_game_config.max_fps);
+    }
+    output += framerate_line;
+
+    output += "====================================================\n";
+
+    if (rf::is_multi) {
+        output += "\n";
+        output += build_all_player_info_output();
+    }
+    return output;
+}
+
+void print_player_info(rf::Player* player, bool new_join) {
+    rf::console::print("{}", build_player_info_line(player, new_join));
 }
 
 FunHook<void ()> dcf_info_hook{
     0x00486050,
     []() {
-        int64_t total_sec = static_cast<int64_t>(rf::level.time);
-        int days = int(total_sec / 86'400);
-        int hours = int((total_sec / 3'600) % 24);
-        int minutes = int((total_sec / 60) % 60);
-        int seconds = int(total_sec % 60);
-
-        rf::console::print("====================================================");
-        if (rf::level.flags & rf::LEVEL_LOADED) {
-            rf::console::print("{}: {} by {} ({})\n", rf::strings::level_name, rf::level.name, rf::level.author, rf::level.filename);
-
-            auto time_line = std::format("{}:  {} {}, {}h {}m {}s\n", rf::strings::level_time, days, rf::strings::days, hours, minutes, seconds);
-            rf::console::print("{}", time_line);
-
-            rf::console::print("{}: {}\n", "Game type", multi_game_type_name(rf::netgame.type));
-        }
-        else {
-            rf::console::print("No level loaded\n");
-        }
-
-        std::string framerate_line = "";
-        bool is_server = rf::is_multi && (rf::is_server || rf::is_dedicated_server);
-        if (is_server) {
-            framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max) | NetFPS: {}\n",
-                rf::frametime,
-                rf::current_fps,
-                rf::is_dedicated_server ? g_alpine_game_config.server_max_fps : g_alpine_game_config.max_fps,
-                g_alpine_game_config.server_netfps
-            );
-        }
-        else {
-            if (rf::local_player)
-                rf::console::print("Local player name: {}\n", rf::local_player->name);
-
-            framerate_line = std::format("Framerate: {:.3f} | FPS: {:.0f} ({} max)\n",
-                rf::frametime, rf::current_fps, g_alpine_game_config.max_fps);
-        }            
-        rf::console::print("{}", framerate_line);
-
-        rf::console::print("====================================================\n");
-
-        if (rf::is_multi) {
-            rf::console::print("\n");
-            print_all_player_info();
-        }
+        rf::console::print("{}", build_info_command_output());
     },
 };
 

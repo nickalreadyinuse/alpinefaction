@@ -834,3 +834,4 @@ std::optional<rf::NetGameType> resolve_gametype_from_name(std::string_view gamet
 bool multi_set_gametype_alpine(std::string_view gametype_name);
 bool is_gametype_name_valid(std::string_view gametype_name);
 void launch_alpine_dedicated_server();
+std::string build_info_command_output();

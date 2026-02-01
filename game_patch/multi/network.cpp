@@ -847,7 +847,14 @@ CodeInjection process_rcon_packet_injection{
 
                     if (check_result == RconCommandCheckResult::Allowed) {
                         std::string payload_str{payload.value()};
-                        rf::console::do_command(payload_str.c_str());
+                        // special handling for "info" command, so rcon holder gets server output
+                        if (cmd_lower == "info") {
+                            send_rcon_feedback(*addr, build_info_command_output());
+                        }
+                        // otherwise just execute it on the server
+                        else {
+                            rf::console::do_command(payload_str.c_str());
+                        }
                         rf::console::print("{} issued command '{}' via rcon, successfully executed", rcon_player_name(*addr), payload.value());
                         send_rcon_feedback(*addr, std::format("Rcon command '{}' executed successfully.", payload.value()));
                     }
