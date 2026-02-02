@@ -20,6 +20,8 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Allow `GibEnemy` achievement to be awarded regardless of whether gore level allows the entity to actually gib
 - Support rcon profiles for dedicated servers
 - Support `info` command execution via rcon to display server information
+- Add `sv_checkmaps` console command to check all maps in server rotation against autodownloader database
+- Use unqiue user agents for clients vs. dedicated servers when communicating with FactionFiles autodownloader API
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `Server version:` to a server's printed config

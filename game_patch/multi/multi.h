@@ -127,6 +127,8 @@ const std::optional<AlpineFactionServerInfo>& get_af_server_info();
 std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable();
 void multi_level_download_do_frame();
 void multi_level_download_abort();
+bool rotation_autodl_in_progress();
+void rotation_autodl_start(size_t levels_count, std::vector<std::string> unique_levels);
 void multi_ban_apply_patch();
 int get_level_file_version(const std::string& file_name);
 void print_player_info(rf::Player* player, bool new_join);

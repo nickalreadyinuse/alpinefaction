@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <unzip.h>
 #include <xlog/xlog.h>
+#include <unordered_set>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/FunHook.h>
@@ -27,6 +28,8 @@
 #include "../hud/hud.h"
 #include "multi.h"
 #include "faction_files.h"
+
+static std::future<void> g_rotation_autodl_future;
 
 static bool is_vpp_filename(const char* filename)
 {
@@ -705,4 +708,66 @@ void multi_level_download_update()
 void multi_level_download_abort()
 {
     LevelDownloadManager::instance().abort();
+}
+
+bool rotation_autodl_in_progress()
+{
+    using namespace std::chrono_literals;
+    return g_rotation_autodl_future.valid() && g_rotation_autodl_future.wait_for(0ms) != std::future_status::ready;
+}
+
+void rotation_autodl_start(size_t levels_count, std::vector<std::string> unique_levels)
+{
+    if (g_rotation_autodl_future.valid()) {
+        using namespace std::chrono_literals;
+        if (g_rotation_autodl_future.wait_for(0ms) == std::future_status::ready) {
+            g_rotation_autodl_future.get();
+        }
+    }
+
+    g_rotation_autodl_future = std::async(std::launch::async,
+        [levels_count, unique_levels = std::move(unique_levels)]() mutable {
+            try {
+                FactionFilesClient ff_client;
+                constexpr size_t MAX_LEVELS_SINGLE_BATCH = 50;
+                std::vector<std::string> missing_levels;
+                std::unordered_set<std::string> missing_level_keys;
+                missing_levels.reserve(unique_levels.size());
+                missing_level_keys.reserve(unique_levels.size());
+
+                for (size_t start = 0; start < unique_levels.size(); start += MAX_LEVELS_SINGLE_BATCH) {
+                    const size_t end = std::min(start + MAX_LEVELS_SINGLE_BATCH, unique_levels.size());
+                    std::vector<std::string> batch(unique_levels.begin() + static_cast<std::ptrdiff_t>(start),
+                                                   unique_levels.begin() + static_cast<std::ptrdiff_t>(end));
+                    std::vector<bool> availability = ff_client.check_maps(batch);
+
+                    for (size_t i = 0; i < batch.size(); ++i) {
+                        if (i < availability.size() && availability[i]) {
+                            continue;
+                        }
+
+                        const auto& filename = batch[i];
+                        std::string key = string_to_lower(filename);
+                        if (missing_level_keys.insert(key).second) {
+                            missing_levels.push_back(filename);
+                        }
+                    }
+                }
+
+                if (missing_levels.empty()) {
+                    rf::console::print("{} unique levels on server rotation. All are available for autodownload from FactionFiles.",
+                        unique_levels.size());
+                    return;
+                }
+
+                rf::console::print("{} unique levels on server rotation. {} are NOT available for autodownload from FactionFiles:",
+                    unique_levels.size(), missing_levels.size());
+                for (const auto& missing : missing_levels) {
+                    rf::console::print("  {}", missing);
+                }
+            }
+            catch (const std::exception& ex) {
+                rf::console::print("Failed to check levels on FactionFiles: {}\n", ex.what());
+            }
+        });
 }

@@ -919,6 +919,46 @@ ConsoleCommand2 alpine_restrict_status_cmd{
     "sv_restrict_status",
 };
 
+ConsoleCommand2 checkmaps_cmd{
+    "sv_checkmaps",
+    []() {
+        if (!rf::is_dedicated_server) {
+            rf::console::print("This command is only available for dedicated servers.\n");
+            return;
+        }
+
+        const auto& levels = g_alpine_server_config.levels;
+        if (levels.empty()) {
+            rf::console::print("Server rotation is empty.\n");
+            return;
+        }
+
+        if (rotation_autodl_in_progress()) {
+            rf::console::print("FactionFiles autodownload check is already running.\n");
+            return;
+        }
+
+        rf::console::print("Checking FactionFiles for {} levels. This may take a moment...", levels.size());
+
+        std::vector<std::string> unique_levels;
+        std::unordered_map<std::string, size_t> unique_level_index;
+        unique_levels.reserve(levels.size());
+        unique_level_index.reserve(levels.size());
+
+        for (const auto& entry : levels) {
+            std::string filename = entry.level_filename;
+            std::string key = string_to_lower(filename);
+            if (unique_level_index.emplace(key, unique_levels.size()).second) {
+                unique_levels.push_back(std::move(filename));
+            }
+        }
+
+        rotation_autodl_start(levels.size(), std::move(unique_levels));
+    },
+    "Check whether any levels on the server rotation are unavailable for autodownload from FactionFiles.",
+    "sv_checkmaps",
+};
+
 void multi_change_level_alpine(const char* filename) {
     const bool have_name = (filename && filename[0] != '\0');
 
@@ -3064,8 +3104,9 @@ void server_init()
 
     // console commands
     sv_game_type_cmd.register_cmd();
-    alpine_restrict_status_cmd.register_cmd();
     gt_cmd.register_cmd();
+    alpine_restrict_status_cmd.register_cmd();
+    checkmaps_cmd.register_cmd();
 }
 
 void server_do_frame()
