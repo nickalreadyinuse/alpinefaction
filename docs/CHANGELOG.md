@@ -24,6 +24,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Use unqiue user agents for clients vs. dedicated servers when communicating with FactionFiles autodownloader API
 - Add `dbg_togglerendering` and `dbg_togglesound` commands, persist in `alpine_settings.ini`
 - Add `BackgroundMouse` to `alpine_settings.ini` to control whether mouse is hooked when process is in the background
+- Add `mp_character` console command to set multiplayer character by index
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `Server version:` to a server's printed config
