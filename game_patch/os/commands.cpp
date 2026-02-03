@@ -521,6 +521,7 @@ void console_commands_init()
     register_builtin_command("teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
     register_builtin_command("sp_levelhardness", "Set default hardness for geomods", 0x004663E0);
     register_builtin_command("save_commands", "Print all console commands to a text file named console_commands.txt", 0x00509920);
+    register_builtin_command("script", "Run a console script file from the game root directory", 0x0050B7D0);
 
 #ifdef DEBUG
     register_builtin_command("drop_fixed_cam", "Drop a fixed camera", 0x0040D220);
@@ -561,7 +562,6 @@ void console_commands_init()
     register_builtin_command("loadgame", "Load a game", 0x004B34C0);
     register_builtin_command("show_obj_times", "Set the number of portal objects to show times for", 0x004D3250);
     // Some commands does not use console_exec variables and were not added e.g. 004D3290
-    register_builtin_command("script", "Runs a console script file (.vcs)", 0x0050B7D0);
     register_builtin_command("screen_res", nullptr, 0x0050E400);
     register_builtin_command("wfar", nullptr, 0x005183D0);
     register_builtin_command("play_bik", nullptr, 0x00520A70);
