@@ -51,6 +51,19 @@ jobs:
         mkdir -p $WINEPREFIX
         cmake --build . -j $(nproc)
 
+    - name: Install to staging (dist)
+      working-directory: ./build
+      run: |
+        cmake --install . --prefix "$GITHUB_WORKSPACE/dist/mingw"
+
+    - name: Upload artifact (MinGW)
+      uses: actions/upload-artifact@v4
+      with:
+        name: alpinefaction-mingw
+        path: dist/mingw/**
+        if-no-files-found: error
+        retention-days: 14
+
   build-msvc:
     runs-on: windows-2025
 
@@ -84,3 +97,16 @@ jobs:
       run: |
         Launch-VsDevShell -HostArch amd64 -Arch x86 -SkipAutomaticLocation
         cmake --build . -j $env:NUMBER_OF_PROCESSORS
+
+    - name: Install to staging (dist)
+      working-directory: ./build
+      run: |
+        cmake --install . --prefix "$env:GITHUB_WORKSPACE\dist\msvc"
+
+    - name: Upload artifact (MSVC)
+      uses: actions/upload-artifact@v4
+      with:
+        name: alpinefaction-msvc
+        path: dist/msvc/**
+        if-no-files-found: error
+        retention-days: 14
