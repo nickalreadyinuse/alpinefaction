@@ -58,7 +58,7 @@ jobs:
         out="$GITHUB_WORKSPACE/dist/mingw"
         mkdir -p "$out"
 
-        want=(AlpineFaction.dll AlpineEditor.dll AlpineFactionLauncher.exe CrashHandler.exe d3d8to9.dll)
+        want=(AlpineFaction.dll AlpineEditor.dll AlpineFactionLauncher.exe CrashHandler.exe d3d8to9.dll alpinefaction.vpp)
 
         for f in "${want[@]}"; do
           src="$(find "$GITHUB_WORKSPACE/build" -type f -name "$f" -print -quit || true)"
@@ -127,7 +127,8 @@ jobs:
           "AlpineEditor.dll",
           "AlpineFactionLauncher.exe",
           "CrashHandler.exe",
-          "d3d8to9.dll"
+          "d3d8to9.dll",
+          "alpinefaction.vpp"
         )
 
         foreach ($f in $want) {
