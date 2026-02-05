@@ -1021,7 +1021,7 @@ bool alpine_player_settings_load(rf::Player* player)
     // apply loaded graphics options
     rf::player_settings_apply_graphics_options(player);
 
-    rf::console::printf("Successfully loaded settings from %s", filename);
+    rf::console::printf("Successfully loaded settings from %s", filename.c_str());
     g_loaded_alpine_settings_file = true;
     return true;
 }
