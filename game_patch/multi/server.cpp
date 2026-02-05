@@ -1030,6 +1030,11 @@ bool handle_server_chat_command(std::string_view server_command, rf::Player* sen
     else if (cmd_name == "dropflag") {
         handle_drop_flag_request(sender);
     }
+    else if (cmd_name == "coinflip") {
+        std::uniform_int_distribution<int> dist(0, 1);
+        const char* result = dist(g_rng) == 0 ? "HEADS" : "TAILS";
+        af_broadcast_automated_chat_msg(std::format("Server is flipping a coin... the result is {}", result));
+    }
     else {
         return false;
     }
