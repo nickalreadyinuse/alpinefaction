@@ -3,153 +3,262 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/MemUtils.h>
 #include <xlog/xlog.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include "level.h"
 #include "vtypes.h"
 #include "mfc_types.h"
 #include "resources.h"
 
-// Code to support saving/loading new dash props chunk currently unneeded
-// Level editor saves RFL v300, which always support full range lights
-/*
-constexpr std::size_t level_dash_props_offset = 0x608;
-constexpr std::size_t level_dialog_offset = 0x270;
-constexpr int dash_level_props_chunk_id = 0xDA58FA00;
+// Forward declarations
+int get_level_rfl_version();
+void set_initial_level_rfl_version();
 
-struct LevelDashProps
-{
-    bool lightmaps_full_depth = true;
-
-    void ResetBackwardCompatible()
-    {
-        lightmaps_full_depth = false;
-    }
-
-    void Serialize(rf::File& file) const
-    {
-        file.write<std::uint8_t>(lightmaps_full_depth);
-    }
-
-    void Deserialize(rf::File& file)
-    {
-        lightmaps_full_depth = file.read<std::uint8_t>();
-        xlog::debug("lightmaps_full_depth {}", lightmaps_full_depth);
-    }
-};
-
-struct CRedLevel
-{
-    [[nodiscard]] std::size_t BeginRflSection(rf::File& file, int chunk_id)
-    {
-        return AddrCaller{0x00430B60}.this_call<std::size_t>(this, &file, chunk_id);
-    }
-
-    void EndRflSection(rf::File& file, std::size_t start_pos)
-    {
-        return AddrCaller{0x00430B90}.this_call(this, &file, start_pos);
-    }
-
-    LevelDashProps& GetDashProps()
-    {
-        return struct_field_ref<LevelDashProps>(this, level_dash_props_offset);
-    }
-
-    static CRedLevel* Get()
-    {
-        return AddrCaller{0x004835F0}.c_call<CRedLevel*>();
-    }
-};
-
-CodeInjection CRedLevel_ct_inj{
+// add AlpineLevelProperties chunk after stock game chunks when creating a new level
+CodeInjection CDedLevel_construct_patch{
     0x004181B8,
     [](auto& regs) {
+        set_initial_level_rfl_version();
         std::byte* level = regs.esi;
-        new (&level[level_dash_props_offset]) LevelDashProps();
+        new (&level[stock_cdedlevel_size]) AlpineLevelProperties();
     },
 };
 
-CodeInjection CRedLevel_LoadLevel_inj0{
+// load default AlpineLevelProperties values
+CodeInjection CDedLevel_LoadLevel_patch1{
     0x0042F136,
     []() {
-        CRedLevel::Get()->GetDashProps().ResetBackwardCompatible();
+        CDedLevel::Get()->GetAlpineLevelProperties().LoadDefaults();
     },
 };
 
-CodeInjection CRedLevel_LoadLevel_inj1{
+// load AlpineLevelProperties chunk from rfl file
+CodeInjection CDedLevel_LoadLevel_patch2{
     0x0042F2D4,
     [](auto& regs) {
-        auto& level = *static_cast<CRedLevel*>(regs.ebp);
         auto& file = *static_cast<rf::File*>(regs.esi);
-        int chunk_id = regs.edi;
-        std::size_t chunk_size = regs.ebx;
-        if (chunk_id == dash_level_props_chunk_id) {
-            auto& dash_level_props = level.GetDashProps();
-            int version = file.read<std::uint32_t>();
-            if (version == 1) {
-                dash_level_props.Deserialize(file);
-            } else {
-                file.seek(chunk_size - 4, rf::File::seek_cur);
+
+        // Alpine level properties chunk was introduced in rfl v302, no point looking for it before that
+        if (file.check_version(302)) {
+            auto& level = *static_cast<CDedLevel*>(regs.ebp);
+            int chunk_id = regs.edi;
+            std::size_t chunk_size = regs.ebx;
+            if (chunk_id == alpine_props_chunk_id) {
+                auto& alpine_level_props = level.GetAlpineLevelProperties();
+                alpine_level_props.Deserialize(file, chunk_size);
+                regs.eip = 0x0043090C;
             }
-            regs.eip = 0x0043090C;
         }
     },
 };
 
-CodeInjection CRedLevel_SaveLevel_inj{
+// save AlpineLevelProperties when saving rfl file
+CodeInjection CDedLevel_SaveLevel_patch{
     0x00430CBD,
     [](auto& regs) {
-        auto& level = *static_cast<CRedLevel*>(regs.edi);
+        auto& level = *static_cast<CDedLevel*>(regs.edi);
         auto& file = *static_cast<rf::File*>(regs.esi);
-        auto start_pos = level.BeginRflSection(file, dash_level_props_chunk_id);
-        auto& dash_level_props = level.GetDashProps();
-        file.write<std::uint32_t>(1);
-        dash_level_props.Serialize(file);
+        auto start_pos = level.BeginRflSection(file, alpine_props_chunk_id);
+        auto& alpine_level_props = level.GetAlpineLevelProperties();
+        alpine_level_props.Serialize(file);
         level.EndRflSection(file, start_pos);
     },
 };
 
-CodeInjection CLevelDialog_OnInitDialog_inj{
+// load AlpineLevelProperties settings when opening level properties dialog
+CodeInjection CLevelDialog_OnInitDialog_patch{
     0x004676C0,
     [](auto& regs) {
         HWND hdlg = WndToHandle(regs.esi);
-        auto& dash_level_props = CRedLevel::Get()->GetDashProps();
-        CheckDlgButton(hdlg, IDC_LEVEL_LIGHTMAPS_FULL_DEPTH, dash_level_props.lightmaps_full_depth ? BST_CHECKED : BST_UNCHECKED);
+        int level_version = get_level_rfl_version();
+        std::string version = std::to_string(level_version);
+        SetDlgItemTextA(hdlg, IDC_LEVEL_VERSION, version.c_str());
+
+        auto& alpine_level_props = CDedLevel::Get()->GetAlpineLevelProperties();
+        CheckDlgButton(hdlg, IDC_LEGACY_CYCLIC_TIMERS, alpine_level_props.legacy_cyclic_timers ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hdlg, IDC_LEGACY_MOVERS, alpine_level_props.legacy_movers ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hdlg, IDC_STARTS_WITH_HEADLAMP, alpine_level_props.starts_with_headlamp ? BST_CHECKED : BST_UNCHECKED);
+        CheckDlgButton(hdlg, IDC_OVERRIDE_MESH_AMBIENT_LIGHT_MODIFIER, alpine_level_props.override_static_mesh_ambient_light_modifier ? BST_CHECKED : BST_UNCHECKED);
+        char buffer[32];
+        std::snprintf(buffer, sizeof(buffer), "%.3f", alpine_level_props.static_mesh_ambient_light_modifier);
+        SetDlgItemTextA(hdlg, IDC_MESH_AMBIENT_LIGHT_MODIFIER, buffer);
     },
 };
 
-CodeInjection CLevelDialog_OnOK_inj{
+// save AlpineLevelProperties settings when closing level properties dialog
+CodeInjection CLevelDialog_OnOK_patch{
     0x00468470,
     [](auto& regs) {
         HWND hdlg = WndToHandle(regs.ecx);
-        auto& dash_level_props = CRedLevel::Get()->GetDashProps();
-        dash_level_props.lightmaps_full_depth = IsDlgButtonChecked(hdlg, IDC_LEVEL_LIGHTMAPS_FULL_DEPTH) == BST_CHECKED;
+        auto& alpine_level_props = CDedLevel::Get()->GetAlpineLevelProperties();
+        alpine_level_props.legacy_cyclic_timers = IsDlgButtonChecked(hdlg, IDC_LEGACY_CYCLIC_TIMERS) == BST_CHECKED;
+        alpine_level_props.legacy_movers = IsDlgButtonChecked(hdlg, IDC_LEGACY_MOVERS) == BST_CHECKED;
+        alpine_level_props.starts_with_headlamp = IsDlgButtonChecked(hdlg, IDC_STARTS_WITH_HEADLAMP) == BST_CHECKED;
+        alpine_level_props.override_static_mesh_ambient_light_modifier = IsDlgButtonChecked(hdlg, IDC_OVERRIDE_MESH_AMBIENT_LIGHT_MODIFIER) == BST_CHECKED;
+        char buffer[64] = {};
+        GetDlgItemTextA(hdlg, IDC_MESH_AMBIENT_LIGHT_MODIFIER, buffer, static_cast<int>(sizeof(buffer)));
+        char* end = nullptr;
+        float modifier = std::strtof(buffer, &end);
+        if (end != buffer && std::isfinite(modifier)) {
+            if (modifier < 0.0f) {
+                modifier = 0.0f;
+            }
+            alpine_level_props.static_mesh_ambient_light_modifier = modifier;
+        }
     },
 };
-*/
+
+static bool is_link_allowed(const DedObject* src, const DedObject* dst)
+{
+    const auto t0 = src->type;
+    const auto t1 = dst->type;
+
+    return
+        t0 == DedObjectType::DED_TRIGGER ||
+        t0 == DedObjectType::DED_EVENT ||
+        (t0 == DedObjectType::DED_NAV_POINT && t1 == DedObjectType::DED_EVENT) ||
+        (t0 == DedObjectType::DED_CLUTTER && t1 == DedObjectType::DED_LIGHT);
+}
+
+void DedLevel_DoLinkImpl(CDedLevel* level, bool reverse_link_direction)
+{
+    auto& sel = level->selection;
+    const int count = sel.get_size();
+
+    if (count < 2) {
+        g_main_frame->DedMessageBox(
+            "You must select at least 2 objects to create a link.",
+            "Error",
+            0
+        );
+        return;
+    }
+
+    DedObject* primary = sel[0];
+    if (!primary) {
+        g_main_frame->DedMessageBox(
+            "You must select at least 2 objects to create a link.",
+            "Error",
+            0
+        );
+        return;
+    }
+
+    int num_success = 0;
+    std::vector<int> attempted_uids;
+
+    for (int i = 1; i < count; ++i) {
+        DedObject* src = reverse_link_direction ? sel[i] : primary;
+        DedObject* dst = reverse_link_direction ? primary : sel[i];
+        if (!src || !dst) {
+            continue;
+        }
+
+        if (!is_link_allowed(src, dst)) {
+            xlog::warn(
+                "DoLink: disallowed type combination src_type={} dst_type={}",
+                static_cast<int>(src->type),
+                static_cast<int>(dst->type)
+            );
+            continue;
+        }
+
+        attempted_uids.push_back(reverse_link_direction ? src->uid : dst->uid);
+
+        int old_size = src->links.get_size();
+        int idx = src->links.add_if_not_exists_int(dst->uid);
+
+        if (idx < 0) {
+            xlog::warn("DoLink: Failed to add link src_uid={} dst_uid={}", src->uid, dst->uid);
+        }
+        else if (idx >= old_size) {
+            ++num_success;
+            xlog::debug("DoLink: Added new link src_uid={} -> dst_uid={}", src->uid, dst->uid);
+        }
+        else {
+            xlog::debug("DoLink: Link already existed src_uid={} -> dst_uid={}", src->uid, dst->uid);
+        }
+    }
+
+    if (num_success == 0) {
+        std::string uid_list;
+        for (size_t i = 0; i < attempted_uids.size(); ++i) {
+            if (i > 0) {
+                uid_list += ", ";
+            }
+            uid_list += std::to_string(attempted_uids[i]);
+        }
+
+        std::string msg;
+        if (!attempted_uids.empty()) {
+            if (reverse_link_direction) {
+                msg = "All links to selected destination UID " +
+                        std::to_string(primary->uid) +
+                        " from valid source UID(s) " +
+                        uid_list +
+                        " already exist.";
+            } else {
+                msg = "All links from selected source UID " +
+                        std::to_string(primary->uid) +
+                        " to valid destination UID(s) " +
+                        uid_list +
+                        " already exist.";
+            }
+        } else {
+            if (reverse_link_direction) {
+                msg = "No valid link combinations were found for selected destination UID " +
+                    std::to_string(primary->uid) +
+                    ".";
+            } else {
+                msg = "No valid link combinations were found for selected source UID " +
+                    std::to_string(primary->uid) +
+                    ".";
+            }
+        }
+
+        g_main_frame->DedMessageBox(msg.c_str(), "Error", 0);
+        return;
+    }
+}
+
+void __fastcall CDedLevel_DoLink_new(CDedLevel* this_);
+FunHook<decltype(CDedLevel_DoLink_new)> CDedLevel_DoLink_hook{
+    0x00415850,
+    CDedLevel_DoLink_new,
+};
+void __fastcall CDedLevel_DoLink_new(CDedLevel* this_)
+{
+    DedLevel_DoLinkImpl(this_, false);
+}
+
+void DedLevel_DoBackLink()
+{
+    DedLevel_DoLinkImpl(CDedLevel::Get(), true);
+}
 
 void ApplyLevelPatches()
 {
-    // Save/load additional level properties
-    /* write_mem<std::uint32_t>(0x0041C906 + 1, 0x668 + sizeof(LevelDashProps));
-    CRedLevel_ct_inj.install();
-    CRedLevel_LoadLevel_inj0.install();
-    CRedLevel_LoadLevel_inj1.install();
-    CRedLevel_SaveLevel_inj.install();
-    CLevelDialog_OnInitDialog_inj.install();
-    CLevelDialog_OnOK_inj.install();
-    */
+    // include space for default AlpineLevelProperties chunk in newly created rfls
+    write_mem<std::uint32_t>(0x0041C906 + 1, 0x668 + sizeof(AlpineLevelProperties));
+
+    // handle AlpineLevelProperties chunk
+    CDedLevel_construct_patch.install();
+    CDedLevel_LoadLevel_patch1.install();
+    CDedLevel_LoadLevel_patch2.install();
+    CDedLevel_SaveLevel_patch.install();
+    CLevelDialog_OnInitDialog_patch.install();
+    CLevelDialog_OnOK_patch.install();
 
     // Avoid clamping lightmaps when loading rfl files
     AsmWriter{0x004A5D6A}.jmp(0x004A5D6E);
 
-    // Default level ambient light and fog color to flat black
-    constexpr std::uint8_t default_ambient_light = 0;
+    // Default level fog color to flat black
     constexpr std::uint8_t default_fog = 0;
-    write_mem<std::uint8_t>(0x0041CABD + 1, default_ambient_light);
-    write_mem<std::uint8_t>(0x0041CABF + 1, default_ambient_light);
-    write_mem<std::uint8_t>(0x0041CAC1 + 1, default_ambient_light);
-    write_mem<std::uint8_t>(0x0041CAD3 + 1, default_ambient_light);
-    write_mem<std::uint8_t>(0x0041CAD5 + 1, default_ambient_light);
-    write_mem<std::uint8_t>(0x0041CAD7 + 1, default_ambient_light);
     write_mem<std::uint8_t>(0x0041CB07 + 1, default_fog);
     write_mem<std::uint8_t>(0x0041CB09 + 1, default_fog);
     write_mem<std::uint8_t>(0x0041CB0B + 1, default_fog);
+
+    // Allow creating multiple links in a single operation
+    CDedLevel_DoLink_hook.install();
 }

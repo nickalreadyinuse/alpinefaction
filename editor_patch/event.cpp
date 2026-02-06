@@ -25,6 +25,7 @@
 #include "../game_patch/rf/os/array.h"
 #include "exports.h"
 #include "resources.h"
+#include "level.h"
 #include "mfc_types.h"
 #include "vtypes.h"
 #include "event.h"
@@ -34,7 +35,7 @@
 
 // Custom event support
 constexpr int original_event_count = 89;
-constexpr int new_event_count = 38; // must be 1 higher than actual count
+constexpr int new_event_count = 46; // must be 1 higher than actual count
 constexpr int total_event_count = original_event_count + new_event_count;
 std::unique_ptr<const char*[]> extended_event_names; // array to hold original + additional event names
 
@@ -77,6 +78,14 @@ const char* additional_event_names[new_event_count] = {
     "Light_State",
     "World_HUD_Sprite",
     "Set_Light_Color",
+    "Capture_Point_Handler",
+    "Respawn_Point_State",
+    "Modify_Respawn_Point",
+    "When_Captured",
+    "Set_Capture_Point_Owner",
+    "Owner_Gate",
+    "Set_Gameplay_Rule",
+    "When_Round_Ends",
     "_dummy"
 };
 
@@ -395,9 +404,11 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
                 "Dedicated server",
                 "Client",
                 "Triggering player",
-                "Red team",
+                "Blue team (spawned)",
+                "Red team (spawned)",
+                "Player that has flag",
                 "Blue team",
-                "Player that has flag"
+                "Red team"
                 }
             }
         },
@@ -456,7 +467,14 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         },
         {
             {FIELD_INT1,
-            {"Deathmatch", "Capture the Flag", "Team Deathmatch"}}
+            {"Deathmatch",
+            "Capture the Flag",
+            "Team Deathmatch",
+            "King of the Hill",
+            "Damage Control",
+            "Revolt",
+            "Run",
+            "Escalation"}}
         },
         {
             {FIELD_INT1, true}
@@ -548,7 +566,8 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
             "Teammates",
             "Enemy team",
             "Players on red team",
-            "Players on blue team"}}
+            "Players on blue team",
+            "Players in linked triggers"}}
         },
         {
             {FIELD_INT2, true}
@@ -578,6 +597,69 @@ std::map<AlpineDedEventID, FieldConfig> eventFieldConfigs = {
         {
             {FIELD_STR1, "Light color (str1):"},
             {FIELD_BOOL1, "Random color instead (bool1):"}
+        }
+    }},
+    {AlpineDedEventID::Capture_Point_Handler, {
+        {FIELD_STR1, FIELD_FLOAT1, FIELD_FLOAT2, FIELD_INT1, FIELD_INT2, FIELD_BOOL1},
+        {
+            {FIELD_STR1, "Name (str1):"},
+            {FIELD_FLOAT1, "Outline offset (float1):"},
+            {FIELD_FLOAT2, "Cap rate multiplier (float2):"},
+            {FIELD_INT1, "Stage (used in REV):"},
+            {FIELD_INT2, "Position (used in ESC):"},
+            {FIELD_BOOL1, "Cylindrical trigger:"}
+        },
+        {
+            {FIELD_INT2,
+            {"Basic/Center", "Red base", "Blue base", "Red forward", "Blue forward"}}
+        },
+        {
+            {FIELD_INT2, true}
+        }
+    }},
+    {AlpineDedEventID::Modify_Respawn_Point, {
+        {FIELD_BOOL1, FIELD_BOOL2},
+        {
+            {FIELD_BOOL1, "Red team (bool1):"},
+            {FIELD_BOOL2, "Blue team (bool2):"},
+        }
+    }},
+    {AlpineDedEventID::Set_Capture_Point_Owner, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Owner (int1):"},
+        },
+        {
+            {FIELD_INT1,
+            {"Neutral", "Red", "Blue"}}
+        },
+        {
+            {FIELD_INT1, true}
+        }
+    }},
+    {AlpineDedEventID::Owner_Gate, {
+        {FIELD_INT1, FIELD_INT2},
+        {
+            {FIELD_INT1, "Handler UID (int1):"},
+            {FIELD_INT2, "Required owner (int2):"}
+        },
+        {
+            {FIELD_INT2, {"Neutral", "Red", "Blue"}}
+        },
+        {
+            {FIELD_INT2, true}
+        }
+    }},
+    {AlpineDedEventID::Set_Gameplay_Rule, {
+        {FIELD_INT1},
+        {
+            {FIELD_INT1, "Rule to set (int1):"}
+        },
+        {
+            {FIELD_INT1, {"Player has headlamp"}}
+        },
+        {
+            {FIELD_INT1, true}
         }
     }},
 };

@@ -2,27 +2,156 @@ name: CI
 
 on:
   push:
+    paths-ignore: &paths
+      - '**.md'
   pull_request:
+    paths-ignore: *paths
+
+permissions: {}
 
 env:
   BUILD_TYPE: Release
+  SCCACHE_GHA_ENABLED: 'true'
 
 jobs:
-  build-msvc:
-    runs-on: windows-latest
+  build-mingw:
+    runs-on: ubuntu-24.04
+    # ubuntu-24.04 contains an outdated MinGW.
+    container:
+      image: debian:trixie
 
     steps:
     - uses: actions/checkout@v4
+    - uses: mozilla-actions/sccache-action@v0.0.9
 
-    - name: Create Build Environment
-      run: cmake -E make_directory ${{github.workspace}}/build
+    - name: Install packages
+      run: |
+        dpkg --add-architecture i386
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+          g++-mingw-w64-i686-posix ninja-build wine32 wine cmake ca-certificates
+
+    - name: Create build environment
+      run: cmake -E make_directory ./build
 
     - name: Configure CMake
-      shell: cmd
-      working-directory: ${{github.workspace}}/build
-      run: cmake .. -A Win32
+      working-directory: ./build
+      run: |
+        cmake .. \
+          -G Ninja \
+          -D CMAKE_C_COMPILER_LAUNCHER=sccache \
+          -D CMAKE_CXX_COMPILER_LAUNCHER=sccache \
+          -D CMAKE_BUILD_TYPE=$BUILD_TYPE \
+          -D CMAKE_TOOLCHAIN_FILE=../cmake/mingw-ubuntu.cmake
 
     - name: Build
-      shell: cmd
-      working-directory: ${{github.workspace}}/build
-      run: cmake --build . --config %BUILD_TYPE% -j 4
+      working-directory: ./build
+      run: |
+        export WINEPREFIX=$GITHUB_WORKSPACE/.wine
+        mkdir -p $WINEPREFIX
+        cmake --build . -j $(nproc)
+
+    - name: Stage artifacts (dist)
+      shell: bash
+      run: |
+        set -euo pipefail
+        out="$GITHUB_WORKSPACE/dist/mingw"
+        mkdir -p "$out"
+
+        want=(AlpineFaction.dll AlpineEditor.dll AlpineFactionLauncher.exe CrashHandler.exe d3d8to9.dll alpinefaction.vpp)
+
+        for f in "${want[@]}"; do
+          src="$(find "$GITHUB_WORKSPACE/build" -type f -name "$f" -print -quit || true)"
+          if [ -z "$src" ]; then
+            echo "[ERROR] Missing $f (not found under build/)"
+            echo "Dumping likely output dirs:"
+            find "$GITHUB_WORKSPACE/build" -maxdepth 3 -type d -print
+            exit 1
+          fi
+          cp -f "$src" "$out/$f"
+        done
+
+        echo "Staged:"
+        ls -la "$out"
+
+    - name: Upload artifact (MinGW)
+      uses: actions/upload-artifact@v4
+      with:
+        name: alpinefaction-mingw
+        path: dist/mingw/**
+        if-no-files-found: error
+        retention-days: 14
+
+  build-msvc:
+    runs-on: windows-2025
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Install Ninja
+      run: choco install ninja
+
+    - name: Add Launch-VsDevShell to PATH
+      run: |
+        $vs = (Get-CimInstance MSFT_VSInstance -Namespace root/cimv2/vs).InstallLocation
+        Write-Output (Join-Path $vs Common7\Tools) >> $env:GITHUB_PATH
+
+    - name: Create build environment
+      run: cmake -E make_directory .\build
+
+    - name: Configure CMake
+      working-directory: ./build
+      run: |
+        Launch-VsDevShell -HostArch amd64 -Arch x86 -SkipAutomaticLocation
+        cmake .. `
+          -G Ninja `
+          -D CMAKE_C_COMPILER_LAUNCHER=sccache `
+          -D CMAKE_CXX_COMPILER_LAUNCHER=sccache `
+          -D CMAKE_BUILD_TYPE="$env:BUILD_TYPE"
+
+    - name: Build
+      working-directory: ./build
+      run: |
+        Launch-VsDevShell -HostArch amd64 -Arch x86 -SkipAutomaticLocation
+        cmake --build . -j $env:NUMBER_OF_PROCESSORS
+
+    - name: Stage artifacts (dist)
+      shell: pwsh
+      run: |
+        $out = Join-Path $env:GITHUB_WORKSPACE "dist\msvc"
+        New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+        $want = @(
+          "AlpineFaction.dll",
+          "AlpineEditor.dll",
+          "AlpineFactionLauncher.exe",
+          "CrashHandler.exe",
+          "d3d8to9.dll",
+          "alpinefaction.vpp"
+        )
+
+        foreach ($f in $want) {
+          $src = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE "build") -Recurse -File -Filter $f -ErrorAction SilentlyContinue |
+                 Select-Object -First 1
+
+          if (-not $src) {
+            Write-Error "Missing $f (not found under build/)"
+            Write-Output "Top-level build dirs:"
+            Get-ChildItem (Join-Path $env:GITHUB_WORKSPACE "build") -Directory | Format-Table -AutoSize
+            exit 1
+          }
+
+          Copy-Item -Force $src.FullName (Join-Path $out $f)
+        }
+
+        Write-Output "Staged:"
+        Get-ChildItem $out | Format-Table -AutoSize
+
+    - name: Upload artifact (MSVC)
+      uses: actions/upload-artifact@v4
+      with:
+        name: alpinefaction-msvc
+        path: dist/msvc/**
+        if-no-files-found: error
+        retention-days: 14

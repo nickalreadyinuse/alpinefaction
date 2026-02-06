@@ -13,6 +13,7 @@
 #include "../rf/weapon.h"
 #include "../rf/player/player.h"
 #include "../misc/achievements.h"
+#include "../misc/misc.h"
 #include "../multi/server.h"
 
 int item_lookup_type(const char* name)
@@ -23,7 +24,7 @@ int item_lookup_type(const char* name)
     auto name_view = std::string_view(name);
     auto it =
         std::find_if(std::begin(rf::item_info), std::begin(rf::item_info) + rf::num_item_types, [name_view](const rf::ItemInfo& item) {
-            return string_equals_ignore_case(name_view, item.cls_name);
+            return string_iequals(name_view, item.cls_name);
         });
 
     return (it != std::begin(rf::item_info) + rf::num_item_types)
@@ -97,43 +98,67 @@ CodeInjection game_level_init_pre_patch{
 };
 
 CodeInjection item_pickup_patch {
-    0x004597BA, [](auto& regs) {
+    0x004597BA,
+    [](auto& regs) {
+        if (!rf::is_multi) {
+            bool picked_up = regs.eax != -1;
 
-        bool picked_up = regs.eax != -1;
+            if (picked_up)
+            {
+                rf::Item* item = regs.esi;
+                rf::Entity* entity = regs.edi;
+                if (item && entity && entity == rf::local_player_entity) {
+                    //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
+                    if (is_achievement_system_initialized()) {
+                        achievement_check_item_picked_up(item);
+                    }
 
-        if (picked_up && !rf::is_multi)
-        {
-            rf::Item* item = regs.esi;
-            rf::Entity* entity = regs.edi;
-            if (item && entity && entity == rf::local_player_entity) {
-                //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
-                if (is_achievement_system_initialized()) {
-                    achievement_check_item_picked_up(item);
+                    rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
                 }
-
-                rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
             }
         }
     }
 };
 
 CodeInjection item_pickup_patch2 {
-    0x004597D8, [](auto& regs) {
+    0x004597D8,
+    [](auto& regs) {
+        if (!rf::is_multi) {
+            bool picked_up = regs.eax != -1;
 
-        bool picked_up = regs.eax != -1;
+            if (picked_up)
+            {
+                rf::Item* item = regs.esi;
+                rf::Entity* entity = regs.edi;
+                if (item && entity && entity == rf::local_player_entity) {
+                    //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
+                    if (is_achievement_system_initialized()) {
+                        achievement_check_item_picked_up(item);
+                    }
 
-        if (picked_up && !rf::is_multi)
-        {
-            rf::Item* item = regs.esi;
-            rf::Entity* entity = regs.edi;
-            if (item && entity && entity == rf::local_player_entity) {
-                //xlog::warn("player {} picked up item {}, uid {}, handle {}", entity->name, item->name, item->uid, item->handle);
-                if (is_achievement_system_initialized()) {
-                    achievement_check_item_picked_up(item);
+                    rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
                 }
-
-                rf::activate_all_events_of_type(rf::EventType::When_Picked_Up, item->handle, entity->handle, true);
             }
+        }
+    }
+};
+
+CodeInjection item_touch_amp_multi_check {
+    0x0045AAFD,
+    [](auto& regs) {
+        if (!rf::is_multi && af_rfl_version(rf::level.version)) {
+            regs.eip = 0x0045AB11;
+        }
+    }
+};
+
+CodeInjection multi_powerup_add_mp_check {
+    0x004800B5,
+    [](auto& regs) {
+        // eax bool is true if powerup has an associated timer (ie. amp/invuln)
+        // for some reason, only for powerups without timer, game checks again here for mp
+        if (!static_cast<bool>(regs.eax.value) && !rf::is_multi) {
+            regs.eip = 0x00480135;
         }
     }
 };
@@ -144,10 +169,10 @@ void item_do_patch()
     item_pickup_patch.install();
     item_pickup_patch2.install();
 
-    // allow picking up powerups in SP // todo: restrict to Alpine levels
-    AsmWriter(0x0045AAFD).jmp(0x0045AB11); // allow item_touch_multi_amp in SP
-    AsmWriter(0x0048012B).jmp(0x00480135); // allow multi_powerup_add in SP
-    game_level_init_pre_patch.install();   // initialize powerup vars in SP
+    // allow use of MP powerups in SP in alpine levels
+    item_touch_amp_multi_check.install();   // touch
+    multi_powerup_add_mp_check.install();   // apply effect
+    game_level_init_pre_patch.install();    // initialize powerup vars
 
     // Allow overriding weapon items count value
     item_touch_weapon_hook.install();

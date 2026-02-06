@@ -49,11 +49,11 @@ namespace rf
     enum EventFlags : int
     {
         EVENT_FLAG_PAUSED = 0x1,
-#ifdef DASH_FACTION
+#ifdef ALPINE_FACTION
         EVENT_FLAG_QUEUED = 0x2
 #endif
     };
-
+#pragma pack(push, 1)
     struct Event : Object
     {
         int event_type;
@@ -164,10 +164,12 @@ namespace rf
 
 
     };
-    static_assert(sizeof(Event) == 0x2B8); // 0x2B5 in original code
+    static_assert(sizeof(Event) == 0x2B5);
 
     struct GenericEvent : Event
     {
+        // in original code Event is aligned to 1 byte and size 0x2B5, but GenericEvent is aligned to 4 bytes
+        char padding[3];
         char event_specific_data[24];
     };
     static_assert(sizeof(GenericEvent) == 0x2D0);
@@ -179,6 +181,7 @@ namespace rf
         int count;
     };
     static_assert(sizeof(PersistentGoalEvent) == 0x10);
+#pragma pack(pop)
 
     static auto& event_lookup_from_uid = addr_as_ref<Event*(int uid)>(0x004B6820);
     static auto& event_lookup_from_handle = addr_as_ref<Event*(int handle)>(0x004B6800);
@@ -194,6 +197,9 @@ namespace rf
     static auto& event_lookup_persistent_goal_event = addr_as_ref<PersistentGoalEvent*(const char* name)>(0x004B8680);
     static auto& event_list = addr_as_ref<VArray<Event*>>(0x00856470);
     static auto& event_type_forwards_messages = addr_as_ref<bool(int event_type)>(0x004B8C40);
+    static auto& event_activate_from_trigger = addr_as_ref<void(int event_handle, int trigger_handle, int triggered_by_handle)>(0x004B6760);
+    
+    static auto& Event__process = addr_as_ref<void __fastcall(rf::Event*)>(0x004B8CE0);
 
     // applies only to game, not level editor
     // original game events use a different order entirely in level editor, AF events in RED use the same
@@ -326,7 +332,15 @@ namespace rf
         Anchor_Marker_Orient,
         Light_State,
         World_HUD_Sprite,
-        Set_Light_Color
+        Set_Light_Color,
+        Capture_Point_Handler,
+        Respawn_Point_State,
+        Modify_Respawn_Point,
+        When_Captured,
+        Set_Capture_Point_Owner,
+        Owner_Gate,
+        Set_Gameplay_Rule,
+        When_Round_Ends
     };
 
     // int to EventType

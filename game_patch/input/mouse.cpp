@@ -44,7 +44,7 @@ FunHook<void()> mouse_eval_deltas_hook{
     0x0051DC70,
     []() {
         // disable mouse when window is not active
-        if (rf::os_foreground()) {
+        if (rf::os_foreground() || g_alpine_game_config.background_mouse) {
             mouse_eval_deltas_hook.call_target();
         }
     },
@@ -54,6 +54,9 @@ FunHook<void()> mouse_eval_deltas_di_hook{
     0x0051DEB0,
     []() {
         mouse_eval_deltas_di_hook.call_target();
+
+        // Fix invalid mouse scroll delta, when DirectInput is turned off.
+        rf::mouse_old_z = rf::mouse_wheel_pos;
 
         // center cursor if in game
         if (rf::keep_mouse_centered) {

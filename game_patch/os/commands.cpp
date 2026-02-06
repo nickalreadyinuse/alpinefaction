@@ -1,8 +1,14 @@
+#include <patch_common/FunHook.h>
+#include <patch_common/CallHook.h>
+#include <patch_common/AsmWriter.h>
 #include <common/config/BuildConfig.h>
 #include <common/version/version.h>
+#include <common/utils/list-utils.h>
+#include <algorithm>
 #include "console.h"
 #include "../misc/alpine_options.h"
 #include "../misc/alpine_settings.h"
+#include "../misc/level.h"
 #include "../main/main.h"
 #include "../rf/player/camera.h"
 #include "../rf/multi.h"
@@ -13,20 +19,19 @@
 #include "../rf/character.h"
 #include "../misc/misc.h"
 #include "../misc/vpackfile.h"
-#include <common/utils/list-utils.h>
-#include <algorithm>
-#include <patch_common/FunHook.h>
-#include <patch_common/CallHook.h>
-#include <patch_common/FunHook.h>
-#include <patch_common/AsmWriter.h>
 
 ConsoleCommand2 dot_cmd{
     ".",
-    [](std::string pattern) {
-        for (i32 i = 0; i < rf::console::num_commands; ++i) {
-            rf::console::Command* cmd = g_commands_buffer[i];
-            if (string_contains_ignore_case(cmd->name, pattern)) {
-                rf::console::print("{}", cmd->name);
+    [] (const std::string pattern) {
+        for (int i = 0; i < rf::console::num_commands; ++i) {
+            const rf::console::Command* const cmd = g_commands_buffer[i];
+            if (string_icontains(cmd->name, pattern)
+                || (cmd->help && string_icontains(cmd->help, pattern))) {
+                if (cmd->help) {
+                    rf::console::print("{} - {}", cmd->name, cmd->help);
+                } else {
+                    rf::console::print("{}", cmd->name);
+                }
             }
         }
     },
@@ -141,24 +146,6 @@ ConsoleCommand2 level_info_cmd{
     "level_info",
     []() {
         if (rf::level.flags & rf::LEVEL_LOADED) {
-            print_basic_level_info();
-        }
-        else {
-            rf::console::print("No level loaded!");
-        }
-    },
-    "Shows basic information about the current level",
-};
-
-DcCommandAlias map_info_cmd{
-    "map_info",
-    level_info_cmd,
-};
-
-ConsoleCommand2 level_info_ext_cmd{
-    "level_info_ext",
-    []() {
-        if (rf::level.flags & rf::LEVEL_LOADED) {
             print_basic_level_info(); // print basic info before continuing
 
             rf::console::print("Has Skybox? {}", rf::level.has_skyroom);
@@ -169,82 +156,95 @@ ConsoleCommand2 level_info_ext_cmd{
                 rf::level.distance_fog_color.red, rf::level.distance_fog_color.green, rf::level.distance_fog_color.blue,
                 rf::level.distance_fog_near_clip, rf::level.distance_fog_far_clip);
 
+            // Alpine level properties
+            const auto& level_props = AlpineLevelProperties::instance();
+            rf::console::print("Alpine level properties:");
+            rf::console::print("- Alpine props chunk version: {}", level_props.chunk_version > 0 ? std::to_string(level_props.chunk_version) : "not found");
+            rf::console::print("- Legacy cyclic timers: {}", level_props.legacy_cyclic_timers);
+            rf::console::print("- Legacy movers: {}", level_props.legacy_movers);
+            rf::console::print("- Starts with headlamp: {}", level_props.starts_with_headlamp);
+            rf::console::print("- Override static mesh ambient light scale: {}", level_props.override_static_mesh_ambient_light_modifier);
+            rf::console::print("- Mesh static ambient light scale: {}", level_props.static_mesh_ambient_light_modifier);
+
+            // Dash level properties (if found)
+            const auto& dash_level_props = DashLevelProps::instance();
+            if (dash_level_props.chunk_version > 0) {
+                rf::console::print("Dash level properties:");
+                rf::console::print("- Dash props chunk version: {}", dash_level_props.chunk_version);
+                rf::console::print("- Lightmaps full depth: {}", dash_level_props.lightmaps_full_depth);
+            }
+
             // Lightmap clamping floor
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor)) {
-                uint32_t clamp_floor = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampFloor);
+                uint32_t clamp_floor = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampFloor);
                 auto [r, g, b, _] = extract_color_components(clamp_floor);
                 rf::console::print("Lightmap clamping floor: {}, {}, {}", r, g, b);
             }
 
             // Lightmap clamping ceiling
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling)) {
-                uint32_t clamp_ceiling = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::LightmapClampCeiling);
+                uint32_t clamp_ceiling = get_level_info_value<uint32_t>(AlpineLevelInfoID::LightmapClampCeiling);
                 auto [r, g, b, _] = extract_color_components(clamp_ceiling);
                 rf::console::print("Lightmap clamping ceiling: {}, {}, {}", r, g, b);
             }
 
             // Player headlamp color
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor)) {
-                uint32_t headlamp_color = get_level_info_value<uint32_t>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampColor);
+                uint32_t headlamp_color = get_level_info_value<uint32_t>(AlpineLevelInfoID::PlayerHeadlampColor);
                 auto [r, g, b, _] = extract_color_components(headlamp_color);
                 rf::console::print("Player headlamp color: {}, {}, {}", r, g, b);
             }
 
             // Player headlamp intensity
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity)) {
-                float headlamp_intensity = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampIntensity);
+                float headlamp_intensity = get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampIntensity);
                 rf::console::print("Player headlamp intensity: {}", headlamp_intensity);
             }
 
             // Player headlamp range
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange)) {
-                float headlamp_range = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRange);
+                float headlamp_range = get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampRange);
                 rf::console::print("Player headlamp range: {}", headlamp_range);
             }
 
             // Player headlamp radius
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius)) {
-                float headlamp_radius = get_level_info_value<float>(rf::level.filename, AlpineLevelInfoID::PlayerHeadlampRadius);
+                float headlamp_radius = get_level_info_value<float>(AlpineLevelInfoID::PlayerHeadlampRadius);
                 rf::console::print("Player headlamp radius: {}", headlamp_radius);
             }
 
             // Ideal player count
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::IdealPlayerCount)) {
-                int player_count = get_level_info_value<int>(rf::level.filename, AlpineLevelInfoID::IdealPlayerCount);
+                int player_count = get_level_info_value<int>(AlpineLevelInfoID::IdealPlayerCount);
                 rf::console::print("Ideal player count: {}", player_count);
             }
 
             // Author contact
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::AuthorContact)) {
-                std::string author_contact = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::AuthorContact);
+                std::string author_contact = get_level_info_value<std::string>(AlpineLevelInfoID::AuthorContact);
                 rf::console::print("Author contact: {}", author_contact);
             }
 
             // Author website
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::AuthorWebsite)) {
-                std::string author_website = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::AuthorWebsite);
+                std::string author_website = get_level_info_value<std::string>(AlpineLevelInfoID::AuthorWebsite);
                 rf::console::print("Author website: {}", author_website);
             }
 
             // Description
             if (g_alpine_level_info_config.is_option_loaded(rf::level.filename, AlpineLevelInfoID::Description)) {
-                std::string desc = get_level_info_value<std::string>(rf::level.filename, AlpineLevelInfoID::Description);
+                std::string desc = get_level_info_value<std::string>(AlpineLevelInfoID::Description);
                 rf::console::print("Level description: {}", desc);
             }
 
             // Mesh replacements
-            const auto& level_mesh_replacements = g_alpine_level_info_config.mesh_replacements;
-            auto mesh_replacements_it = level_mesh_replacements.find(rf::level.filename);
+            const auto& replacements = g_alpine_level_info_config.mesh_replacements;
 
-            if (mesh_replacements_it != level_mesh_replacements.end()) {
-                const auto& replacements = mesh_replacements_it->second;
+            if (!replacements.empty()) {
+                rf::console::print("Mesh replacements:");
 
-                if (!replacements.empty()) {
-                    rf::console::print("Mesh replacements:");
-
-                    for (const auto& [original_mesh, replacement_mesh] : replacements) {
-                        rf::console::print(" - {} -> {}", original_mesh, replacement_mesh);
-                    }
+                for (const auto& [original_mesh, replacement_mesh] : replacements) {
+                    rf::console::print(" - {} -> {}", original_mesh, replacement_mesh);
                 }
             }
         }
@@ -252,12 +252,12 @@ ConsoleCommand2 level_info_ext_cmd{
             rf::console::print("No level loaded!");
         }
     },
-    "Shows extended information about the current level",
+    "Shows information about the current level",
 };
 
-DcCommandAlias map_info_ext_cmd{
-    "map_info_ext",
-    level_info_ext_cmd,
+DcCommandAlias map_info_cmd{
+    "map_info",
+    level_info_cmd,
 };
 
 ConsoleCommand2 version_cmd{
@@ -328,7 +328,27 @@ ConsoleCommand2 server_rcon_password_cmd{
         }
     },
     "Set or remove the server rcon password.",
-    "server_rcon_password <password>",
+    "sv_rconpass <password>",
+};
+
+ConsoleCommand2 server_load_user_maps_cmd{
+    "sv_loadpackfiles",
+    []() {
+        if (!rf::is_multi || !rf::is_dedicated_server) {
+            rf::console::print("This command can only be run on a dedicated server!");
+            return;
+        }
+
+        int loaded = vpackfile_load_user_maps_packfiles();
+        if (loaded == 0) {
+            rf::console::print("No new packfiles found in user_maps\\");
+            return;
+        }
+
+        rf::console::print("Loaded {} new packfile(s) from user_maps\\", loaded);
+    },
+    "Load any packfiles newly added to user_maps\\ since the server was launched",
+    "sv_loadpackfiles",
 };
 
 // only allow verify_level if a level is loaded (avoid a crash if command is run in menu)
@@ -417,7 +437,7 @@ void handle_camera_command(FunHook<void()>& hook)
     std::string helper_text =
         (current_mode == rf::CAMERA_FIRST_PERSON) ? "" : " Use `camera1` to return to first person.";
 
-    rf::console::print("Camera mode set to {}.{}", mode_text, helper_text);    
+    rf::console::print("Camera mode set to {}.{}", mode_text, helper_text);
 }
 
 FunHook<void()> camera1_cmd_hook{0x00431270, []() { handle_camera_command(camera1_cmd_hook); }};
@@ -459,15 +479,12 @@ void console_commands_apply_patches()
     // Allow 'level' command outside of multiplayer game
     AsmWriter(0x00434FEC, 0x00434FF2).nop();
 
-    // restrict risky commands in mp unless debug build
-#ifdef NDEBUG
     drop_clutter_hook.install();
     drop_entity_hook.install();
     drop_item_hook.install();
     //pcollide_hook.install();
     teleport_hook.install();
     level_hardness_hook.install();
-#endif
 }
 
 void console_commands_init()
@@ -504,6 +521,7 @@ void console_commands_init()
     register_builtin_command("teleport", "Teleport player to specific coordinates (format: X Y Z)", 0x004A0FC0);
     register_builtin_command("sp_levelhardness", "Set default hardness for geomods", 0x004663E0);
     register_builtin_command("save_commands", "Print all console commands to a text file named console_commands.txt", 0x00509920);
+    register_builtin_command("script", "Run a console script file from the game root directory", 0x0050B7D0);
 
 #ifdef DEBUG
     register_builtin_command("drop_fixed_cam", "Drop a fixed camera", 0x0040D220);
@@ -544,7 +562,6 @@ void console_commands_init()
     register_builtin_command("loadgame", "Load a game", 0x004B34C0);
     register_builtin_command("show_obj_times", "Set the number of portal objects to show times for", 0x004D3250);
     // Some commands does not use console_exec variables and were not added e.g. 004D3290
-    register_builtin_command("script", "Runs a console script file (.vcs)", 0x0050B7D0);
     register_builtin_command("screen_res", nullptr, 0x0050E400);
     register_builtin_command("wfar", nullptr, 0x005183D0);
     register_builtin_command("play_bik", nullptr, 0x00520A70);
@@ -563,12 +580,11 @@ void console_commands_init()
     map_cmd.register_cmd();
     level_info_cmd.register_cmd();
     map_info_cmd.register_cmd();
-    level_info_ext_cmd.register_cmd();
-    map_info_ext_cmd.register_cmd();
     version_cmd.register_cmd();
     dbg_berserk_cmd.register_cmd();
     server_password_cmd.register_cmd();
     server_rcon_password_cmd.register_cmd();
+    server_load_user_maps_cmd.register_cmd();
     verify_level_cmd_hook.install();
     autosave_cmd.register_cmd();
 

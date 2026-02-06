@@ -56,6 +56,7 @@ namespace rf
     {
         FACE_SHOW_SKY = 1,
         FACE_LIQUID = 0x4,
+        FACE_FULL_BRIGHT = 0x20,
         FACE_SEE_THRU = 0x40,
         FACE_INVISIBLE = 0x2000,
     };
@@ -109,7 +110,7 @@ namespace rf
         VArray<GVertex*> sel_vertices;
         VArray<GFace*> sel_faces;
         VArray<GFace*> last_sel_faces;
-#ifdef DASH_FACTION
+#ifdef ALPINE_FACTION
         VArray<GDecal*> decals;
         int padding[126];
 #else
@@ -167,7 +168,7 @@ namespace rf
         int last_frame_rendered_alpha;
         float life;
         bool is_invincible;
-#ifdef DASH_FACTION
+#ifdef ALPINE_FACTION
         VArray<GDecal*> decals;
         int padding[46];
 #else
@@ -472,6 +473,8 @@ namespace rf
         void (*render_function)(int, GSolid *);
     };
     static_assert(sizeof(GPortalObject) == 0x30);
+
+    static auto& g_num_geomods_this_level = addr_as_ref<int>(0x00647C9C);
 
     static auto& g_cache_clear = addr_as_ref<void()>(0x004F0B90);
     static auto& g_get_room_render_list = addr_as_ref<void(GRoom ***rooms, int *num_rooms)>(0x004D3330);

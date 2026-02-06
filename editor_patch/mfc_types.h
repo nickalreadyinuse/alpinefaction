@@ -19,6 +19,11 @@ struct CWnd
 {
     int _vft;
     CWnd_mbrs _d;
+
+    int DedMessageBox(LPCSTR lpText, LPCSTR lpCaption, UINT uType)
+    {
+        return AddrCaller{0x00531BBA}.this_call<int>(this, lpText, lpCaption, uType);
+    }
 };
 static_assert(sizeof(CWnd) == 0x3C, "CWnd size mismatch!");
 
@@ -149,7 +154,6 @@ struct Vector3
 };
 static_assert(sizeof(Vector3) == 0xC, "Vector3 size mismatch!");
 
-
 struct Matrix3
 {
     Vector3 rvec;
@@ -161,7 +165,6 @@ struct Matrix3
 };
 static_assert(sizeof(Matrix3) == 0x24, "Matrix3 size mismatch!");
 
-
 template<typename T>
 struct VArray
 {
@@ -169,25 +172,6 @@ struct VArray
     int capacity;
     T* data_ptr;
 
-    // Default constructor
-    VArray() : size(0), capacity(0), data_ptr(nullptr) {}
-
-    // Destructor to clean up allocated memory
-    ~VArray()
-    {
-        delete[] data_ptr;
-    }
-
-    // Add a new element, resizing if necessary
-    void add(const T& element)
-    {
-        if (size >= capacity) {
-            resize();
-        }
-        data_ptr[size++] = element;
-    }
-
-    // Access operator for non-const access
     T& operator[](size_t index)
     {
         if (index >= static_cast<size_t>(size)) {
@@ -196,7 +180,6 @@ struct VArray
         return data_ptr[index];
     }
 
-    // Access operator for const access
     const T& operator[](size_t index) const
     {
         if (index >= static_cast<size_t>(size)) {
@@ -205,50 +188,27 @@ struct VArray
         return data_ptr[index];
     }
 
-    // Get the current number of elements
     int get_size() const
     {
         return size;
     }
 
-    // Get the current capacity
     int get_capacity() const
     {
         return capacity;
     }
 
-    // Clear the array without deallocating memory
-    void clear()
+    int add_if_not_exists_raw(void* value)
     {
-        size = 0;
+        return AddrCaller{0x004127E0}.this_call<int>(this, value);
     }
 
-    // Check if the array is empty
-    bool empty() const
+    int add_if_not_exists_int(int value)
     {
-        return size == 0;
-    }
-
-private:
-    // Resize the internal array, doubling the capacity
-    void resize()
-    {
-        int new_capacity = (capacity == 0) ? 1 : capacity * 2;
-        T* new_data = new T[new_capacity];
-
-        // Move old data to the new array
-        for (int i = 0; i < size; ++i) {
-            new_data[i] = std::move(data_ptr[i]);
-        }
-
-        // Free old data and update pointers
-        delete[] data_ptr;
-        data_ptr = new_data;
-        capacity = new_capacity;
+        return add_if_not_exists_raw(reinterpret_cast<void*>(value));
     }
 };
 static_assert(sizeof(VArray<int>) == 0xC, "VArray size mismatch!");
-
 
 struct VString
 {
@@ -563,14 +523,6 @@ static_assert(offsetof(CEventDialog, field_5C) == 0x5C, "field_5C offset mismatc
 static_assert(offsetof(CEventDialog, field_98) == 0x98, "field_98 offset mismatch!");
 static_assert(offsetof(CEventDialog, field_1724) == 0x1724, "field_1724 offset mismatch!");
 
-struct CDedLevel
-{
-    char padding_before_selection[0x298];
-    VArray<int> selection;
-    char padding_after_selection[0x608 - (0x298 + 0xC)];
-};
-static_assert(sizeof(CDedLevel) == 0x608);
-
 struct CCmdTarget_mbrs
 {
     char padding[0x18];
@@ -614,26 +566,15 @@ struct VFile
     {
         AddrCaller{0x004D1820}.this_call(this, mat, ver, deflt);
     }
+
+    int get_version()
+    {
+        AddrCaller{0x004CF680}.this_call(this);
+    }
 };
 static_assert(sizeof(VFile) == 0x114);
 
 bool get_is_saving_af_version();
 
 static auto& editor_file_default_matrix = *reinterpret_cast<Matrix3*>(0x01642060);
-
-//static auto DDX_Control = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CWnd*)>(0x005394EF);
-//static auto DDX_Text = *reinterpret_cast<void(__stdcall*)(CDataExchange*, int, CString*)>(0x0053929C);
-//static auto DDX_Check = *reinterpret_cast<int(__stdcall*)(CDataExchange*, int, int*)>(0x005392EE);
-
-//static auto& DDX_Control = addr_as_ref<void(__stdcall)(CDataExchange*, int, CWnd*)>(0x005394EF);
-//static auto& DDX_Text = addr_as_ref<void(__stdcall)(CDataExchange*, int, CString*)>(0x0053929C);
-//static auto& DDX_Check = addr_as_ref<int(__stdcall)(CDataExchange*, int, int*)>(0x005392EE);
-
-
-// console is still broken
-//static auto& console_print_cmd_list = addr_as_ref<int()>(0x004D4FF0);
-//static auto& console_open = addr_as_ref<char()>(0x004D66A0);
-//static auto& console_visible = *reinterpret_cast<bool*>(0x0171C214);
-//static auto& console_is_visible = addr_as_ref<bool()>(0x004D66C0);
-//static auto& console_update = addr_as_ref<void(bool)>(0x004D58C0);
-//static auto& console_init = addr_as_ref<void(char)>(0x004D66F0);
+static auto& g_main_frame = addr_as_ref<CWnd*>(0x006F9E68);

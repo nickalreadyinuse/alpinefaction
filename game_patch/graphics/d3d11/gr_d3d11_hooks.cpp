@@ -1,9 +1,11 @@
+#include <algorithm>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/FunHook.h>
 #include <common/utils/list-utils.h>
 #include <float.h>
 #include "../../rf/gr/gr.h"
+#include "../../rf/gr/gr_light.h"
 #include "../../rf/os/os.h"
 #include "../../rf/v3d.h"
 #include "../../rf/character.h"
@@ -11,6 +13,7 @@
 #include "../../rf/mover.h"
 #include "../../bmpman/bmpman.h"
 #include "../../main/main.h"
+#include "../../misc/misc.h"
 #include "gr_d3d11.h"
 
 namespace df::gr::d3d11
@@ -48,6 +51,11 @@ namespace df::gr::d3d11
         xlog::info("Initializing D3D11");
         renderer.emplace(hwnd);
         rf::os_add_msg_handler(msg_handler);
+
+        // set these here to prevent a crash during realtime creation or clearing of bitmaps
+        // stock game sets these in gr_d3d_init_device
+        rf::bm::max_d3d_texture_resolution_h = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        rf::bm::max_d3d_texture_resolution_w = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 
         // Switch FPU to single-precision mode for backward compatibility
         // Direct3D 8/9 does it automatically unless D3DCREATE_FPU_PRESERVE flag is used,
@@ -146,6 +154,13 @@ namespace df::gr::d3d11
         renderer->texture_remove_ref(bm_handle);
     }
 
+    void update_texture_filtering()
+    {
+        if (renderer) {
+            renderer->reset_sampler_states();
+        }
+    }
+
     void render_solid(rf::GSolid* solid, rf::GRoom** rooms, int num_rooms)
     {
         renderer->render_solid(solid, rooms, num_rooms);
@@ -175,6 +190,83 @@ namespace df::gr::d3d11
 
     void render_character_vif(rf::VifLodMesh *lod_mesh, [[maybe_unused]] rf::VifMesh *mesh, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::CharacterInstance *ci, int lod_index, const rf::MeshRenderParams& params)
     {
+        if (lod_mesh && lod_index >= 0 && lod_index < lod_mesh->num_levels) {
+            bool fullbright_character = g_character_meshes_are_fullbright && (params.flags & rf::MeshRenderFlags::MRF_FIRST_PERSON) == 0;
+            bool synthesize_colors = params.vertex_colors == nullptr || fullbright_character;
+
+            if (synthesize_colors) {
+                rf::MeshRenderParams params_with_vertex_colors = params;
+
+                float ambient_r = static_cast<float>(params.ambient_color.red);
+                float ambient_g = static_cast<float>(params.ambient_color.green);
+                float ambient_b = static_cast<float>(params.ambient_color.blue);
+                float lvl_ambient_r = static_cast<float>(rf::level.ambient_light.red);
+                float lvl_ambient_g = static_cast<float>(rf::level.ambient_light.green);
+                float lvl_ambient_b = static_cast<float>(rf::level.ambient_light.blue);
+
+                // if mesh amb color is full white it is usually because player is standing on a mover or a surface
+                // without lightmaps. Take a guess on a reasonable light level for the map so it doesn't look as ugly
+                if (ambient_r == 255 && ambient_g == 255 && ambient_b == 255) {
+                    ambient_r = lvl_ambient_r + 64.0f;
+                    ambient_g = lvl_ambient_g + 64.0f;
+                    ambient_b = lvl_ambient_b + 64.0f;
+                }
+
+                constexpr float scale = 1.5f;
+                constexpr float bias = 32.0f;
+
+                params_with_vertex_colors.ambient_color.red =
+                    static_cast<rf::ubyte>(std::clamp(ambient_r * scale + bias, 0.0f, 255.0f));
+                params_with_vertex_colors.ambient_color.green =
+                    static_cast<rf::ubyte>(std::clamp(ambient_g * scale + bias, 0.0f, 255.0f));
+                params_with_vertex_colors.ambient_color.blue =
+                    static_cast<rf::ubyte>(std::clamp(ambient_b * scale + bias, 0.0f, 255.0f));
+
+                //xlog::warn("built amb color {},{},{}", params_with_vertex_colors.ambient_color.red, params_with_vertex_colors.ambient_color.green, params_with_vertex_colors.ambient_color.blue);
+
+                rf::VifMesh* lod_mesh_level = lod_mesh->meshes[lod_index];
+                int total_vertices = 0;
+                for (int chunk_index = 0; chunk_index < lod_mesh_level->num_chunks; ++chunk_index) {
+                    total_vertices += lod_mesh_level->chunks[chunk_index].num_vecs;
+                }
+
+                struct ScratchVertexColors
+                {
+                    std::vector<rf::ubyte> data;
+                    rf::Color last_color{0, 0, 0, 255};
+                    std::size_t last_vertex_count = 0;
+                };
+
+                static thread_local ScratchVertexColors scratch_vertex_colors;
+                scratch_vertex_colors.data.resize(static_cast<std::size_t>(total_vertices) * 3);
+
+                rf::Color base_color = params_with_vertex_colors.ambient_color;
+                if (fullbright_character) {
+                    base_color = {255, 255, 255, 255};
+                }
+
+                bool color_changed =
+                    scratch_vertex_colors.last_color.red != base_color.red ||
+                    scratch_vertex_colors.last_color.green != base_color.green ||
+                    scratch_vertex_colors.last_color.blue != base_color.blue ||
+                    scratch_vertex_colors.last_vertex_count != static_cast<std::size_t>(total_vertices);
+
+                if (color_changed) {
+                    for (std::size_t i = 0; i < scratch_vertex_colors.data.size(); i += 3) {
+                        scratch_vertex_colors.data[i] = base_color.red;
+                        scratch_vertex_colors.data[i + 1] = base_color.green;
+                        scratch_vertex_colors.data[i + 2] = base_color.blue;
+                    }
+                    scratch_vertex_colors.last_color = base_color;
+                    scratch_vertex_colors.last_vertex_count = static_cast<std::size_t>(total_vertices);
+                }
+
+                params_with_vertex_colors.vertex_colors = scratch_vertex_colors.data.data();
+                renderer->render_character_vif(lod_mesh, lod_index, pos, orient, ci, params_with_vertex_colors);
+                return;
+            }
+        }
+
         renderer->render_character_vif(lod_mesh, lod_index, pos, orient, ci, params);
     }
 
@@ -192,6 +284,13 @@ namespace df::gr::d3d11
     {
         if (renderer) {
             renderer->clear_solid_cache();
+        }
+    }
+
+    void reset_solid_render_cache_after_boolean()
+    {
+        if (renderer) {
+            renderer->reset_solid_cache_after_boolean();
         }
     }
 
@@ -261,10 +360,10 @@ namespace df::gr::d3d11
         },
     };
 
-    static CodeInjection vif_lod_mesh_dtor_injection{
+    static CodeInjection vif_lod_mesh_destroy_injection{
         0x005695D0,
         [](auto& regs) {
-            rf::VifLodMesh* lod_mesh = regs.ecx;
+            const auto lod_mesh = addr_as_ref<rf::VifLodMesh*>(regs.esp + 4);
             if (renderer) {
                 renderer->clear_vif_cache(lod_mesh);
             }
@@ -299,6 +398,7 @@ namespace df::gr::d3d11
                 for (rf::MoverBrush& mb : DoublyLinkedList{rf::mover_brush_list}) {
                     renderer->page_in_movable_solid(mb.geometry);
                 }
+                renderer->reset_static_vertex_color_tracking();
             }
         },
     };
@@ -321,7 +421,7 @@ void gr_d3d11_apply_patch()
     gr_d3d_setup_3d_injection.install();
     gr_d3d_setup_fustrum_injection.install();
     vif_lod_mesh_ctor_injection.install();
-    vif_lod_mesh_dtor_injection.install();
+    vif_lod_mesh_destroy_injection.install();
     v3d_page_in_injection.install();
     character_instance_page_in_injection.install();
     level_page_in_injection.install();
@@ -330,6 +430,7 @@ void gr_d3d11_apply_patch()
     // Do not use built-in render cache
     AsmWriter{0x004F0B90}.jmp(clear_solid_render_cache); // g_render_cache_clear
     AsmWriter{0x004F0B20}.ret(); // g_render_cache_init
+    AsmWriter{0x004F0BD0}.jmp(reset_solid_render_cache_after_boolean); // g_render_cache_reset_after_boolean
 
     using namespace asm_regs;
     AsmWriter{0x00544FC0}.jmp(flip); // gr_d3d_flip
@@ -338,16 +439,16 @@ void gr_d3d11_apply_patch()
     AsmWriter{0x00546730}.jmp(read_back_buffer); // gr_d3d_read_backbuffer
     AsmWriter{0x005468C0}.jmp(fog_set); // gr_d3d_fog_set
     AsmWriter{0x00546A00}.mov(al, 1).ret(); // gr_d3d_is_mode_supported
-    //AsmWriter{0x00546A40}.ret(); // gr_d3d_setup_frustum
-    //AsmWriter{0x00546F60}.ret(); // gr_d3d_change_frustum
-    //AsmWriter{0x00547150}.ret(); // gr_d3d_setup_3d
-    //AsmWriter{0x005473F0}.ret(); // gr_d3d_start_instance
-    //AsmWriter{0x00547540}.ret(); // gr_d3d_stop_instance
+    // AsmWriter{0x00546A40}.ret(); // gr_d3d_setup_frustum
+    // AsmWriter{0x00546F60}.ret(); // gr_d3d_change_frustum
+    // AsmWriter{0x00547150}.ret(); // gr_d3d_setup_3d
+    // AsmWriter{0x005473F0}.ret(); // gr_d3d_start_instance
+    // AsmWriter{0x00547540}.ret(); // gr_d3d_stop_instance
     AsmWriter{0x005477A0}.jmp(project_vertex_new); // gr_d3d_project_vertex
-    //AsmWriter{0x005478F0}.ret(); // gr_d3d_is_normal_facing
-    //AsmWriter{0x00547960}.ret(); // gr_d3d_is_normal_facing_plane
-    //AsmWriter{0x005479B0}.ret(); // gr_d3d_get_apparent_distance_from_camera
-    //AsmWriter{0x005479D0}.ret(); // gr_d3d_screen_coords_from_world_coords
+    // AsmWriter{0x005478F0}.ret(); // gr_d3d_is_normal_facing
+    // AsmWriter{0x00547960}.ret(); // gr_d3d_is_normal_facing_plane
+    // AsmWriter{0x005479B0}.ret(); // gr_d3d_get_apparent_distance_from_camera
+    // AsmWriter{0x005479D0}.ret(); // gr_d3d_screen_coords_from_world_coords
     AsmWriter{0x00547A60}.ret(); // gr_d3d_update_gamma_ramp
     AsmWriter{0x00547AC0}.ret(); // gr_d3d_set_texture_mip_filter
     AsmWriter{0x00550820}.jmp(page_in); // gr_d3d_page_in
@@ -360,36 +461,36 @@ void gr_d3d11_apply_patch()
     AsmWriter{0x00551900}.jmp(tmapper); // gr_d3d_tmapper
     AsmWriter{0x005536C0}.jmp(render_sky_room);
     AsmWriter{0x00553C60}.jmp(render_movable_solid); // gr_d3d_render_movable_solid - uses gr_d3d_render_face_list
-    //AsmWriter{0x00553EE0}.ret(); // gr_d3d_vfx - uses gr_poly
-    //AsmWriter{0x00554BF0}.ret(); // gr_d3d_vfx_facing - uses gr_d3d_3d_bitmap_angle, gr_d3d_render_volumetric_light
-    //AsmWriter{0x00555080}.ret(); // gr_d3d_vfx_glow - uses gr_d3d_3d_bitmap_angle
-    //AsmWriter{0x00555100}.ret(); // gr_d3d_line_vertex
+    // AsmWriter{0x00553EE0}.ret(); // gr_d3d_vfx - uses gr_poly
+    // AsmWriter{0x00554BF0}.ret(); // gr_d3d_vfx_facing - uses gr_d3d_3d_bitmap_angle, gr_d3d_render_volumetric_light
+    // AsmWriter{0x00555080}.ret(); // gr_d3d_vfx_glow - uses gr_d3d_3d_bitmap_angle
+    // AsmWriter{0x00555100}.ret(); // gr_d3d_line_vertex
     AsmWriter{0x005516E0}.jmp(line_3d); // gr_d3d_line_vertex_internal
-    //AsmWriter{0x005551E0}.ret(); // gr_d3d_line_vec - uses gr_d3d_line_vertex
-    //AsmWriter{0x00555790}.ret(); // gr_d3d_3d_bitmap - uses gr_poly
-    //AsmWriter{0x00555AC0}.ret(); // gr_d3d_3d_bitmap_angle - uses gr_poly
-    //AsmWriter{0x00555B20}.ret(); // gr_d3d_3d_bitmap_angle_wh - uses gr_poly
-    //AsmWriter{0x00555B80}.ret(); // gr_d3d_render_volumetric_light - uses gr_poly
-    //AsmWriter{0x00555DC0}.ret(); // gr_d3d_laser - uses gr_tmapper
-    //AsmWriter{0x005563F0}.ret(); // gr_d3d_cylinder - uses gr_line
-    //AsmWriter{0x005565D0}.ret(); // gr_d3d_cone - uses gr_line
-    //AsmWriter{0x005566E0}.ret(); // gr_d3d_sphere - uses gr_line
-    //AsmWriter{0x00556AB0}.ret(); // gr_d3d_chain - uses gr_poly
-    //AsmWriter{0x00556F50}.ret(); // gr_d3d_line_directed - uses gr_line_vertex
-    //AsmWriter{0x005571F0}.ret(); // gr_d3d_line_arrow - uses gr_line_vertex
-    //AsmWriter{0x00557460}.ret(); // gr_d3d_render_particle_sys_particle - uses gr_poly, gr_3d_bitmap_angle
-    //AsmWriter{0x00557D40}.ret(); // gr_d3d_render_bolts - uses gr_poly, gr_line
-    //AsmWriter{0x00558320}.ret(); // gr_d3d_render_geomod_debris - uses gr_poly
-    //AsmWriter{0x00558450}.ret(); // gr_d3d_render_glass_shard - uses gr_poly
+    // AsmWriter{0x005551E0}.ret(); // gr_d3d_line_vec - uses gr_d3d_line_vertex
+    // AsmWriter{0x00555790}.ret(); // gr_d3d_3d_bitmap - uses gr_poly
+    // AsmWriter{0x00555AC0}.ret(); // gr_d3d_3d_bitmap_angle - uses gr_poly
+    // AsmWriter{0x00555B20}.ret(); // gr_d3d_3d_bitmap_angle_wh - uses gr_poly
+    // AsmWriter{0x00555B80}.ret(); // gr_d3d_render_volumetric_light - uses gr_poly
+    // AsmWriter{0x00555DC0}.ret(); // gr_d3d_laser - uses gr_tmapper
+    // AsmWriter{0x005563F0}.ret(); // gr_d3d_cylinder - uses gr_line
+    // AsmWriter{0x005565D0}.ret(); // gr_d3d_cone - uses gr_line
+    // AsmWriter{0x005566E0}.ret(); // gr_d3d_sphere - uses gr_line
+    // AsmWriter{0x00556AB0}.ret(); // gr_d3d_chain - uses gr_poly
+    // AsmWriter{0x00556F50}.ret(); // gr_d3d_line_directed - uses gr_line_vertex
+    // AsmWriter{0x005571F0}.ret(); // gr_d3d_line_arrow - uses gr_line_vertex
+    // AsmWriter{0x00557460}.ret(); // gr_d3d_render_particle_sys_particle - uses gr_poly, gr_3d_bitmap_angle
+    // AsmWriter{0x00557D40}.ret(); // gr_d3d_render_bolts - uses gr_poly, gr_line
+    // AsmWriter{0x00558320}.ret(); // gr_d3d_render_geomod_debris - uses gr_poly
+    // AsmWriter{0x00558450}.ret(); // gr_d3d_render_glass_shard - uses gr_poly
     AsmWriter{0x00558550}.ret(); // gr_d3d_render_face_wireframe
-    //AsmWriter{0x005585F0}.ret(); // gr_d3d_render_weapon_tracer - uses gr_poly
+    // AsmWriter{0x005585F0}.ret(); // gr_d3d_render_weapon_tracer - uses gr_poly
     AsmWriter{0x005587C0}.jmp(poly); // gr_d3d_poly
     AsmWriter{0x00558920}.ret(); // gr_d3d_render_geometry_wireframe
     AsmWriter{0x00558960}.ret(); // gr_d3d_render_geometry_in_editor
     AsmWriter{0x00558C40}.ret(); // gr_d3d_render_sel_face_in_editor
-    //AsmWriter{0x00558D40}.ret(); // gr_d3d_world_poly - uses gr_d3d_poly
-    //AsmWriter{0x00558E30}.ret(); // gr_d3d_3d_bitmap_stretched_square - uses gr_d3d_world_poly
-    //AsmWriter{0x005590F0}.ret(); // gr_d3d_rod - uses gr_d3d_world_poly
+    // AsmWriter{0x00558D40}.ret(); // gr_d3d_world_poly - uses gr_d3d_poly
+    // AsmWriter{0x00558E30}.ret(); // gr_d3d_3d_bitmap_stretched_square - uses gr_d3d_world_poly
+    // AsmWriter{0x005590F0}.ret(); // gr_d3d_rod - uses gr_d3d_world_poly
     AsmWriter{0x005596C0}.ret(); // gr_d3d_render_face_list_colored
     AsmWriter{0x0055B520}.jmp(texture_save_cache); // gr_d3d_texture_save_cache
     AsmWriter{0x0055B550}.jmp(texture_flush_cache); // gr_d3d_texture_flush_cache
@@ -401,10 +502,11 @@ void gr_d3d11_apply_patch()
     AsmWriter{0x0055D190}.jmp(texture_remove_ref); // gr_d3d_texture_remove_ref
     AsmWriter{0x0055F5E0}.jmp(render_solid); // gr_d3d_render_static_solid
     AsmWriter{0x00561650}.ret(); // gr_d3d_render_face_list
-    //AsmWriter{0x0052FA40}.jmp(render_lod_vif); // gr_d3d_render_vif_mesh
+    // AsmWriter{0x0052FA40}.jmp(render_lod_vif); // gr_d3d_render_vif_mesh
     AsmWriter{0x0052DE10}.jmp(render_v3d_vif); // gr_d3d_render_v3d_vif
     AsmWriter{0x0052E9E0}.jmp(render_character_vif); // gr_d3d_render_character_vif
     AsmWriter{0x004D34D0}.jmp(render_alpha_detail_room); // room_render_alpha_detail
+    AsmWriter{0x0054F160}.ret(); // gr_d3d_set_state
 
     // Change size of standard structures
     write_mem<int8_t>(0x00569884 + 1, sizeof(rf::VifMesh));
