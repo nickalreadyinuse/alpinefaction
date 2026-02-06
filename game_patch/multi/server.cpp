@@ -72,6 +72,8 @@ const std::vector<std::string> g_rcon_cmd_masterlist = {
     "sv_geolimit",
     "sv_pass",
     "sv_timelimit",
+    "download_level",
+    "sv_loadconfig",
 };
 
 std::vector<rf::AlpineRespawnPoint> g_alpine_respawn_points;
