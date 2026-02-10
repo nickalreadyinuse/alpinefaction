@@ -2226,10 +2226,9 @@ CallHook<int()> game_info_num_players_hook{
     },
 };
 
-// add af_obj_update packet, send at the same time as normal obj_update packet
-// note this is after the check for entity flag 1 (dying) and obj flag 2 (pending delete)
+// add af_obj_update packet, send once per player after the entity loop in
 CodeInjection send_players_obj_update_packets_injection{
-    0x0047E710,
+    0x0047E787,
     [](auto& regs) {
         rf::Player* player = regs.esi;
         // use new packet for clients that can process it (Alpine 1.1+)

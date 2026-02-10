@@ -1793,6 +1793,7 @@ void bot_decommission_check() {
     std::array<int, MAX_TEAMS> active_persons_per_team{0, 0};
 
     const bool is_team_mode = multi_is_team_game_type();
+    const auto now = std::chrono::high_resolution_clock::now();
     for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
         if (player.is_browser) {
             continue;
@@ -1812,7 +1813,6 @@ void bot_decommission_check() {
         } else {
             const bool is_spawned = !rf::player_is_dead(&player)
                 && !rf::player_is_dying(&player);
-            const auto now = std::chrono::high_resolution_clock::now();
             const bool was_just_unspawned = player.death_time
                 && now - *player.death_time
                     < std::chrono::duration<float>(BOT_OPPONENT_DEATH_WAIT_TIME_SEC);
