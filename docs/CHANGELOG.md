@@ -43,6 +43,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Fix rare crash when shooting at alpha-masked surfaces in Direct3D 11 renderer
 - Fix overflow fix for `emitters.tbl` entries not being correctly applied
 - Fix some string errors when compiled using mingw
+- Fix rare crash when loading skeletons
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix faulty cull in fpgun infrared scanners
