@@ -53,6 +53,47 @@ static bool is_force_respawn()
     return g_spawned_in_current_level && (rf::netgame.flags & rf::NG_FLAG_FORCE_RESPAWN);
 }
 
+// Animation state indices: 0=stand, 1=walk, 2=run, 8=crouch_stand, 9=crouch_walk, 10=crouch_run
+static constexpr int ANIM_STATE_CROUCH_OFFSET = 8;
+
+static bool is_crouch_anim_state(int state)
+{
+    return state >= 8 && state <= 10;
+}
+
+// Hook entity_set_next_state_anim to remap non-crouch animations to crouch
+// variants for the spectated entity when it's crouching. This prevents the
+// movement state machine from constantly overriding the crouch animation.
+FunHook<void(rf::Entity*, int, float)> spectate_entity_set_next_state_anim_hook{
+    0x0042A580,
+    [](rf::Entity* entity, int state, float transition_time) {
+        if (g_spectate_mode_enabled && g_spectate_mode_target && rf::entity_is_crouching(entity)) {
+            rf::Entity* target = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
+            if (entity == target && !is_crouch_anim_state(state) && state <= 2) {
+                state += ANIM_STATE_CROUCH_OFFSET;
+            }
+        }
+        spectate_entity_set_next_state_anim_hook.call_target(entity, state, transition_time);
+    },
+};
+
+void multi_spectate_sync_crouch_anim()
+{
+    // The animation hook handles remapping automatically. We just need to
+    // kick-start the transition for entities already in a non-crouch anim.
+    if (!g_spectate_mode_enabled || !g_spectate_mode_target)
+        return;
+
+    rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
+    if (!entity)
+        return;
+
+    if (rf::entity_is_crouching(entity) && !is_crouch_anim_state(entity->current_state_anim)) {
+        int base_state = entity->current_state_anim <= 2 ? entity->current_state_anim : 0;
+        rf::entity_set_next_state_anim(entity, base_state + ANIM_STATE_CROUCH_OFFSET, 0.15f);
+    }
+}
+
 void multi_spectate_set_target_player(rf::Player* player)
 {
     if (!player)
@@ -399,6 +440,7 @@ void multi_spectate_appy_patch()
     render_reticle_hook.install();
     hud_weapons_render_hook.install();
     hud_status_render_spectate_hook.install();
+    spectate_entity_set_next_state_anim_hook.install();
 
     spectate_cmd.register_cmd();
     spectate_mode_minimal_ui_cmd.register_cmd();
