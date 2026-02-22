@@ -50,7 +50,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Optimize network performance for `af_obj_update` packets and bot decommission logic
-
+- Implement damage screen flash in first person spectate mode. `cl_damageflash_spectator` toggles.
 Version 1.2.2 (Willow): Released Jan-04-2026
 --------------------------------
 ### Minor features, changes, and enhancements

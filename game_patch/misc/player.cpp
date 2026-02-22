@@ -36,6 +36,11 @@
 
 static rf::PlayerHeadlampSettings g_local_headlamp_settings;
 
+// Spectator damage flash tracking
+static float g_spectate_last_health = -1.0f;
+static float g_spectate_last_armor = -1.0f;
+static rf::Player* g_spectate_last_target = nullptr;
+
 void set_headlamp_toggle_enabled(bool enabled)
 {
     g_headlamp_toggle_enabled = enabled;
@@ -487,9 +492,31 @@ FunHook<void()> players_do_frame_hook{
     []() {
         players_do_frame_hook.call_target();
         if (multi_spectate_is_spectating()) {
-            rf::hud_do_frame(multi_spectate_get_target_player());
+            rf::Player* target = multi_spectate_get_target_player();
+            rf::hud_do_frame(target);
+
+            // Spectator damage flash: detect health or armor decreases on the spectated player
+            if (target && g_alpine_game_config.spectate_damage_screen_flash) {
+                rf::Entity* target_entity = rf::entity_from_handle(target->entity_handle);
+                if (target != g_spectate_last_target) {
+                    g_spectate_last_target = target;
+                    g_spectate_last_health = target_entity ? target_entity->life : -1.0f;
+                    g_spectate_last_armor = target_entity ? target_entity->armor : -1.0f;
+                }
+                else if (target_entity && g_spectate_last_health >= 0.0f) {
+                    if (target_entity->life < g_spectate_last_health
+                        || target_entity->armor < g_spectate_last_armor) {
+                        rf::local_screen_flash(rf::local_player, 255, 0, 0, 128);
+                    }
+                    g_spectate_last_health = target_entity->life;
+                    g_spectate_last_armor = target_entity->armor;
+                }
+            }
         }
         else {
+            g_spectate_last_target = nullptr;
+            g_spectate_last_health = -1.0f;
+            g_spectate_last_armor = -1.0f;
             local_delayed_spawn_do_frame(); // try to spawn if a delayed spawn is queued
         }
     },
@@ -511,6 +538,15 @@ ConsoleCommand2 damage_screen_flash_cmd{
         rf::console::print("Damage screen flash effect is {}", g_alpine_game_config.damage_screen_flash ? "enabled" : "disabled");
     },
     "Toggle damage screen flash effect",
+};
+
+ConsoleCommand2 spectate_damage_screen_flash_cmd{
+    "cl_damageflash_spectator",
+    []() {
+        g_alpine_game_config.spectate_damage_screen_flash = !g_alpine_game_config.spectate_damage_screen_flash;
+        rf::console::print("Spectator damage screen flash effect is {}", g_alpine_game_config.spectate_damage_screen_flash ? "enabled" : "disabled");
+    },
+    "Toggle damage screen flash effect while spectating",
 };
 
 ConsoleCommand2 weapon_explosion_flash_lights_cmd{
@@ -926,6 +962,7 @@ void player_do_patch()
 
     // Commands
     damage_screen_flash_cmd.register_cmd();
+    spectate_damage_screen_flash_cmd.register_cmd();
     weapon_explosion_flash_lights_cmd.register_cmd();
     env_explosion_flash_lights_cmd.register_cmd();
     burning_entity_lights_cmd.register_cmd();
