@@ -50,6 +50,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Optimize network performance for `af_obj_update` packets and bot decommission logic
+- Fix Alt+Enter crash in D3D11
 
 Version 1.2.2 (Willow): Released Jan-04-2026
 --------------------------------
