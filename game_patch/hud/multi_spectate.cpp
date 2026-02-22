@@ -53,6 +53,69 @@ static bool is_force_respawn()
     return g_spawned_in_current_level && (rf::netgame.flags & rf::NG_FLAG_FORCE_RESPAWN);
 }
 
+static void spectate_entity_translate_stand_state_to_crouch_state(int* state_anim_index)
+{
+    if (!state_anim_index) {
+        return;
+    }
+
+    switch (static_cast<rf::EntityState>(*state_anim_index)) {
+    case rf::ENTITY_STATE_STAND:
+        *state_anim_index = rf::ENTITY_STATE_CROUCH;
+        break;
+    case rf::ENTITY_STATE_ATTACK_STAND:
+        *state_anim_index = rf::ENTITY_STATE_ATTACK_CROUCH;
+        break;
+    case rf::ENTITY_STATE_WALK:
+        *state_anim_index = rf::ENTITY_STATE_ATTACK_CROUCH_WALK;
+        break;
+    default:
+        break;
+    }
+}
+
+static bool state_animation_is_crouch(int state)
+{
+    return state >= rf::ENTITY_STATE_CROUCH && state <= rf::ENTITY_STATE_ATTACK_CROUCH_WALK;
+}
+
+// Hook entity_set_next_state_anim to remap non-crouch animations to crouch
+// variants for the spectated entity when it's crouching. This prevents the
+// movement state machine from constantly overriding the crouch animation.
+FunHook<void(rf::Entity*, int, float)> spectate_entity_set_next_state_anim_hook{
+    0x0042A580,
+    [](rf::Entity* entity, int state_anim_index, float transition_time) {
+        if (g_spectate_mode_enabled && g_spectate_mode_target && rf::entity_is_crouching(entity)) {
+            rf::Entity* target = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
+            if (entity == target) {
+                spectate_entity_translate_stand_state_to_crouch_state(&state_anim_index);
+            }
+        }
+        spectate_entity_set_next_state_anim_hook.call_target(entity, state_anim_index, transition_time);
+    },
+};
+
+void multi_spectate_sync_crouch_anim()
+{
+    // The animation hook handles remapping automatically. We just need to
+    // kick-start the transition for entities already in a non-crouch anim.
+    if (!g_spectate_mode_enabled || !g_spectate_mode_target)
+        return;
+
+    rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
+    if (!entity)
+        return;
+
+    if (rf::entity_is_crouching(entity) && !state_animation_is_crouch(entity->current_state_anim)) {
+        int next_state_anim = entity->current_state_anim;
+        spectate_entity_translate_stand_state_to_crouch_state(&next_state_anim);
+        if (next_state_anim == entity->current_state_anim) {
+            next_state_anim = rf::ENTITY_STATE_CROUCH;
+        }
+        rf::entity_set_next_state_anim(entity, next_state_anim, 0.15f);
+    }
+}
+
 void multi_spectate_set_target_player(rf::Player* player)
 {
     if (!player)
@@ -399,6 +462,7 @@ void multi_spectate_appy_patch()
     render_reticle_hook.install();
     hud_weapons_render_hook.install();
     hud_status_render_spectate_hook.install();
+    spectate_entity_set_next_state_anim_hook.install();
 
     spectate_cmd.register_cmd();
     spectate_mode_minimal_ui_cmd.register_cmd();
