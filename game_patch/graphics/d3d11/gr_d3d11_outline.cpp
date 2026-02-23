@@ -169,6 +169,11 @@ namespace df::gr::d3d11
                 continue;
             }
 
+            // Skip dying/dead entities
+            if (rf::entity_is_dying(entity)) {
+                continue;
+            }
+
             // Get CharacterInstance from vmesh
             if (!entity->vmesh || entity->vmesh->type != rf::MESH_TYPE_CHARACTER) {
                 continue;
