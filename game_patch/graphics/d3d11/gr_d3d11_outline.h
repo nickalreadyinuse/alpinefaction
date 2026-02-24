@@ -25,7 +25,7 @@ namespace df::gr::d3d11
     struct OutlineInfo
     {
         float r, g, b, a;   // normalized outline color
-        bool xray;           // render through geometry
+        bool xray;           // render through geometry (also bypasses portal culling)
         UINT stencil_ref;    // unique per character (1-255)
     };
 

@@ -389,8 +389,9 @@ namespace df::gr::d3d11
 
         // ---- Pass 1: Stencil mark ----
         // Write stencil ref where character pixels are drawn. No color write.
-        // Xray outlines disable depth test so stencil is written even behind walls.
-        auto stencil_mark = outline.info.xray
+        // Xray outlines disable depth test so stencil is written even behind geometry.
+        bool depth_disabled = outline.info.xray;
+        auto stencil_mark = depth_disabled
             ? state_manager_.get_outline_stencil_mark_xray_state()
             : state_manager_.get_outline_stencil_mark_state();
         render_context_.set_depth_stencil_state(stencil_mark, outline.info.stencil_ref);
@@ -409,7 +410,7 @@ namespace df::gr::d3d11
 
         // ---- Pass 2: Outline ----
         // Draw inflated mesh with stencil NOT_EQUAL test
-        auto depth_stencil = outline.info.xray
+        auto depth_stencil = depth_disabled
             ? state_manager_.get_outline_xray_state()
             : state_manager_.get_outline_depth_test_state();
         render_context_.set_depth_stencil_state(depth_stencil, outline.info.stencil_ref);
@@ -470,7 +471,8 @@ namespace df::gr::d3d11
         render_context_.set_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         // ---- Pass 1: Stencil mark ----
-        auto stencil_mark = outline.info.xray
+        bool depth_disabled = outline.info.xray;
+        auto stencil_mark = depth_disabled
             ? state_manager_.get_outline_stencil_mark_xray_state()
             : state_manager_.get_outline_stencil_mark_state();
         render_context_.set_depth_stencil_state(stencil_mark, outline.info.stencil_ref);
@@ -487,7 +489,7 @@ namespace df::gr::d3d11
         }
 
         // ---- Pass 2: Outline ----
-        auto depth_stencil = outline.info.xray
+        auto depth_stencil = depth_disabled
             ? state_manager_.get_outline_xray_state()
             : state_manager_.get_outline_depth_test_state();
         render_context_.set_depth_stencil_state(depth_stencil, outline.info.stencil_ref);
