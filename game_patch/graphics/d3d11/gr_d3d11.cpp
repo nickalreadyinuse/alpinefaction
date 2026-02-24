@@ -308,11 +308,16 @@ namespace df::gr::d3d11
 
     void Renderer::zbuffer_clear()
     {
-        dyn_geo_renderer_->flush();
         // Flush queued outlines before clearing the depth buffer.
         // The fpgun rendering clears zbuffer before its setup_3d call,
         // so outlines must be rendered while scene depth data is still available.
+        // Outlines are flushed first so that subsequently flushed dyn_geo draws
+        // (player labels, crosshair, world HUD) always render on top of outlines.
+        // This is safe because outline states never write to the depth buffer
+        // (DepthWriteMask = ZERO), so the depth data used by 3D dyn_geo elements
+        // (bitmap_3d, etc.) is unaffected by the outline pass.
         outline_renderer_->flush(*mesh_renderer_);
+        dyn_geo_renderer_->flush();
         render_context_->zbuffer_clear();
     }
 
