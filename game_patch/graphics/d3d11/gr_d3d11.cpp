@@ -284,6 +284,15 @@ namespace df::gr::d3d11
 
     void Renderer::bitmap(int bm_handle, int x, int y, int w, int h, int sx, int sy, int sw, int sh, bool flip_x, bool flip_y, gr::Mode mode)
     {
+        // Flush pending outlines before any 2D bitmap is committed to the framebuffer.
+        // RF draws the scope overlay as a bitmap during HUD rendering. Because the
+        // dyn_geo batcher flushes each batch when the texture/mode changes (see setup()),
+        // the scope can end up in the framebuffer before zbuffer_clear fires and flushes
+        // outlines — which would place outlines on top of the scope. By flushing outlines
+        // here (on the first bitmap after 3D scene rendering), outlines land in the
+        // framebuffer first, and subsequent bitmaps (scope etc.) commit on top of them.
+        // If outlines were already flushed in zbuffer_clear this is a no-op.
+        outline_renderer_->flush(*mesh_renderer_);
         dyn_geo_renderer_->bitmap(bm_handle,
             static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h),
             static_cast<float>(sx), static_cast<float>(sy), static_cast<float>(sw), static_cast<float>(sh),
@@ -292,6 +301,7 @@ namespace df::gr::d3d11
 
     void Renderer::bitmap(int bm_handle, float x, float y, float w, float h, float sx, float sy, float sw, float sh, bool flip_x, bool flip_y, rf::gr::Mode mode)
     {
+        outline_renderer_->flush(*mesh_renderer_);
         dyn_geo_renderer_->bitmap(bm_handle, x, y, w, h, sx, sy, sw, sh, flip_x, flip_y, mode);
     }
 
@@ -316,6 +326,11 @@ namespace df::gr::d3d11
         // This is safe because outline states never write to the depth buffer
         // (DepthWriteMask = ZERO), so the depth data used by 3D dyn_geo elements
         // (bitmap_3d, etc.) is unaffected by the outline pass.
+        // Note: the scope overlay (a bitmap) is drawn
+        // BEFORE zbuffer_clear, causing the scope to reach the framebuffer before
+        // this flush via the dyn_geo batcher's automatic state-change flush. The
+        // bitmap() override handles that case by flushing outlines on the first
+        // bitmap call, so this flush here is then a no-op and that path is also safe.
         outline_renderer_->flush(*mesh_renderer_);
         dyn_geo_renderer_->flush();
         render_context_->zbuffer_clear();
