@@ -1225,6 +1225,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                         //xlog::warn("sending legacy notify to {}", killer_player->name);
                         send_legacy_hit_sound_packet(killer_player); // fallback for old clients
                     }
+
                     // Send to first-person spectators of the killer
                     for (auto& player : SinglyLinkedList{rf::player_list}) {
                         if (player.spectatee == std::optional{killer_player}) {
@@ -1236,6 +1237,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                                     &player);
                             }
                         }
+                    }
                 }
             }
         }
