@@ -1225,6 +1225,23 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
                         //xlog::warn("sending legacy notify to {}", killer_player->name);
                         send_legacy_hit_sound_packet(killer_player); // fallback for old clients
                     }
+
+                    // Send to first-person spectators of the killer
+                    for (auto& player : SinglyLinkedList{rf::player_list}) {
+                        // Skip if this player has no network data or is the killer themselves
+                        if (!player.net_data || &player == killer_player) {
+                            continue;
+                        }
+                        if (player.spectatee.value_or(nullptr) == killer_player) {
+                            if (is_player_minimum_af_client_version(&player, 1, 1, 0)) {
+                                af_send_damage_notify_packet(
+                                    damaged_player->net_data->player_id,
+                                    real_damage,
+                                    is_dead,
+                                    &player);
+                            }
+                        }
+                    }
                 }
             }
         }
