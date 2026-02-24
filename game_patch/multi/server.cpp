@@ -1228,7 +1228,7 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
 
                     // Send to first-person spectators of the killer
                     for (auto& player : SinglyLinkedList{rf::player_list}) {
-                        if (player.spectatee == std::optional{killer_player}) {
+                        if (player.spectatee.value_or(nullptr) == killer_player) {
                             if (is_player_minimum_af_client_version(&player, 1, 1, 0)) {
                                 af_send_damage_notify_packet(
                                     damaged_player->net_data->player_id,
