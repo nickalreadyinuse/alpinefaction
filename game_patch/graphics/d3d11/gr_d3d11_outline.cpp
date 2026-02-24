@@ -358,6 +358,10 @@ namespace df::gr::d3d11
             render_context_.update_view_proj_transform(saved_projection_);
 
             for (const auto& outline : queue_) {
+                // For portal-culled xray characters RF never called the bone transform
+                // computation function, so bone_transforms_final is stale (frozen pose).
+                // Recompute it here before rendering the outline.
+                rf::ci_update_bone_transforms(const_cast<rf::CharacterInstance*>(outline.ci));
                 render_outline(outline, mesh_renderer);
             }
             queue_.clear();
