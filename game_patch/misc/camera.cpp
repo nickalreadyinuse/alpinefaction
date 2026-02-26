@@ -200,6 +200,29 @@ CodeInjection free_camera_do_frame_patch{
     },
 };
 
+// In the freelook camera control processing, crouch moves the camera down because it has
+// press_mode 1 (hold). Jump has press_mode 0 (single press) so it only fires for one frame
+// and has no visible effect. This patch runs after freelook controls are processed and adds
+// jump-to-up vertical movement by checking if the jump key is held down.
+CodeInjection freelook_camera_jump_vertical_patch{
+    0x004A609C, // After CALL FUN_00431030 returns in player_process_controls
+    [](auto& regs) {
+        rf::Player* player = regs.edi;
+        if (player && player->cam) {
+            rf::Entity* cam_entity = player->cam->camera_entity;
+            if (cam_entity) {
+                // ControlInfo.move.y is at entity + 0x718 (entity + 0x708 + 0x10)
+                auto* move_y = reinterpret_cast<float*>(
+                    reinterpret_cast<uint8_t*>(cam_entity) + 0x718);
+                if (rf::control_is_control_down(&player->settings.controls,
+                        rf::CC_ACTION_JUMP)) {
+                    *move_y += 1.0f;
+                }
+            }
+        }
+    },
+};
+
 CodeInjection multi_get_state_info_camera_enter_fixed_patch{
     0x0048201F,
     [] (auto& regs) {
@@ -244,6 +267,9 @@ void camera_do_patch()
     // Freelook camera accel and modifier
     camera_create_for_player_freelook_camera_patch.install();
     free_camera_do_frame_patch.install();
+
+    // Allow jump button to move freelook camera up vertically
+    freelook_camera_jump_vertical_patch.install();
 
     // handle turning off screen shake
     disable_weaphake_cmd.register_cmd();
