@@ -1,5 +1,6 @@
 #include "multi_spectate.h"
 #include "hud.h"
+#include "hud_internal.h"
 #include "multi_scoreboard.h"
 #include "../input/input.h"
 #include "../os/console.h"
@@ -12,6 +13,7 @@
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
 #include "../rf/hud.h"
+#include "../rf/bmpman.h"
 #include "../rf/player/camera.h"
 #include "../rf/player/player_fpgun.h"
 #include "../main/main.h"
@@ -799,6 +801,75 @@ static void draw_with_shadow(int x, int y, int shadow_dx, int shadow_dy, rf::Col
     fun(x, y);
 }
 
+// Entity flag constants for powerup visual effects (set/cleared by the stock game
+// on all clients via entity_create packets and the visual-effect functions).
+constexpr unsigned EF_POWERUP_DAMAGE_AMP  = 0x20000;
+constexpr unsigned EF_POWERUP_INVULNERABLE = 0x40000;
+
+// Renders powerup icons to the left of the spectate nameplate bar.
+// Detects powerup state from entity_flags which are already synced by the stock netcode.
+static void render_spectate_powerup_icons(int bar_x, int bar_y, int bar_h)
+{
+    if (!g_spectate_mode_enabled || !g_spectate_mode_target)
+        return;
+
+    rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
+    if (!entity)
+        return;
+
+    // Load bitmaps once
+    static int bm_invuln = rf::bm::load("hud_pow_invuln.tga", -1, true);
+    static int bm_amp = rf::bm::load("hud_pow_damage.tga", -1, true);
+
+    // Verify offset matches the raw memory the vanilla code reads at Entity+0x814
+    unsigned raw_flags = *reinterpret_cast<unsigned*>(reinterpret_cast<char*>(entity) + 0x814);
+    bool has_invuln = (raw_flags & EF_POWERUP_INVULNERABLE) != 0;
+    bool has_amp = (raw_flags & EF_POWERUP_DAMAGE_AMP) != 0;
+
+    static int log_cooldown = 0;
+    if (++log_cooldown >= 120) {
+        xlog::warn("Powerup check: entity_flags=0x{:x} raw_0x814=0x{:x} invuln={} amp={} offset=0x{:x}",
+            entity->entity_flags, raw_flags, has_invuln, has_amp,
+            offsetof(rf::Entity, entity_flags));
+        log_cooldown = 0;
+    }
+
+    if (!has_invuln && !has_amp)
+        return;
+
+    float scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
+    int gap = static_cast<int>(4 * scale);
+
+    // Measure icon size (both bitmaps are the same dimensions)
+    int bm_w = 0, bm_h = 0;
+    if (bm_invuln >= 0) rf::bm::get_dimensions(bm_invuln, &bm_w, &bm_h);
+    else if (bm_amp >= 0) rf::bm::get_dimensions(bm_amp, &bm_w, &bm_h);
+    int icon_w = static_cast<int>(bm_w * scale);
+    int icon_h = static_cast<int>(bm_h * scale);
+
+    // Place icons to the left of the nameplate bar, right-aligned toward bar_x
+    int icon_x = bar_x - gap;
+
+    // Collect active powerups right-to-left (rightmost icon is closest to bar)
+    int active_bms[2];
+    int count = 0;
+    if (has_amp) active_bms[count++] = bm_amp;
+    if (has_invuln) active_bms[count++] = bm_invuln;
+
+    for (int i = 0; i < count; ++i) {
+        icon_x -= icon_w;
+
+        // Vertically center icon on the nameplate bar
+        int icon_y = bar_y + (bar_h - icon_h) / 2;
+
+        // Draw icon
+        rf::gr::set_color(255, 255, 255, 255);
+        hud_scaled_bitmap(active_bms[i], icon_x, icon_y, scale);
+
+        icon_x -= gap;
+    }
+}
+
 void multi_spectate_render() {
     if (rf::hud_disabled
         || rf::gameseq_get_state() != rf::GS_GAMEPLAY
@@ -952,6 +1023,8 @@ void multi_spectate_render() {
         rf::gr::string(rf::gr::current_string_x, name_y, " bot", large_font);
         rf::gr::set_color(saved_color);
     }
+
+    render_spectate_powerup_icons(bar_x, bar_y, bar_h);
 
     rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
     if (!entity) {
