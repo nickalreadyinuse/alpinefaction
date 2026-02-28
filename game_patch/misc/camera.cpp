@@ -207,7 +207,7 @@ CodeInjection free_camera_do_frame_patch{
 CodeInjection freelook_camera_jump_vertical_patch{
     0x004A609C,
     [] (auto& regs) {
-        const rf::Player* const player = regs.edi;
+        rf::Player* player = regs.edi;
         if (player) {
             const bool jumped =
                 rf::control_is_control_down(&player->settings.controls, rf::CC_ACTION_JUMP);
