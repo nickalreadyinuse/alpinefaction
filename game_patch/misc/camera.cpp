@@ -205,20 +205,13 @@ CodeInjection free_camera_do_frame_patch{
 // and has no visible effect. This patch runs after freelook controls are processed and adds
 // jump-to-up vertical movement by checking if the jump key is held down.
 CodeInjection freelook_camera_jump_vertical_patch{
-    0x004A609C, // After CALL FUN_00431030 returns in player_process_controls
-    [](auto& regs) {
-        rf::Player* player = regs.edi;
-        if (player && player->cam) {
-            rf::Entity* cam_entity = player->cam->camera_entity;
-            if (cam_entity) {
-                // ControlInfo.move.y is at entity + 0x718 (entity + 0x708 + 0x10)
-                auto* move_y = reinterpret_cast<float*>(
-                    reinterpret_cast<uint8_t*>(cam_entity) + 0x718);
-                if (rf::control_is_control_down(&player->settings.controls,
-                        rf::CC_ACTION_JUMP)) {
-                    *move_y += 1.0f;
-                }
-            }
+    0x004A609C,
+    [] (auto& regs) {
+        const rf::Player* const player = regs.edi;
+        const bool jumped =
+            rf::control_is_control_down(&player->settings.controls, rf::CC_ACTION_JUMP);
+        if (jumped) {
+            player->cam->camera_entity->ai.ci.move.y += 1.f;
         }
     },
 };
