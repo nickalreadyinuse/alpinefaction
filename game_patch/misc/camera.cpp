@@ -211,7 +211,7 @@ CodeInjection freelook_camera_jump_vertical_patch{
         if (player) {
             const bool jumped =
                 rf::control_is_control_down(&player->settings.controls, rf::CC_ACTION_JUMP);
-            if (jumped && player->cam && player->cam->camera_entity) {
+            if (jumped) {
                 player->cam->camera_entity->ai.ci.move.y += 1.f;
             }
         }
