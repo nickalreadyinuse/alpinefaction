@@ -208,12 +208,10 @@ CodeInjection freelook_camera_jump_vertical_patch{
     0x004A609C,
     [] (auto& regs) {
         rf::Player* player = regs.edi;
-        if (player) {
-            const bool jumped =
-                rf::control_is_control_down(&player->settings.controls, rf::CC_ACTION_JUMP);
-            if (jumped) {
-                player->cam->camera_entity->ai.ci.move.y += 1.f;
-            }
+        const bool jumped =
+            rf::control_is_control_down(&player->settings.controls, rf::CC_ACTION_JUMP);
+        if (jumped) {
+            player->cam->camera_entity->ai.ci.move.y += 1.f;
         }
     },
 };
