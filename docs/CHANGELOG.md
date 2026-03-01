@@ -46,6 +46,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add hitsounds, kill sounds, and damage numbers to first person spectate
 - Add missing weapon animations and muzzle flashes in first person spectate
 - Add CTF flag icons to first person spectate
+- Make jump control move freelook camera up
 
 [@natarii](https://github.com/natarii)
 - Implement FFLink client functionality in launcher
