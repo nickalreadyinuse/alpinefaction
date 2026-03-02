@@ -801,13 +801,8 @@ static void draw_with_shadow(int x, int y, int shadow_dx, int shadow_dy, rf::Col
     fun(x, y);
 }
 
-// Entity flag constants for powerup visual effects (set/cleared by the stock game
-// on all clients via entity_create packets and the visual-effect functions).
-constexpr unsigned EF_POWERUP_DAMAGE_AMP  = 0x20000;
-constexpr unsigned EF_POWERUP_INVULNERABLE = 0x40000;
-
 // Renders powerup icons to the left of the spectate nameplate bar.
-// Detects powerup state from entity_flags which are already synced by the stock netcode.
+// Detects powerup state from entity_flags2 which are already synced by the stock netcode.
 static void render_spectate_powerup_icons(int bar_x, int bar_y, int bar_h)
 {
     if (!g_spectate_mode_enabled || !g_spectate_mode_target)
@@ -821,18 +816,8 @@ static void render_spectate_powerup_icons(int bar_x, int bar_y, int bar_h)
     static int bm_invuln = rf::bm::load("hud_pow_invuln.tga", -1, true);
     static int bm_amp = rf::bm::load("hud_pow_damage.tga", -1, true);
 
-    // Verify offset matches the raw memory the vanilla code reads at Entity+0x814
-    unsigned raw_flags = *reinterpret_cast<unsigned*>(reinterpret_cast<char*>(entity) + 0x814);
-    bool has_invuln = (raw_flags & EF_POWERUP_INVULNERABLE) != 0;
-    bool has_amp = (raw_flags & EF_POWERUP_DAMAGE_AMP) != 0;
-
-    static int log_cooldown = 0;
-    if (++log_cooldown >= 120) {
-        xlog::warn("Powerup check: entity_flags=0x{:x} raw_0x814=0x{:x} invuln={} amp={} offset=0x{:x}",
-            entity->entity_flags, raw_flags, has_invuln, has_amp,
-            offsetof(rf::Entity, entity_flags));
-        log_cooldown = 0;
-    }
+    bool has_invuln = (entity->entity_flags2 & rf::EF2_POWERUP_INVULNERABLE) != 0;
+    bool has_amp = (entity->entity_flags2 & rf::EF2_POWERUP_DAMAGE_AMP) != 0;
 
     if (!has_invuln && !has_amp)
         return;
