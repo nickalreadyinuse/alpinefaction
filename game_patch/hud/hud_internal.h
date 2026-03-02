@@ -3,6 +3,7 @@
 #include <string>
 #include "../rf/gr/gr.h"
 #include "../rf/input.h"
+#include "../rf/multi.h"
 
 namespace rf
 {
@@ -87,7 +88,7 @@ void message_log_apply_patch();
 void hud_world_apply_patch();
 void hud_colors_apply_patch();
 void hud_scale_apply_patch();
-void killfeed_add_message(const char* text, int color_id);
+void killfeed_add_message(const char* text, rf::ChatMsgColor color_id);
 void killfeed_add_kill(const char* killed_name, int killed_team,
                        const char* killer_name, int killer_team,
                        const char* verb, bool is_local_kill, bool is_team_mode);

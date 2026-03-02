@@ -1424,7 +1424,9 @@ void chat_menu_action_handler(rf::Key key) {
                 rf::snd_play(4, 0, 0.0f, 1.0f);
             } else {
                 rf::String msg{"You must wait a little while between taunts"};
+                killfeed_set_suppress_hook(true);
                 rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
+                killfeed_set_suppress_hook(false);
             }
         }
         else if (g_chat_menu_active == ChatMenuType::Commands) {
@@ -1453,7 +1455,9 @@ void chat_menu_action_handler(rf::Key key) {
                 }
                 else {
                     rf::String msg{"You must wait at least one second between radio messages"};
+                    killfeed_set_suppress_hook(true);
                     rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
+                    killfeed_set_suppress_hook(false);
                 }
             }
         }

@@ -58,16 +58,16 @@ static KillfeedColor color_for_team(int team)
     return killfeed_color_green;
 }
 
-static KillfeedColor color_for_color_id(int color_id)
+static KillfeedColor color_for_color_id(rf::ChatMsgColor color_id)
 {
     switch (color_id) {
-        case 0: return killfeed_color_red;    // red_white
-        case 1: return killfeed_color_blue;   // blue_white
-        case 2: return killfeed_color_red;    // red_red
-        case 3: return killfeed_color_blue;   // blue_blue
-        case 4: return killfeed_color_white;  // white_white (local player)
-        case 6: return {255, 215, 0};         // gold_white
-        default: return killfeed_color_green; // default green
+        case rf::ChatMsgColor::red_white:    return killfeed_color_red;
+        case rf::ChatMsgColor::blue_white:   return killfeed_color_blue;
+        case rf::ChatMsgColor::red_red:      return killfeed_color_red;
+        case rf::ChatMsgColor::blue_blue:    return killfeed_color_blue;
+        case rf::ChatMsgColor::white_white:  return killfeed_color_white;
+        case rf::ChatMsgColor::gold_white:   return {255, 215, 0};
+        default: return killfeed_color_green;
     }
 }
 
@@ -89,7 +89,7 @@ static void add_segment(KillfeedMessage& msg, const char* text, KillfeedColor co
     seg.color = color;
 }
 
-void killfeed_add_message(const char* text, int color_id)
+void killfeed_add_message(const char* text, rf::ChatMsgColor color_id)
 {
     auto& msg = alloc_message();
     add_segment(msg, text, color_for_color_id(color_id));
@@ -151,7 +151,7 @@ FunHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> multi_chat_pri
 
         // System/event message (flag events, join/leave, etc.) - route to killfeed
         rf::String text{text_pod};
-        killfeed_add_message(text.c_str(), static_cast<int>(color));
+        killfeed_add_message(text.c_str(), color);
     },
 };
 
