@@ -803,12 +803,8 @@ static void draw_with_shadow(int x, int y, int shadow_dx, int shadow_dy, rf::Col
 
 // Renders powerup icons to the left of the spectate nameplate bar.
 // Detects powerup state from entity_flags2 which are already synced by the stock netcode.
-static void render_spectate_powerup_icons(int bar_x, int bar_y, int bar_h)
+static void render_spectate_powerup_icons(rf::Entity* entity, int bar_x, int bar_y, int bar_h)
 {
-    if (!g_spectate_mode_enabled || !g_spectate_mode_target)
-        return;
-
-    rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
     if (!entity)
         return;
 
@@ -816,10 +812,15 @@ static void render_spectate_powerup_icons(int bar_x, int bar_y, int bar_h)
     static int bm_invuln = rf::bm::load("hud_pow_invuln.tga", -1, true);
     static int bm_amp = rf::bm::load("hud_pow_damage.tga", -1, true);
 
-    bool has_invuln = (entity->entity_flags2 & rf::EF2_POWERUP_INVULNERABLE) != 0;
-    bool has_amp = (entity->entity_flags2 & rf::EF2_POWERUP_DAMAGE_AMP) != 0;
+    // Collect active powerups right-to-left (rightmost icon is closest to bar)
+    int active_bms[2];
+    int count = 0;
+    if ((entity->entity_flags2 & rf::EF2_POWERUP_DAMAGE_AMP) != 0 && bm_amp >= 0)
+        active_bms[count++] = bm_amp;
+    if ((entity->entity_flags2 & rf::EF2_POWERUP_INVULNERABLE) != 0 && bm_invuln >= 0)
+        active_bms[count++] = bm_invuln;
 
-    if (!has_invuln && !has_amp)
+    if (count == 0)
         return;
 
     float scale = g_alpine_game_config.big_hud ? 2.0f : 1.0f;
@@ -827,19 +828,12 @@ static void render_spectate_powerup_icons(int bar_x, int bar_y, int bar_h)
 
     // Measure icon size (both bitmaps are the same dimensions)
     int bm_w = 0, bm_h = 0;
-    if (bm_invuln >= 0) rf::bm::get_dimensions(bm_invuln, &bm_w, &bm_h);
-    else if (bm_amp >= 0) rf::bm::get_dimensions(bm_amp, &bm_w, &bm_h);
+    rf::bm::get_dimensions(active_bms[0], &bm_w, &bm_h);
     int icon_w = static_cast<int>(bm_w * scale);
     int icon_h = static_cast<int>(bm_h * scale);
 
     // Place icons to the left of the nameplate bar, right-aligned toward bar_x
     int icon_x = bar_x - gap;
-
-    // Collect active powerups right-to-left (rightmost icon is closest to bar)
-    int active_bms[2];
-    int count = 0;
-    if (has_amp) active_bms[count++] = bm_amp;
-    if (has_invuln) active_bms[count++] = bm_invuln;
 
     for (int i = 0; i < count; ++i) {
         icon_x -= icon_w;
@@ -1009,9 +1003,9 @@ void multi_spectate_render() {
         rf::gr::set_color(saved_color);
     }
 
-    render_spectate_powerup_icons(bar_x, bar_y, bar_h);
-
     rf::Entity* entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
+
+    render_spectate_powerup_icons(entity, bar_x, bar_y, bar_h);
     if (!entity) {
         rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xFF);
         static int blood_bm = rf::bm::load("bloodsmear07_A.tga", -1, true);
