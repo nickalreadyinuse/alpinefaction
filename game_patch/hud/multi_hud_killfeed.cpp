@@ -11,40 +11,40 @@
 #include "hud_internal.h"
 #include "hud.h"
 
-static constexpr int killfeed_max_messages = 8;
-static constexpr int killfeed_display_ms = 5000;
-static constexpr int killfeed_fade_ms = 750;
-static constexpr int killfeed_max_segments = 5;
+static constexpr int KILLFEED_MAX_MESSAGES = 8;
+static constexpr int KILLFEED_DISPLAY_MS = 5000;
+static constexpr int KILLFEED_FADE_MS = 750;
+static constexpr int KILLFEED_MAX_SEGMENTS = 5;
 // Vertical gap between the bottom of the armor HUD element and the first killfeed line
-static constexpr int killfeed_top_margin = 50;
+static constexpr int KILLFEED_TOP_MARGIN = 50;
 // Approximate height of the health/armor bitmap at 1x scale (health + armor stacked)
-static constexpr int hud_status_bitmap_h = 100;
+static constexpr int HUD_STATUS_BITMAP_H = 100;
 
 struct KillfeedColor
 {
     int r, g, b;
 };
 
-static constexpr KillfeedColor killfeed_color_red    = {227, 48, 47};
-static constexpr KillfeedColor killfeed_color_blue   = {117, 117, 254};
-static constexpr KillfeedColor killfeed_color_white  = {255, 255, 255};
-static constexpr KillfeedColor killfeed_color_green  = {52, 255, 57};
+static constexpr KillfeedColor KILLFEED_COLOR_RED    = {227, 48, 47};
+static constexpr KillfeedColor KILLFEED_COLOR_BLUE   = {117, 117, 254};
+static constexpr KillfeedColor KILLFEED_COLOR_WHITE  = {255, 255, 255};
+static constexpr KillfeedColor KILLFEED_COLOR_GREEN  = {52, 255, 57};
 
 struct KillfeedSegment
 {
     std::string text;
-    KillfeedColor color = killfeed_color_green;
+    KillfeedColor color = KILLFEED_COLOR_GREEN;
 };
 
 struct KillfeedMessage
 {
-    KillfeedSegment segments[killfeed_max_segments];
+    KillfeedSegment segments[KILLFEED_MAX_SEGMENTS];
     int segment_count = 0;
     rf::Timestamp timestamp;
     bool active = false;
 };
 
-static std::array<KillfeedMessage, killfeed_max_messages> g_killfeed_messages;
+static std::array<KillfeedMessage, KILLFEED_MAX_MESSAGES> g_killfeed_messages;
 static int g_killfeed_head = 0; // next slot to write
 
 // Flag to suppress the multi_chat_print hook for kill messages (already handled by kill.cpp)
@@ -53,21 +53,21 @@ static bool g_killfeed_suppress_hook = false;
 static KillfeedColor color_for_team(int team)
 {
     // team 0 = red, team 1 = blue
-    if (team == 0) return killfeed_color_red;
-    if (team == 1) return killfeed_color_blue;
-    return killfeed_color_green;
+    if (team == 0) return KILLFEED_COLOR_RED;
+    if (team == 1) return KILLFEED_COLOR_BLUE;
+    return KILLFEED_COLOR_GREEN;
 }
 
 static KillfeedColor color_for_color_id(rf::ChatMsgColor color_id)
 {
     switch (color_id) {
-        case rf::ChatMsgColor::red_white:    return killfeed_color_red;
-        case rf::ChatMsgColor::blue_white:   return killfeed_color_blue;
-        case rf::ChatMsgColor::red_red:      return killfeed_color_red;
-        case rf::ChatMsgColor::blue_blue:    return killfeed_color_blue;
-        case rf::ChatMsgColor::white_white:  return killfeed_color_white;
+        case rf::ChatMsgColor::red_white:    return KILLFEED_COLOR_RED;
+        case rf::ChatMsgColor::blue_white:   return KILLFEED_COLOR_BLUE;
+        case rf::ChatMsgColor::red_red:      return KILLFEED_COLOR_RED;
+        case rf::ChatMsgColor::blue_blue:    return KILLFEED_COLOR_BLUE;
+        case rf::ChatMsgColor::white_white:  return KILLFEED_COLOR_WHITE;
         case rf::ChatMsgColor::gold_white:   return {255, 215, 0};
-        default: return killfeed_color_green;
+        default: return KILLFEED_COLOR_GREEN;
     }
 }
 
@@ -76,14 +76,14 @@ static KillfeedMessage& alloc_message()
     auto& msg = g_killfeed_messages[g_killfeed_head];
     msg.segment_count = 0;
     msg.active = true;
-    msg.timestamp.set(killfeed_display_ms + killfeed_fade_ms);
-    g_killfeed_head = (g_killfeed_head + 1) % killfeed_max_messages;
+    msg.timestamp.set(KILLFEED_DISPLAY_MS + KILLFEED_FADE_MS);
+    g_killfeed_head = (g_killfeed_head + 1) % KILLFEED_MAX_MESSAGES;
     return msg;
 }
 
 static void add_segment(KillfeedMessage& msg, const char* text, KillfeedColor color)
 {
-    if (msg.segment_count >= killfeed_max_segments) return;
+    if (msg.segment_count >= KILLFEED_MAX_SEGMENTS) return;
     auto& seg = msg.segments[msg.segment_count++];
     seg.text = text;
     seg.color = color;
@@ -102,25 +102,30 @@ void killfeed_add_kill(const char* killed_name, int killed_team,
     auto& msg = alloc_message();
 
     if (is_local_kill) {
-        add_segment(msg, verb, killfeed_color_white);
+        add_segment(msg, verb, KILLFEED_COLOR_WHITE);
     }
     else if (!killer_name) {
-        KillfeedColor killed_color = is_team_mode ? color_for_team(killed_team) : killfeed_color_green;
+        KillfeedColor killed_color = is_team_mode ? color_for_team(killed_team) : KILLFEED_COLOR_GREEN;
         add_segment(msg, killed_name, killed_color);
-        add_segment(msg, verb, killfeed_color_green);
+        add_segment(msg, verb, KILLFEED_COLOR_GREEN);
     }
     else {
-        KillfeedColor killed_color = is_team_mode ? color_for_team(killed_team) : killfeed_color_green;
-        KillfeedColor killer_color = is_team_mode ? color_for_team(killer_team) : killfeed_color_green;
+        KillfeedColor killed_color = is_team_mode ? color_for_team(killed_team) : KILLFEED_COLOR_GREEN;
+        KillfeedColor killer_color = is_team_mode ? color_for_team(killer_team) : KILLFEED_COLOR_GREEN;
         add_segment(msg, killed_name, killed_color);
-        add_segment(msg, verb, killfeed_color_green);
+        add_segment(msg, verb, KILLFEED_COLOR_GREEN);
         add_segment(msg, killer_name, killer_color);
     }
 }
 
-void killfeed_set_suppress_hook(bool suppress)
+KillfeedSuppressGuard::KillfeedSuppressGuard()
 {
-    g_killfeed_suppress_hook = suppress;
+    g_killfeed_suppress_hook = true;
+}
+
+KillfeedSuppressGuard::~KillfeedSuppressGuard()
+{
+    g_killfeed_suppress_hook = false;
 }
 
 void killfeed_clear()
@@ -174,14 +179,14 @@ void multi_hud_render_killfeed()
     const bool big = g_alpine_game_config.big_hud;
     const float scale = big ? 1.875f : 1.0f;
     auto enviro_pt = hud_scale_coords(rf::hud_coords[rf::hud_envirosuit], scale);
-    int top_y = enviro_pt.y + static_cast<int>(hud_status_bitmap_h * scale) + killfeed_top_margin;
+    int top_y = enviro_pt.y + static_cast<int>(HUD_STATUS_BITMAP_H * scale) + KILLFEED_TOP_MARGIN;
     const int base_x = enviro_pt.x;
 
     // Collect active messages in order (oldest to newest)
     int count = 0;
-    int indices[killfeed_max_messages];
-    for (int i = 0; i < killfeed_max_messages; ++i) {
-        int idx = (g_killfeed_head + i) % killfeed_max_messages;
+    int indices[KILLFEED_MAX_MESSAGES];
+    for (int i = 0; i < KILLFEED_MAX_MESSAGES; ++i) {
+        int idx = (g_killfeed_head + i) % KILLFEED_MAX_MESSAGES;
         auto& msg = g_killfeed_messages[idx];
         if (!msg.active) {
             continue;
@@ -206,8 +211,8 @@ void multi_hud_render_killfeed()
 
         int alpha = 255;
         int time_left = msg.timestamp.time_until();
-        if (time_left < killfeed_fade_ms) {
-            alpha = static_cast<int>(255.0f * time_left / killfeed_fade_ms);
+        if (time_left < KILLFEED_FADE_MS) {
+            alpha = static_cast<int>(255.0f * time_left / KILLFEED_FADE_MS);
         }
         if (alpha <= 0) {
             continue;
