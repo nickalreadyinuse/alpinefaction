@@ -313,12 +313,7 @@ CodeInjection detail_room_overflow_check{
     0x0049b757, // MOV [EAX*4+array], ESI — unbounded detail room array write
     [](auto& regs) {
         if (static_cast<int>(regs.eax) >= max_detail_rooms) {
-            static bool warned = false;
-            if (!warned) {
-                WARN_ONCE("Detail rooms limit reached ({}), additional detail rooms will not be rendered",
-                           max_detail_rooms);
-                warned = true;
-            }
+            WARN_ONCE("Detail rooms limit reached ({}), additional detail rooms will not be rendered", max_detail_rooms);
             regs.eip = 0x0049b764; // skip write + inc + store
         }
     },
