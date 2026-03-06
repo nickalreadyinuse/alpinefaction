@@ -4,6 +4,14 @@
 Version 1.3.0 (Bakeapple): Not yet released
 --------------------------------
 ### Major features
+[@GooberRF](https://github.com/GooberRF)
+- Expanded destruction capabilities available to developers
+    - `Brush-based geomod` switch added to level properties; if true, use level hardness for geoable brushes (RF2-style)
+    - Geo regions allow traditional world-based geomod to be used even when brush-based switch is true
+    - `Is Geoable` flag added to brush properties
+    - Support for rock, wood, cement, metal, and ice breakable detail brushes
+    - Add dynamic debris generation from breakable detail brushes
+    - `No Debris` flag added to brush properties for breakable detail brushes
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -28,6 +36,9 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `-script` command line argument to execute a startup script after the game launches
 - Add support for `script` console command to execute a script on-demand
 - Add `/coinflip` chat command
+- Allow level hardness to be set to 0 in version >= 304 levels
+- Add `sp_geochunkphysics` console command to toggle isolated geo chunks falling down in single player
+- Add `geo_chunk_physics` rule to ADS config to toggle isolated geo chunks falling down in multiplayer
 - Raise limit on lights per level from 1100 to 8192
 - Raise level editor limit on lights projecting on a single face from 64 to 1024
 - Raise level editor geo_cache limits: face list 16384 to 65536, batch count 512 to 1024, memory pool 8 MB to 32 MB
