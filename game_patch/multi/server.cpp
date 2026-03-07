@@ -1170,11 +1170,15 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
 
         float life_before = damaged_ep->life;
         float armor_before = damaged_ep->armor;
+        int damaged_ep_handle = damaged_ep->handle;
 
         float real_damage = entity_damage_hook.call_target(damaged_ep, damage, killer_handle, damage_type, killer_uid);
 
+        // Re-fetch pointer: entity may have been destroyed during damage processing, making the original pointer dangling
+        damaged_ep = rf::entity_from_handle(damaged_ep_handle);
+
         // should entity gib?
-        if (damaged_ep) { // damaged_ep can sometimes be invalid at this point
+        if (damaged_ep) {
             if (!rf::is_multi) { // SP gibbing
                 if (damaged_ep->life < -100.0f &&               // very dead
                     damage_type == 3 &&                         // explosive
@@ -1201,7 +1205,6 @@ FunHook<float(rf::Entity*, float, int, int, int)> entity_damage_hook{
             }
         }
 
-        // damaged_ep may be invalid at this point. If so, assume dead to avoid a rare crash from checking life
         bool is_dead = damaged_ep ? damaged_ep->life <= 0.0f : true;
 
         // Cap damage to what was actually removed from the victim's health+armor (prevents overkill inflation)
