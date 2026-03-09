@@ -165,6 +165,16 @@ struct Matrix3
 };
 static_assert(sizeof(Matrix3) == 0x24, "Matrix3 size mismatch!");
 
+struct Plane
+{
+    Vector3 normal;
+    float dist = 0.0f;
+
+    Plane() = default;
+    Plane(const Vector3& n, float d) : normal(n), dist(d) {}
+};
+static_assert(sizeof(Plane) == 0x10, "Plane size mismatch!");
+
 template<typename T>
 struct VArray
 {
@@ -322,6 +332,23 @@ struct DedEvent : DedObject
     VString str2;
 };
 static_assert(sizeof(DedEvent) == 0xC4, "DedEvent size mismatch");
+
+struct DedRoomEffect : DedObject
+{
+    int effect_type;                   // 0x94 — 2 = Liquid Room
+    char pad_98[0xA8 - 0x98];
+    VString liquid_bitmap;             // 0xA8 — liquid surface texture filename
+    char pad_B0[0xD4 - 0xB0];
+};
+static_assert(sizeof(DedRoomEffect) == 0xD4, "DedRoomEffect size mismatch");
+
+struct DedBoltEmitter : DedObject
+{
+    char pad_94[0xC4 - 0x94];
+    VString bitmap;                    // 0xC4 — bolt texture filename
+    char pad_CC[0xD4 - 0xCC];
+};
+static_assert(sizeof(DedBoltEmitter) == 0xD4, "DedBoltEmitter size mismatch");
 
 
 struct CDialog_mbrs
@@ -569,7 +596,7 @@ struct VFile
 
     int get_version()
     {
-        AddrCaller{0x004CF680}.this_call(this);
+        return AddrCaller{0x004CF680}.this_call<int>(this);
     }
 };
 static_assert(sizeof(VFile) == 0x114);
