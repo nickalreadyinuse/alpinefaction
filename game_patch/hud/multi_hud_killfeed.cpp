@@ -118,14 +118,9 @@ void killfeed_add_kill(const char* killed_name, int killed_team,
     }
 }
 
-KillfeedSuppressGuard::KillfeedSuppressGuard()
+void killfeed_set_suppress_hook(bool suppress)
 {
-    g_killfeed_suppress_hook = true;
-}
-
-KillfeedSuppressGuard::~KillfeedSuppressGuard()
-{
-    g_killfeed_suppress_hook = false;
+    g_killfeed_suppress_hook = suppress;
 }
 
 void killfeed_clear()

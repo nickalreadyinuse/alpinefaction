@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include "../rf/gr/gr.h"
 #include "../rf/input.h"
 #include "../rf/multi.h"
@@ -92,14 +93,14 @@ void killfeed_add_message(const char* text, rf::ChatMsgColor color_id);
 void killfeed_add_kill(const char* killed_name, int killed_team,
                        const char* killer_name, int killer_team,
                        const char* verb, bool is_local_kill, bool is_team_mode);
-// RAII guard to suppress the killfeed hook (keeps messages in chat)
-struct KillfeedSuppressGuard
-{
-    KillfeedSuppressGuard();
-    ~KillfeedSuppressGuard();
-    KillfeedSuppressGuard(const KillfeedSuppressGuard&) = delete;
-    KillfeedSuppressGuard& operator=(const KillfeedSuppressGuard&) = delete;
-};
+void killfeed_set_suppress_hook(bool suppress);
+
+template <typename F>
+void run_with_killfeed_suppressed(F&& fun) {
+    killfeed_set_suppress_hook(true);
+    std::forward<F>(fun)();
+    killfeed_set_suppress_hook(false);
+}
 void multi_hud_render_killfeed();
 void multi_hud_killfeed_apply_patches();
 void killfeed_clear();
