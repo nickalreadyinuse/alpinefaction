@@ -67,6 +67,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Make jump control move freelook camera up
 - Add `cl_legacy_bob` to restore legacy first person weapon running animation behavior
 - Show powerup icons in spectator mode
+- Improve presented damage calculations for stats and damage numbers
 - Add `ui_gamefeed` toggle which separates game events (kills, flag steals, join/leave, etc) from the chat to a separate HUD element
 
 [@natarii](https://github.com/natarii)
