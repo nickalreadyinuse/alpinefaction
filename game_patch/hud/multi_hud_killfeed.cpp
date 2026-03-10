@@ -1,8 +1,12 @@
 #include <array>
 #include <string>
+#include <patch_common/FunHook.h>
+#include <patch_common/CallHook.h>
 #include "../rf/hud.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
+#include "../rf/multi.h"
+#include "../rf/os/string.h"
 #include "../rf/os/timestamp.h"
 #include "../misc/alpine_settings.h"
 #include "hud_internal.h"
@@ -44,6 +48,22 @@ struct KillfeedMessage
 static std::array<KillfeedMessage, KILLFEED_MAX_MESSAGES> g_killfeed_messages;
 static int g_killfeed_head = 0; // next slot to write
 
+// When set, the next multi_chat_print call with an empty prefix will be routed to the killfeed
+static bool g_killfeed_route_next = false;
+
+static KillfeedColor color_for_color_id(rf::ChatMsgColor color_id)
+{
+    switch (color_id) {
+        case rf::ChatMsgColor::red_white:    return KILLFEED_COLOR_RED;
+        case rf::ChatMsgColor::blue_white:   return KILLFEED_COLOR_BLUE;
+        case rf::ChatMsgColor::red_red:      return KILLFEED_COLOR_RED;
+        case rf::ChatMsgColor::blue_blue:    return KILLFEED_COLOR_BLUE;
+        case rf::ChatMsgColor::white_white:  return KILLFEED_COLOR_WHITE;
+        case rf::ChatMsgColor::gold_white:   return {255, 215, 0};
+        default: return KILLFEED_COLOR_GREEN;
+    }
+}
+
 static KillfeedColor color_for_team(int team)
 {
     // team 0 = red, team 1 = blue
@@ -68,6 +88,17 @@ static void add_segment(KillfeedMessage& msg, const char* text, KillfeedColor co
     auto& seg = msg.segments[msg.segment_count++];
     seg.text = text;
     seg.color = color;
+}
+
+static void killfeed_add_message(const char* text, rf::ChatMsgColor color_id)
+{
+    auto& msg = alloc_message();
+    add_segment(msg, text, color_for_color_id(color_id));
+}
+
+void killfeed_route_next_message()
+{
+    g_killfeed_route_next = true;
 }
 
 void killfeed_add_kill(const char* killed_name, int killed_team,
@@ -103,8 +134,68 @@ void killfeed_clear()
     g_killfeed_head = 0;
 }
 
+// Hook on multi_chat_print to intercept game event messages that have opted in via killfeed_route_next_message
+FunHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> multi_chat_print_hook{
+    0x004785A0,
+    [](rf::String::Pod text_pod, rf::ChatMsgColor color, rf::String::Pod prefix_pod) {
+        bool should_route = g_killfeed_route_next;
+        g_killfeed_route_next = false;
+
+        if (should_route && g_alpine_game_config.killfeed_enabled) {
+            rf::String text{text_pod};
+            killfeed_add_message(text.c_str(), color);
+            return;
+        }
+
+        multi_chat_print_hook.call_target(text_pod, color, prefix_pod);
+    },
+};
+
+// Helper for CTF CallHooks: set the routing flag then call multi_chat_print
+static void ctf_chat_print_with_killfeed_routing(
+    CallHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)>& hook,
+    rf::String::Pod text, rf::ChatMsgColor color, rf::String::Pod prefix)
+{
+    killfeed_route_next_message();
+    hook.call_target(text, color, prefix);
+}
+
+// Hook multi_chat_print calls inside stock CTF flag packet handlers
+CallHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> ctf_flag_pickup_chat_hook1{
+    0x004741A4,
+    [](rf::String::Pod text, rf::ChatMsgColor color, rf::String::Pod prefix) {
+        ctf_chat_print_with_killfeed_routing(ctf_flag_pickup_chat_hook1, text, color, prefix);
+    },
+};
+
+CallHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> ctf_flag_pickup_chat_hook2{
+    0x00474246,
+    [](rf::String::Pod text, rf::ChatMsgColor color, rf::String::Pod prefix) {
+        ctf_chat_print_with_killfeed_routing(ctf_flag_pickup_chat_hook2, text, color, prefix);
+    },
+};
+
+CallHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> ctf_flag_capture_chat_hook{
+    0x00473E5E,
+    [](rf::String::Pod text, rf::ChatMsgColor color, rf::String::Pod prefix) {
+        ctf_chat_print_with_killfeed_routing(ctf_flag_capture_chat_hook, text, color, prefix);
+    },
+};
+
+CallHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> ctf_flag_return_chat_hook{
+    0x004734C4,
+    [](rf::String::Pod text, rf::ChatMsgColor color, rf::String::Pod prefix) {
+        ctf_chat_print_with_killfeed_routing(ctf_flag_return_chat_hook, text, color, prefix);
+    },
+};
+
 void multi_hud_killfeed_apply_patches()
 {
+    multi_chat_print_hook.install();
+    ctf_flag_pickup_chat_hook1.install();
+    ctf_flag_pickup_chat_hook2.install();
+    ctf_flag_capture_chat_hook.install();
+    ctf_flag_return_chat_hook.install();
 }
 
 void multi_hud_render_killfeed()
