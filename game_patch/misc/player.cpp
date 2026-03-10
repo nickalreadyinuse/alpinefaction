@@ -221,7 +221,7 @@ CodeInjection player_dying_frame_respawn_req_patch{ // force respawn
             && rf::local_player->is_spawn_disabled) {
             run_with_killfeed_suppressed([&] {
                 rf::String prefix{};
-                rf::String msg{"You are not allowed to spawn right now"};
+                rf::String msg{"You are not allowed to force respawn right now"};
                 rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
             });
             regs.eip = 0x004A6DF8;
