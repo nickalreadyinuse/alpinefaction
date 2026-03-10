@@ -143,14 +143,15 @@ FunHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> multi_chat_pri
         }
 
         // Messages with a non-empty prefix are player chat or server messages - keep in chat
-        rf::String prefix{prefix_pod};
-        if (!prefix.empty()) {
+        bool has_prefix = prefix_pod.buf && prefix_pod.buf[0] != '\0';
+        if (has_prefix) {
             multi_chat_print_hook.call_target(text_pod, color, prefix_pod);
             return;
         }
 
         // System/event message (flag events, join/leave, etc.) - route to killfeed
         rf::String text{text_pod};
+        rf::String prefix{prefix_pod};
         killfeed_add_message(text.c_str(), color);
     },
 };
