@@ -1,11 +1,8 @@
 #include <array>
 #include <string>
-#include <patch_common/FunHook.h>
 #include "../rf/hud.h"
 #include "../rf/gr/gr.h"
 #include "../rf/gr/gr_font.h"
-#include "../rf/multi.h"
-#include "../rf/os/string.h"
 #include "../rf/os/timestamp.h"
 #include "../misc/alpine_settings.h"
 #include "hud_internal.h"
@@ -47,28 +44,12 @@ struct KillfeedMessage
 static std::array<KillfeedMessage, KILLFEED_MAX_MESSAGES> g_killfeed_messages;
 static int g_killfeed_head = 0; // next slot to write
 
-// Flag to suppress the multi_chat_print hook so certain messages remain in chat instead of being routed to the killfeed
-static bool g_killfeed_suppress_hook = false;
-
 static KillfeedColor color_for_team(int team)
 {
     // team 0 = red, team 1 = blue
     if (team == 0) return KILLFEED_COLOR_RED;
     if (team == 1) return KILLFEED_COLOR_BLUE;
     return KILLFEED_COLOR_GREEN;
-}
-
-static KillfeedColor color_for_color_id(rf::ChatMsgColor color_id)
-{
-    switch (color_id) {
-        case rf::ChatMsgColor::red_white:    return KILLFEED_COLOR_RED;
-        case rf::ChatMsgColor::blue_white:   return KILLFEED_COLOR_BLUE;
-        case rf::ChatMsgColor::red_red:      return KILLFEED_COLOR_RED;
-        case rf::ChatMsgColor::blue_blue:    return KILLFEED_COLOR_BLUE;
-        case rf::ChatMsgColor::white_white:  return KILLFEED_COLOR_WHITE;
-        case rf::ChatMsgColor::gold_white:   return {255, 215, 0};
-        default: return KILLFEED_COLOR_GREEN;
-    }
 }
 
 static KillfeedMessage& alloc_message()
@@ -87,12 +68,6 @@ static void add_segment(KillfeedMessage& msg, const char* text, KillfeedColor co
     auto& seg = msg.segments[msg.segment_count++];
     seg.text = text;
     seg.color = color;
-}
-
-void killfeed_add_message(const char* text, rf::ChatMsgColor color_id)
-{
-    auto& msg = alloc_message();
-    add_segment(msg, text, color_for_color_id(color_id));
 }
 
 void killfeed_add_kill(const char* killed_name, int killed_team,
@@ -118,11 +93,6 @@ void killfeed_add_kill(const char* killed_name, int killed_team,
     }
 }
 
-void killfeed_set_suppress_hook(bool suppress)
-{
-    g_killfeed_suppress_hook = suppress;
-}
-
 void killfeed_clear()
 {
     for (auto& msg : g_killfeed_messages) {
@@ -133,32 +103,8 @@ void killfeed_clear()
     g_killfeed_head = 0;
 }
 
-// Hook on multi_chat_print to intercept system/event messages (flag captures, joins, etc.)
-FunHook<void(rf::String::Pod, rf::ChatMsgColor, rf::String::Pod)> multi_chat_print_hook{
-    0x004785A0,
-    [](rf::String::Pod text_pod, rf::ChatMsgColor color, rf::String::Pod prefix_pod) {
-        if (!g_alpine_game_config.killfeed_enabled || g_killfeed_suppress_hook) {
-            multi_chat_print_hook.call_target(text_pod, color, prefix_pod);
-            return;
-        }
-
-        // Messages with a non-empty prefix are player chat or server messages - keep in chat
-        bool has_prefix = prefix_pod.buf && prefix_pod.buf[0] != '\0';
-        if (has_prefix) {
-            multi_chat_print_hook.call_target(text_pod, color, prefix_pod);
-            return;
-        }
-
-        // System/event message (flag events, join/leave, etc.) - route to killfeed
-        rf::String text{text_pod};
-        rf::String prefix{prefix_pod};
-        killfeed_add_message(text.c_str(), color);
-    },
-};
-
 void multi_hud_killfeed_apply_patches()
 {
-    multi_chat_print_hook.install();
 }
 
 void multi_hud_render_killfeed()

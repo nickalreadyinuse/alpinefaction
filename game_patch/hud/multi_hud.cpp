@@ -1423,10 +1423,8 @@ void chat_menu_action_handler(rf::Key key) {
                 rf::multi_chat_say(("\xA8[Taunt] " + selected_element.long_string).c_str(), false);
                 rf::snd_play(4, 0, 0.0f, 1.0f);
             } else {
-                run_with_killfeed_suppressed([&] {
-                    rf::String msg{"You must wait a little while between taunts"};
-                    rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
-                });
+                rf::String msg{"You must wait a little while between taunts"};
+                rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
             }
         }
         else if (g_chat_menu_active == ChatMenuType::Commands) {
@@ -1454,10 +1452,8 @@ void chat_menu_action_handler(rf::Key key) {
                     rf::snd_play(4, 0, 0.0f, 1.0f);
                 }
                 else {
-                    run_with_killfeed_suppressed([&] {
-                        rf::String msg{"You must wait at least one second between radio messages"};
-                        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
-                    });
+                    rf::String msg{"You must wait at least one second between radio messages"};
+                    rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, {});
                 }
             }
         }

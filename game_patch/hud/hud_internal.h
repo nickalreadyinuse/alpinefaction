@@ -4,7 +4,6 @@
 #include <utility>
 #include "../rf/gr/gr.h"
 #include "../rf/input.h"
-#include "../rf/multi.h"
 
 namespace rf
 {
@@ -89,18 +88,9 @@ void message_log_apply_patch();
 void hud_world_apply_patch();
 void hud_colors_apply_patch();
 void hud_scale_apply_patch();
-void killfeed_add_message(const char* text, rf::ChatMsgColor color_id);
 void killfeed_add_kill(const char* killed_name, int killed_team,
                        const char* killer_name, int killer_team,
                        const char* verb, bool is_local_kill, bool is_team_mode);
-void killfeed_set_suppress_hook(bool suppress);
-
-template <typename F>
-void run_with_killfeed_suppressed(F&& fun) {
-    killfeed_set_suppress_hook(true);
-    std::forward<F>(fun)();
-    killfeed_set_suppress_hook(false);
-}
 void multi_hud_render_killfeed();
 void multi_hud_killfeed_apply_patches();
 void killfeed_clear();
