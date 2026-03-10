@@ -194,9 +194,11 @@ CodeInjection player_execute_action_respawn_req_patch{ // click to spawn
         if (!rf::is_server
             && rf::local_player->is_bot
             && rf::local_player->is_spawn_disabled) {
-            rf::String prefix{};
-            rf::String msg{"You are not allowed to spawn right now"};
-            rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+            run_with_killfeed_suppressed([&] {
+                rf::String prefix{};
+                rf::String msg{"You are not allowed to spawn right now"};
+                rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+            });
             regs.eip = 0x004A67BB;
             return;
         }
@@ -217,9 +219,11 @@ CodeInjection player_dying_frame_respawn_req_patch{ // force respawn
         if (!rf::is_server
             && rf::local_player->is_bot
             && rf::local_player->is_spawn_disabled) {
-            rf::String prefix{};
-            rf::String msg{"You are not allowed to force respawn right now"};
-            rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+            run_with_killfeed_suppressed([&] {
+                rf::String prefix{};
+                rf::String msg{"You are not allowed to spawn right now"};
+                rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+            });
             regs.eip = 0x004A6DF8;
             return;
         }
@@ -646,23 +650,29 @@ void ping_looked_at_location() {
     }
 
     if (!g_alpine_game_config.show_location_pings) {
-        rf::String msg{"Failed to ping location because the setting is turned off"};
-        rf::String prefix;
-        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        run_with_killfeed_suppressed([&] {
+            rf::String msg{"Failed to ping location because the setting is turned off"};
+            rf::String prefix;
+            rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        });
         return;
     }
 
     if (!get_af_server_info().has_value() || !get_af_server_info()->location_pinging) {
-        rf::String msg{"This server does not allow you to ping locations"};
-        rf::String prefix;
-        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        run_with_killfeed_suppressed([&] {
+            rf::String msg{"This server does not allow you to ping locations"};
+            rf::String prefix;
+            rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        });
         return;
     }
 
     if (!multi_is_team_game_type() && !gt_is_run()) {
-        rf::String msg{"Location pinging is only available in team gametypes"};
-        rf::String prefix;
-        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        run_with_killfeed_suppressed([&] {
+            rf::String msg{"Location pinging is only available in team gametypes"};
+            rf::String prefix;
+            rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        });
         return;
     }
 
