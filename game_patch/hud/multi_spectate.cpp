@@ -137,9 +137,11 @@ void multi_spectate_set_target_player(rf::Player* player)
         return;
 
     if (is_force_respawn()) {
-        rf::String msg{"You cannot use Spectate Mode because Force Respawn is enabled in this server!"};
-        rf::String prefix;
-        rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        run_with_killfeed_suppressed([&] {
+            rf::String msg{"You cannot use Spectate Mode because Force Respawn is enabled in this server!"};
+            rf::String prefix;
+            rf::multi_chat_print(msg, rf::ChatMsgColor::white_white, prefix);
+        });
         return;
     }
 
