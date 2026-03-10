@@ -47,7 +47,7 @@ struct KillfeedMessage
 static std::array<KillfeedMessage, KILLFEED_MAX_MESSAGES> g_killfeed_messages;
 static int g_killfeed_head = 0; // next slot to write
 
-// Flag to suppress the multi_chat_print hook for kill messages (already handled by kill.cpp)
+// Flag to suppress the multi_chat_print hook so certain messages remain in chat instead of being routed to the killfeed
 static bool g_killfeed_suppress_hook = false;
 
 static KillfeedColor color_for_team(int team)
