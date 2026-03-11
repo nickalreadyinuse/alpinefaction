@@ -1,3 +1,4 @@
+#include <patch_common/CallHook.h>
 #include <patch_common/FunHook.h>
 #include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
@@ -272,27 +273,57 @@ void restore_entities_after_projectile()
     g_rewound_entities.clear();
 }
 
-// --- Hook: apply_radius_damage ---
-// Wraps all calls to apply_radius_damage. Only activates for player-fired explosions.
+// --- Hooks: apply_radius_damage call sites ---
+// Cannot use FunHook on apply_radius_damage (0x00488DC0) because its prologue starts with
+// FLD [ESP+0x8] — a stack-relative FPU load that breaks when relocated to a trampoline.
+// Instead, hook each call site individually with CallHooks.
 
-FunHook<void(rf::Vector3&, float, float, int, int)> apply_radius_damage_hook{
-    0x00488DC0,
-    [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
-        bool rewound = false;
-        if (rf::is_server && projectile_lag_comp_enabled() && killer_handle > 0) {
-            rf::Object* killer_obj = rf::obj_from_handle(killer_handle);
-            if (killer_obj && killer_obj->type == rf::OT_ENTITY) {
-                rf::Player* pp = rf::player_from_entity_handle(killer_handle);
-                if (pp) {
-                    rewind_entities_for_projectile(killer_handle);
-                    rewound = true;
-                }
+// Shared rewind/restore wrapper for all apply_radius_damage call sites
+static void radius_damage_with_rewind(
+    CallHook<void(rf::Vector3&, float, float, int, int)>& hook,
+    rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type)
+{
+    bool rewound = false;
+    if (rf::is_server && projectile_lag_comp_enabled() && killer_handle > 0) {
+        rf::Object* killer_obj = rf::obj_from_handle(killer_handle);
+        if (killer_obj && killer_obj->type == rf::OT_ENTITY) {
+            rf::Player* pp = rf::player_from_entity_handle(killer_handle);
+            if (pp) {
+                rewind_entities_for_projectile(killer_handle);
+                rewound = true;
             }
         }
-        apply_radius_damage_hook.call_target(epicenter, damage, radius, killer_handle, damage_type);
-        if (rewound) {
-            restore_entities_after_projectile();
-        }
+    }
+    hook.call_target(epicenter, damage, radius, killer_handle, damage_type);
+    if (rewound) {
+        restore_entities_after_projectile();
+    }
+}
+
+// Call site in weapon_hit_entity (0x004C62F5)
+CallHook<void(rf::Vector3&, float, float, int, int)> weapon_hit_entity_radius_damage_hook{
+    0x004C62F5,
+    [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
+        radius_damage_with_rewind(weapon_hit_entity_radius_damage_hook,
+            epicenter, damage, radius, killer_handle, damage_type);
+    },
+};
+
+// Call site in weapon_move_one / grenade+RC explosion (0x004C6C94)
+CallHook<void(rf::Vector3&, float, float, int, int)> weapon_explode_radius_damage_hook{
+    0x004C6C94,
+    [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
+        radius_damage_with_rewind(weapon_explode_radius_damage_hook,
+            epicenter, damage, radius, killer_handle, damage_type);
+    },
+};
+
+// Call site in misc explosion function (0x0043660D)
+CallHook<void(rf::Vector3&, float, float, int, int)> misc_explosion_radius_damage_hook{
+    0x0043660D,
+    [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
+        radius_damage_with_rewind(misc_explosion_radius_damage_hook,
+            epicenter, damage, radius, killer_handle, damage_type);
     },
 };
 
@@ -300,7 +331,9 @@ FunHook<void(rf::Vector3&, float, float, int, int)> apply_radius_damage_hook{
 
 void projectile_lag_comp_init()
 {
-    apply_radius_damage_hook.install();
+    weapon_hit_entity_radius_damage_hook.install();
+    weapon_explode_radius_damage_hook.install();
+    misc_explosion_radius_damage_hook.install();
 }
 
 void projectile_lag_comp_on_level_init()
