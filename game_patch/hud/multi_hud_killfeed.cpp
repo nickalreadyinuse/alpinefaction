@@ -48,7 +48,7 @@ struct KillfeedMessage
 static std::array<KillfeedMessage, KILLFEED_MAX_MESSAGES> g_killfeed_messages;
 static int g_killfeed_head = 0; // next slot to write
 
-// When set, the next multi_chat_print call with an empty prefix will be routed to the killfeed
+// When set, the next multi_chat_print call will be routed to the killfeed instead of the chat
 static bool g_killfeed_route_next = false;
 
 static KillfeedColor color_for_color_id(rf::ChatMsgColor color_id)
@@ -132,6 +132,7 @@ void killfeed_clear()
         msg.timestamp.invalidate();
     }
     g_killfeed_head = 0;
+    g_killfeed_route_next = false;
 }
 
 // Hook on multi_chat_print to intercept game event messages that have opted in via killfeed_route_next_message
