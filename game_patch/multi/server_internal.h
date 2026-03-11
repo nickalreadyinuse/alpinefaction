@@ -687,6 +687,8 @@ struct AlpineServerConfig
     bool allow_unlimited_fps = false;
     bool use_sp_damage_calculation = false;
     bool exclude_bots_from_player_count = false;
+    bool projectile_lag_comp = false;
+    int projectile_lag_comp_max_ms = 250;
     AlpineRestrictConfig alpine_restricted_config;
     InactivityConfig inactivity_config;
     DamageNotificationConfig damage_notification_config;

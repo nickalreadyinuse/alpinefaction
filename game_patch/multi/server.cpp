@@ -47,6 +47,7 @@
 #include "../rf/level.h"
 #include "../rf/collide.h"
 #include "../purefaction/pf.h"
+#include "projectile_lag_comp.h"
 
 // all commands that can be used by any rcon profiles
 // full_admin gives access to this entire list
@@ -2221,6 +2222,8 @@ FunHook<void(rf::Entity*, rf::Weapon*)> multi_lag_comp_weapon_fire_hook{
             stats->add_shots_fired(get_weapon_shot_stats_delta(wp));
             xlog::trace("fired a_ep {} wp {}", ep, wp);
         }
+        // Advance projectile weapons forward by half-ping to compensate for network delay
+        projectile_lag_comp_advance_weapon(ep, wp);
     },
 };
 
@@ -2265,6 +2268,7 @@ CodeInjection multi_level_init_injection{
         if (rf::is_server) {
             initialize_game_info_server_flags();
             af_send_server_info_packet_to_all();
+            projectile_lag_comp_on_level_init();
             if (g_alpine_server_config.dynamic_rotation &&
                 rf::netgame.current_level_index == rf::netgame.levels.size() - 1 && rf::netgame.levels.size() > 1) {
                 // if this is the last level in the list and dynamic rotation is on, shuffle
@@ -3142,6 +3146,9 @@ void server_init()
     get_log_cmd_line_param();
     get_nodl_cmd_line_param();
 
+    // Projectile lag compensation hooks
+    projectile_lag_comp_init();
+
     // console commands
     sv_game_type_cmd.register_cmd();
     gt_cmd.register_cmd();
@@ -3155,6 +3162,7 @@ void server_do_frame()
     match_do_frame();
     process_delayed_kicks();
     bot_decommission_check();
+    projectile_lag_comp_record_positions();
 }
 
 void server_on_limbo_state_enter()

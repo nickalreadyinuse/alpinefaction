@@ -145,6 +145,8 @@ set(SRCS
     multi/endgame_votes.h
     multi/faction_files.cpp
     multi/faction_files.h
+    multi/projectile_lag_comp.cpp
+    multi/projectile_lag_comp.h
     multi/multi_ban.cpp
     os/console.cpp
     os/console.h

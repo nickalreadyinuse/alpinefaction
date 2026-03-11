@@ -202,6 +202,7 @@ CallHook<void(rf::Vector3&, float, float, int, int)> weapon_hit_wall_obj_apply_r
     [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
         auto& collide_out = *reinterpret_cast<rf::PCollisionOut*>(&epicenter);
         auto new_epicenter = epicenter + collide_out.hit_normal * 0.0001f;
+        // Note: projectile lag comp rewind/restore is handled by the FunHook on apply_radius_damage
         weapon_hit_wall_obj_apply_radius_damage_hook.call_target(new_epicenter, damage, radius, killer_handle, damage_type);
     },
 };
