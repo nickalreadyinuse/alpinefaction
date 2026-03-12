@@ -173,6 +173,7 @@ set(SRCS
     object/monitor.cpp
     object/particle.cpp
     object/obj_light.cpp
+    object/alpine_mesh.cpp
     misc/achievements.h
     misc/achievements.cpp
     misc/character.cpp
