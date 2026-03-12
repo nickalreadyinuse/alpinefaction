@@ -73,6 +73,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `cl_legacy_bob` to restore legacy first person weapon running animation behavior
 - Show powerup icons in spectator mode
 - Improve presented damage calculations for stats and damage numbers
+- Add `ui_gamefeed` toggle to separate game events (kills, flag steals, hill captures, etc) from the chat to a separate HUD element
 
 [@natarii](https://github.com/natarii)
 - Implement FFLink client functionality in launcher
