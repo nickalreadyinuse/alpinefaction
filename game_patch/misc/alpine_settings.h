@@ -107,9 +107,11 @@ struct AlpineGameSettings
     bool play_team_rad_msg_sounds = true;
     bool unlimited_semi_auto = false;
     bool gaussian_spread = false;
+    bool geo_chunk_physics = true;
     bool show_run_timer = true;
     bool multi_ricochet = false;
     bool damage_screen_flash = true;
+    bool spectate_damage_screen_flash = true;
     bool explosion_weapon_flash_lights = true;
     bool explosion_env_flash_lights = true;
     bool burning_entity_lights = true;
@@ -135,6 +137,7 @@ struct AlpineGameSettings
     bool nearest_texture_filtering = false;
     bool direct_input = true;
     bool scoreboard_anim = true;
+    bool legacy_bob = false;
     bool scoreboard_split_simple = true;
     bool scoreboard_split_spectators = true;
     bool scoreboard_split_bots = false;
@@ -179,6 +182,7 @@ struct AlpineGameSettings
     int suppress_autoswitch_alias = -1;
     bool always_autoswitch_empty = true;
     bool apply_exposure_damage = true;
+    bool killfeed_enabled = false;
 
     // hud color overrides
     std::optional<uint32_t> sniper_scope_color_override{};
@@ -191,6 +195,7 @@ struct AlpineGameSettings
     std::optional<uint32_t> teammate_label_color_override{};
     std::optional<uint32_t> reticle_color_override{};
     std::optional<uint32_t> reticle_locked_color_override{};
+    std::optional<uint32_t> thermal_entity_color_override{};
     bool colorize_custom_reticles = false;
 
     // hud scale overrides

@@ -28,6 +28,7 @@
 #include "../os/console.h"
 #include "../misc/player.h"
 #include "../misc/alpine_settings.h"
+#include "../misc/misc.h"
 #include "../main/main.h"
 #include "../misc/achievements.h"
 #include "../rf/file/file.h"
@@ -47,6 +48,7 @@
 #include "../rf/level.h"
 #include "../rf/collide.h"
 #include "../purefaction/pf.h"
+#include <common/utils/os-utils.h>
 
 bool g_dedicated_launched_from_ads = false; // was the server launched from an ads file?
 std::string g_ads_config_name = "";
@@ -500,6 +502,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.set_dc_score_limit(*v);
     if (auto v = t["geo_limit"].value<int>())
         o.set_geo_limit(*v);
+    if (auto v = t["rf2_geo_limit"].value<int>())
+        o.set_rf2_geo_limit(*v);
 
     if (auto v = t["team_damage"].value<bool>())
         o.team_damage   = *v;
@@ -529,6 +533,8 @@ AlpineServerConfigRules parse_server_rules(const toml::table& t, const AlpineSer
         o.no_player_collide = *v;
     if (auto v = t["location_pinging"].value<bool>())
         o.location_pinging = *v;
+    if (auto v = t["geo_chunk_physics"].value<bool>())
+        o.geo_chunk_physics = *v;
     if (auto v = t["weapon_pickups_give_full_ammo"].value<bool>())
         o.weapon_items_give_full_ammo = *v;
     if (auto v = t["infinite_reloads"].value<bool>())
@@ -1482,6 +1488,9 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
     // common limits & flags
     if (base || rules.geo_limit != b.geo_limit)
         std::format_to(iter, "  Geomod crater limit:                   {}\n", rules.geo_limit);
+    if (base || rules.rf2_geo_limit != b.rf2_geo_limit)
+        std::format_to(iter, "  RF2-style geomod limit:                {}\n",
+            rules.rf2_geo_limit < 0 ? std::string("unlimited") : std::to_string(rules.rf2_geo_limit));
     if (base || rules.team_damage != b.team_damage)
         std::format_to(iter, "  Team damage:                           {}\n", rules.team_damage);
     if (base || rules.fall_damage != b.fall_damage)
@@ -1512,6 +1521,8 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
         std::format_to(iter, "  No player collide:                     {}\n", rules.no_player_collide);
     if (base || rules.location_pinging != b.location_pinging)
         std::format_to(iter, "  Location pinging:                      {}\n", rules.location_pinging);
+    if (base || rules.geo_chunk_physics != b.geo_chunk_physics)
+        std::format_to(iter, "  GeoMod chunk physics:                  {}\n", rules.geo_chunk_physics);
     if (base || rules.weapon_items_give_full_ammo != b.weapon_items_give_full_ammo)
         std::format_to(iter, "  Weapon pickups give full ammo:         {}\n", rules.weapon_items_give_full_ammo);
     if (base || rules.weapon_infinite_magazines != b.weapon_infinite_magazines)
@@ -1779,13 +1790,13 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
     print_gungame(output, rules.gungame, b.gungame, base);
 }
 
-void print_rules_with_presets(std::string& output, const AlpineServerConfigRules& rules, const std::vector<std::pair<std::filesystem::path, std::optional<std::string>>>& preset_paths, bool base, const bool sanitize = false)
+void print_rules_with_presets(std::string& output, const AlpineServerConfigRules& rules, const std::vector<std::pair<std::filesystem::path, std::optional<std::string>>>& preset_paths, bool base, const bool remote = false)
 {
     const auto iter = std::back_inserter(output);
     if (!preset_paths.empty()) {
         std::format_to(iter, "  Rules presets applied:\n");
         for (const auto& [preset_path, preset_alias] : preset_paths) {
-            const std::string path = sanitize
+            const std::string path = remote
                 ? preset_path.filename().generic_string()
                 : preset_path.generic_string();
             if (preset_alias) {
@@ -1798,19 +1809,22 @@ void print_rules_with_presets(std::string& output, const AlpineServerConfigRules
     print_rules(output, rules, base);
 }
 
-void print_alpine_dedicated_server_config_info(std::string& output, bool verbose, const bool sanitize) {
+void print_alpine_dedicated_server_config_info(std::string& output, bool verbose, const bool remote) {
     auto& netgame = rf::netgame;
     const auto& cfg = g_alpine_server_config;
 
     const auto iter = std::back_inserter(output);
     std::format_to(iter, "\n---- Core configuration ----\n");
-    std::format_to(iter, "  Server port:                           {} - UDP\n", netgame.server_addr.port);
-    std::format_to(iter, "  Server name:                           {}\n", netgame.name);
-    std::format_to(iter, "  Server version:                        {} - {}\n", VERSION_STR, __DATE__);
-    if (!sanitize) {
+    std::format_to(iter, "  Port:                                  {} - UDP\n", netgame.server_addr.port);
+    std::format_to(iter, "  Name:                                  {}\n", netgame.name);
+    std::format_to(iter, "  Version:                               {} - {}\n", VERSION_STR, __DATE__);
+    if (!remote) {
+        std::format_to(iter, "  Uptime:                                {}\n", get_uptime_from(g_process_startup_time));
         std::format_to(iter, "  Password:                              {}\n", netgame.password);
         std::format_to(iter, "  Rcon password (legacy):                {}\n", cfg.rcon_password);
         std::format_to(iter, "  Bot shared secret:                     {}\n", cfg.bot_shared_secret);
+    } else {
+        std::format_to(iter, "  Uptime:                                {}\n", g_process_startup_time);
     }
     std::format_to(iter, "  Max players:                           {}\n", netgame.max_players);
     std::format_to(iter, "  Levels in rotation:                    {}\n", cfg.levels.size());
@@ -1827,7 +1841,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
         return;
     }
 
-    if (!sanitize && !cfg.rcon_profiles.empty()) {
+    if (!remote && !cfg.rcon_profiles.empty()) {
         std::format_to(iter, "  Rcon profiles:\n");
         for (const auto& profile : cfg.rcon_profiles) {
             std::format_to(iter, "    Name:                                {}\n", profile.name);
@@ -1939,7 +1953,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     if (!cfg.rules_preset_aliases.empty()) {
         std::format_to(iter, "\n---- Rules preset alias mappings ----\n");
         for (const auto& [alias, path] : cfg.rules_preset_aliases) {
-            if (sanitize) {
+            if (remote) {
                 std::format_to(iter, "  {} -> {}\n", alias, path.filename().generic_string());
             } else {
                 std::format_to(iter, "  {} -> {}\n", alias, path.generic_string());
@@ -1948,13 +1962,13 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     }
 
     std::format_to(iter, "\n---- Base rules ----\n");
-    print_rules_with_presets(output, cfg.base_rules, cfg.base_rules_preset_paths, true, sanitize);
+    print_rules_with_presets(output, cfg.base_rules, cfg.base_rules_preset_paths, true, remote);
 
     std::format_to(iter, "\n---- Level rotation ----\n");
     for (size_t i = 0; i < cfg.levels.size(); ++i) {
         const auto& lvl = cfg.levels[i];
         std::format_to(iter, "{} ({})\n", lvl.level_filename, i);
-        print_rules_with_presets(output, lvl.rule_overrides, lvl.applied_rules_preset_paths, false, sanitize);
+        print_rules_with_presets(output, lvl.rule_overrides, lvl.applied_rules_preset_paths, false, remote);
     }
     std::format_to(iter, "\n");
 }
@@ -1989,6 +2003,7 @@ void apply_alpine_dedicated_server_rules(rf::NetGameInfo& netgame, const AlpineS
     }
 
     netgame.geomod_limit = r.geo_limit;
+    g_solid_set_rf2_geo_limit(r.rf2_geo_limit);
 
     netgame.flags &= ~(rf::NG_FLAG_TEAM_DAMAGE
                      | rf::NG_FLAG_FALL_DAMAGE

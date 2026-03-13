@@ -1,14 +1,25 @@
 set(SRCS
     exports.h
+    alpine_obj.cpp
+    alpine_obj.h
     event.cpp
+    geometry.cpp
     graphics.cpp
+    mesh_export.cpp
     main.cpp
+    mesh.cpp
+    mesh.h
+    note.cpp
+    note.h
     textures.cpp
+    meshes.cpp
+    meshes.h
     trigger.cpp
     vtypes.h
     resources.rc
     resources.h
     level.cpp
+    lightmap.cpp
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 

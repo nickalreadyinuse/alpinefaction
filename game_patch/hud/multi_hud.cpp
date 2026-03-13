@@ -40,6 +40,7 @@
 #include "../misc/player.h"
 #include "../multi/alpine_packets.h"
 #include "../multi/network.h"
+#include "multi_spectate.h"
 
 static bool g_big_team_scores_hud = false;
 constexpr bool g_debug_team_scores_hud = false;
@@ -806,7 +807,8 @@ void multi_hud_render_team_scores()
             std::string fitting_name = hud_fit_string(name, max_miniflag_label_w, nullptr, font_id);
             rf::gr::string(miniflag_label_x, red_miniflag_label_y, fitting_name.c_str(), font_id);
 
-            if (red_flag_player == rf::local_player) {
+            if (red_flag_player == rf::local_player ||
+                (multi_spectate_is_spectating() && red_flag_player == multi_spectate_get_target_player())) {
                 rf::gr::set_color(255, 255, 255, static_cast<int>(hud_flag_alpha));
                 hud_scaled_bitmap(rf::hud_flag_red_bmh, flag_x, box_y, flag_scale, rf::hud_flag_gr_mode);
             }
@@ -824,7 +826,8 @@ void multi_hud_render_team_scores()
             std::string fitting_name = hud_fit_string(name, max_miniflag_label_w, nullptr, font_id);
             rf::gr::string(miniflag_label_x, blue_miniflag_label_y, fitting_name.c_str(), font_id);
 
-            if (blue_flag_player == rf::local_player) {
+            if (blue_flag_player == rf::local_player ||
+                (multi_spectate_is_spectating() && blue_flag_player == multi_spectate_get_target_player())) {
                 rf::gr::set_color(255, 255, 255, static_cast<int>(hud_flag_alpha));
                 hud_scaled_bitmap(rf::hud_flag_blue_bmh, flag_x, box_y, flag_scale, rf::hud_flag_gr_mode);
             }
@@ -1175,6 +1178,8 @@ CodeInjection multi_hud_render_patch{
                 toggle_chat_menu(ChatMenuType::None);
             }
         }
+
+        multi_hud_render_killfeed();
     }
 };
 
@@ -1184,6 +1189,7 @@ void multi_hud_level_init() {
     g_run_life_start_timestamp.invalidate();
     g_run_timer_reset_by_respawn_key = false;
     g_run_timer_fade_active = false;
+    killfeed_clear();
 
     level_menu = ChatMenuList{
         .display_string = "MAP MESSAGES",
@@ -1624,6 +1630,16 @@ ConsoleCommand2 ui_always_show_specators_cmd{
     "ui_always_show_specators",
 };
 
+ConsoleCommand2 ui_gamefeed_cmd{
+    "ui_gamefeed",
+    [] {
+        g_alpine_game_config.killfeed_enabled = !g_alpine_game_config.killfeed_enabled;
+        rf::console::print("Game feed is {}", g_alpine_game_config.killfeed_enabled ? "enabled" : "disabled");
+    },
+    "Toggle game event messages in a dedicated feed instead of chat",
+    "ui_gamefeed",
+};
+
 ConsoleCommand2 ui_simple_server_chat_messages_cmd{
     "ui_simple_server_chat_messages",
     [] {
@@ -1671,6 +1687,9 @@ void multi_hud_apply_patches()
     ui_runtimer_cmd.register_cmd();
     ui_always_show_specators_cmd.register_cmd();
     ui_simple_server_chat_messages_cmd.register_cmd();
+    ui_gamefeed_cmd.register_cmd();
+
+    multi_hud_killfeed_apply_patches();
 
     control_config_get_mouse_delta_hook.install();
 }

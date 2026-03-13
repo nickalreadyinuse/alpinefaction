@@ -1,4 +1,5 @@
 #include <ctime>
+#include <vector>
 #include <windows.h>
 #include <shellapi.h>
 #include <common/config/GameConfig.h>
@@ -38,6 +39,7 @@
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
 #include "../misc/player.h"
+#include "../misc/level.h"
 #include "../input/input.h"
 #include "../rf/gr/gr.h"
 #include "../rf/multi.h"
@@ -53,6 +55,7 @@
 GameConfig g_game_config;
 AlpineCoreConfig g_alpine_system_config;
 HMODULE g_hmodule;
+std::time_t g_process_startup_time;
 
 std::mt19937 g_rng;
 
@@ -141,6 +144,7 @@ FunHook<int()> rf_do_frame_hook{
         high_fps_update();
         server_do_frame();
         koth_do_frame();
+        alpine_mesh_do_frame();
         int result = rf_do_frame_hook.call_target();
         maybe_autosave();
         debug_do_frame_post();
@@ -208,6 +212,8 @@ FunHook<void(bool)> level_init_post_hook{
         populate_world_hud_sprite_events();
         reset_achievement_state_info();
         multi_level_init_post_gametypes();
+        apply_geoable_flags();
+        apply_breakable_materials();
 
         if (!rf::is_dedicated_server) {
             explosion_flash_lights_level_init();
@@ -433,7 +439,8 @@ extern "C" void subhook_unk_opcode_handler(uint8_t* opcode)
 
 extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
 {
-    DWORD start_ticks = GetTickCount();
+    g_process_startup_time = std::time(nullptr);
+    const DWORD startup_ticks = GetTickCount();
 
     // Init logging and crash dump support first
     init_logging();
@@ -482,13 +489,16 @@ extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
 #endif
     debug_apply_patches();
 
-    xlog::info("Installing hooks took {} ms", GetTickCount() - start_ticks);
+    xlog::info("Installing hooks took {} ms", GetTickCount() - startup_ticks);
 
     return 1; // success
 }
 
-BOOL WINAPI DllMain(HINSTANCE instance_handle, [[maybe_unused]] DWORD fdw_reason, [[maybe_unused]] LPVOID lpv_reserved)
-{
+BOOL WINAPI DllMain(
+    const HINSTANCE instance_handle,
+    [[maybe_unused]] const DWORD fdw_reason,
+    [[maybe_unused]] const LPVOID lpv_reserved
+) {
     g_hmodule = instance_handle;
     DisableThreadLibraryCalls(instance_handle);
     return TRUE;

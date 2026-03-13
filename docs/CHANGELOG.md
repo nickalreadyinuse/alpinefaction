@@ -4,6 +4,17 @@
 Version 1.3.0 (Bakeapple): Not yet released
 --------------------------------
 ### Major features
+[@GooberRF](https://github.com/GooberRF)
+- Expanded destruction capabilities available to developers
+  - `Brush-based geomod` switch added to level properties; if true, use level hardness for geoable brushes (RF2-style)
+  - Geo regions allow traditional world-based geomod to be used even when brush-based switch is true
+  - `Is Geoable` flag added to brush properties
+  - Support for rock, wood, cement, metal, and ice breakable detail brushes
+  - Add dynamic debris generation from breakable detail brushes
+  - `No Debris` flag added to brush properties for breakable detail brushes
+- Added new object types
+  - `Mesh` for configuring custom static, skeletal, or animated meshes in levels
+  - `Note` for leaving important information in levels (editor only)
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -28,11 +39,43 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `-script` command line argument to execute a startup script after the game launches
 - Add support for `script` console command to execute a script on-demand
 - Add `/coinflip` chat command
+- Allow level hardness to be set to 0 in version >= 304 levels
+- Add `sp_geochunkphysics` console command to toggle isolated geo chunks falling down in single player
+- Add `geo_chunk_physics` rule to ADS config to toggle isolated geo chunks falling down in multiplayer
+- Raise limit on lights per level from 1100 to 8192
+- Raise level editor limit on lights projecting on a single face from 64 to 1024
+- Raise level editor geo_cache limits: face list 16384 to 65536, batch count 512 to 1024, memory pool 8 MB to 32 MB
+- Raise level editor detail rooms limit from 256 to 8192
+- Add `-smoothlights` level editor command line argument to use experimental lightmap baking method
+- Add level editor support for custom texture subdirectories under `user_maps\textures`
+- Add level editor `Mirror` tool for brushes in brush mode and for brushes and objects in group mode
+- Add level editor `Delete`, `Delete Ext.`, `Split`, and `Flip Normal` tools for faces in face mode
+- Add level editor `Delete` and `Bridge` tools for vertices in vertex mode
+- Add `Mesh_Animate`, `Mesh_Set_Texture`, and `Mesh_Set_Collision` events
+- Add `Reload Meshes` and `Reload Textures` options to level editor `Tools` menu, to scan for new assets in `\user_maps\`
+- Add `To Mesh` tool for converting brushes to `.v3m` static meshes directly in the level editor
+- Improve level editor packfile creation process to include meshes and animations from `Mesh` objects and `Switch_Model`, `Play_Animation`, and `Mesh_Animate` events
 
 [@is-this-c](https://github.com/is-this-c)
-- Add `Server version:` to a server's printed config
+- Replace `os_sleep` in `frametime_calculate` with `wait_for`
+- Add version and uptime to a server's printed config
 - Default gore level to 1
 - Default `gibbing` to disabled for dedicated servers
+
+[@nickalreadyinuse](https://github.com/nickalreadyinuse)
+- Sync animation state for crouched players in first person spectate view
+- Sync rail scanner in first person spectate
+- Implement damage screen flash in first person spectate mode
+- Add `cl_damageflash_spectator` console command to toggle damage screen flash in first person spectate
+- Add `ui_color_thermal` console command to set thermal scanner entity color (Direct3D 11 renderer only)
+- Add hitsounds, kill sounds, and damage numbers to first person spectate
+- Add missing weapon animations and muzzle flashes in first person spectate
+- Add CTF flag icons to first person spectate
+- Make jump control move freelook camera up
+- Add `cl_legacy_bob` to restore legacy first person weapon running animation behavior
+- Show powerup icons in spectator mode
+- Improve presented damage calculations for stats and damage numbers
+- Add `ui_gamefeed` toggle to separate game events (kills, flag steals, hill captures, etc) from the chat to a separate HUD element
 
 [@natarii](https://github.com/natarii)
 - Implement FFLink client functionality in launcher
@@ -44,14 +87,25 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Fix overflow fix for `emitters.tbl` entries not being correctly applied
 - Fix some string errors when compiled using mingw
 - Fix rare crash when loading skeletons
+- Fix level editor geometry rebuild sometimes reusing stale data from previous builds
+- Fix level editor crash when calculating lightmaps on levels with more than ~45000 faces
+- Fix level editor lightmap seam at portal boundaries where split faces meet (subject to `-smoothlights` switch)
+- Fix level editor per-room ambient lights creating hard color transitions (subject to `-smoothlights` switch)
+- Fix level editor packfile creation to skip missing files gracefully instead of erroring and creating 0KB packfiles
+- Fix level editor packfile creation process to include textures from bolt emitters, liquid surfaces, `Display_Fullscreen_Image` events, `Swap_Textures` events, and geomod crater textures
+- Fix rare level editor crash when transforming decal objects in a level with a large number of decals
+- Fix level editor clip tool silently failing on certain brush orientations
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix faulty cull in fpgun infrared scanners
+- Fix stale weapon selection time stamps
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Optimize network performance for `af_obj_update` packets and bot decommission logic
 - Sync animation state for crouched players in first person spectate view
 - Add freelook/first person toggle bind in spectator mode
+- Fix Alt+Enter crash in Direct3D 11 renderer
+- Fix premature idle transition in first person weapon running animations
 
 Version 1.2.2 (Willow): Released Jan-04-2026
 --------------------------------

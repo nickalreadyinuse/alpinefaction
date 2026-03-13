@@ -346,6 +346,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.damage_screen_flash = std::stoi(settings["DamageScreenFlash"]);
         processed_keys.insert("DamageScreenFlash");
     }
+    if (settings.count("SpectateDamageScreenFlash")) {
+        g_alpine_game_config.spectate_damage_screen_flash = std::stoi(settings["SpectateDamageScreenFlash"]);
+        processed_keys.insert("SpectateDamageScreenFlash");
+    }
     if (settings.count("ExplosionFlashLightsWeapons")) {
         g_alpine_game_config.explosion_weapon_flash_lights = std::stoi(settings["ExplosionFlashLightsWeapons"]);
         processed_keys.insert("ExplosionFlashLightsWeapons");
@@ -406,6 +410,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("AlwaysAutoswitchEmpty")) {
         g_alpine_game_config.always_autoswitch_empty = std::stoi(settings["AlwaysAutoswitchEmpty"]);
         processed_keys.insert("AlwaysAutoswitchEmpty");
+    }
+    if (settings.count("LegacyBob")) {
+        g_alpine_game_config.legacy_bob = std::stoi(settings["LegacyBob"]);
+        processed_keys.insert("LegacyBob");
     }
 
     // Load weapon autoswitch priority
@@ -595,6 +603,16 @@ bool alpine_player_settings_load(rf::Player* player)
         }
         processed_keys.insert("RailScopeColor");
     }
+    if (settings.count("ThermalEntityColor")) {
+        auto color_override = parse_hex_color_string(settings["ThermalEntityColor"]);
+        if (color_override) {
+            g_alpine_game_config.thermal_entity_color_override = color_override;
+        }
+        else {
+            xlog::warn("Invalid thermal entity color override: {}", settings["ThermalEntityColor"]);
+        }
+        processed_keys.insert("ThermalEntityColor");
+    }
     if (settings.count("ArAmmoColor")) {
         auto color_override = parse_hex_color_string(settings["ArAmmoColor"]);
         if (color_override) {
@@ -758,6 +776,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.gaussian_spread = std::stoi(settings["GaussianSpread"]);
         processed_keys.insert("GaussianSpread");
     }
+    if (settings.count("GeoChunkPhysics")) {
+        g_alpine_game_config.geo_chunk_physics = std::stoi(settings["GeoChunkPhysics"]);
+        processed_keys.insert("GeoChunkPhysics");
+    }
     if (settings.count("DisableAllCameraShake")) {
         g_alpine_game_config.screen_shake_force_off = std::stoi(settings["DisableAllCameraShake"]);
         processed_keys.insert("DisableAllCameraShake");
@@ -811,6 +833,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("PlayHitsounds")) {
         g_alpine_game_config.play_hit_sounds = std::stoi(settings["PlayHitsounds"]);
         processed_keys.insert("PlayHitsounds");
+    }
+    if (settings.count("KillfeedEnabled")) {
+        g_alpine_game_config.killfeed_enabled = std::stoi(settings["KillfeedEnabled"]);
+        processed_keys.insert("KillfeedEnabled");
     }
     if (settings.count("HitSoundIntervalMs")) {
         g_alpine_game_config.set_hit_sound_min_interval_ms(std::stoi(settings["HitSoundIntervalMs"]));
@@ -1115,6 +1141,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "NeverAutoswitchExplosives=" << player->settings.dont_autoswitch_to_explosives << "\n";
     file << "ToggleCrouch=" << player->settings.toggle_crouch << "\n";
     file << "DamageScreenFlash=" << g_alpine_game_config.damage_screen_flash << "\n";
+    file << "SpectateDamageScreenFlash=" << g_alpine_game_config.spectate_damage_screen_flash << "\n";
     file << "ExplosionFlashLightsWeapons=" << g_alpine_game_config.explosion_weapon_flash_lights << "\n";
     file << "ExplosionFlashLightsEnv=" << g_alpine_game_config.explosion_env_flash_lights << "\n";
     file << "BurningEntityLights=" << g_alpine_game_config.burning_entity_lights << "\n";
@@ -1129,6 +1156,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ColorblindMode=" << g_alpine_game_config.colorblind_mode << "\n";
     file << "AutoswitchFireWait=" << g_alpine_game_config.suppress_autoswitch_fire_wait << "\n";
     file << "AlwaysAutoswitchEmpty=" << g_alpine_game_config.always_autoswitch_empty << "\n";
+    file << "LegacyBob=" << g_alpine_game_config.legacy_bob << "\n";
 
     // Autoswitch priority
     file << "WeaponAutoswitchPriority=";
@@ -1194,6 +1222,9 @@ void alpine_player_settings_save(rf::Player* player)
     if (g_alpine_game_config.rail_scope_color_override) {
         file << "RailScopeColor=" << format_hex_color_string(*g_alpine_game_config.rail_scope_color_override) << "\n";
     }
+    if (g_alpine_game_config.thermal_entity_color_override) {
+        file << "ThermalEntityColor=" << format_hex_color_string(*g_alpine_game_config.thermal_entity_color_override) << "\n";
+    }
     if (g_alpine_game_config.ar_ammo_digit_color_override) {
         file << "ArAmmoColor=" << format_hex_color_string(*g_alpine_game_config.ar_ammo_digit_color_override) << "\n";
     }
@@ -1245,6 +1276,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "DifficultyLevel=" << static_cast<int>(rf::game_get_skill_level()) << "\n";
     file << "UnlimitedSemiAuto=" << g_alpine_game_config.unlimited_semi_auto << "\n";
     file << "GaussianSpread=" << g_alpine_game_config.gaussian_spread << "\n";
+    file << "GeoChunkPhysics=" << g_alpine_game_config.geo_chunk_physics << "\n";
     file << "DisableAllCameraShake=" << g_alpine_game_config.screen_shake_force_off << "\n";
     file << "Autosave=" << g_alpine_game_config.autosave << "\n";
     file << "StaticBombCode=" << g_alpine_game_config.static_bomb_code << "\n";
@@ -1261,6 +1293,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "WorldHUDTeamLabels=" << g_alpine_game_config.world_hud_team_player_labels << "\n";
     file << "ShowLocationPings=" << g_alpine_game_config.show_location_pings << "\n";
     file << "PlayHitsounds=" << g_alpine_game_config.play_hit_sounds << "\n";
+    file << "KillfeedEnabled=" << g_alpine_game_config.killfeed_enabled << "\n";
     file << "HitSoundIntervalMs=" << g_alpine_game_config.hit_sound_min_interval_ms << "\n";
     file << "PlayTaunts=" << g_alpine_game_config.play_taunt_sounds << "\n";
     file << "ShowRunTimer=" << g_alpine_game_config.show_run_timer << "\n";

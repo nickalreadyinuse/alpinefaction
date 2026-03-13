@@ -18,9 +18,16 @@ struct AlpineEventDialog
     std::string str2_field;
 };
 
-// level editor alpine event IDs, separate from EventType in game
+// level editor event IDs, separate from EventType in game
 enum class AlpineDedEventID : int
 {
+    // Stock events referenced by Alpine patches
+    Play_Animation = 25,
+    Swap_Textures = 38,
+    Switch_Model = 40,
+    Display_Fullscreen_Image = 84,
+
+    // Alpine-specific events (89+)
     Set_Variable = 89,
     Clone_Entity,
     Set_Player_World_Collide,
@@ -65,7 +72,10 @@ enum class AlpineDedEventID : int
     Set_Capture_Point_Owner,
     Owner_Gate,
     Set_Gameplay_Rule,
-    When_Round_Ends
+    When_Round_Ends,
+    Mesh_Animate,
+    Mesh_Set_Texture,
+    Mesh_Set_Collision
 };
 
 constexpr int af_ded_event_to_int(AlpineDedEventID event_id) noexcept
