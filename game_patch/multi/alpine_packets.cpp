@@ -125,6 +125,14 @@ bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::P
             af_process_server_req_packet(data, static_cast<size_t>(len), addr);
             return true;
         }
+        case af_packet_type::af_vehicle_state: {
+            af_process_vehicle_state_packet(data, static_cast<size_t>(len), addr);
+            return true;
+        }
+        case af_packet_type::af_vehicle_create: {
+            af_process_vehicle_create_packet(data, static_cast<size_t>(len), addr);
+            return true;
+        }
         default:
             return false; // ignore if unrecognized
     }

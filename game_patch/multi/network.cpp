@@ -26,6 +26,7 @@
 #include <patch_common/ShortTypes.h>
 #include "network.h"
 #include "multi.h"
+#include "vehicle.h"
 #include "alpine_packets.h"
 #include "server.h"
 #include "server_internal.h"
@@ -222,7 +223,9 @@ enum packet_type : uint8_t {
     af_spectate_start      = 0x5B,
     af_spectate_notify     = 0x5C,
     af_server_msg          = 0x5D,
-    af_server_req          = 0x5E
+    af_server_req          = 0x5E,
+    af_vehicle_state       = 0x5F,
+    af_vehicle_create      = 0x60
 };
 
 // client -> server
@@ -306,7 +309,9 @@ std::array g_client_side_packet_whitelist{
     af_server_info,
     af_spectate_notify,
     af_server_msg,
-    af_server_req
+    af_server_req,
+    af_vehicle_state,
+    af_vehicle_create
 };
 // clang-format on
 
@@ -2071,6 +2076,7 @@ CodeInjection send_state_info_injection{
         rf::Player* player = regs.edi;
         trigger_send_state_info(player);
         pf_player_level_load(player);
+        vehicle_send_state_to_player(player);
     },
 };
 

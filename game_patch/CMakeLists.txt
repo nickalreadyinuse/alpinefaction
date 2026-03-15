@@ -147,6 +147,8 @@ set(SRCS
     multi/faction_files.cpp
     multi/faction_files.h
     multi/multi_ban.cpp
+    multi/vehicle.cpp
+    multi/vehicle.h
     os/console.cpp
     os/console.h
     os/commands.cpp

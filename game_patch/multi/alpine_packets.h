@@ -36,6 +36,8 @@ enum class af_packet_type : uint8_t
     af_spectate_notify = 0x5C,          // Alpine 1.2
     af_server_msg = 0x5D,               // Alpine 1.2
     af_server_req = 0x5E,               // Alpine 1.2.1
+    af_vehicle_state = 0x5F,            // Alpine 1.3
+    af_vehicle_create = 0x60,           // Alpine 1.3
 };
 
 struct af_ping_location_req_packet
@@ -230,6 +232,24 @@ struct af_server_msg_packet {
     char data[];
 };
 
+struct af_vehicle_state_packet
+{
+    RF_GamePacketHeader header;
+    uint32_t entity_handle;     // player entity handle (server-side)
+    uint32_t vehicle_handle;    // vehicle entity handle (server-side)
+    uint8_t action;             // 0=exit, 1=enter
+    int32_t host_tag_handle;    // interface point tag handle (for enter)
+};
+
+struct af_vehicle_create_packet
+{
+    RF_GamePacketHeader header;
+    int32_t entity_type_index;  // entity type (e.g., Jeep01 = 52)
+    int32_t uid;                // entity UID from level file
+    RF_Vector pos;              // position
+    float orient[9];            // 3x3 orientation matrix (row-major)
+};
+
 #pragma pack(pop)
 
 bool af_process_packet(const void* data, int len, const rf::NetAddr& addr, rf::Player* player);
@@ -274,3 +294,9 @@ void af_send_server_console_msg(std::string_view msg, rf::Player* player, bool t
 // client requests
 void af_send_handicap_request(uint8_t amount);
 void af_send_server_cfg_request();
+
+// vehicle state
+void af_send_vehicle_state_packet(rf::Player* player, rf::Entity* entity, rf::Entity* vehicle, uint8_t action);
+void af_process_vehicle_state_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_send_vehicle_create_packet(rf::Player* player, rf::Entity* vehicle);
+void af_process_vehicle_create_packet(const void* data, size_t len, const rf::NetAddr& addr);

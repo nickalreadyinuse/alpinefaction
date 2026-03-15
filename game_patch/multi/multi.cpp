@@ -9,6 +9,7 @@
 #include <common/version/version.h>
 #include <common/utils/list-utils.h>
 #include "multi.h"
+#include "vehicle.h"
 #include "endgame_votes.h"
 #include "multi_private.h"
 #include "alpine_packets.h"
@@ -825,6 +826,9 @@ void multi_do_patch()
 
     level_download_init();
     multi_ban_apply_patch();
+
+    // Enable vehicle boarding in multiplayer
+    vehicle_apply_patches();
 
     // Fix lava damage sometimes being attributed to a player
     obj_apply_damage_lava_hook.install();
