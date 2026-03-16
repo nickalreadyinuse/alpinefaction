@@ -9,6 +9,7 @@
 #include "../rf/entity.h"
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
+#include "../rf/player/camera.h"
 #include "../rf/object.h"
 #include "../rf/os/timer.h"
 #include "../rf/vmesh.h"
@@ -254,16 +255,6 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
         entity->min_rel_eye_phb = vehicle->info->min_rel_eye_phb;
         entity->max_rel_eye_phb = vehicle->info->max_rel_eye_phb;
 
-        // Enable vehicle mouse control mode (offset 0x720) for all non-gunner vehicles.
-        // entity_attach_leech only sets this for turrets; we need it for all vehicle types
-        // so mouse input can drive vehicle orientation.
-        // Note: for automobile-flagged entities, physics Branch 2 (0x4000) catches before
-        // Branch 4 (0x720), so this is redundant for physics but may be used by other
-        // systems (input routing, camera control).
-        if (!rf::entity_is_jeep_gunner(entity)) {
-            *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
-        }
-
         // Set vehicle entity flags matching what the vanilla boarding code does at 0x004A1E76:
         // Set 0x10000 (entity is being driven), clear 0x20000 (autonomous/AI)
         auto& vflags = *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x810);
@@ -304,13 +295,6 @@ CodeInjection vehicle_entry_broadcast_injection{
         xlog::info("Vehicle entry: entity='{}' vehicle='{}' attach_result={} iface_pts={} host_handle=0x{:x}",
             entity->name, vehicle->name, attach_result,
             vehicle->interface_points.size(), entity->host_handle);
-
-        // Enable vehicle mouse control mode for all non-gunner vehicles.
-        // entity_attach_leech only sets this for turrets. We need it on BOTH
-        // server and client for flight physics to process mouse input.
-        if (rf::entity_in_vehicle(entity) && !rf::entity_is_jeep_gunner(entity)) {
-            *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
-        }
 
         if (!rf::is_server) {
             return;
@@ -644,43 +628,56 @@ FunHook<int(rf::Object*)> obj_should_sim_physics_hook{
 static auto controls_read_internal =
     reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430760);
 
-// mp_client_do_frame (0x0045B5E0) is the ACTUAL frame handler for MP clients
-// (NOT gameplay_do_frame at 0x00433520 which is for SP/listen server).
-// It forces camera to mode 2 (free cam), calls player_free_cam_update which
-// consumes mouse input, then calls gameplay_sim_frame at 0x0045B877.
-//
-// We inject at TWO points:
-// 1. After game_poll (0x0045B62B): capture mouse input into vehicle ci BEFORE
-//    player_free_cam_update consumes it, then skip the free cam code
-// 2. (gameplay_sim_frame already runs at 0x0045B877 with the NOP at 0x004332a8)
+// controls_apply: weapon firing, animations, gameplay actions.
+// Called by player_process_controls in SP; we call it directly for MP vehicles.
+static auto controls_apply =
+    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430c70);
 
-// Injection after game_poll in mp_client_do_frame — captures input for vehicles
-// before the free cam system consumes mouse deltas.
-// At 0x0045B62B: MOV ECX, [0x007c75d4] — first instruction after game_poll returns.
+// mp_client_do_frame (0x0045B5E0) forces CAMERA_FREELOOK (mode 2) every frame.
+// When mode == 2, player_free_cam_update runs and consumes mouse input into the
+// camera's ControlInfo, rotating the camera independently from the vehicle.
+//
+// Fix: When in a vehicle, set camera->mode = CAMERA_FIRST_PERSON (0). The
+// CMP EAX,2 / JNZ at 0x0045B640 then skips the entire free cam block, so mouse
+// input is NOT consumed by the camera. We read input into the vehicle's ci with
+// field_18=0 (normal mode, matching SP for drivers), so mouse goes to ci.rot.x/y
+// which both automobile and flight physics read.
+//
+// When NOT in a vehicle: restore CAMERA_FREELOOK if the top-of-frame check
+// changed it to CAMERA_CUTSCENE (which it does when mode != 2).
 CodeInjection mp_client_vehicle_input_injection{
     0x0045B62B,
     [](auto& regs) {
         if (!rf::local_player) return;
+
+        rf::Camera* camera = rf::local_player->cam;
         rf::Entity* entity = rf::entity_from_handle(rf::local_player->entity_handle);
-        if (!entity || !rf::entity_in_vehicle(entity)) return;
-        rf::Entity* vehicle = rf::entity_from_handle(entity->host_handle);
-        if (!vehicle) return;
 
-        // Read input into vehicle's ai.ci. This captures mouse deltas BEFORE
-        // player_free_cam_update (called at 0x0045B64B) consumes them.
-        controls_read_internal(rf::local_player, &vehicle->ai.ci);
+        if (entity && rf::entity_in_vehicle(entity) &&
+            !rf::entity_is_jeep_gunner(entity)) {
+            rf::Entity* vehicle = rf::entity_from_handle(entity->host_handle);
+            if (vehicle) {
+                // Read input into vehicle's ci. field_14C=0, field_168=0
+                // matches SP for drivers. field_18 stays 0 (normal mouse mode).
+                controls_read_internal(rf::local_player, &vehicle->ai.ci);
 
-        // Restore flight control flag (field_18 at ci+0x18 = entity+0x720).
-        // controls_read_internal may reset it; physics_simulate_entity Branch 4
-        // checks it for mouselook/flight rotation.
-        if (!(vehicle->p_data.flags & rf::PF_AUTOMOBILE)) {
-            vehicle->ai.ci.field_18 = true;
+                // Weapon firing + gameplay actions (matches SP)
+                controls_apply(rf::local_player, &vehicle->ai.ci);
+
+                // Camera mode 0 = CAMERA_FIRST_PERSON (entity follow).
+                // Skips the free cam block -> mouse not consumed by camera.
+                // camera_do_frame handles entity-follow positioning.
+                camera->mode = rf::CAMERA_FIRST_PERSON;
+                return;
+            }
         }
 
-        // Skip the free cam update and controls_process-with-entity-ci block
-        // (0x0045B62B to 0x0045B67A). Jump directly to 0x0045B67A so mouse
-        // input goes to the vehicle, not the camera.
-        regs.eip = 0x0045B67A;
+        // Not in vehicle (or is gunner): ensure CAMERA_FREELOOK.
+        // Recovers from CAMERA_CUTSCENE(5) set by mp_client_do_frame's
+        // top-of-frame check when it found our CAMERA_FIRST_PERSON(0).
+        if (camera && camera->mode != rf::CAMERA_FREELOOK) {
+            camera->mode = rf::CAMERA_FREELOOK;
+        }
     },
 };
 
