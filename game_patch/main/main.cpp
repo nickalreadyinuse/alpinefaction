@@ -32,6 +32,7 @@
 #include "../multi/server.h"
 #include "../multi/server_internal.h"
 #include "../multi/alpine_packets.h"
+#include "../multi/vehicle.h"
 #include "../misc/misc.h"
 #include "../misc/achievements.h"
 #include "../misc/alpine_options.h"
@@ -146,6 +147,7 @@ FunHook<int()> rf_do_frame_hook{
         koth_do_frame();
         alpine_mesh_do_frame();
         int result = rf_do_frame_hook.call_target();
+        vehicle_do_frame();
         maybe_autosave();
         debug_do_frame_post();
         multi_level_download_update();

@@ -38,6 +38,7 @@ enum class af_packet_type : uint8_t
     af_server_req = 0x5E,               // Alpine 1.2.1
     af_vehicle_state = 0x5F,            // Alpine 1.3
     af_vehicle_create = 0x60,           // Alpine 1.3
+    af_vehicle_position = 0x61,         // Alpine 1.3
 };
 
 struct af_ping_location_req_packet
@@ -239,6 +240,7 @@ struct af_vehicle_state_packet
     uint32_t vehicle_handle;    // vehicle entity handle (server-side)
     uint8_t action;             // 0=exit, 1=enter
     int32_t host_tag_handle;    // interface point tag handle (for enter)
+    int32_t vehicle_uid;        // vehicle UID for client-side lookup (handles don't map)
 };
 
 struct af_vehicle_create_packet
@@ -247,6 +249,14 @@ struct af_vehicle_create_packet
     int32_t entity_type_index;  // entity type (e.g., Jeep01 = 52)
     int32_t uid;                // entity UID from level file
     RF_Vector pos;              // position
+    float orient[9];            // 3x3 orientation matrix (row-major)
+};
+
+struct af_vehicle_position_packet
+{
+    RF_GamePacketHeader header;
+    int32_t vehicle_uid;        // vehicle UID for lookup
+    RF_Vector pos;              // current position
     float orient[9];            // 3x3 orientation matrix (row-major)
 };
 
@@ -300,3 +310,4 @@ void af_send_vehicle_state_packet(rf::Player* player, rf::Entity* entity, rf::En
 void af_process_vehicle_state_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_vehicle_create_packet(rf::Player* player, rf::Entity* vehicle);
 void af_process_vehicle_create_packet(const void* data, size_t len, const rf::NetAddr& addr);
+void af_process_vehicle_position_packet(const void* data, size_t len, const rf::NetAddr& addr);

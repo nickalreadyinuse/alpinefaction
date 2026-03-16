@@ -8,6 +8,7 @@
 #include "../rf/multi.h"
 #include "../rf/player/player.h"
 #include "../rf/object.h"
+#include "../rf/os/timer.h"
 #include "alpine_packets.h"
 #include "network.h"
 #include "vehicle.h"
@@ -23,6 +24,17 @@ static auto entity_type_has_vehicle_use = reinterpret_cast<bool(__cdecl*)(int ty
 // Packet send/receive
 // ============================================================================
 
+// Helper: find entity by UID (for client-side vehicle lookup since remote handles don't map)
+static rf::Entity* entity_find_by_uid(int uid)
+{
+    for (auto& entity : DoublyLinkedList{rf::entity_list}) {
+        if (entity.uid == uid) {
+            return &entity;
+        }
+    }
+    return nullptr;
+}
+
 static void send_vehicle_state_packet_to_all(rf::Entity* entity, rf::Entity* vehicle, uint8_t action)
 {
     af_vehicle_state_packet packet{};
@@ -32,6 +44,7 @@ static void send_vehicle_state_packet_to_all(rf::Entity* entity, rf::Entity* veh
     packet.vehicle_handle = vehicle->handle;
     packet.action = action;
     packet.host_tag_handle = entity->host_tag_handle;
+    packet.vehicle_uid = vehicle->uid;
 
     for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
         if (&player == rf::local_player) {
@@ -53,6 +66,7 @@ void af_send_vehicle_state_packet(rf::Player* player, rf::Entity* entity, rf::En
     packet.vehicle_handle = vehicle->handle;
     packet.action = action;
     packet.host_tag_handle = entity->host_tag_handle;
+    packet.vehicle_uid = vehicle->uid;
 
     af_send_packet(player, &packet, sizeof(packet), true);
 }
@@ -130,42 +144,57 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
     af_vehicle_state_packet packet{};
     std::memcpy(&packet, data, sizeof(packet));
 
+    // Find player entity by remote handle (works because player entities use vanilla MP sync)
     rf::Object* entity_obj = rf::obj_from_remote_handle(packet.entity_handle);
-    rf::Object* vehicle_obj = rf::obj_from_remote_handle(packet.vehicle_handle);
-
     if (!entity_obj) {
         xlog::warn("vehicle_state: entity not found for remote handle 0x{:x}", packet.entity_handle);
         return;
     }
-
     auto* entity = static_cast<rf::Entity*>(entity_obj);
+
+    // Find vehicle by UID (remote handles don't map for af_vehicle_create entities)
+    rf::Entity* vehicle = entity_find_by_uid(packet.vehicle_uid);
 
     if (packet.action == 1) {
         // Enter vehicle
-        if (!vehicle_obj) {
-            xlog::warn("vehicle_state: vehicle not found for remote handle 0x{:x}", packet.vehicle_handle);
+        if (!vehicle) {
+            xlog::warn("vehicle_state: vehicle not found for uid {}", packet.vehicle_uid);
             return;
         }
 
-        auto* vehicle = static_cast<rf::Entity*>(vehicle_obj);
-
-        // Already in this vehicle (local player already processed this locally)
+        // Already in this vehicle
         if (entity->host_handle == vehicle->handle) {
             xlog::trace("vehicle_state: entity '{}' already in vehicle, skipping", entity->name);
             return;
         }
 
-        xlog::info("Vehicle enter: entity '{}' -> vehicle '{}'", entity->name, vehicle->name);
+        xlog::info("Vehicle enter: entity '{}' -> vehicle '{}' iface_pts={}",
+            entity->name, vehicle->name, vehicle->interface_points.size());
 
         // Turn off current weapon
         rf::entity_turn_weapon_off(entity->handle, entity->ai.current_primary_weapon);
 
-        // Attach entity to vehicle (same function the server used)
+        // Attach entity to vehicle
         bool attached = entity_attach_leech(vehicle, entity->handle, packet.host_tag_handle);
         if (!attached) {
-            xlog::warn("vehicle_state: attach_leech failed");
+            xlog::warn("vehicle_state: attach_leech failed (iface_pts={}, tag_handle=0x{:x})",
+                vehicle->interface_points.size(), packet.host_tag_handle);
             return;
         }
+
+        // Enable vehicle mouse control mode on the vehicle entity's control data.
+        // Vanilla entity_attach_leech only sets this for turret entities (flag 0x2000),
+        // but fighters/subs/etc. also need it for proper mouse-driven rotation.
+        if (!rf::entity_is_jeep_gunner(entity)) {
+            *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
+        }
+
+        // Set vehicle entity flags matching what the vanilla boarding code does at 0x004A1E76:
+        // Set 0x10000 (entity is being driven), clear 0x20000 (autonomous/AI)
+        auto& vflags = *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x810);
+        vflags = (vflags & ~0x20000u) | 0x10000u;
+
+        xlog::info("Vehicle enter success: entity '{}' host_handle=0x{:x}", entity->name, entity->host_handle);
     }
     else {
         // Exit vehicle
@@ -183,14 +212,24 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
 // Server-side hooks: detect vehicle entry/exit and broadcast
 // ============================================================================
 
-// After successful attach_leech call in the vehicle entry path
+// Debug: log when player_handle_use_keypress_local is called (entry path)
+// At 0x004A197F: MOV EAX, [EDI+0x200] - first logic instruction, EBX=player, EDI=entity
+CodeInjection use_keypress_debug{
+    0x004A197F,
+    [](auto& regs) {
+        if (rf::is_server) return;
+        rf::Entity* entity = regs.edi;
+        if (entity) {
+            xlog::info("use_keypress_local: entity='{}' host_handle=0x{:x}",
+                entity->name, entity->host_handle);
+        }
+    },
+};
+
+// After entity_attach_leech call in the vehicle entry path
 CodeInjection vehicle_entry_broadcast_injection{
     0x004A1E46,
     [](auto& regs) {
-        if (!rf::is_server) {
-            return;
-        }
-
         rf::Entity* entity = regs.edi;
         rf::Entity* vehicle = regs.esi;
 
@@ -198,9 +237,24 @@ CodeInjection vehicle_entry_broadcast_injection{
             return;
         }
 
-        // Verify the entity is actually now in the vehicle
+        // Debug: log attach result on both server and client
+        int attach_result = regs.eax;
+        xlog::info("Vehicle entry: entity='{}' vehicle='{}' attach_result={} iface_pts={} host_handle=0x{:x}",
+            entity->name, vehicle->name, attach_result,
+            vehicle->interface_points.size(), entity->host_handle);
+
+        if (!rf::is_server) {
+            return;
+        }
+
+        // Server: verify the entity is actually now in the vehicle
         if (!rf::entity_in_vehicle(entity)) {
             return;
+        }
+
+        // Enable vehicle mouse control mode for all vehicle types (not just turrets)
+        if (!rf::entity_is_jeep_gunner(entity)) {
+            *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
         }
 
         xlog::info("Server: player '{}' entered vehicle '{}'", entity->name, vehicle->name);
@@ -307,6 +361,138 @@ FunHook<bool(int)> entity_path_process_hook{
 };
 
 // ============================================================================
+// Vehicle position sync: driving client -> server -> other clients
+// ============================================================================
+
+void af_process_vehicle_position_packet(const void* data, size_t len, [[maybe_unused]] const rf::NetAddr& addr)
+{
+    if (len < sizeof(af_vehicle_position_packet)) {
+        return;
+    }
+
+    af_vehicle_position_packet packet{};
+    std::memcpy(&packet, data, sizeof(packet));
+
+    if (rf::is_server) {
+        // Server: apply position to vehicle entity and forward to other clients
+        rf::Entity* vehicle = entity_find_by_uid(packet.vehicle_uid);
+        if (!vehicle) {
+            xlog::trace("vehicle_position: vehicle uid {} not found on server", packet.vehicle_uid);
+            return;
+        }
+
+        // Update vehicle position and orientation on the server
+        static int recv_count = 0;
+        if (++recv_count % 100 == 1) {  // log every 100th receive
+            xlog::warn("vehicle_pos_recv: uid={} pos=({:.1f},{:.1f},{:.1f})",
+                packet.vehicle_uid, packet.pos.x, packet.pos.y, packet.pos.z);
+        }
+
+        rf::Vector3 new_pos{packet.pos.x, packet.pos.y, packet.pos.z};
+        vehicle->move(&new_pos);
+        std::memcpy(&vehicle->orient, packet.orient, sizeof(packet.orient));
+
+        // Forward to all other clients
+        for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+            if (&player == rf::local_player) continue;
+            if (!is_player_minimum_af_client_version(&player, 1, 3, 0)) continue;
+            // Skip the player who sent this (their entity is driving the vehicle)
+            rf::Entity* player_entity = rf::entity_from_handle(player.entity_handle);
+            if (player_entity && rf::entity_in_vehicle(player_entity) &&
+                player_entity->host_handle == vehicle->handle) {
+                continue;
+            }
+            af_send_packet(&player, &packet, sizeof(packet), false); // unreliable
+        }
+    }
+    else {
+        // Client: apply position to local vehicle entity
+        rf::Entity* vehicle = entity_find_by_uid(packet.vehicle_uid);
+        if (!vehicle) return;
+
+        // Don't override if local player is driving this vehicle
+        if (rf::local_player) {
+            rf::Entity* local_entity = rf::entity_from_handle(rf::local_player->entity_handle);
+            if (local_entity && rf::entity_in_vehicle(local_entity) &&
+                local_entity->host_handle == vehicle->handle) {
+                return;
+            }
+        }
+
+        static int client_recv_count = 0;
+        if (++client_recv_count % 100 == 1) {
+            xlog::warn("vehicle_pos_client_recv: uid={} pos=({:.1f},{:.1f},{:.1f})",
+                packet.vehicle_uid, packet.pos.x, packet.pos.y, packet.pos.z);
+        }
+
+        rf::Vector3 new_pos{packet.pos.x, packet.pos.y, packet.pos.z};
+        vehicle->move(&new_pos);
+        std::memcpy(&vehicle->orient, packet.orient, sizeof(packet.orient));
+    }
+}
+
+// Client: send vehicle position to server when local player is driving
+static int vehicle_pos_send_timestamp = 0;
+
+static void vehicle_send_position_to_server()
+{
+    // Debug: log state when in MP to trace position sync
+    static int dbg_count = 0;
+    if (dbg_count < 5 && rf::is_multi && !rf::is_server && rf::local_player) {
+        rf::Entity* dbg_entity = rf::entity_from_handle(rf::local_player->entity_handle);
+        bool in_v = dbg_entity ? rf::entity_in_vehicle(dbg_entity) : false;
+        if (in_v || dbg_count == 0) {
+            dbg_count++;
+            xlog::warn("veh_sync: entity={} in_vehicle={} host_handle=0x{:x}",
+                dbg_entity ? 1 : 0, (int)in_v,
+                dbg_entity ? dbg_entity->host_handle : -1);
+        }
+    }
+
+    if (rf::is_server || !rf::is_multi) return;
+    if (!rf::local_player) return;
+
+    rf::Entity* entity = rf::entity_from_handle(rf::local_player->entity_handle);
+    if (!entity || !rf::entity_in_vehicle(entity)) return;
+
+    // Rate limit: send every ~50ms (same rate as obj_update)
+    int now = rf::timer_get(1000);
+    if (vehicle_pos_send_timestamp != 0 && (now - vehicle_pos_send_timestamp) < 50) return;
+    vehicle_pos_send_timestamp = now;
+    if (rf::entity_is_jeep_gunner(entity)) return;
+
+    rf::Entity* vehicle = rf::entity_from_handle(entity->host_handle);
+    if (!vehicle) return;
+
+    af_vehicle_position_packet packet{};
+    packet.header.type = static_cast<uint8_t>(af_packet_type::af_vehicle_position);
+    packet.header.size = sizeof(packet) - sizeof(packet.header);
+    packet.vehicle_uid = vehicle->uid;
+    packet.pos.x = vehicle->pos.x;
+    packet.pos.y = vehicle->pos.y;
+    packet.pos.z = vehicle->pos.z;
+    std::memcpy(packet.orient, &vehicle->orient, sizeof(packet.orient));
+
+    static int send_count = 0;
+    if (++send_count % 100 == 1) {  // log every 100th send (~5 seconds)
+        xlog::warn("vehicle_pos_send: uid={} pos=({:.1f},{:.1f},{:.1f})",
+            vehicle->uid, vehicle->pos.x, vehicle->pos.y, vehicle->pos.z);
+    }
+
+    af_send_packet(rf::local_player, &packet, sizeof(packet), false);
+}
+
+// Called every frame from rf_do_frame_hook in main.cpp
+void vehicle_do_frame()
+{
+    static int frame_count = 0;
+    if (frame_count++ < 3) {
+        xlog::warn("vehicle_do_frame called (frame {})", frame_count);
+    }
+    vehicle_send_position_to_server();
+}
+
+// ============================================================================
 // Phase 1: Remove multiplayer vehicle boarding blocks
 // ============================================================================
 
@@ -344,7 +530,12 @@ void vehicle_apply_patches()
     fpgun_mesh_null_guard.install();
 
 
+    // --- Debug: trace local use-key processing on client ---
+    use_keypress_debug.install();
+
     // --- Server-side hooks for network sync ---
     vehicle_entry_broadcast_injection.install();
     entity_detach_from_host_hook.install();
+
+    // --- Client: vehicle_do_frame() handles position sync (called from main.cpp) ---
 }

@@ -225,7 +225,8 @@ enum packet_type : uint8_t {
     af_server_msg          = 0x5D,
     af_server_req          = 0x5E,
     af_vehicle_state       = 0x5F,
-    af_vehicle_create      = 0x60
+    af_vehicle_create      = 0x60,
+    af_vehicle_position    = 0x61
 };
 
 // client -> server
@@ -252,7 +253,8 @@ std::array g_server_side_packet_whitelist{
     rcon,
     af_ping_location_req,
     af_client_req,
-    af_spectate_start
+    af_spectate_start,
+    af_vehicle_position
 };
 
 // server -> client
@@ -311,7 +313,8 @@ std::array g_client_side_packet_whitelist{
     af_server_msg,
     af_server_req,
     af_vehicle_state,
-    af_vehicle_create
+    af_vehicle_create,
+    af_vehicle_position
 };
 // clang-format on
 
