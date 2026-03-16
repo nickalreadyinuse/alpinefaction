@@ -611,62 +611,6 @@ static void apply_remote_vehicle_states()
     }
 }
 
-// ============================================================================
-// Physics diagnostics: trace which branch physics_simulate_entity takes
-// ============================================================================
-
-// FunHook on physics_simulate_entity (0x0049F3C0) to log vehicle physics state.
-// This wraps the entire function so we can inspect the entity before and after simulation.
-static auto physics_simulate_entity_orig = reinterpret_cast<void(__cdecl*)(rf::Entity*)>(0x0049F3C0);
-
-FunHook<void(rf::Entity*)> physics_sim_entity_trace{
-    0x0049F3C0,
-    [](rf::Entity* entity) {
-        if (!rf::is_multi || rf::is_server || !rf::local_player || !entity) {
-            physics_sim_entity_trace.call_target(entity);
-            return;
-        }
-
-        // Only log for vehicle entities
-        if (!entity_type_has_vehicle_use(entity->info_index)) {
-            physics_sim_entity_trace.call_target(entity);
-            return;
-        }
-
-        // Log before simulation (~once per second)
-        static int diag_count = 0;
-        bool should_log = (++diag_count % 60 == 1);
-
-        float old_y = entity->pos.y;
-
-        if (should_log) {
-            uint32_t flags = entity->p_data.flags;
-            uint8_t offset_720 = *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(entity) + 0x720);
-            int move_mode_val = entity->move_mode ? *(reinterpret_cast<int*>(entity->move_mode) + 1) : -1;
-            int ai_mode = static_cast<int>(entity->ai.mode);
-
-            xlog::warn("PHYS_PRE: '{}' uid={} flags=0x{:08x} 0x720={} mm={} ai_mode={} "
-                       "csph={} vel=({:.2f},{:.2f},{:.2f}) pos=({:.1f},{:.1f},{:.1f}) room={}",
-                entity->name, entity->uid, flags, (int)offset_720, move_mode_val, ai_mode,
-                entity->p_data.cspheres.size(),
-                entity->p_data.vel.x, entity->p_data.vel.y, entity->p_data.vel.z,
-                entity->pos.x, entity->pos.y, entity->pos.z,
-                entity->room ? 1 : 0);
-        }
-
-        // Call original physics simulation
-        physics_sim_entity_trace.call_target(entity);
-
-        if (should_log) {
-            float dy = entity->pos.y - old_y;
-            xlog::warn("PHYS_POST: '{}' vel=({:.2f},{:.2f},{:.2f}) pos=({:.1f},{:.1f},{:.1f}) dy={:.3f}",
-                entity->name,
-                entity->p_data.vel.x, entity->p_data.vel.y, entity->p_data.vel.z,
-                entity->pos.x, entity->pos.y, entity->pos.z, dy);
-        }
-    },
-};
-
 // Hook gameplay_sim_frame (0x00433260) to apply remote vehicle orient AFTER
 // all simulation (physics, ObjInterp) but BEFORE rendering starts.
 FunHook<void()> gameplay_sim_frame_hook{
@@ -693,13 +637,6 @@ void af_process_vehicle_position_packet(const void* data, size_t len, [[maybe_un
         if (!vehicle) {
             xlog::trace("vehicle_position: vehicle uid {} not found on server", packet.vehicle_uid);
             return;
-        }
-
-        // Update vehicle position and orientation on the server
-        static int recv_count = 0;
-        if (++recv_count % 100 == 1) {  // log every 100th receive
-            xlog::warn("vehicle_pos_recv: uid={} pos=({:.1f},{:.1f},{:.1f})",
-                packet.vehicle_uid, packet.pos.x, packet.pos.y, packet.pos.z);
         }
 
         rf::Vector3 new_pos{packet.pos.x, packet.pos.y, packet.pos.z};
@@ -745,19 +682,6 @@ static int vehicle_pos_send_timestamp = 0;
 
 static void vehicle_send_position_to_server()
 {
-    // Debug: log state when in MP to trace position sync
-    static int dbg_count = 0;
-    if (dbg_count < 5 && rf::is_multi && !rf::is_server && rf::local_player) {
-        rf::Entity* dbg_entity = rf::entity_from_handle(rf::local_player->entity_handle);
-        bool in_v = dbg_entity ? rf::entity_in_vehicle(dbg_entity) : false;
-        if (in_v || dbg_count == 0) {
-            dbg_count++;
-            xlog::warn("veh_sync: entity={} in_vehicle={} host_handle=0x{:x}",
-                dbg_entity ? 1 : 0, (int)in_v,
-                dbg_entity ? dbg_entity->host_handle : -1);
-        }
-    }
-
     if (rf::is_server || !rf::is_multi) return;
     if (!rf::local_player) return;
 
@@ -795,13 +719,6 @@ static void vehicle_send_position_to_server()
     int veh_alt_weapon = vehicle->ai.current_secondary_weapon;
     if (veh_alt_weapon >= 0 && rf::entity_weapon_is_on(vehicle->handle, veh_alt_weapon)) {
         packet.fire_flags |= 0x2;
-    }
-
-    static int send_count = 0;
-    if (++send_count % 100 == 1) {  // log every 100th send (~5 seconds)
-        xlog::warn("vehicle_pos_send: uid={} pos=({:.1f},{:.1f},{:.1f}) fvec=({:.2f},{:.2f},{:.2f})",
-            vehicle->uid, vehicle->pos.x, vehicle->pos.y, vehicle->pos.z,
-            vehicle->orient.fvec.x, vehicle->orient.fvec.y, vehicle->orient.fvec.z);
     }
 
     af_send_packet(rf::local_player, &packet, sizeof(packet), false);
@@ -874,7 +791,4 @@ void vehicle_apply_patches()
 
     // --- Client: apply remote vehicle orient after sim, before render ---
     gameplay_sim_frame_hook.install();
-
-    // --- Diagnostics: trace physics simulation for vehicle entities ---
-    physics_sim_entity_trace.install();
 }
