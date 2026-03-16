@@ -140,18 +140,44 @@ void af_process_vehicle_create_packet(const void* data, size_t len, [[maybe_unus
     if (entity) {
         entity->uid = packet.uid;
 
-        // Enable world and object collision for the vehicle entity.
-        // entity_create with flags=0 doesn't set collision flags, so vehicles pass through geometry.
-        int collision_flags = rf::PF_COLLIDE_WORLD | rf::PF_COLLIDE_OBJECTS;
+        bool had_room = entity->room != nullptr;
 
-        // Ground vehicles need gravity; flying vehicles do not
-        if (!rf::entity_is_fighter(entity) && !rf::entity_is_sub(entity)) {
-            collision_flags |= rf::PF_GRAVITY;
+        // Force room assignment. entity_create may leave room=NULL for vehicle types;
+        // without a valid room the collision system has no geometry to test against
+        // and the vehicle falls through the world. move() triggers GSolid::find_new_room.
+        entity->move(&pos);
+
+        // Set mass from entity info (needed for collision response)
+        if (entity->p_data.mass <= 0.0f) {
+            entity->p_data.mass = entity->info->mass > 0.0f ? entity->info->mass : 10000.0f;
         }
-        entity->p_data.flags |= collision_flags;
 
-        xlog::info("Vehicle created on client: type='{}' uid={} pos=({:.1f},{:.1f},{:.1f}) phys_flags=0x{:x}",
-                   entity->info->name, entity->uid, pos.x, pos.y, pos.z, entity->p_data.flags);
+        // Populate collision spheres if entity_create left them empty
+        float r = entity->radius;
+        if (entity->p_data.cspheres.size() == 0 && entity->vmesh) {
+            int num_cspheres = rf::vmesh_get_num_cspheres(entity->vmesh);
+            if (num_cspheres > 0) {
+                for (int i = 0; i < num_cspheres; i++) {
+                    rf::PCollisionSphere sphere{};
+                    rf::vmesh_get_csphere(entity->vmesh, i, &sphere.center, &sphere.radius);
+                    sphere.spring_const = -1.0f;
+                    entity->p_data.cspheres.add(sphere);
+                }
+            }
+            else {
+                rf::PCollisionSphere sphere{};
+                sphere.center = {0.0f, 0.0f, 0.0f};
+                sphere.radius = r;
+                sphere.spring_const = -1.0f;
+                entity->p_data.cspheres.add(sphere);
+            }
+            entity->p_data.radius = r;
+        }
+
+        xlog::info("Vehicle created on client: type='{}' uid={} pos=({:.1f},{:.1f},{:.1f}) "
+                   "phys_flags=0x{:x} cspheres={} room_before={} room_after={}",
+                   entity->info->name, entity->uid, pos.x, pos.y, pos.z, entity->p_data.flags,
+                   entity->p_data.cspheres.size(), (int)had_room, entity->room ? 1 : 0);
     }
     else {
         xlog::warn("vehicle_create: entity_create failed for type_idx={}", packet.entity_type_index);
@@ -211,9 +237,27 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
             return;
         }
 
-        // Enable vehicle mouse control mode on the vehicle entity's control data.
-        // Vanilla entity_attach_leech only sets this for turret entities (flag 0x2000),
-        // but fighters/subs/etc. also need it for proper mouse-driven rotation.
+        // --- Vanilla boarding initialization (matches server-side code at 0x004A1E76+) ---
+
+        // Set AI mode to CATATONIC (critical for physics: physics_simulate_entity's
+        // automobile input path FUN_0049e180 checks ai.mode to decide whether to
+        // process driving input)
+        rf::ai_set_mode(&vehicle->ai, rf::AI_MODE_CATATONIC, -1, -1);
+        rf::ai_set_submode(&vehicle->ai, rf::AI_SUBMODE_NONE);
+
+        // Set friendliness to neutral (prevents hostility issues)
+        rf::obj_set_friendliness(vehicle, rf::OBJ_NEUTRAL);
+
+        // Copy eye PHB limits from EntityInfo to the driver entity
+        entity->min_rel_eye_phb = vehicle->info->min_rel_eye_phb;
+        entity->max_rel_eye_phb = vehicle->info->max_rel_eye_phb;
+
+        // Enable vehicle mouse control mode (offset 0x720) for all non-gunner vehicles.
+        // entity_attach_leech only sets this for turrets; we need it for all vehicle types
+        // so mouse input can drive vehicle orientation.
+        // Note: for automobile-flagged entities, physics Branch 2 (0x4000) catches before
+        // Branch 4 (0x720), so this is redundant for physics but may be used by other
+        // systems (input routing, camera control).
         if (!rf::entity_is_jeep_gunner(entity)) {
             *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
         }
@@ -223,7 +267,8 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
         auto& vflags = *reinterpret_cast<uint32_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x810);
         vflags = (vflags & ~0x20000u) | 0x10000u;
 
-        xlog::info("Vehicle enter success: entity '{}' host_handle=0x{:x}", entity->name, entity->host_handle);
+        xlog::info("Vehicle board: entity='{}' vehicle='{}' ai.mode={} p_data.flags=0x{:x}",
+            entity->name, vehicle->name, static_cast<int>(vehicle->ai.mode), vehicle->p_data.flags);
     }
     else {
         // Exit vehicle
@@ -281,7 +326,7 @@ CodeInjection vehicle_entry_broadcast_injection{
             return;
         }
 
-        // Enable vehicle mouse control mode for all vehicle types (not just turrets)
+        // Enable vehicle mouse control mode for all non-gunner vehicle types
         if (!rf::entity_is_jeep_gunner(entity)) {
             *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
         }
@@ -566,6 +611,62 @@ static void apply_remote_vehicle_states()
     }
 }
 
+// ============================================================================
+// Physics diagnostics: trace which branch physics_simulate_entity takes
+// ============================================================================
+
+// FunHook on physics_simulate_entity (0x0049F3C0) to log vehicle physics state.
+// This wraps the entire function so we can inspect the entity before and after simulation.
+static auto physics_simulate_entity_orig = reinterpret_cast<void(__cdecl*)(rf::Entity*)>(0x0049F3C0);
+
+FunHook<void(rf::Entity*)> physics_sim_entity_trace{
+    0x0049F3C0,
+    [](rf::Entity* entity) {
+        if (!rf::is_multi || rf::is_server || !rf::local_player || !entity) {
+            physics_sim_entity_trace.call_target(entity);
+            return;
+        }
+
+        // Only log for vehicle entities
+        if (!entity_type_has_vehicle_use(entity->info_index)) {
+            physics_sim_entity_trace.call_target(entity);
+            return;
+        }
+
+        // Log before simulation (~once per second)
+        static int diag_count = 0;
+        bool should_log = (++diag_count % 60 == 1);
+
+        float old_y = entity->pos.y;
+
+        if (should_log) {
+            uint32_t flags = entity->p_data.flags;
+            uint8_t offset_720 = *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(entity) + 0x720);
+            int move_mode_val = entity->move_mode ? *(reinterpret_cast<int*>(entity->move_mode) + 1) : -1;
+            int ai_mode = static_cast<int>(entity->ai.mode);
+
+            xlog::warn("PHYS_PRE: '{}' uid={} flags=0x{:08x} 0x720={} mm={} ai_mode={} "
+                       "csph={} vel=({:.2f},{:.2f},{:.2f}) pos=({:.1f},{:.1f},{:.1f}) room={}",
+                entity->name, entity->uid, flags, (int)offset_720, move_mode_val, ai_mode,
+                entity->p_data.cspheres.size(),
+                entity->p_data.vel.x, entity->p_data.vel.y, entity->p_data.vel.z,
+                entity->pos.x, entity->pos.y, entity->pos.z,
+                entity->room ? 1 : 0);
+        }
+
+        // Call original physics simulation
+        physics_sim_entity_trace.call_target(entity);
+
+        if (should_log) {
+            float dy = entity->pos.y - old_y;
+            xlog::warn("PHYS_POST: '{}' vel=({:.2f},{:.2f},{:.2f}) pos=({:.1f},{:.1f},{:.1f}) dy={:.3f}",
+                entity->name,
+                entity->p_data.vel.x, entity->p_data.vel.y, entity->p_data.vel.z,
+                entity->pos.x, entity->pos.y, entity->pos.z, dy);
+        }
+    },
+};
+
 // Hook gameplay_sim_frame (0x00433260) to apply remote vehicle orient AFTER
 // all simulation (physics, ObjInterp) but BEFORE rendering starts.
 FunHook<void()> gameplay_sim_frame_hook{
@@ -745,6 +846,18 @@ void vehicle_apply_patches()
     // NOP the 7-byte CMP and 6-byte JZ
     AsmWriter(0x004A1CBF).nop(13);
 
+    // --- Fix: enable world collision for vehicle entities in MP ---
+    //
+    // The physics step function (FUN_00487770) has a multiplayer filter that only runs
+    // world collision (FUN_0049bb70) for the local_player_entity and non-OT_ENTITY objects.
+    // Vehicle entities are OT_ENTITY type but NOT the local player, so they're skipped.
+    // In singleplayer, ALL entities with PF_COLLIDE_WORLD get world collision.
+    //
+    // At 0x00487893: JZ 0x004878bb (74 26) — skips collision when entity->type == 0.
+    // NOP this to let vehicle entities (and all OT_ENTITY) get world collision in MP.
+    // The PF_COLLIDE_WORLD check at 0x0048789f still gates the actual collision call.
+    AsmWriter(0x00487893).nop(2);
+
     // --- Fix: skip path processing in MP (prevents GSolid VArray crashes) ---
     entity_path_process_hook.install();
 
@@ -761,4 +874,7 @@ void vehicle_apply_patches()
 
     // --- Client: apply remote vehicle orient after sim, before render ---
     gameplay_sim_frame_hook.install();
+
+    // --- Diagnostics: trace physics simulation for vehicle entities ---
+    physics_sim_entity_trace.install();
 }

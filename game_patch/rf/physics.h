@@ -75,6 +75,8 @@ namespace rf
         PF_COLLIDE_OBJECTS = 0x20,       // participate in object-object collision pairs
         PF_UNK_40          = 0x40,
         PF_BOUNCE          = 0x100,      // bounce on impact (added when debris_flags & 0x04)
+        PF_AUTOMOBILE      = 0x4000,     // use automobile physics (suspension + ground collision)
+        PF_REMOTE_INTERP   = 0x8000,     // remote entity interpolation (skip physics)
     };
 
     static auto& physics_create_object = addr_as_ref<void(PhysicsData *pd, ObjectCreateInfo *oci)>(0x0049EC90);
