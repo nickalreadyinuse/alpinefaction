@@ -23,6 +23,7 @@ static auto entity_attach_leech = reinterpret_cast<bool(__thiscall*)(rf::Entity*
 // FUN_0042cdd0: returns true if entity_types[index].use_function == 1 (boardable vehicle)
 static auto entity_type_has_vehicle_use = reinterpret_cast<bool(__cdecl*)(int type_index)>(0x0042cdd0);
 
+
 // ObjInterp::set_next_pos_orient - properly updates entity interpolation state for rendering
 // Thiscall on ObjInterp: this=obj_interp, then (entity, pos, phb, eye_phb, vel, move, tick, flags)
 static auto obj_interp_set_next_pos_orient = reinterpret_cast<void(__thiscall*)(
@@ -175,9 +176,10 @@ void af_process_vehicle_create_packet(const void* data, size_t len, [[maybe_unus
         }
 
         xlog::info("Vehicle created on client: type='{}' uid={} pos=({:.1f},{:.1f},{:.1f}) "
-                   "phys_flags=0x{:x} cspheres={} room_before={} room_after={}",
+                   "phys_flags=0x{:x} obj_flags=0x{:x} cspheres={} room={}",
                    entity->info->name, entity->uid, pos.x, pos.y, pos.z, entity->p_data.flags,
-                   entity->p_data.cspheres.size(), (int)had_room, entity->room ? 1 : 0);
+                   static_cast<int>(entity->obj_flags),
+                   entity->p_data.cspheres.size(), entity->room ? 1 : 0);
     }
     else {
         xlog::warn("vehicle_create: entity_create failed for type_idx={}", packet.entity_type_index);
@@ -286,20 +288,6 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
 // Server-side hooks: detect vehicle entry/exit and broadcast
 // ============================================================================
 
-// Debug: log when player_handle_use_keypress_local is called (entry path)
-// At 0x004A197F: MOV EAX, [EDI+0x200] - first logic instruction, EBX=player, EDI=entity
-CodeInjection use_keypress_debug{
-    0x004A197F,
-    [](auto& regs) {
-        if (rf::is_server) return;
-        rf::Entity* entity = regs.edi;
-        if (entity) {
-            xlog::info("use_keypress_local: entity='{}' host_handle=0x{:x}",
-                entity->name, entity->host_handle);
-        }
-    },
-};
-
 // After entity_attach_leech call in the vehicle entry path
 CodeInjection vehicle_entry_broadcast_injection{
     0x004A1E46,
@@ -317,18 +305,20 @@ CodeInjection vehicle_entry_broadcast_injection{
             entity->name, vehicle->name, attach_result,
             vehicle->interface_points.size(), entity->host_handle);
 
+        // Enable vehicle mouse control mode for all non-gunner vehicles.
+        // entity_attach_leech only sets this for turrets. We need it on BOTH
+        // server and client for flight physics to process mouse input.
+        if (rf::entity_in_vehicle(entity) && !rf::entity_is_jeep_gunner(entity)) {
+            *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
+        }
+
         if (!rf::is_server) {
             return;
         }
 
-        // Server: verify the entity is actually now in the vehicle
+        // Server: broadcast vehicle state to all clients
         if (!rf::entity_in_vehicle(entity)) {
             return;
-        }
-
-        // Enable vehicle mouse control mode for all non-gunner vehicle types
-        if (!rf::entity_is_jeep_gunner(entity)) {
-            *reinterpret_cast<uint8_t*>(reinterpret_cast<uintptr_t>(vehicle) + 0x720) = 1;
         }
 
         xlog::info("Server: player '{}' entered vehicle '{}'", entity->name, vehicle->name);
@@ -611,6 +601,87 @@ static void apply_remote_vehicle_states()
     }
 }
 
+// ============================================================================
+// Enable vehicle input for MP client
+// ============================================================================
+//
+// gameplay_do_frame (0x00433520) handles BOTH SP/server AND MP client frames.
+// For MP client (is_multi && !is_server && state==0xB), BL is set to 1 and the
+// JNZ at 0x004335c9 skips both player_process_controls and gameplay_sim_frame,
+// landing at 0x00433640. The SP/server path (BL=0) falls through normally.
+//
+// For vehicles, we need both input reading and physics simulation on the client.
+// player_process_controls can't be used directly — it takes a state-2 shortcut
+// for MP clients that skips vehicle input routing. Instead we call
+// controls_read_internal directly with the vehicle's ai.ci.
+
+// controls_read_internal: reads raw mouse/keyboard input into a ControlInfo struct.
+// Called via controls_read (0x00430720) which has an MP gate — we bypass it.
+static auto controls_read_internal =
+    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430760);
+
+// Processes keybinds, weapon fire, zoom, crouch etc. using the given ControlInfo.
+static auto controls_process_actions =
+    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430c70);
+
+// gameplay_sim_frame — runs full physics simulation. We have a FunHook on it
+// that also calls apply_remote_vehicle_states after the sim step.
+static auto gameplay_sim_frame_fn =
+    reinterpret_cast<void(__cdecl*)()>(0x00433260);
+
+// obj_should_sim_physics (0x00488030): called per-object in obj_move_all Pass 2.
+// Returns 1 if the object should get physics simulation this frame, 0 to skip.
+// Vehicle entities can be skipped due to several conditions:
+// - obj_flags & 0x4000 (OF_NO_COLLIDE_SP) → always skip
+// - entity_flags2 & 0x40 for OT_ENTITY → always skip
+// - Not player-controlled + distance/state checks → skip if far away or idle
+// We force return 1 for boarded vehicle entities so the full physics pipeline
+// (physics_simulate_entity → mouselook/vehicle rotation → translation) runs.
+FunHook<int(rf::Object*)> obj_should_sim_physics_hook{
+    0x00488030,
+    [](rf::Object* obj) -> int {
+        if (rf::is_multi && obj->type == rf::OT_ENTITY) {
+            auto* entity = static_cast<rf::Entity*>(obj);
+            // Check if this is a boarded vehicle (has a leech attached)
+            if (rf::entity_is_vehicle(entity) && rf::entity_get_first_leech(entity) != -1) {
+                return 1;
+            }
+        }
+        return obj_should_sim_physics_hook.call_target(obj);
+    },
+};
+
+// Inject at 0x00433640 — where the MP client path lands after skipping
+// player_process_controls and gameplay_sim_frame. SP/server path also passes
+// through here (after running both), so we gate on is_multi && !is_server.
+//
+// Vehicle entities are already in the object_list (entity_create adds them).
+// gameplay_sim_frame → obj_move_all iterates all objects. With the
+// obj_should_sim_physics hook forcing physics active for boarded vehicles,
+// the full pipeline runs: physics_frame_init, physics_simulate_entity
+// (mouselook/vehicle rotation + translation), world collision, position update.
+CodeInjection mp_client_vehicle_input_injection{
+    0x00433640,
+    [](auto& regs) {
+        if (!rf::is_multi || rf::is_server || !rf::local_player) return;
+        rf::Entity* entity = rf::entity_from_handle(rf::local_player->entity_handle);
+        if (!entity || !rf::entity_in_vehicle(entity)) return;
+        rf::Entity* vehicle = rf::entity_from_handle(entity->host_handle);
+        if (!vehicle) return;
+
+        // Read input directly into vehicle's ai.ci, bypassing the MP gate
+        controls_read_internal(rf::local_player, &vehicle->ai.ci);
+        // Process keybinds and weapon actions (firing, zoom, etc.)
+        controls_process_actions(rf::local_player, &vehicle->ai.ci);
+
+        // Run gameplay_sim_frame — obj_move_all will process the vehicle
+        // entity through the full physics pipeline since obj_should_sim_physics
+        // now returns 1 for boarded vehicles.
+        // NOP at 0x004332a8 prevents spectator-check early-return.
+        gameplay_sim_frame_fn();
+    },
+};
+
 // Hook gameplay_sim_frame (0x00433260) to apply remote vehicle orient AFTER
 // all simulation (physics, ObjInterp) but BEFORE rendering starts.
 FunHook<void()> gameplay_sim_frame_hook{
@@ -727,9 +798,14 @@ static void vehicle_send_position_to_server()
 // Called every frame from rf_do_frame_hook in main.cpp
 void vehicle_do_frame()
 {
+    // Apply remote vehicle interpolation for MP clients. gameplay_sim_frame (and
+    // its hook that calls apply_remote_vehicle_states) only runs when the local
+    // player is driving a vehicle. For spectating other players' vehicles, we
+    // need to apply interpolation here as well.
+    if (rf::is_multi && !rf::is_server) {
+        apply_remote_vehicle_states();
+    }
     vehicle_send_position_to_server();
-    // Note: apply_remote_vehicle_states() is called from gameplay_sim_frame_hook
-    // (after sim, before render) — NOT here, which runs outside the sim/render boundary.
 }
 
 // ============================================================================
@@ -775,15 +851,22 @@ void vehicle_apply_patches()
     // The PF_COLLIDE_WORLD check at 0x0048789f still gates the actual collision call.
     AsmWriter(0x00487893).nop(2);
 
+    // gameplay_sim_frame (0x00433260) has an internal early-return for MP clients
+    // when net_data->flags & 0x20 is set (JNZ at 0x004332a8, 6 bytes). NOP it so
+    // the physics simulation runs when called from our vehicle input injection.
+    AsmWriter(0x004332a8).nop(6);
+
     // --- Fix: skip path processing in MP (prevents GSolid VArray crashes) ---
     entity_path_process_hook.install();
 
     // --- Fix: handle missing fpgun meshes for vehicle weapons ---
     fpgun_mesh_null_guard.install();
 
+    // --- Force physics active for boarded vehicles in MP ---
+    obj_should_sim_physics_hook.install();
 
-    // --- Debug: trace local use-key processing on client ---
-    use_keypress_debug.install();
+    // --- Client: read vehicle input + run physics at MP skip point in gameplay_do_frame ---
+    mp_client_vehicle_input_injection.install();
 
     // --- Server-side hooks for network sync ---
     vehicle_entry_broadcast_injection.install();
