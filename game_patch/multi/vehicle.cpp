@@ -1,4 +1,5 @@
 #include <cstring>
+#include <cmath>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
@@ -9,6 +10,7 @@
 #include "../rf/player/player.h"
 #include "../rf/object.h"
 #include "../rf/os/timer.h"
+#include "../rf/vmesh.h"
 #include "alpine_packets.h"
 #include "network.h"
 #include "vehicle.h"
@@ -19,6 +21,21 @@ static auto entity_attach_leech = reinterpret_cast<bool(__thiscall*)(rf::Entity*
 
 // FUN_0042cdd0: returns true if entity_types[index].use_function == 1 (boardable vehicle)
 static auto entity_type_has_vehicle_use = reinterpret_cast<bool(__cdecl*)(int type_index)>(0x0042cdd0);
+
+// ObjInterp::set_next_pos_orient - properly updates entity interpolation state for rendering
+// Thiscall on ObjInterp: this=obj_interp, then (entity, pos, phb, eye_phb, vel, move, tick, flags)
+static auto obj_interp_set_next_pos_orient = reinterpret_cast<void(__thiscall*)(
+    rf::ObjInterp*, rf::Entity*, rf::Vector3*, rf::Vector3*, rf::Vector3*, rf::Vector3*, rf::Vector3*, uint16_t, int)>(0x00483360);
+
+// Extract pitch/heading/bank from an orient matrix
+static rf::Vector3 orient_to_phb(const rf::Matrix3& orient)
+{
+    rf::Vector3 phb;
+    phb.x = std::asin(-orient.fvec.y);                      // pitch
+    phb.y = std::atan2(orient.fvec.x, orient.fvec.z);       // heading
+    phb.z = std::atan2(orient.rvec.y, orient.uvec.y);       // bank
+    return phb;
+}
 
 // ============================================================================
 // Packet send/receive
@@ -364,6 +381,87 @@ FunHook<bool(int)> entity_path_process_hook{
 // Vehicle position sync: driving client -> server -> other clients
 // ============================================================================
 
+// Track remote vehicle state for per-frame application (prevents entity sim from overwriting)
+struct RemoteVehicleState {
+    int uid = -1;
+    rf::Vector3 pos{};
+    rf::Matrix3 orient{};
+    rf::Vector3 phb{};
+    bool active = false;
+};
+static constexpr int MAX_REMOTE_VEHICLES = 8;
+static RemoteVehicleState remote_vehicles[MAX_REMOTE_VEHICLES];
+
+static void set_remote_vehicle_state(int uid, const rf::Vector3& pos, const float* orient_data, const rf::Vector3& phb)
+{
+    // Find existing or free slot
+    int free_slot = -1;
+    for (int i = 0; i < MAX_REMOTE_VEHICLES; i++) {
+        if (remote_vehicles[i].uid == uid) {
+            remote_vehicles[i].pos = pos;
+            std::memcpy(&remote_vehicles[i].orient, orient_data, sizeof(rf::Matrix3));
+            remote_vehicles[i].phb = phb;
+            remote_vehicles[i].active = true;
+            return;
+        }
+        if (free_slot < 0 && !remote_vehicles[i].active) free_slot = i;
+    }
+    if (free_slot >= 0) {
+        remote_vehicles[free_slot].uid = uid;
+        remote_vehicles[free_slot].pos = pos;
+        std::memcpy(&remote_vehicles[free_slot].orient, orient_data, sizeof(rf::Matrix3));
+        remote_vehicles[free_slot].phb = phb;
+        remote_vehicles[free_slot].active = true;
+    }
+}
+
+static void clear_remote_vehicle_state(int uid)
+{
+    for (auto& rv : remote_vehicles) {
+        if (rv.uid == uid) { rv.active = false; rv.uid = -1; }
+    }
+}
+
+// Apply stored remote vehicle states. Called AFTER gameplay_sim_frame (which runs
+// physics/ObjInterp and overwrites orient) but BEFORE rendering reads it.
+// This is the only reliable timing to override orient for remote vehicles.
+static void apply_remote_vehicle_states()
+{
+    if (rf::is_server || !rf::is_multi) return;
+
+    for (auto& rv : remote_vehicles) {
+        if (!rv.active) continue;
+        rf::Entity* vehicle = entity_find_by_uid(rv.uid);
+        if (!vehicle) { rv.active = false; continue; }
+
+        // Don't override if local player is driving this vehicle
+        if (rf::local_player) {
+            rf::Entity* local_entity = rf::entity_from_handle(rf::local_player->entity_handle);
+            if (local_entity && rf::entity_in_vehicle(local_entity) &&
+                local_entity->host_handle == vehicle->handle) {
+                continue;
+            }
+        }
+
+        // Write orient directly — the sim already ran, so this won't be overwritten before render
+        std::memcpy(&vehicle->orient, &rv.orient, sizeof(rf::Matrix3));
+
+        // Update position via move() (handles room/cell update)
+        vehicle->move(&rv.pos);
+    }
+}
+
+// Hook gameplay_sim_frame (0x00433260) to apply remote vehicle orient AFTER
+// all simulation (physics, ObjInterp) but BEFORE rendering starts.
+FunHook<void()> gameplay_sim_frame_hook{
+    0x00433260,
+    []() {
+        gameplay_sim_frame_hook.call_target();
+        // Now simulation is done, rendering hasn't started yet — safe to override orient
+        apply_remote_vehicle_states();
+    },
+};
+
 void af_process_vehicle_position_packet(const void* data, size_t len, [[maybe_unused]] const rf::NetAddr& addr)
 {
     if (len < sizeof(af_vehicle_position_packet)) {
@@ -419,15 +517,10 @@ void af_process_vehicle_position_packet(const void* data, size_t len, [[maybe_un
             }
         }
 
-        static int client_recv_count = 0;
-        if (++client_recv_count % 100 == 1) {
-            xlog::warn("vehicle_pos_client_recv: uid={} pos=({:.1f},{:.1f},{:.1f})",
-                packet.vehicle_uid, packet.pos.x, packet.pos.y, packet.pos.z);
-        }
-
+        // Store state for per-frame application via ObjInterp
         rf::Vector3 new_pos{packet.pos.x, packet.pos.y, packet.pos.z};
-        vehicle->move(&new_pos);
-        std::memcpy(&vehicle->orient, packet.orient, sizeof(packet.orient));
+        rf::Vector3 phb{packet.phb.x, packet.phb.y, packet.phb.z};
+        set_remote_vehicle_state(packet.vehicle_uid, new_pos, packet.orient, phb);
     }
 }
 
@@ -472,11 +565,14 @@ static void vehicle_send_position_to_server()
     packet.pos.y = vehicle->pos.y;
     packet.pos.z = vehicle->pos.z;
     std::memcpy(packet.orient, &vehicle->orient, sizeof(packet.orient));
+    rf::Vector3 phb = orient_to_phb(vehicle->orient);
+    packet.phb = {phb.x, phb.y, phb.z};
 
     static int send_count = 0;
     if (++send_count % 100 == 1) {  // log every 100th send (~5 seconds)
-        xlog::warn("vehicle_pos_send: uid={} pos=({:.1f},{:.1f},{:.1f})",
-            vehicle->uid, vehicle->pos.x, vehicle->pos.y, vehicle->pos.z);
+        xlog::warn("vehicle_pos_send: uid={} pos=({:.1f},{:.1f},{:.1f}) fvec=({:.2f},{:.2f},{:.2f})",
+            vehicle->uid, vehicle->pos.x, vehicle->pos.y, vehicle->pos.z,
+            vehicle->orient.fvec.x, vehicle->orient.fvec.y, vehicle->orient.fvec.z);
     }
 
     af_send_packet(rf::local_player, &packet, sizeof(packet), false);
@@ -485,11 +581,9 @@ static void vehicle_send_position_to_server()
 // Called every frame from rf_do_frame_hook in main.cpp
 void vehicle_do_frame()
 {
-    static int frame_count = 0;
-    if (frame_count++ < 3) {
-        xlog::warn("vehicle_do_frame called (frame {})", frame_count);
-    }
     vehicle_send_position_to_server();
+    // Note: apply_remote_vehicle_states() is called from gameplay_sim_frame_hook
+    // (after sim, before render) — NOT here, which runs outside the sim/render boundary.
 }
 
 // ============================================================================
@@ -537,5 +631,6 @@ void vehicle_apply_patches()
     vehicle_entry_broadcast_injection.install();
     entity_detach_from_host_hook.install();
 
-    // --- Client: vehicle_do_frame() handles position sync (called from main.cpp) ---
+    // --- Client: apply remote vehicle orient after sim, before render ---
+    gameplay_sim_frame_hook.install();
 }

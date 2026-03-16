@@ -258,6 +258,7 @@ struct af_vehicle_position_packet
     int32_t vehicle_uid;        // vehicle UID for lookup
     RF_Vector pos;              // current position
     float orient[9];            // 3x3 orientation matrix (row-major)
+    RF_Vector phb;              // pitch, heading, bank (for ObjInterp)
 };
 
 #pragma pack(pop)
