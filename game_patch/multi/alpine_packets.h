@@ -259,6 +259,8 @@ struct af_vehicle_position_packet
     RF_Vector pos;              // current position
     float orient[9];            // 3x3 orientation matrix (row-major)
     RF_Vector phb;              // pitch, heading, bank (for ObjInterp)
+    uint8_t fire_flags;         // bit 0 = primary fire, bit 1 = alt fire
+    uint8_t weapon_type;        // current weapon index
 };
 
 #pragma pack(pop)

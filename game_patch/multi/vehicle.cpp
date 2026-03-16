@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cstring>
 #include <cmath>
 #include <patch_common/CodeInjection.h>
@@ -138,8 +139,19 @@ void af_process_vehicle_create_packet(const void* data, size_t len, [[maybe_unus
 
     if (entity) {
         entity->uid = packet.uid;
-        xlog::info("Vehicle created on client: type='{}' uid={} pos=({:.1f},{:.1f},{:.1f})",
-                   entity->info->name, entity->uid, pos.x, pos.y, pos.z);
+
+        // Enable world and object collision for the vehicle entity.
+        // entity_create with flags=0 doesn't set collision flags, so vehicles pass through geometry.
+        int collision_flags = rf::PF_COLLIDE_WORLD | rf::PF_COLLIDE_OBJECTS;
+
+        // Ground vehicles need gravity; flying vehicles do not
+        if (!rf::entity_is_fighter(entity) && !rf::entity_is_sub(entity)) {
+            collision_flags |= rf::PF_GRAVITY;
+        }
+        entity->p_data.flags |= collision_flags;
+
+        xlog::info("Vehicle created on client: type='{}' uid={} pos=({:.1f},{:.1f},{:.1f}) phys_flags=0x{:x}",
+                   entity->info->name, entity->uid, pos.x, pos.y, pos.z, entity->p_data.flags);
     }
     else {
         xlog::warn("vehicle_create: entity_create failed for type_idx={}", packet.entity_type_index);
@@ -381,37 +393,76 @@ FunHook<bool(int)> entity_path_process_hook{
 // Vehicle position sync: driving client -> server -> other clients
 // ============================================================================
 
-// Track remote vehicle state for per-frame application (prevents entity sim from overwriting)
+// Track remote vehicle state with interpolation data
 struct RemoteVehicleState {
     int uid = -1;
-    rf::Vector3 pos{};
-    rf::Matrix3 orient{};
-    rf::Vector3 phb{};
+    rf::Vector3 pos_prev{};
+    rf::Vector3 pos_target{};
+    rf::Matrix3 orient_prev{};
+    rf::Matrix3 orient_target{};
+    int update_time_ms = 0;        // when target was received
+    int prev_update_time_ms = 0;   // when prev was received
+    float update_interval_ms = 50.0f; // rolling estimate of packet interval
     bool active = false;
+    bool has_prev = false;         // false until 2nd packet received
+    uint8_t fire_flags = 0;        // bit 0 = primary, bit 1 = alt fire
+    uint8_t prev_fire_flags = 0;   // previous frame's fire flags for edge detection
+    int weapon_type = 0;           // current weapon index
 };
 static constexpr int MAX_REMOTE_VEHICLES = 8;
 static RemoteVehicleState remote_vehicles[MAX_REMOTE_VEHICLES];
 
-static void set_remote_vehicle_state(int uid, const rf::Vector3& pos, const float* orient_data, const rf::Vector3& phb)
+static void set_remote_vehicle_state(int uid, const rf::Vector3& pos, const float* orient_data,
+                                     uint8_t fire_flags, int weapon_type)
 {
+    int now_ms = rf::timer_get_milliseconds();
+
     // Find existing or free slot
     int free_slot = -1;
     for (int i = 0; i < MAX_REMOTE_VEHICLES; i++) {
         if (remote_vehicles[i].uid == uid) {
-            remote_vehicles[i].pos = pos;
-            std::memcpy(&remote_vehicles[i].orient, orient_data, sizeof(rf::Matrix3));
-            remote_vehicles[i].phb = phb;
-            remote_vehicles[i].active = true;
+            auto& rv = remote_vehicles[i];
+            // Shift current target -> prev
+            rv.pos_prev = rv.pos_target;
+            rv.orient_prev = rv.orient_target;
+            rv.prev_update_time_ms = rv.update_time_ms;
+
+            // Store new target
+            rv.pos_target = pos;
+            std::memcpy(&rv.orient_target, orient_data, sizeof(rf::Matrix3));
+            rv.update_time_ms = now_ms;
+
+            // Update rolling average of packet interval
+            if (rv.has_prev && rv.prev_update_time_ms > 0) {
+                float interval = static_cast<float>(now_ms - rv.prev_update_time_ms);
+                if (interval > 0.0f && interval < 500.0f) {
+                    rv.update_interval_ms = rv.update_interval_ms * 0.7f + interval * 0.3f;
+                }
+            }
+            rv.has_prev = true;
+
+            // Weapon fire state
+            rv.fire_flags = fire_flags;
+            rv.weapon_type = weapon_type;
             return;
         }
         if (free_slot < 0 && !remote_vehicles[i].active) free_slot = i;
     }
     if (free_slot >= 0) {
-        remote_vehicles[free_slot].uid = uid;
-        remote_vehicles[free_slot].pos = pos;
-        std::memcpy(&remote_vehicles[free_slot].orient, orient_data, sizeof(rf::Matrix3));
-        remote_vehicles[free_slot].phb = phb;
-        remote_vehicles[free_slot].active = true;
+        auto& rv = remote_vehicles[free_slot];
+        rv.uid = uid;
+        rv.pos_target = pos;
+        std::memcpy(&rv.orient_target, orient_data, sizeof(rf::Matrix3));
+        rv.pos_prev = pos;
+        std::memcpy(&rv.orient_prev, orient_data, sizeof(rf::Matrix3));
+        rv.update_time_ms = now_ms;
+        rv.prev_update_time_ms = 0;
+        rv.update_interval_ms = 50.0f;
+        rv.has_prev = false;
+        rv.active = true;
+        rv.fire_flags = fire_flags;
+        rv.prev_fire_flags = 0;
+        rv.weapon_type = weapon_type;
     }
 }
 
@@ -422,12 +473,26 @@ static void clear_remote_vehicle_state(int uid)
     }
 }
 
-// Apply stored remote vehicle states. Called AFTER gameplay_sim_frame (which runs
-// physics/ObjInterp and overwrites orient) but BEFORE rendering reads it.
-// This is the only reliable timing to override orient for remote vehicles.
+// Normalize a Matrix3's rows to prevent drift from linear interpolation
+static void matrix3_orthonormalize(rf::Matrix3& m)
+{
+    // Normalize fvec
+    m.fvec.normalize_safe();
+    // Re-derive rvec = uvec x fvec, then normalize
+    m.rvec = m.uvec.cross(m.fvec);
+    m.rvec.normalize_safe();
+    // Re-derive uvec = fvec x rvec
+    m.uvec = m.fvec.cross(m.rvec);
+    m.uvec.normalize_safe();
+}
+
+// Apply stored remote vehicle states with interpolation. Called AFTER gameplay_sim_frame
+// (which runs physics/ObjInterp and overwrites orient) but BEFORE rendering reads it.
 static void apply_remote_vehicle_states()
 {
     if (rf::is_server || !rf::is_multi) return;
+
+    int now_ms = rf::timer_get_milliseconds();
 
     for (auto& rv : remote_vehicles) {
         if (!rv.active) continue;
@@ -443,11 +508,61 @@ static void apply_remote_vehicle_states()
             }
         }
 
+        // Compute interpolation factor
+        rf::Vector3 lerped_pos;
+        rf::Matrix3 lerped_orient;
+
+        if (rv.has_prev && rv.update_interval_ms > 0.0f) {
+            float elapsed = static_cast<float>(now_ms - rv.update_time_ms);
+            float t = std::clamp(elapsed / rv.update_interval_ms, 0.0f, 1.0f);
+
+            // Lerp position
+            lerped_pos = rv.pos_prev + (rv.pos_target - rv.pos_prev) * t;
+
+            // Component-wise lerp of orientation matrix (sufficient for small angular deltas)
+            float* prev = reinterpret_cast<float*>(&rv.orient_prev);
+            float* tgt = reinterpret_cast<float*>(&rv.orient_target);
+            float* out = reinterpret_cast<float*>(&lerped_orient);
+            for (int i = 0; i < 9; i++) {
+                out[i] = prev[i] + (tgt[i] - prev[i]) * t;
+            }
+            matrix3_orthonormalize(lerped_orient);
+        }
+        else {
+            // No previous state yet — snap to target
+            lerped_pos = rv.pos_target;
+            lerped_orient = rv.orient_target;
+        }
+
         // Write orient directly — the sim already ran, so this won't be overwritten before render
-        std::memcpy(&vehicle->orient, &rv.orient, sizeof(rf::Matrix3));
+        std::memcpy(&vehicle->orient, &lerped_orient, sizeof(rf::Matrix3));
 
         // Update position via move() (handles room/cell update)
-        vehicle->move(&rv.pos);
+        vehicle->move(&lerped_pos);
+
+        // Weapon fire edge detection
+        if (rv.fire_flags != rv.prev_fire_flags) {
+            bool primary_now = (rv.fire_flags & 0x1) != 0;
+            bool primary_was = (rv.prev_fire_flags & 0x1) != 0;
+            bool alt_now = (rv.fire_flags & 0x2) != 0;
+            bool alt_was = (rv.prev_fire_flags & 0x2) != 0;
+
+            if (primary_now && !primary_was) {
+                rf::entity_turn_weapon_on(vehicle->handle, rv.weapon_type, false);
+            }
+            else if (!primary_now && primary_was) {
+                rf::entity_turn_weapon_off(vehicle->handle, rv.weapon_type);
+            }
+
+            if (alt_now && !alt_was) {
+                rf::entity_turn_weapon_on(vehicle->handle, rv.weapon_type, true);
+            }
+            else if (!alt_now && alt_was) {
+                rf::entity_turn_weapon_off(vehicle->handle, rv.weapon_type);
+            }
+
+            rv.prev_fire_flags = rv.fire_flags;
+        }
     }
 }
 
@@ -517,10 +632,10 @@ void af_process_vehicle_position_packet(const void* data, size_t len, [[maybe_un
             }
         }
 
-        // Store state for per-frame application via ObjInterp
+        // Store state for per-frame interpolation and fire sync
         rf::Vector3 new_pos{packet.pos.x, packet.pos.y, packet.pos.z};
-        rf::Vector3 phb{packet.phb.x, packet.phb.y, packet.phb.z};
-        set_remote_vehicle_state(packet.vehicle_uid, new_pos, packet.orient, phb);
+        set_remote_vehicle_state(packet.vehicle_uid, new_pos, packet.orient,
+                                 packet.fire_flags, packet.weapon_type);
     }
 }
 
@@ -567,6 +682,19 @@ static void vehicle_send_position_to_server()
     std::memcpy(packet.orient, &vehicle->orient, sizeof(packet.orient));
     rf::Vector3 phb = orient_to_phb(vehicle->orient);
     packet.phb = {phb.x, phb.y, phb.z};
+
+    // Include weapon fire state — vehicle entities own the weapon, not the driver
+    int veh_weapon = vehicle->ai.current_primary_weapon;
+    packet.weapon_type = static_cast<uint8_t>(veh_weapon);
+    packet.fire_flags = 0;
+    if (rf::entity_weapon_is_on(vehicle->handle, veh_weapon)) {
+        packet.fire_flags |= 0x1;
+    }
+    // Alt fire check
+    int veh_alt_weapon = vehicle->ai.current_secondary_weapon;
+    if (veh_alt_weapon >= 0 && rf::entity_weapon_is_on(vehicle->handle, veh_alt_weapon)) {
+        packet.fire_flags |= 0x2;
+    }
 
     static int send_count = 0;
     if (++send_count % 100 == 1) {  // log every 100th send (~5 seconds)
