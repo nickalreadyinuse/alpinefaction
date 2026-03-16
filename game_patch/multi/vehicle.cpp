@@ -615,19 +615,6 @@ static void apply_remote_vehicle_states()
 // for MP clients that skips vehicle input routing. Instead we call
 // controls_read_internal directly with the vehicle's ai.ci.
 
-// controls_read_internal: reads raw mouse/keyboard input into a ControlInfo struct.
-// Called via controls_read (0x00430720) which has an MP gate — we bypass it.
-static auto controls_read_internal =
-    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430760);
-
-// Processes keybinds, weapon fire, zoom, crouch etc. using the given ControlInfo.
-static auto controls_process_actions =
-    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430c70);
-
-// gameplay_sim_frame — runs full physics simulation. We have a FunHook on it
-// that also calls apply_remote_vehicle_states after the sim step.
-static auto gameplay_sim_frame_fn =
-    reinterpret_cast<void(__cdecl*)()>(0x00433260);
 
 // obj_should_sim_physics (0x00488030): called per-object in obj_move_all Pass 2.
 // Returns 1 if the object should get physics simulation this frame, 0 to skip.
@@ -651,34 +638,49 @@ FunHook<int(rf::Object*)> obj_should_sim_physics_hook{
     },
 };
 
-// Inject at 0x00433640 — where the MP client path lands after skipping
-// player_process_controls and gameplay_sim_frame. SP/server path also passes
-// through here (after running both), so we gate on is_multi && !is_server.
+// controls_read_internal: reads raw mouse/keyboard input into a ControlInfo.
+// Called via controls_read (0x00430720) which has an MP gate — we bypass it
+// with the NOP at 0x0043074a, but we also call this directly for vehicle input.
+static auto controls_read_internal =
+    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430760);
+
+// mp_client_do_frame (0x0045B5E0) is the ACTUAL frame handler for MP clients
+// (NOT gameplay_do_frame at 0x00433520 which is for SP/listen server).
+// It forces camera to mode 2 (free cam), calls player_free_cam_update which
+// consumes mouse input, then calls gameplay_sim_frame at 0x0045B877.
 //
-// Vehicle entities are already in the object_list (entity_create adds them).
-// gameplay_sim_frame → obj_move_all iterates all objects. With the
-// obj_should_sim_physics hook forcing physics active for boarded vehicles,
-// the full pipeline runs: physics_frame_init, physics_simulate_entity
-// (mouselook/vehicle rotation + translation), world collision, position update.
+// We inject at TWO points:
+// 1. After game_poll (0x0045B62B): capture mouse input into vehicle ci BEFORE
+//    player_free_cam_update consumes it, then skip the free cam code
+// 2. (gameplay_sim_frame already runs at 0x0045B877 with the NOP at 0x004332a8)
+
+// Injection after game_poll in mp_client_do_frame — captures input for vehicles
+// before the free cam system consumes mouse deltas.
+// At 0x0045B62B: MOV ECX, [0x007c75d4] — first instruction after game_poll returns.
 CodeInjection mp_client_vehicle_input_injection{
-    0x00433640,
+    0x0045B62B,
     [](auto& regs) {
-        if (!rf::is_multi || rf::is_server || !rf::local_player) return;
+        if (!rf::local_player) return;
         rf::Entity* entity = rf::entity_from_handle(rf::local_player->entity_handle);
         if (!entity || !rf::entity_in_vehicle(entity)) return;
         rf::Entity* vehicle = rf::entity_from_handle(entity->host_handle);
         if (!vehicle) return;
 
-        // Read input directly into vehicle's ai.ci, bypassing the MP gate
+        // Read input into vehicle's ai.ci. This captures mouse deltas BEFORE
+        // player_free_cam_update (called at 0x0045B64B) consumes them.
         controls_read_internal(rf::local_player, &vehicle->ai.ci);
-        // Process keybinds and weapon actions (firing, zoom, etc.)
-        controls_process_actions(rf::local_player, &vehicle->ai.ci);
 
-        // Run gameplay_sim_frame — obj_move_all will process the vehicle
-        // entity through the full physics pipeline since obj_should_sim_physics
-        // now returns 1 for boarded vehicles.
-        // NOP at 0x004332a8 prevents spectator-check early-return.
-        gameplay_sim_frame_fn();
+        // Restore flight control flag (field_18 at ci+0x18 = entity+0x720).
+        // controls_read_internal may reset it; physics_simulate_entity Branch 4
+        // checks it for mouselook/flight rotation.
+        if (!(vehicle->p_data.flags & rf::PF_AUTOMOBILE)) {
+            vehicle->ai.ci.field_18 = true;
+        }
+
+        // Skip the free cam update and controls_process-with-entity-ci block
+        // (0x0045B62B to 0x0045B67A). Jump directly to 0x0045B67A so mouse
+        // input goes to the vehicle, not the camera.
+        regs.eip = 0x0045B67A;
     },
 };
 
@@ -839,6 +841,13 @@ void vehicle_apply_patches()
     // NOP the 7-byte CMP and 6-byte JZ
     AsmWriter(0x004A1CBF).nop(13);
 
+    // --- Fix: bypass controls_read MP gate for vehicle input ---
+    //
+    // controls_read (0x00430720) has a gate at 0x0043074a that blocks input
+    // reading for MP clients when net_data->flags & 0x20 is set. NOP the
+    // 2-byte JNZ so player_process_controls can read input via controls_read.
+    AsmWriter(0x0043074a).nop(2);
+
     // --- Fix: enable world collision for vehicle entities in MP ---
     //
     // The physics step function (FUN_00487770) has a multiplayer filter that only runs
@@ -865,7 +874,7 @@ void vehicle_apply_patches()
     // --- Force physics active for boarded vehicles in MP ---
     obj_should_sim_physics_hook.install();
 
-    // --- Client: read vehicle input + run physics at MP skip point in gameplay_do_frame ---
+    // --- Client: capture vehicle input before free cam consumes it in mp_client_do_frame ---
     mp_client_vehicle_input_injection.install();
 
     // --- Server-side hooks for network sync ---
