@@ -49,8 +49,6 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Raise level editor detail rooms limit from 256 to 8192
 - Add `-smoothlights` level editor command line argument to use experimental lightmap baking method
 - Add level editor support for custom texture subdirectories under `user_maps\textures`
-- Add full mesh shadows for entities, corpses, and items (Direct3D 11 renderer only)
-- Add `r_shadowquality [0-5]`, `r_shadowdistance [0-5]`, `r_shadowitems`, `r_shadowcorpses`, and `dbg_shadows` console commands
 - Add level editor `Mirror` tool for brushes in brush mode and for brushes and objects in group mode
 - Add level editor `Delete`, `Delete Ext.`, `Split`, and `Flip Normal` tools for faces in face mode
 - Add level editor `Delete` and `Bridge` tools for vertices in vertex mode
@@ -59,6 +57,10 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `To Mesh` tool for converting brushes to `.v3m` static meshes directly in the level editor
 - Improve level editor packfile creation process to include meshes and animations from `Mesh` objects and `Switch_Model`, `Play_Animation`, and `Mesh_Animate` events
 - Add new and revised `Select Objects` and `Hide Objects` windows in level editor
+- Add full mesh shadows for entities, corpses, and items (Direct3D 11 renderer only)
+- Add `r_shadowquality [0-5]`, `r_shadowdistance [0-5]`, `r_shadowitems`, `r_shadowcorpses`, and `dbg_shadows` console commands
+- Add GPU accelerated per-pixel lighting for meshes (Direct3D 11 renderer only)
+- Add `r_vertexlighting` console command and `$Use Vertex Lighting` `MAPNAME_info.tbl` option to restore legacy vertex lighting for meshes
 
 [@is-this-c](https://github.com/is-this-c)
 - Use 64-bit integers for time deltas
