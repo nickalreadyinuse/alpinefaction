@@ -934,4 +934,5 @@ namespace df::gr::d3d11
             get_or_create_detail_room_cache(solid, room);
         }
     }
+
 }
