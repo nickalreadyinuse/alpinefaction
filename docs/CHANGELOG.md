@@ -57,6 +57,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `To Mesh` tool for converting brushes to `.v3m` static meshes directly in the level editor
 - Improve level editor packfile creation process to include meshes and animations from `Mesh` objects and `Switch_Model`, `Play_Animation`, and `Mesh_Animate` events
 - Add new and revised `Select Objects` and `Hide Objects` windows in level editor
+- Apply P2T fix to affected community level `Dm-X-Area(QC).rfl`
 
 [@is-this-c](https://github.com/is-this-c)
 - Use 64-bit integers for time deltas
@@ -99,6 +100,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Fix level editor packfile creation process to include textures from bolt emitters, liquid surfaces, `Display_Fullscreen_Image` events, `Swap_Textures` events, and geomod crater textures
 - Fix rare level editor crash when transforming decal objects in a level with a large number of decals
 - Fix level editor clip tool silently failing on certain brush orientations
+- Fix P2T Fix not working properly on Direct3D 11 renderer
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix parse of `flag_return_time` to be as a float instead of an integer
