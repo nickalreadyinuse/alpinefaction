@@ -57,7 +57,6 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `To Mesh` tool for converting brushes to `.v3m` static meshes directly in the level editor
 - Improve level editor packfile creation process to include meshes and animations from `Mesh` objects and `Switch_Model`, `Play_Animation`, and `Mesh_Animate` events
 - Add new and revised `Select Objects` and `Hide Objects` windows in level editor
-- Apply P2T fix to affected community level `Dm-X-Area(QC).rfl`
 
 [@is-this-c](https://github.com/is-this-c)
 - Use 64-bit integers for time deltas
