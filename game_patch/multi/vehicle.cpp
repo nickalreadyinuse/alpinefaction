@@ -102,6 +102,7 @@ void af_send_vehicle_create_packet(rf::Player* player, rf::Entity* vehicle)
     packet.pos.y = vehicle->pos.y;
     packet.pos.z = vehicle->pos.z;
     std::memcpy(packet.orient, &vehicle->orient, sizeof(packet.orient));
+    packet.phys_flags = vehicle->p_data.flags;
 
     af_send_packet(player, &packet, sizeof(packet), true);
 }
@@ -141,6 +142,7 @@ void af_process_vehicle_create_packet(const void* data, size_t len, [[maybe_unus
 
     if (entity) {
         entity->uid = packet.uid;
+        entity->p_data.flags = packet.phys_flags;
 
         bool had_room = entity->room != nullptr;
 
@@ -262,6 +264,22 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
 
         xlog::info("Vehicle board: entity='{}' vehicle='{}' ai.mode={} p_data.flags=0x{:x}",
             entity->name, vehicle->name, static_cast<int>(vehicle->ai.mode), vehicle->p_data.flags);
+
+        // Local player boarding: camera and physics setup
+        rf::Entity* local_entity = rf::local_player
+            ? rf::entity_from_handle(rf::local_player->entity_handle) : nullptr;
+        if (local_entity == entity && rf::local_player->cam) {
+            // Initialize camera properly (links camera to vehicle, copies orient)
+            rf::camera_enter_first_person(rf::local_player->cam);
+
+            // For non-automobile: set field_18 for mouselook rotation
+            if (!(vehicle->p_data.flags & rf::PF_AUTOMOBILE)) {
+                vehicle->ai.ci.field_18 = true;
+            }
+
+            // Clear PF_REMOTE_INTERP — local player drives physics directly
+            vehicle->p_data.flags &= ~rf::PF_REMOTE_INTERP;
+        }
     }
     else {
         // Exit vehicle
@@ -271,6 +289,17 @@ void af_process_vehicle_state_packet(const void* data, size_t len, [[maybe_unuse
         }
 
         xlog::info("Vehicle exit: entity '{}'", entity->name);
+
+        // Restore PF_REMOTE_INTERP on exit (local player only)
+        rf::Entity* local_entity = rf::local_player
+            ? rf::entity_from_handle(rf::local_player->entity_handle) : nullptr;
+        if (local_entity == entity) {
+            rf::Entity* host = rf::entity_from_handle(entity->host_handle);
+            if (host) {
+                host->p_data.flags |= rf::PF_REMOTE_INTERP;
+            }
+        }
+
         rf::entity_detach_from_host(entity);
     }
 }
@@ -595,10 +624,8 @@ static void apply_remote_vehicle_states()
 // landing at 0x00433640. The SP/server path (BL=0) falls through normally.
 //
 // For vehicles, we need both input reading and physics simulation on the client.
-// player_process_controls can't be used directly — it takes a state-2 shortcut
-// for MP clients that skips vehicle input routing. Instead we call
-// controls_read_internal directly with the vehicle's ai.ci.
-
+// We call player_process_controls directly after setting camera mode to
+// CAMERA_FIRST_PERSON (so it doesn't take the free-cam shortcut).
 
 // obj_should_sim_physics (0x00488030): called per-object in obj_move_all Pass 2.
 // Returns 1 if the object should get physics simulation this frame, 0 to skip.
@@ -622,29 +649,26 @@ FunHook<int(rf::Object*)> obj_should_sim_physics_hook{
     },
 };
 
-// controls_read_internal: reads raw mouse/keyboard input into a ControlInfo.
-// Called via controls_read (0x00430720) which has an MP gate — we bypass it
-// with the NOP at 0x0043074a, but we also call this directly for vehicle input.
-static auto controls_read_internal =
-    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430760);
-
-// controls_apply: weapon firing, animations, gameplay actions.
-// Called by player_process_controls in SP; we call it directly for MP vehicles.
-static auto controls_apply =
-    reinterpret_cast<void(__cdecl*)(rf::Player*, rf::ControlInfo*)>(0x00430c70);
+// player_process_controls: the full SP vehicle input pipeline (0x004A6060).
+// Handles ci routing (vehicle ci for drivers, entity ci for gunners),
+// field_14C/field_168 setup, controls_read, controls_process, and gunner
+// special cases. We call this instead of manually replicating SP behavior.
+static auto player_process_controls =
+    reinterpret_cast<void(__cdecl*)(rf::Player*)>(0x004A6060);
 
 // mp_client_do_frame (0x0045B5E0) forces CAMERA_FREELOOK (mode 2) every frame.
 // When mode == 2, player_free_cam_update runs and consumes mouse input into the
 // camera's ControlInfo, rotating the camera independently from the vehicle.
 //
-// Fix: When in a vehicle, set camera->mode = CAMERA_FIRST_PERSON (0). The
-// CMP EAX,2 / JNZ at 0x0045B640 then skips the entire free cam block, so mouse
-// input is NOT consumed by the camera. We read input into the vehicle's ci with
-// field_18=0 (normal mode, matching SP for drivers), so mouse goes to ci.rot.x/y
-// which both automobile and flight physics read.
+// Fix: When in a vehicle, set camera->mode = CAMERA_FIRST_PERSON (0) and call
+// player_process_controls directly. This is the full SP vehicle input pipeline
+// that handles ci routing, field_14C/field_168 setup, controls_read,
+// controls_process, and gunner special cases.
 //
-// When NOT in a vehicle: restore CAMERA_FREELOOK if the top-of-frame check
-// changed it to CAMERA_CUTSCENE (which it does when mode != 2).
+// Before calling, we also clear PF_REMOTE_INTERP on the vehicle so
+// physics_simulate_entity uses the correct rotation branch, and set
+// field_18=1 for non-automobile vehicles (fighters/subs) so the mouselook
+// rotation path triggers.
 CodeInjection mp_client_vehicle_input_injection{
     0x0045B62B,
     [](auto& regs) {
@@ -653,26 +677,40 @@ CodeInjection mp_client_vehicle_input_injection{
         rf::Camera* camera = rf::local_player->cam;
         rf::Entity* entity = rf::entity_from_handle(rf::local_player->entity_handle);
 
-        if (entity && rf::entity_in_vehicle(entity) &&
-            !rf::entity_is_jeep_gunner(entity)) {
+        if (entity && rf::entity_in_vehicle(entity)) {
             rf::Entity* vehicle = rf::entity_from_handle(entity->host_handle);
             if (vehicle) {
-                // Read input into vehicle's ci. field_14C=0, field_168=0
-                // matches SP for drivers. field_18 stays 0 (normal mouse mode).
-                controls_read_internal(rf::local_player, &vehicle->ai.ci);
+                // Diagnostic: log vehicle flags once per vehicle
+                static int diag_handle = -1;
+                if (vehicle->handle != diag_handle) {
+                    diag_handle = vehicle->handle;
+                    xlog::info("Vehicle input: '{}' p_data.flags=0x{:x} PF_AUTO={} PF_REMOTE={}",
+                        vehicle->name, vehicle->p_data.flags,
+                        !!(vehicle->p_data.flags & rf::PF_AUTOMOBILE),
+                        !!(vehicle->p_data.flags & rf::PF_REMOTE_INTERP));
+                }
 
-                // Weapon firing + gameplay actions (matches SP)
-                controls_apply(rf::local_player, &vehicle->ai.ci);
+                // Clear PF_REMOTE_INTERP so physics_simulate_entity uses the
+                // correct rotation branch instead of remote interp
+                vehicle->p_data.flags &= ~rf::PF_REMOTE_INTERP;
 
-                // Camera mode 0 = CAMERA_FIRST_PERSON (entity follow).
-                // Skips the free cam block -> mouse not consumed by camera.
-                // camera_do_frame handles entity-follow positioning.
-                camera->mode = rf::CAMERA_FIRST_PERSON;
-                return;
+                // For non-automobile vehicles: ensure field_18=1 so Branch 4
+                // triggers in physics (mouselook rotation)
+                if (!(vehicle->p_data.flags & rf::PF_AUTOMOBILE)) {
+                    vehicle->ai.ci.field_18 = true;
+                }
             }
+
+            // Set first-person camera so player_process_controls doesn't
+            // take the free-cam shortcut (camera mode 2)
+            camera->mode = rf::CAMERA_FIRST_PERSON;
+
+            // Full SP vehicle input pipeline
+            player_process_controls(rf::local_player);
+            return;
         }
 
-        // Not in vehicle (or is gunner): ensure CAMERA_FREELOOK.
+        // Not in vehicle: restore CAMERA_FREELOOK.
         // Recovers from CAMERA_CUTSCENE(5) set by mp_client_do_frame's
         // top-of-frame check when it found our CAMERA_FIRST_PERSON(0).
         if (camera && camera->mode != rf::CAMERA_FREELOOK) {

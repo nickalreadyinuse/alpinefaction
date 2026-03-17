@@ -250,6 +250,7 @@ struct af_vehicle_create_packet
     int32_t uid;                // entity UID from level file
     RF_Vector pos;              // position
     float orient[9];            // 3x3 orientation matrix (row-major)
+    int32_t phys_flags;         // p_data.flags from server entity (e.g., 0x80 for mouselook rotation)
 };
 
 struct af_vehicle_position_packet
