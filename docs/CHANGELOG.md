@@ -62,6 +62,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add new and revised `Select Objects` and `Hide Objects` windows in level editor
 - Add `r_shadowquality [0-5]`, `r_shadowdistance [0-5]`, `r_shadowitems`, `r_shadowcorpses`, and `dbg_shadows` console commands
 - Add `r_vertexlighting` console command and `$Use Vertex Lighting` `MAPNAME_info.tbl` option to restore legacy vertex lighting for meshes
+- Alias `TAB` in level editor to toggle maximized viewport (stock hotkeys `F4`/`F5`)
 
 [@is-this-c](https://github.com/is-this-c)
 - Use 64-bit integers for time deltas
@@ -105,6 +106,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Fix rare level editor crash when transforming decal objects in a level with a large number of decals
 - Fix level editor clip tool silently failing on certain brush orientations
 - Fix P2T Fix not working properly on Direct3D 11 renderer
+- Fix level editor crash when maximizing the bottom right viewport
 
 [@is-this-c](https://github.com/is-this-c)
 - Fix parse of `flag_return_time` to be as a float instead of an integer
