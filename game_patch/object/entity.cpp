@@ -3,6 +3,7 @@
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
 #include <cstring>
+#include <string>
 #include <unordered_set>
 #include <xlog/xlog.h>
 #include "../misc/achievements.h"
@@ -539,10 +540,14 @@ void evaluate_footsteps()
         }
     }
 
-    g_footsteps_active = client_wants_fix && server_allows_fix;
+    bool new_active = client_wants_fix && server_allows_fix;
 
-    xlog::info("Footstep fix: client_wants={}, server_allows={}, active={}",
-        client_wants_fix, server_allows_fix, g_footsteps_active);
+    if (g_footsteps_active != new_active) {
+        xlog::info("Footstep fix: client_wants={}, server_allows={}, active={}",
+            client_wants_fix, server_allows_fix, new_active);
+    }
+
+    g_footsteps_active = new_active;
 }
 
 ConsoleCommand2 cl_footsteps_cmd{

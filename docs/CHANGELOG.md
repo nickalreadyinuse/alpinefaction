@@ -95,7 +95,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Show powerup icons in spectator mode
 - Improve presented damage calculations for stats and damage numbers
 - Add `ui_gamefeed` toggle to separate game events (kills, flag steals, hill captures, etc) from the chat to a separate HUD element
-- Implement enemy and teammate footstep audio for weapons other than pistol in multiplayer.
+- Implement enemy and teammate footstep audio for weapons other than pistol in multiplayer
 
 [@natarii](https://github.com/natarii)
 - Implement FFLink client functionality in launcher
@@ -130,7 +130,6 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Optimize network performance for `af_obj_update` packets and bot decommission logic
 - Fix Alt+Enter crash in Direct3D 11 renderer
 - Fix premature idle transition in first person weapon running animations
-
 
 Version 1.2.2 (Willow): Released Jan-04-2026
 --------------------------------

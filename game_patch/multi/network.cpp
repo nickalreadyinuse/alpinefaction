@@ -2114,9 +2114,10 @@ FunHook<void()> multi_stop_hook{
             *player_add_data = PlayerAdditionalData{};
         }
 
-        // Re-evaluate footstep state when leaving multiplayer
-        evaluate_footsteps();
         multi_stop_hook.call_target();
+
+        // Re-evaluate footstep state after leaving multiplayer
+        evaluate_footsteps();
 
         // Auto-quit for bots when disconnected from server
         if (client_bot_launch_enabled() && g_alpine_game_config.bot_quit_when_disconnected) {
