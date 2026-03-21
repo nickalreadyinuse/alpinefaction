@@ -2006,6 +2006,8 @@ float waypoint_auto_link_detection_radius(const WaypointNode& node)
             return sanitize_waypoint_link_radius(node.link_radius) * kJumpPadAutoLinkRangeScale;
         case WaypointType::tele_entrance:
             return sanitize_waypoint_link_radius(node.link_radius) * kTeleEntranceAutoLinkRangeScale;
+        case WaypointType::respawn:
+            return sanitize_waypoint_link_radius(node.link_radius) * kRespawnAutoLinkRangeScale;
         default:
             return kWaypointRadius;
     }
@@ -2672,6 +2674,7 @@ bool can_link_waypoint_indices_autogen(int from, int to)
     const auto& to_node = g_waypoints[to];
     return from_node.valid
         && from_node.type != WaypointType::jump_pad
+        && from_node.type != WaypointType::tele_entrance
         && lift_body_autogen_outbound_link_allowed(from_node, to_node);
 }
 
@@ -3514,10 +3517,11 @@ std::vector<int> collect_generation_seed_waypoint_indices()
     std::vector<int> seed_indices{};
     seed_indices.reserve(g_waypoints.size());
 
-    static constexpr std::array<WaypointType, 3> kSeedTypeOrder{
+    static constexpr std::array<WaypointType, 4> kSeedTypeOrder{
         WaypointType::ctf_flag,
         WaypointType::item,
         WaypointType::respawn,
+        WaypointType::tele_exit,
     };
 
     for (const auto seed_type : kSeedTypeOrder) {
@@ -4246,6 +4250,11 @@ int prune_redundant_generated_links()
             continue;
         }
 
+        // Never prune tele_entrance→tele_exit links — teleports work regardless of geometry.
+        if (from_node.type == WaypointType::tele_entrance) {
+            continue;
+        }
+
         bool changed = true;
         while (changed) {
             changed = false;
@@ -4294,6 +4303,11 @@ int reroute_links_through_intermediate_waypoints(const WaypointCellMap& cell_map
     for (int from = 1; from < waypoint_count; ++from) {
         auto& from_node = g_waypoints[from];
         if (!from_node.valid) {
+            continue;
+        }
+
+        // Never reroute tele_entrance→tele_exit links — teleports work regardless of geometry.
+        if (from_node.type == WaypointType::tele_entrance) {
             continue;
         }
 
@@ -4365,6 +4379,59 @@ struct GeneratedWaypointLinkStats
     int pass_through_links_rerouted = 0;
     int redundant_links_pruned = 0;
 };
+
+// Find an intermediate waypoint that lies on the segment between two waypoints (linear scan).
+// Returns the index of the closest intermediate waypoint, or 0 if none found.
+int find_intermediate_waypoint_on_segment(int from, int to)
+{
+    const auto& from_node = g_waypoints[from];
+    const auto& to_node = g_waypoints[to];
+    const rf::Vector3 a = from_node.pos;
+    const rf::Vector3 c = to_node.pos;
+    const rf::Vector3 segment = c - a;
+    const float segment_len_sq = segment.dot_prod(segment);
+    if (segment_len_sq <= kWaypointLinkRadiusEpsilon * kWaypointLinkRadiusEpsilon) {
+        return 0;
+    }
+    const float segment_len = std::sqrt(segment_len_sq);
+    if (segment_len <= (2.0f * kWaypointGenerateLinkPassThroughRadius + kWaypointLinkRadiusEpsilon)) {
+        return 0;
+    }
+
+    const float pass_radius_sq = kWaypointGenerateLinkPassThroughRadius * kWaypointGenerateLinkPassThroughRadius;
+    int best_index = 0;
+    float best_dist_sq = std::numeric_limits<float>::max();
+
+    for (int i = 1; i < static_cast<int>(g_waypoints.size()); ++i) {
+        if (i == from || i == to) {
+            continue;
+        }
+        const auto& candidate = g_waypoints[i];
+        if (!candidate.valid) {
+            continue;
+        }
+
+        const rf::Vector3 ac_to_candidate = candidate.pos - a;
+        const float t = ac_to_candidate.dot_prod(segment) / segment_len_sq;
+        if (t <= kWaypointGeneratePassThroughEndpointEpsilon
+            || t >= (1.0f - kWaypointGeneratePassThroughEndpointEpsilon)) {
+            continue;
+        }
+
+        const rf::Vector3 closest_on_segment = a + segment * t;
+        const float dist_sq_to_segment = distance_sq(candidate.pos, closest_on_segment);
+        if (dist_sq_to_segment > pass_radius_sq) {
+            continue;
+        }
+
+        if (dist_sq_to_segment < best_dist_sq) {
+            best_dist_sq = dist_sq_to_segment;
+            best_index = i;
+        }
+    }
+
+    return best_index;
+}
 
 GeneratedWaypointLinkStats link_generated_waypoint_grid()
 {
@@ -4475,6 +4542,42 @@ GeneratedWaypointLinkStats link_generated_waypoint_grid()
     stats.pass_through_links_rerouted = reroute_links_through_intermediate_waypoints(cell_map, kWaypointLinkRadius);
     stats.redundant_links_pruned = prune_redundant_generated_links();
     return stats;
+}
+
+bool waypoint_type_is_special(WaypointType type)
+{
+    switch (type) {
+        case WaypointType::item:
+        case WaypointType::respawn:
+        case WaypointType::jump_pad:
+        case WaypointType::ctf_flag:
+        case WaypointType::tele_entrance:
+        case WaypointType::tele_exit:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// Post-generation cleanup: run the same autolink logic used by the editor autolink button
+// on every special waypoint, ensuring they are fully connected to the generated grid.
+int auto_link_special_waypoints_post_generation()
+{
+    int links_added = 0;
+    const int waypoint_count = static_cast<int>(g_waypoints.size());
+
+    for (int i = 1; i < waypoint_count; ++i) {
+        const auto& node = g_waypoints[i];
+        if (!node.valid || !waypoint_type_is_special(node.type)) {
+            continue;
+        }
+
+        WaypointAutoLinkStats stats{};
+        waypoints_auto_link_nearby(i, stats);
+        links_added += stats.source_links_added + stats.neighbor_links_added;
+    }
+
+    return links_added;
 }
 
 bool trace_segment_hits_detail_brush(const rf::Vector3& from, const rf::Vector3& to)
@@ -6389,18 +6492,17 @@ ConsoleCommand2 waypoint_generate_cmd{
             return;
         }
 
-        if (g_waypoints.size() <= 1) {
-            seed_waypoints_from_objects();
-        }
+        reset_waypoints_to_default_grid();
 
         const auto seed_indices = collect_generation_seed_waypoint_indices();
         if (seed_indices.empty()) {
-            rf::console::print("No respawn/item waypoints found to seed generation");
+            rf::console::print("No seed waypoints found for generation");
             return;
         }
 
         const int generated_count = generate_waypoints_from_seed_probes(seed_indices);
         const auto link_stats = link_generated_waypoint_grid();
+        const int special_links_added = auto_link_special_waypoints_post_generation();
         const int generated_explosion_target_count = generate_explosion_targets_for_autogen();
         const int generated_shatter_target_count = generate_shatter_targets_for_autogen();
 
@@ -6413,11 +6515,11 @@ ConsoleCommand2 waypoint_generate_cmd{
                 kWaypointGenerateMaxCreatedWaypoints);
         }
         rf::console::print(
-            "Generated {} waypoints from {} ctf_flag/item/respawn seeds",
+            "Generated {} waypoints from {} ctf_flag/item/respawn/tele_exit seeds",
             generated_count,
             static_cast<int>(seed_indices.size()));
         waypoint_log(
-            "Generated {} waypoints from {} ctf_flag/item/respawn seeds",
+            "Generated {} waypoints from {} ctf_flag/item/respawn/tele_exit seeds",
             generated_count,
             static_cast<int>(seed_indices.size()));
         rf::console::print(
@@ -6443,6 +6545,14 @@ ConsoleCommand2 waypoint_generate_cmd{
             waypoint_log(
                 "Link pass pruned {} redundant direct links",
                 link_stats.redundant_links_pruned);
+        }
+        if (special_links_added > 0) {
+            rf::console::print(
+                "Special waypoint cleanup pass added {} links",
+                special_links_added);
+            waypoint_log(
+                "Special waypoint cleanup pass added {} links",
+                special_links_added);
         }
         if (generated_explosion_target_count > 0) {
             rf::console::print(
@@ -7212,6 +7322,16 @@ bool try_add_waypoint_link_if_new(const int from_waypoint_uid, const int to_wayp
     return waypoint_link_exists(from_node, to_waypoint_uid);
 }
 
+// Try to add a directional link, rejecting it if the segment passes through another waypoint's radius.
+bool try_add_waypoint_link_if_clear(int from, int to)
+{
+    if (find_intermediate_waypoint_on_segment(from, to) > 0) {
+        return false;
+    }
+
+    return try_add_waypoint_link_if_new(from, to);
+}
+
 bool waypoints_auto_link_nearby(const int waypoint_uid, WaypointAutoLinkStats& out_stats)
 {
     out_stats = {};
@@ -7220,24 +7340,42 @@ bool waypoints_auto_link_nearby(const int waypoint_uid, WaypointAutoLinkStats& o
         return false;
     }
 
-    const rf::Vector3 source_pos = g_waypoints[waypoint_uid].pos;
-    const float link_radius_sq = kWaypointLinkRadius * kWaypointLinkRadius;
+    const auto& source_node = g_waypoints[waypoint_uid];
+    const rf::Vector3 source_pos = source_node.pos;
+    const float auto_link_radius = waypoint_auto_link_detection_radius(source_node);
+    const float link_radius = std::max(auto_link_radius, kWaypointLinkRadius);
+    const float link_radius_sq = link_radius * link_radius;
+    const bool source_inbound_only =
+        source_node.type == WaypointType::jump_pad || source_node.type == WaypointType::tele_entrance;
+
     for (int candidate_uid = 1; candidate_uid < static_cast<int>(g_waypoints.size()); ++candidate_uid) {
         if (candidate_uid == waypoint_uid || !is_waypoint_uid_valid(candidate_uid)) {
             continue;
         }
 
         const auto& candidate_node = g_waypoints[candidate_uid];
-        if (distance_sq(source_pos, candidate_node.pos) > link_radius_sq) {
+        const float candidate_auto_link_radius = waypoint_auto_link_detection_radius(candidate_node);
+        const float effective_radius = std::max(link_radius, candidate_auto_link_radius);
+        const float effective_radius_sq = effective_radius * effective_radius;
+        if (distance_sq(source_pos, candidate_node.pos) > effective_radius_sq) {
             continue;
         }
 
         ++out_stats.candidate_waypoints;
-        if (try_add_waypoint_link_if_new(waypoint_uid, candidate_uid)) {
-            ++out_stats.source_links_added;
+
+        // Jump pad and tele entrance waypoints only receive inbound links, never create outbound links.
+        const bool candidate_inbound_only =
+            candidate_node.type == WaypointType::jump_pad || candidate_node.type == WaypointType::tele_entrance;
+
+        if (!source_inbound_only) {
+            if (try_add_waypoint_link_if_clear(waypoint_uid, candidate_uid)) {
+                ++out_stats.source_links_added;
+            }
         }
-        if (try_add_waypoint_link_if_new(candidate_uid, waypoint_uid)) {
-            ++out_stats.neighbor_links_added;
+        if (!candidate_inbound_only) {
+            if (try_add_waypoint_link_if_clear(candidate_uid, waypoint_uid)) {
+                ++out_stats.neighbor_links_added;
+            }
         }
     }
 
