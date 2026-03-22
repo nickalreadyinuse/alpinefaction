@@ -21,6 +21,7 @@ constexpr float kWaypointLinkRadiusEpsilon = 0.001f;
 constexpr float kWaypointRadiusCompressionScale = 100.0f;
 constexpr float kJumpPadAutoLinkRangeScale = 0.5f;
 constexpr float kTeleEntranceAutoLinkRangeScale = 1.0f;
+constexpr float kRespawnAutoLinkRangeScale = 1.5f;
 constexpr float kBridgeWaypointMaxGroundDistance = 1.5f;
 constexpr float kWaypointGenerateProbeAngleStepDeg = 15.0f;
 constexpr float kWaypointGenerateProbeStepDistance = kWaypointRadius;
