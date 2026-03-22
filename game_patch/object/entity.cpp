@@ -559,7 +559,7 @@ ConsoleCommand2 cl_footsteps_cmd{
             g_alpine_game_config.footsteps ? "enabled" : "disabled",
             g_footsteps_active ? "yes" : "no");
     },
-    "Toggle footstep trigger injection for all weapons",
+    "Toggle footstep trigger injection for all weapons (full effect on next level load)",
     "cl_footsteps",
 };
 
@@ -655,7 +655,6 @@ void entity_do_patch()
 
     // Mute footstep audio for dying entities
     entity_footsteps_do_frame_hook.install();
-
 
     // Commands
     sp_exposuredamage_cmd.register_cmd();
