@@ -1534,6 +1534,54 @@ void normalize_waypoint_zone_refs(std::vector<int>& zone_refs)
     zone_refs.erase(std::unique(zone_refs.begin(), zone_refs.end()), zone_refs.end());
 }
 
+bool is_position_in_instant_death_zone(const rf::Vector3& point)
+{
+    for (int i = 0; i < static_cast<int>(g_waypoint_zones.size()); ++i) {
+        const auto& zone = g_waypoint_zones[i];
+        if (zone.type != WaypointZoneType::instant_death_zone) {
+            continue;
+        }
+        if (waypoint_zone_contains_point(zone, point, nullptr)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool does_radius_overlap_instant_death_zone(const rf::Vector3& center, float radius)
+{
+    // Check center and 6 axis-aligned points at the radius boundary.
+    if (is_position_in_instant_death_zone(center)) {
+        return true;
+    }
+    const rf::Vector3 offsets[] = {
+        {radius, 0.0f, 0.0f}, {-radius, 0.0f, 0.0f},
+        {0.0f, radius, 0.0f}, {0.0f, -radius, 0.0f},
+        {0.0f, 0.0f, radius}, {0.0f, 0.0f, -radius},
+    };
+    for (const auto& offset : offsets) {
+        if (is_position_in_instant_death_zone(center + offset)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool link_segment_passes_through_death_zone(const rf::Vector3& from, const rf::Vector3& to)
+{
+    // Sample points along the segment to check if any pass through a death zone.
+    // This is approximate but catches the common cases (death pits, lava triggers).
+    constexpr int kNumSamples = 5;
+    for (int i = 0; i <= kNumSamples; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(kNumSamples);
+        const rf::Vector3 sample = from + (to - from) * t;
+        if (is_position_in_instant_death_zone(sample)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<int> collect_waypoint_zone_refs(const rf::Vector3& point, const rf::Object* source_object)
 {
     std::vector<int> zone_refs{};
@@ -2179,32 +2227,43 @@ void seed_waypoint_zones_from_trigger_damage_events()
         }
 
         auto* trigger = static_cast<rf::Trigger*>(obj);
-        if (trigger->uid < 0 || trigger->links.size() != 1) {
+        if (trigger->uid < 0 || trigger->links.empty()) {
             obj = obj->next_obj;
             continue;
         }
 
-        const int linked_handle = trigger->links[0];
-        rf::Object* linked_obj = rf::obj_from_handle(linked_handle);
-        if (!linked_obj || linked_obj->type != rf::OT_EVENT) {
-            obj = obj->next_obj;
-            continue;
+        // Check all links for Continuous_Damage events. Use the most lethal one
+        // (instant death takes priority over damage).
+        bool found_instant_death = false;
+        bool found_damage = false;
+        for (int link_idx = 0; link_idx < static_cast<int>(trigger->links.size()); ++link_idx) {
+            rf::Object* linked_obj = rf::obj_from_handle(trigger->links[link_idx]);
+            if (!linked_obj || linked_obj->type != rf::OT_EVENT) {
+                continue;
+            }
+            auto* event = static_cast<rf::Event*>(linked_obj);
+            if (event->event_type != rf::event_type_to_int(rf::EventType::Continuous_Damage)) {
+                continue;
+            }
+            auto* continuous_damage_event = static_cast<rf::ContinuousDamageEvent*>(event);
+            if (continuous_damage_event->damage_per_second < 0) {
+                continue;
+            }
+            if (continuous_damage_event->damage_per_second == 0) {
+                found_instant_death = true;
+            }
+            else {
+                found_damage = true;
+            }
         }
 
-        auto* event = static_cast<rf::Event*>(linked_obj);
-        if (event->event_type != rf::event_type_to_int(rf::EventType::Continuous_Damage)) {
-            obj = obj->next_obj;
-            continue;
-        }
-
-        auto* continuous_damage_event = static_cast<rf::ContinuousDamageEvent*>(event);
-        if (continuous_damage_event->damage_per_second < 0) {
+        if (!found_instant_death && !found_damage) {
             obj = obj->next_obj;
             continue;
         }
 
         WaypointZoneDefinition zone{};
-        zone.type = (continuous_damage_event->damage_per_second == 0)
+        zone.type = found_instant_death
             ? WaypointZoneType::instant_death_zone
             : WaypointZoneType::damage_zone;
         zone.trigger_uid = trigger->uid;
@@ -2802,6 +2861,9 @@ bool link_waypoint_if_clear_autogen(int from, int to)
         return false;
     }
     if (!autogen_directional_link_allowed(from, to)) {
+        return false;
+    }
+    if (link_segment_passes_through_death_zone(g_waypoints[from].pos, g_waypoints[to].pos)) {
         return false;
     }
 
@@ -4016,6 +4078,11 @@ int generate_waypoints_from_seed_probes(const std::vector<int>& seed_indices)
                 continue;
             }
 
+            // Skip generating standard waypoints that overlap instant death zones.
+            if (does_radius_overlap_instant_death_zone(candidate_pos, kWaypointRadius)) {
+                continue;
+            }
+
             WaypointType generated_type = WaypointType::std_new;
             int generated_subtype = 0;
             int generated_movement_subtype = static_cast<int>(WaypointDroppedSubtype::normal);
@@ -4072,6 +4139,9 @@ bool link_waypoint_if_clear_no_replace(int from, int to)
         return false;
     }
     if (!autogen_directional_link_allowed(from, to)) {
+        return false;
+    }
+    if (link_segment_passes_through_death_zone(g_waypoints[from].pos, g_waypoints[to].pos)) {
         return false;
     }
 
@@ -7660,11 +7730,23 @@ bool try_add_waypoint_link_if_new(const int from_waypoint_uid, const int to_wayp
     return waypoint_link_exists(from_node, to_waypoint_uid);
 }
 
-// Try to add a directional link, rejecting it if the segment passes through another waypoint's radius.
+// Try to add a directional link, rejecting it if the segment passes through another waypoint's radius
+// or through an instant death zone.
 bool try_add_waypoint_link_if_clear(int from, int to)
 {
     if (find_intermediate_waypoint_on_segment(from, to) > 0) {
         return false;
+    }
+
+    // Reject links that pass through instant death zones.
+    if (from > 0 && from < static_cast<int>(g_waypoints.size())
+        && to > 0 && to < static_cast<int>(g_waypoints.size())) {
+        const auto& from_node = g_waypoints[from];
+        const auto& to_node = g_waypoints[to];
+        if (from_node.valid && to_node.valid
+            && link_segment_passes_through_death_zone(from_node.pos, to_node.pos)) {
+            return false;
+        }
     }
 
     return try_add_waypoint_link_if_new(from, to);
