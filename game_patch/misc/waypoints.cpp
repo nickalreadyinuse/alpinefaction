@@ -6897,73 +6897,44 @@ ConsoleCommand2 waypoint_generate_cmd{
         const int generated_shatter_target_count = generate_shatter_targets_for_autogen();
 
         if (generated_count >= kWaypointGenerateMaxCreatedWaypoints) {
-            rf::console::print(
-                "Waypoint generation hit creation cap of {} nodes",
-                kWaypointGenerateMaxCreatedWaypoints);
             waypoint_log(
                 "Waypoint generation hit creation cap of {} nodes",
                 kWaypointGenerateMaxCreatedWaypoints);
         }
-        rf::console::print(
-            "Generated {} waypoints from {} ctf_flag/item/respawn/tele_exit seeds",
-            generated_count,
-            static_cast<int>(seed_indices.size()));
         waypoint_log(
             "Generated {} waypoints from {} ctf_flag/item/respawn/tele_exit seeds",
             generated_count,
             static_cast<int>(seed_indices.size()));
-        rf::console::print(
-            "Link pass added {} bidirectional links and {} downward links",
-            link_stats.bidirectional_links,
-            link_stats.downward_links);
         waypoint_log(
             "Link pass added {} bidirectional links and {} downward links",
             link_stats.bidirectional_links,
             link_stats.downward_links);
         if (link_stats.pass_through_links_rerouted > 0) {
-            rf::console::print(
-                "Link pass rerouted {} links through intermediate waypoints",
-                link_stats.pass_through_links_rerouted);
             waypoint_log(
                 "Link pass rerouted {} links through intermediate waypoints",
                 link_stats.pass_through_links_rerouted);
         }
         if (link_stats.redundant_links_pruned > 0) {
-            rf::console::print(
-                "Link pass pruned {} redundant direct links",
-                link_stats.redundant_links_pruned);
             waypoint_log(
                 "Link pass pruned {} redundant direct links",
                 link_stats.redundant_links_pruned);
         }
         if (special_links_added > 0) {
-            rf::console::print(
-                "Special waypoint cleanup pass added {} links",
-                special_links_added);
             waypoint_log(
                 "Special waypoint cleanup pass added {} links",
                 special_links_added);
         }
         if (jump_pad_trajectory_links > 0) {
-            rf::console::print(
-                "Jump pad trajectory pass added {} destination links",
-                jump_pad_trajectory_links);
             waypoint_log(
                 "Jump pad trajectory pass added {} destination links",
                 jump_pad_trajectory_links);
         }
         if (generated_explosion_target_count > 0) {
-            rf::console::print(
-                "Generated {} explosion targets from blocked waypoint pairs",
-                generated_explosion_target_count);
             waypoint_log(
                 "Generated {} explosion targets from blocked waypoint pairs",
                 generated_explosion_target_count);
         }
         if (generated_shatter_target_count > 0) {
-            rf::console::print(
-                "Generated {} shatter targets from breakable-glass blocked waypoint pairs",
-                generated_shatter_target_count);
             waypoint_log(
                 "Generated {} shatter targets from breakable-glass blocked waypoint pairs",
                 generated_shatter_target_count);
@@ -7058,11 +7029,6 @@ ConsoleCommand2 waypoint_zone_add_cmd{
                 zone.timer.invalidate();
                 const int zone_index = add_waypoint_zone_definition(zone);
                 if (waypoint_zone_type_is_bridge(zone.type)) {
-                    rf::console::print(
-                        "Added zone {} as index {} (trigger uid {}, duration {:.2f}s, on false, gated waypoints {})",
-                                       waypoint_zone_type_name(zone.type), zone_index,
-                                       zone.trigger_uid, zone.duration,
-                                       static_cast<int>(zone.bridge_waypoint_uids.size()));
                     waypoint_log(
                         "Added zone {} as index {} (trigger uid {}, duration {:.2f}s, on false, gated waypoints {})",
                         waypoint_zone_type_name(zone.type), zone_index,
@@ -7070,9 +7036,6 @@ ConsoleCommand2 waypoint_zone_add_cmd{
                         static_cast<int>(zone.bridge_waypoint_uids.size()));
                 }
                 else {
-                    rf::console::print("Added zone {} as index {} (trigger uid {})",
-                                       waypoint_zone_type_name(zone.type), zone_index,
-                                       zone.trigger_uid);
                     waypoint_log(
                         "Added zone {} as index {} (trigger uid {})",
                         waypoint_zone_type_name(zone.type), zone_index, zone.trigger_uid);
@@ -7098,10 +7061,7 @@ ConsoleCommand2 waypoint_zone_add_cmd{
 
                 zone.room_uid = room_uid.value();
                 const int zone_index = add_waypoint_zone_definition(zone);
-                rf::console::print("Added zone {} as index {} (room uid {})",
-                                   waypoint_zone_type_name(zone.type), zone_index, zone.room_uid);
-                waypoint_log(
-                    "Added zone {} as index {} (room uid {})",
+                waypoint_log("Added zone {} as index {} (room uid {})",
                     waypoint_zone_type_name(zone.type), zone_index, zone.room_uid);
                 return;
             }
@@ -7126,12 +7086,7 @@ ConsoleCommand2 waypoint_zone_add_cmd{
                 zone.box_max = {bounds[3], bounds[4], bounds[5]};
                 const int zone_index = add_waypoint_zone_definition(zone);
                 const auto& stored_zone = g_waypoint_zones[zone_index];
-                rf::console::print("Added zone {} as index {} (box min {:.2f},{:.2f},{:.2f} max {:.2f},{:.2f},{:.2f})",
-                                   waypoint_zone_type_name(stored_zone.type), zone_index,
-                                   stored_zone.box_min.x, stored_zone.box_min.y, stored_zone.box_min.z,
-                                   stored_zone.box_max.x, stored_zone.box_max.y, stored_zone.box_max.z);
-                waypoint_log(
-                    "Added zone {} as index {} (box min {:.2f},{:.2f},{:.2f} max {:.2f},{:.2f},{:.2f})",
+                waypoint_log("Added zone {} as index {} (box min {:.2f},{:.2f},{:.2f} max {:.2f},{:.2f},{:.2f})",
                     waypoint_zone_type_name(stored_zone.type), zone_index,
                     stored_zone.box_min.x, stored_zone.box_min.y, stored_zone.box_min.z,
                     stored_zone.box_max.x, stored_zone.box_max.y, stored_zone.box_max.z);
@@ -7272,8 +7227,6 @@ ConsoleCommand2 waypoint_target_add_cmd{
                     kShatterTraceDist,
                     target_pos,
                     shatter_room_key)) {
-                rf::console::print(
-                    "Could not place shatter target: looked-at surface is not breakable glass");
                 waypoint_log(
                     "Could not place shatter target: looked-at surface is not breakable glass");
                 return;
@@ -7293,7 +7246,6 @@ ConsoleCommand2 waypoint_target_add_cmd{
         else {
             auto looked_at_target = get_looked_at_target_point();
             if (!looked_at_target) {
-                rf::console::print("Could not place target: no valid looked-at world position");
                 waypoint_log("Could not place target: no valid looked-at world position");
                 return;
             }
@@ -7308,12 +7260,6 @@ ConsoleCommand2 waypoint_target_add_cmd{
             }
         }
         const int waypoint_ref_count = target ? static_cast<int>(target->waypoint_uids.size()) : 0;
-        rf::console::print(
-            "Added target {} uid {} at {:.2f},{:.2f},{:.2f} ({} waypoint refs)",
-            waypoint_target_type_name(target_type.value()),
-            target_uid,
-            target_pos.x, target_pos.y, target_pos.z,
-            waypoint_ref_count);
         waypoint_log(
             "Added target {} uid {} at {:.2f},{:.2f},{:.2f} ({} waypoint refs)",
             waypoint_target_type_name(target_type.value()),
@@ -7400,7 +7346,6 @@ ConsoleCommand2 waypoint_delete_cmd{
                 rf::console::print("No waypoint found with UID {}", waypoint_uid.value());
                 return;
             }
-            rf::console::print("Deleted waypoint {}", waypoint_uid.value());
             waypoint_log("Deleted waypoint {}", waypoint_uid.value());
             return;
         }
@@ -7413,7 +7358,6 @@ ConsoleCommand2 waypoint_delete_cmd{
 
             if (string_iequals(tokens[2], "all")) {
                 const int removed = clear_waypoint_zone_definitions();
-                rf::console::print("Cleared {} zone(s).", removed);
                 waypoint_log("Cleared {} zone(s).", removed);
                 return;
             }
@@ -7427,7 +7371,6 @@ ConsoleCommand2 waypoint_delete_cmd{
                 rf::console::print("No waypoint zone found with UID {}", zone_uid.value());
                 return;
             }
-            rf::console::print("Deleted zone {}", zone_uid.value());
             waypoint_log("Deleted zone {}", zone_uid.value());
             return;
         }
@@ -7440,7 +7383,6 @@ ConsoleCommand2 waypoint_delete_cmd{
 
             if (string_iequals(tokens[2], "all")) {
                 const int removed = clear_waypoint_targets();
-                rf::console::print("Cleared {} target(s).", removed);
                 waypoint_log("Cleared {} target(s).", removed);
                 return;
             }
@@ -7454,7 +7396,6 @@ ConsoleCommand2 waypoint_delete_cmd{
                 rf::console::print("No waypoint target found with UID {}", target_uid.value());
                 return;
             }
-            rf::console::print("Deleted target {}", target_uid.value());
             waypoint_log("Deleted target {}", target_uid.value());
             return;
         }
@@ -7509,7 +7450,6 @@ ConsoleCommand2 waypoint_delete_cmd{
                 rf::console::print("No matching links were deleted.");
                 return;
             }
-            rf::console::print("Deleted {} link(s).", removed_links);
             waypoint_log("Deleted {} link(s).", removed_links);
             return;
         }
