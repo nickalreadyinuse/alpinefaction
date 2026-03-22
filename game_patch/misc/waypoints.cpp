@@ -1,6 +1,7 @@
 #include "waypoints.h"
 #include "waypoints_utils.h"
 #include "alpine_settings.h"
+#include "level.h"
 #include "../multi/bots/bot_waypoint_route.h"
 #include "../main/main.h"
 #include "../multi/gametype.h"
@@ -241,7 +242,8 @@ template<typename... Args>
 void waypoint_log(std::format_string<Args...> fmt, Args&&... args)
 {
     auto message = std::format(fmt, std::forward<Args>(args)...);
-    rf::console::print("{}", message);
+    //rf::console::print("{}", message);
+    xlog::info("{}", message);
     if (is_waypoint_bot_mode_active() || !g_alpine_game_config.waypoints_edit_mode) {
         return;
     }
@@ -4059,6 +4061,60 @@ int generate_waypoints_from_seed_probes(const std::vector<int>& seed_indices)
                 continue;
             }
             if (!can_link_waypoints(source_pos, candidate_pos)) {
+                // In RF2-style geomod, if only geoable brushes block, tunnel through
+                // and continue probing on the other side. Don't create a waypoint here
+                // (it's inside/near the brush), but probe further in this direction.
+                if (rf2_geomod
+                    && segment_blocked_only_by_geoable_brushes(source_pos, candidate_pos)) {
+                    // Probe beyond the brush: keep stepping in the same direction
+                    // until we find a valid position on the other side.
+                    constexpr int kMaxTunnelSteps = 3;
+                    for (int tunnel_step = 1; tunnel_step <= kMaxTunnelSteps; ++tunnel_step) {
+                        const rf::Vector3 tunnel_probe =
+                            source_pos + dir * kWaypointGenerateProbeStepDistance
+                                * static_cast<float>(1 + tunnel_step);
+
+                        rf::Vector3 tunnel_floor{};
+                        if (!trace_ground_below_point(tunnel_probe, kBridgeWaypointMaxGroundDistance, &tunnel_floor)) {
+                            continue;
+                        }
+                        const rf::Vector3 tunnel_candidate =
+                            tunnel_floor + rf::Vector3{0.0f, kWaypointGenerateGroundOffset, 0.0f};
+
+                        // Must be clear of geoable brushes at this position.
+                        if (!waypoint_has_horizontal_geometry_clearance(
+                                tunnel_candidate, kWaypointGenerateWallClearance)) {
+                            continue;
+                        }
+                        // Must have a valid floor position (not inside a brush).
+                        if (rf::find_room(rf::level.geometry, &tunnel_candidate) != nullptr) {
+                            continue;
+                        }
+
+                        // Found valid ground on the other side — add as a seed
+                        // for further probing (no link back through the brush).
+                        if (closest_waypoint(tunnel_candidate, kWaypointRadius) > 0) {
+                            break; // Already a waypoint here.
+                        }
+                        if (does_radius_overlap_instant_death_zone(tunnel_candidate, kWaypointRadius)) {
+                            break;
+                        }
+                        rf::Vector3 tunnel_climb_query = tunnel_candidate;
+                        if (rf::level_point_in_climb_region(&tunnel_climb_query)) {
+                            break;
+                        }
+
+                        const int tunnel_wp = add_waypoint(
+                            tunnel_candidate,
+                            WaypointType::std_new,
+                            0, false, true,
+                            kWaypointLinkRadius, -1, nullptr, true,
+                            static_cast<int>(WaypointDroppedSubtype::normal));
+                        probe_frontier.push_back(tunnel_wp);
+                        ++created_waypoints;
+                        break; // One seed on the other side is enough.
+                    }
+                }
                 continue;
             }
             if (!waypoint_has_horizontal_geometry_clearance(candidate_pos, kWaypointGenerateWallClearance)) {
@@ -5039,7 +5095,10 @@ int link_jump_pads_to_trajectory_destinations()
     return total_links;
 }
 
-bool trace_segment_hits_detail_brush(const rf::Vector3& from, const rf::Vector3& to)
+// Check if any detail brush blocks the line segment.
+// If skip_geoable is true, geoable detail brushes (RF2-style) are ignored.
+bool trace_segment_hits_detail_brush(const rf::Vector3& from, const rf::Vector3& to,
+    bool skip_geoable = false)
 {
     rf::Vector3 segment = to - from;
     const float segment_length = segment.len();
@@ -5070,7 +5129,9 @@ bool trace_segment_hits_detail_brush(const rf::Vector3& from, const rf::Vector3&
         }
 
         if (collision.face && collision.face->which_room && collision.face->which_room->is_detail) {
-            return true;
+            if (!skip_geoable || !collision.face->which_room->is_geoable) {
+                return true;
+            }
         }
 
         const float hit_distance_from_start = (collision.hit_point - from).len();
@@ -5087,6 +5148,87 @@ bool trace_segment_hits_detail_brush(const rf::Vector3& from, const rf::Vector3&
     }
 
     return false;
+}
+
+// Check if the blocking geometry between two points is a geoable detail brush.
+bool trace_segment_blocked_by_geoable_brush(const rf::Vector3& from, const rf::Vector3& to)
+{
+    rf::Vector3 p0 = from;
+    rf::Vector3 p1 = to;
+    rf::GCollisionOutput collision{};
+    if (!rf::collide_linesegment_level_solid(
+            p0, p1, kWaypointSolidTraceFlags, &collision)) {
+        return false;
+    }
+    return collision.face
+        && collision.face->which_room
+        && collision.face->which_room->is_detail
+        && collision.face->which_room->is_geoable;
+}
+
+// Check if the ONLY geometry blocking a segment is geoable detail brushes.
+// Traces through the segment, skipping geoable brush hits. Returns true only
+// if no non-geoable geometry blocks the path.
+bool segment_blocked_only_by_geoable_brushes(const rf::Vector3& from, const rf::Vector3& to)
+{
+    rf::Vector3 segment = to - from;
+    const float segment_length = segment.len();
+    if (segment_length <= kWaypointLinkRadiusEpsilon) {
+        return false;
+    }
+    segment.normalize_safe();
+
+    constexpr int kMaxTraceIterations = 64;
+    constexpr float kTraceAdvanceEpsilon = 0.05f;
+    constexpr float kMinAdvanceDelta = 0.001f;
+
+    bool hit_any_geoable = false;
+    rf::Vector3 trace_start = from;
+    float advanced_distance = 0.0f;
+
+    for (int iteration = 0;
+         iteration < kMaxTraceIterations
+         && advanced_distance + kTraceAdvanceEpsilon < segment_length;
+         ++iteration) {
+        rf::Vector3 p0 = trace_start;
+        rf::Vector3 p1 = to;
+        rf::GCollisionOutput collision{};
+        if (!rf::collide_linesegment_level_solid(
+                p0, p1, kWaypointSolidTraceFlags, &collision)) {
+            // No more hits — path is clear (after skipping geoable brushes).
+            return hit_any_geoable;
+        }
+
+        if (collision.face && collision.face->which_room) {
+            if (collision.face->which_room->is_detail
+                && collision.face->which_room->is_geoable) {
+                // Geoable brush — skip past it and continue tracing.
+                hit_any_geoable = true;
+            }
+            else {
+                // Non-geoable geometry blocks the path.
+                return false;
+            }
+        }
+        else {
+            // Unknown geometry blocks the path.
+            return false;
+        }
+
+        const float hit_distance_from_start = (collision.hit_point - from).len();
+        const float next_advanced_distance = std::clamp(
+            hit_distance_from_start + kTraceAdvanceEpsilon,
+            0.0f,
+            segment_length);
+        if (next_advanced_distance <= advanced_distance + kMinAdvanceDelta) {
+            break;
+        }
+
+        advanced_distance = next_advanced_distance;
+        trace_start = from + segment * advanced_distance;
+    }
+
+    return hit_any_geoable;
 }
 
 bool compute_blocked_link_wall_midpoint(
@@ -5685,6 +5827,7 @@ int generate_explosion_targets_for_autogen()
     constexpr float kTargetSpacing = kWaypointLinkRadius * 2.0f;
     constexpr float kTargetSpacingSq = kTargetSpacing * kTargetSpacing;
     constexpr float kTargetYOffset = 1.0f;
+    const bool rf2_geomod = AlpineLevelProperties::instance().rf2_style_geomod;
 
     const int waypoint_count = static_cast<int>(g_waypoints.size());
     if (waypoint_count <= 2) {
@@ -5744,9 +5887,24 @@ int generate_explosion_targets_for_autogen()
                         if (!waypoint_pair_can_link_if_geometry_removed(from, to)) {
                             continue;
                         }
-                        if (trace_segment_hits_detail_brush(from_node.pos, to_node.pos)) {
-                            continue;
+
+                        // Check for detail brushes blocking the link.
+                        if (trace_segment_hits_detail_brush(from_node.pos, to_node.pos, false)) {
+                            if (!rf2_geomod) {
+                                // Non-RF2: any detail brush blocks explosion target creation.
+                                continue;
+                            }
+                            // RF2: check if only geoable brushes block (non-geoable still blocks).
+                            if (trace_segment_hits_detail_brush(from_node.pos, to_node.pos, true)) {
+                                continue;
+                            }
                         }
+
+                        // In RF2 mode, check if the ONLY geometry separating the waypoints
+                        // is geoable brushes. If normal geometry also blocks, the explosion
+                        // target won't help because destroying the brush won't clear the path.
+                        const bool blocked_by_geoable_brush = rf2_geomod
+                            && segment_blocked_only_by_geoable_brushes(from_node.pos, to_node.pos);
 
                         rf::Vector3 target_pos{};
                         if (!compute_blocked_link_wall_midpoint(from_node.pos, to_node.pos, target_pos)) {
@@ -5757,7 +5915,23 @@ int generate_explosion_targets_for_autogen()
                         const bool in_shallow_geo_region = point_inside_shallow_geo_region(base_target_pos);
                         const bool base_target_valid =
                             rf::find_room(rf::level.geometry, &base_target_pos) == nullptr;
-                        if (!in_shallow_geo_region) {
+
+                        if (blocked_by_geoable_brush) {
+                            // Geoable brush: place target at midpoint inside the brush.
+                            target_pos = base_target_pos;
+                        }
+                        else if (in_shallow_geo_region && base_target_valid) {
+                            // Shallow geomod region: use midpoint placement directly.
+                            target_pos = base_target_pos;
+                        }
+                        else if (rf2_geomod) {
+                            // RF2-style maps: only create targets at geoable brushes
+                            // or geo regions. Level-wide hardness doesn't apply to
+                            // normal geometry in RF2 mode.
+                            continue;
+                        }
+                        else {
+                            // Standard maps: try raised then base target position.
                             const rf::Vector3 raised_target_pos =
                                 base_target_pos + rf::Vector3{0.0f, kTargetYOffset, 0.0f};
                             const bool raised_target_valid =
@@ -5771,19 +5945,12 @@ int generate_explosion_targets_for_autogen()
                             else {
                                 continue;
                             }
-                        }
-                        else if (base_target_valid) {
-                            // Shallow geomod regions should use midpoint placement directly.
-                            target_pos = base_target_pos;
-                        }
-                        else {
-                            continue;
-                        }
 
-                        const rf::Vector3 hardness_query_pos =
-                            ((from_node.pos + to_node.pos) * 0.5f) + rf::Vector3{0.0f, kTargetYOffset, 0.0f};
-                        if (!point_matches_autogen_explosion_target_hardness_rules(hardness_query_pos)) {
-                            continue;
+                            const rf::Vector3 hardness_query_pos =
+                                ((from_node.pos + to_node.pos) * 0.5f) + rf::Vector3{0.0f, kTargetYOffset, 0.0f};
+                            if (!point_matches_autogen_explosion_target_hardness_rules(hardness_query_pos)) {
+                                continue;
+                            }
                         }
 
                         candidates.push_back(
