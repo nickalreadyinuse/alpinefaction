@@ -3493,6 +3493,16 @@ void render_waypoint_editor_overlay_panel()
 
             if (draw_waypoint_editor_button(
                     {action_x, action_y, half_w, action_h},
+                    "Ledge calculate",
+                    font_id,
+                    waypoint_actions_enabled)) {
+                const int drops = waypoints_calculate_ledge_drops(g_waypoint_editor_selection.uid);
+                push_waypoint_editor_log(std::format(
+                    "Waypoint {} ledge drops: {} links added",
+                    g_waypoint_editor_selection.uid, drops));
+            }
+            if (draw_waypoint_editor_button(
+                    {action_x + half_w + action_gap, action_y, half_w, action_h},
                     "Delete waypoint",
                     font_id,
                     waypoint_actions_enabled)) {

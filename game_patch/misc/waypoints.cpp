@@ -82,6 +82,7 @@ std::array<CtfDroppedFlagPacketHint, 2> g_ctf_dropped_flag_packet_hints{};
 
 void remap_waypoints();
 bool link_waypoint_if_clear_autogen(int from, int to);
+bool segment_blocked_only_by_geoable_brushes(const rf::Vector3& from, const rf::Vector3& to);
 rf::Mover* find_mover_by_uid(int mover_uid);
 void update_ctf_dropped_flag_temporary_waypoints();
 bool is_waypoint_bot_mode_active();
@@ -2836,7 +2837,7 @@ bool autogen_directional_link_allowed(int from, int to)
         return false;
     }
 
-    constexpr float kAutogenUpwardLipProbeHeight = 0.125f;
+    constexpr float kAutogenUpwardLipProbeHeight = 0.51f;
     const rf::Vector3* lower_floor = &from_floor_hit;
     const rf::Vector3* higher_floor = &to_floor_hit;
     if (from_floor_hit.y > to_floor_hit.y) {
@@ -3112,8 +3113,17 @@ void sanitize_waypoint_links_against_geometry()
         for (int read_index = 0; read_index < node.num_links; ++read_index) {
             const int link = node.links[read_index];
             if (!can_link_waypoint_indices(index, link)) {
-                ++removed_links;
-                continue;
+                // Preserve downward drop links — these intentionally pass through
+                // geometry (the bot walks off a ledge and falls).
+                const bool is_drop_link = link > 0
+                    && link < waypoint_total
+                    && g_waypoints[link].valid
+                    && (node.pos.y - g_waypoints[link].pos.y) >= 2.0f
+                    && !waypoint_has_link_to(link, index);
+                if (!is_drop_link) {
+                    ++removed_links;
+                    continue;
+                }
             }
 
             bool duplicate = false;
@@ -4064,7 +4074,7 @@ int generate_waypoints_from_seed_probes(const std::vector<int>& seed_indices)
                 // In RF2-style geomod, if only geoable brushes block, tunnel through
                 // and continue probing on the other side. Don't create a waypoint here
                 // (it's inside/near the brush), but probe further in this direction.
-                if (rf2_geomod
+                if (AlpineLevelProperties::instance().rf2_style_geomod
                     && segment_blocked_only_by_geoable_brushes(source_pos, candidate_pos)) {
                     // Probe beyond the brush: keep stepping in the same direction
                     // until we find a valid position on the other side.
@@ -5820,6 +5830,216 @@ bool waypoint_pair_can_link_if_geometry_removed(int from, int to)
     return !can_link_waypoints(from_node.pos, to_node.pos);
 }
 
+// --- Ledge drop link generation ---
+
+constexpr float kLedgeDropMaxHeight = 30.0f;
+constexpr float kLedgeDropProbeDistance = kWaypointRadius + kWaypointGenerateEdgeClearance + 0.5f;
+constexpr float kLedgeDropLandingSearchRadius = 4.0f;
+constexpr float kLedgeDropMinHeight = 2.0f;
+constexpr int kLedgeDropDirectionCount = 8;
+
+int generate_ledge_drop_links()
+{
+    const int waypoint_count = static_cast<int>(g_waypoints.size());
+    if (waypoint_count <= 2) {
+        return 0;
+    }
+
+    constexpr float kDegToRad = 0.01745329252f;
+    const float angle_step = 360.0f / static_cast<float>(kLedgeDropDirectionCount);
+    const float landing_search_sq = kLedgeDropLandingSearchRadius * kLedgeDropLandingSearchRadius;
+    int links_added = 0;
+    int edges_found = 0;
+    int landings_found = 0;
+    int no_target_count = 0;
+
+    for (int wp = 1; wp < waypoint_count; ++wp) {
+        const auto& node = g_waypoints[wp];
+        if (!node.valid) {
+            continue;
+        }
+        // Only standard waypoints should generate drop links.
+        if (node.type != WaypointType::std && node.type != WaypointType::std_new) {
+            continue;
+        }
+        if (node.num_links >= kMaxWaypointLinks) {
+            continue;
+        }
+
+        for (int dir = 0; dir < kLedgeDropDirectionCount; ++dir) {
+            const float angle_rad = static_cast<float>(dir) * angle_step * kDegToRad;
+            const rf::Vector3 probe_dir{std::cos(angle_rad), 0.0f, std::sin(angle_rad)};
+            const rf::Vector3 edge_probe = node.pos + probe_dir * kLedgeDropProbeDistance;
+
+            // The horizontal extension from waypoint center to edge must be clear
+            // of geometry (no wall between the waypoint and the ledge edge).
+            if (!can_link_waypoints(node.pos, edge_probe)) {
+                continue;
+            }
+
+            // Check that the edge probe point is not inside solid geometry.
+            // This catches cases where the probe extends through a wall
+            // (the line trace may not detect walls when the endpoint is embedded).
+            {
+                rf::Vector3 probe_check = edge_probe;
+                if (rf::find_room(rf::level.geometry, &probe_check) == nullptr) {
+                    continue;
+                }
+            }
+
+            // Also check at foot level (0.51m above ground) — a low obstruction
+            // like a railing or lip would block the player from walking off the edge.
+            {
+                constexpr float kLipProbeHeight = 0.51f;
+                rf::Vector3 floor_hit{};
+                if (trace_ground_below_point(node.pos, kBridgeWaypointMaxGroundDistance, &floor_hit)) {
+                    rf::Vector3 lip_start = floor_hit + rf::Vector3{0.0f, kLipProbeHeight, 0.0f};
+                    rf::Vector3 lip_end = lip_start + probe_dir * kLedgeDropProbeDistance;
+                    rf::GCollisionOutput lip_collision{};
+                    if (rf::collide_linesegment_level_solid(
+                            lip_start, lip_end,
+                            kWaypointSolidTraceFlags,
+                            &lip_collision)) {
+                        continue;
+                    }
+                }
+            }
+
+            // Don't probe through another waypoint's bounding sphere.
+            {
+                const rf::Vector3 seg = edge_probe - node.pos;
+                const float seg_len_sq = seg.dot_prod(seg);
+                bool passes_through_waypoint = false;
+                if (seg_len_sq > kWaypointLinkRadiusEpsilon * kWaypointLinkRadiusEpsilon) {
+                    for (int other = 1; other < waypoint_count; ++other) {
+                        if (other == wp || !g_waypoints[other].valid) {
+                            continue;
+                        }
+                        const rf::Vector3 to_other = g_waypoints[other].pos - node.pos;
+                        const float t = to_other.dot_prod(seg) / seg_len_sq;
+                        if (t <= 0.0f || t >= 1.0f) {
+                            continue;
+                        }
+                        const rf::Vector3 closest = node.pos + seg * t;
+                        const float dist_sq = distance_sq(g_waypoints[other].pos, closest);
+                        if (dist_sq < kWaypointRadius * kWaypointRadius) {
+                            passes_through_waypoint = true;
+                            break;
+                        }
+                    }
+                }
+                if (passes_through_waypoint) {
+                    continue;
+                }
+            }
+
+            // Check if there's floor right at the edge probe by tracing a short
+            // Check if there's ground at the edge probe within a short distance.
+            // If there is, it's not a ledge edge — the floor continues.
+            {
+                rf::Vector3 floor_hit{};
+                if (trace_ground_below_point(edge_probe, kLedgeDropMinHeight, &floor_hit)) {
+                    continue; // Floor exists nearby — not a ledge edge.
+                }
+            }
+
+            ++edges_found;
+
+            // Ledge edge confirmed — trace down to find landing.
+            rf::Vector3 landing_floor{};
+            if (!trace_ground_below_point(edge_probe, kLedgeDropMaxHeight, &landing_floor)) {
+                continue;
+            }
+
+            const rf::Vector3 landing_pos = landing_floor
+                + rf::Vector3{0.0f, kWaypointGenerateGroundOffset, 0.0f};
+
+            // Must be a meaningful drop.
+            const float drop_height = node.pos.y - landing_pos.y;
+            if (drop_height < kLedgeDropMinHeight) {
+                continue;
+            }
+
+            // Verify the drop path from the edge to the landing is not blocked
+            // by intermediate floors (the player must be able to fall freely).
+            {
+                rf::Vector3 drop_path_start = edge_probe;
+                rf::Vector3 drop_path_end = landing_pos;
+                rf::GCollisionOutput drop_path_collision{};
+                if (rf::collide_linesegment_level_solid(
+                        drop_path_start, drop_path_end,
+                        kWaypointSolidTraceFlags,
+                        &drop_path_collision)) {
+                    continue; // Intermediate floor blocks the drop.
+                }
+            }
+
+            ++landings_found;
+
+            // Find the closest waypoint near the landing point.
+            int best_target = -1;
+            float best_dist_sq = landing_search_sq;
+            for (int candidate = 1; candidate < waypoint_count; ++candidate) {
+                if (candidate == wp) {
+                    continue;
+                }
+                const auto& cand_node = g_waypoints[candidate];
+                if (!cand_node.valid
+                    || cand_node.type == WaypointType::lift_body
+                    || cand_node.type == WaypointType::ladder) {
+                    continue;
+                }
+                // Target must be on the same floor as the landing — reject if the
+                // height difference is too large (would be on a different floor).
+                const float height_diff = std::fabs(landing_pos.y - cand_node.pos.y);
+                if (height_diff > kLedgeDropMinHeight) {
+                    continue;
+                }
+                const float d = distance_sq(landing_pos, cand_node.pos);
+                if (d < best_dist_sq) {
+                    best_dist_sq = d;
+                    best_target = candidate;
+                }
+            }
+
+            if (best_target <= 0) {
+                ++no_target_count;
+            }
+
+            if (best_target <= 0) {
+                continue;
+            }
+
+            // Don't create duplicate links.
+            if (waypoint_has_link_to(wp, best_target)) {
+                continue;
+            }
+
+            // Verify the bot can actually reach the target from the landing position
+            // (no wall between landing and the target waypoint).
+            if (!can_link_waypoints(landing_pos, g_waypoints[best_target].pos)) {
+                continue;
+            }
+
+            // Create one-way downward link.
+            link_waypoint(wp, best_target);
+            if (waypoint_link_exists(g_waypoints[wp], best_target)) {
+                ++links_added;
+            }
+
+            // Don't overflow link slots.
+            if (g_waypoints[wp].num_links >= kMaxWaypointLinks) {
+                break;
+            }
+        }
+    }
+
+    waypoint_log("Ledge drop pass: {} edges found, {} landings, {} no nearby waypoint, {} links created",
+        edges_found, landings_found, no_target_count, links_added);
+
+    return links_added;
+}
+
 int generate_explosion_targets_for_autogen()
 {
     constexpr float kMaxPairDistance = kWaypointLinkRadius * 2.0f;
@@ -7130,6 +7350,7 @@ ConsoleCommand2 waypoint_generate_cmd{
         const auto link_stats = link_generated_waypoint_grid();
         const int special_links_added = auto_link_special_waypoints_post_generation();
         const int jump_pad_trajectory_links = link_jump_pads_to_trajectory_destinations();
+        const int ledge_drop_links = generate_ledge_drop_links();
         const int generated_explosion_target_count = generate_explosion_targets_for_autogen();
         const int generated_shatter_target_count = generate_shatter_targets_for_autogen();
 
@@ -7165,6 +7386,11 @@ ConsoleCommand2 waypoint_generate_cmd{
             waypoint_log(
                 "Jump pad trajectory pass added {} destination links",
                 jump_pad_trajectory_links);
+        }
+        if (ledge_drop_links > 0) {
+            waypoint_log(
+                "Ledge drop pass added {} downward links",
+                ledge_drop_links);
         }
         if (generated_explosion_target_count > 0) {
             waypoint_log(
@@ -8033,6 +8259,133 @@ int waypoints_send_probe(int waypoint_uid)
         auto_link_special_waypoints_post_generation();
     }
     return generated_count;
+}
+
+int waypoints_calculate_ledge_drops(int waypoint_uid)
+{
+    if (!is_waypoint_uid_valid(waypoint_uid)) {
+        return 0;
+    }
+
+    const auto& node = g_waypoints[waypoint_uid];
+    if (!node.valid) {
+        return 0;
+    }
+
+    const int waypoint_count = static_cast<int>(g_waypoints.size());
+    constexpr float kDegToRad = 0.01745329252f;
+    const float angle_step = 360.0f / static_cast<float>(kLedgeDropDirectionCount);
+    const float landing_search_sq = kLedgeDropLandingSearchRadius * kLedgeDropLandingSearchRadius;
+    int links_added = 0;
+
+    for (int dir = 0; dir < kLedgeDropDirectionCount; ++dir) {
+        if (node.num_links >= kMaxWaypointLinks) {
+            break;
+        }
+
+        const float angle_rad = static_cast<float>(dir) * angle_step * kDegToRad;
+        const rf::Vector3 probe_dir{std::cos(angle_rad), 0.0f, std::sin(angle_rad)};
+        const rf::Vector3 edge_probe = node.pos + probe_dir * kLedgeDropProbeDistance;
+
+        if (!can_link_waypoints(node.pos, edge_probe)) {
+            continue;
+        }
+
+        {
+            rf::Vector3 probe_check = edge_probe;
+            if (rf::find_room(rf::level.geometry, &probe_check) == nullptr) {
+                continue;
+            }
+        }
+
+        {
+            constexpr float kLipProbeHeight = 0.51f;
+            rf::Vector3 floor_hit{};
+            if (trace_ground_below_point(node.pos, kBridgeWaypointMaxGroundDistance, &floor_hit)) {
+                rf::Vector3 lip_start = floor_hit + rf::Vector3{0.0f, kLipProbeHeight, 0.0f};
+                rf::Vector3 lip_end = lip_start + probe_dir * kLedgeDropProbeDistance;
+                rf::GCollisionOutput lip_collision{};
+                if (rf::collide_linesegment_level_solid(
+                        lip_start, lip_end,
+                        kWaypointSolidTraceFlags,
+                        &lip_collision)) {
+                    continue;
+                }
+            }
+        }
+
+        {
+            rf::Vector3 floor_hit{};
+            if (trace_ground_below_point(edge_probe, kLedgeDropMinHeight, &floor_hit)) {
+                continue;
+            }
+        }
+
+        rf::Vector3 landing_floor{};
+        if (!trace_ground_below_point(edge_probe, kLedgeDropMaxHeight, &landing_floor)) {
+            continue;
+        }
+
+        const rf::Vector3 landing_pos = landing_floor
+            + rf::Vector3{0.0f, kWaypointGenerateGroundOffset, 0.0f};
+
+        const float drop_height = node.pos.y - landing_pos.y;
+        if (drop_height < kLedgeDropMinHeight) {
+            continue;
+        }
+
+        {
+            rf::Vector3 drop_path_start = edge_probe;
+            rf::Vector3 drop_path_end = landing_pos;
+            rf::GCollisionOutput drop_path_collision{};
+            if (rf::collide_linesegment_level_solid(
+                    drop_path_start, drop_path_end,
+                    kWaypointSolidTraceFlags,
+                    &drop_path_collision)) {
+                continue;
+            }
+        }
+
+        int best_target = -1;
+        float best_dist_sq = landing_search_sq;
+        for (int candidate = 1; candidate < waypoint_count; ++candidate) {
+            if (candidate == waypoint_uid) {
+                continue;
+            }
+            const auto& cand_node = g_waypoints[candidate];
+            if (!cand_node.valid
+                || cand_node.type == WaypointType::lift_body
+                || cand_node.type == WaypointType::ladder) {
+                continue;
+            }
+            const float height_diff = std::fabs(landing_pos.y - cand_node.pos.y);
+            if (height_diff > kLedgeDropMinHeight) {
+                continue;
+            }
+            const float d = distance_sq(landing_pos, cand_node.pos);
+            if (d < best_dist_sq) {
+                best_dist_sq = d;
+                best_target = candidate;
+            }
+        }
+
+        if (best_target <= 0) {
+            continue;
+        }
+        if (waypoint_has_link_to(waypoint_uid, best_target)) {
+            continue;
+        }
+        if (!can_link_waypoints(landing_pos, g_waypoints[best_target].pos)) {
+            continue;
+        }
+
+        link_waypoint(waypoint_uid, best_target);
+        if (waypoint_link_exists(g_waypoints[waypoint_uid], best_target)) {
+            ++links_added;
+        }
+    }
+
+    return links_added;
 }
 
 bool waypoints_waypoint_has_zone(int waypoint_uid, int zone_uid)
