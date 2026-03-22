@@ -2514,13 +2514,36 @@ void draw_debug_waypoints()
             }
         }
         if (show_links) {
+            const int selected_uid = (g_waypoint_editor_selection.kind == WaypointEditorSelectionKind::waypoint)
+                ? g_waypoint_editor_selection.uid : -1;
             for (int j = 0; j < node.num_links; ++j) {
                 int link = node.links[j];
                 if (link <= 0 || link >= static_cast<int>(g_waypoints.size())) {
                     continue;
                 }
                 const auto& dest = g_waypoints[link];
-                rf::gr::line_arrow(node.pos.x, node.pos.y, node.pos.z, dest.pos.x, dest.pos.y, dest.pos.z, 0, 255, 0);
+                int cr = 0, cg = 255, cb = 0;
+                if (selected_uid > 0) {
+                    if (i == selected_uid) {
+                        // Outbound from selected. Check if the dest also links back (bidirectional).
+                        if (waypoint_has_link_to(link, i)) {
+                            cr = 180; cg = 0; cb = 255;
+                        }
+                        else {
+                            cr = 0; cg = 100; cb = 255;
+                        }
+                    }
+                    else if (link == selected_uid) {
+                        // Inbound to selected. Check if selected also links back (bidirectional).
+                        if (waypoint_has_link_to(selected_uid, i)) {
+                            cr = 180; cg = 0; cb = 255;
+                        }
+                        else {
+                            cr = 255; cg = 0; cb = 0;
+                        }
+                    }
+                }
+                rf::gr::line_arrow(node.pos.x, node.pos.y, node.pos.z, dest.pos.x, dest.pos.y, dest.pos.z, cr, cg, cb);
             }
         }
     }
@@ -3454,6 +3477,18 @@ void render_waypoint_editor_overlay_panel()
             }
             if (draw_waypoint_editor_button(
                     {action_x + half_w + action_gap, action_y, half_w, action_h},
+                    "Send probe",
+                    font_id,
+                    waypoint_actions_enabled)) {
+                const int generated = waypoints_send_probe(g_waypoint_editor_selection.uid);
+                push_waypoint_editor_log(std::format(
+                    "Probe from waypoint {}: generated {} waypoints",
+                    g_waypoint_editor_selection.uid, generated));
+            }
+            action_y += action_h + 4;
+
+            if (draw_waypoint_editor_button(
+                    {action_x, action_y, half_w, action_h},
                     "Delete waypoint",
                     font_id,
                     waypoint_actions_enabled)) {

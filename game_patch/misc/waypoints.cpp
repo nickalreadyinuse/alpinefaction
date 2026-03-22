@@ -19,6 +19,7 @@
 #include "../rf/level.h"
 #include "../rf/multi.h"
 #include "../rf/object.h"
+#include "../rf/physics.h"
 #include "../rf/player/player.h"
 #include "../rf/player/camera.h"
 #include "../rf/trigger.h"
@@ -4250,8 +4251,8 @@ int prune_redundant_generated_links()
             continue;
         }
 
-        // Never prune tele_entrance→tele_exit links — teleports work regardless of geometry.
-        if (from_node.type == WaypointType::tele_entrance) {
+        // Never prune tele_entrance or jump_pad outbound links — these bypass normal geometry.
+        if (from_node.type == WaypointType::tele_entrance || from_node.type == WaypointType::jump_pad) {
             continue;
         }
 
@@ -4265,6 +4266,7 @@ int prune_redundant_generated_links()
                 }
 
                 bool redundant = false;
+                const bool is_bidirectional = waypoint_has_link_to(to, from);
                 for (int j = 0; j < from_node.num_links; ++j) {
                     const int intermediate = from_node.links[j];
                     if (intermediate == to
@@ -4273,10 +4275,20 @@ int prune_redundant_generated_links()
                         || !g_waypoints[intermediate].valid) {
                         continue;
                     }
-                    if (waypoint_has_link_to(intermediate, to)) {
-                        redundant = true;
-                        break;
+                    if (!waypoint_has_link_to(intermediate, to)) {
+                        continue;
                     }
+                    // Forward path from→intermediate→to exists.
+                    // If the direct link is bidirectional, only prune if the reverse
+                    // path to→intermediate→from also exists, so the bot can still
+                    // navigate in both directions through the intermediate.
+                    if (is_bidirectional
+                        && (!waypoint_has_link_to(to, intermediate)
+                            || !waypoint_has_link_to(intermediate, from))) {
+                        continue;
+                    }
+                    redundant = true;
+                    break;
                 }
 
                 if (!redundant) {
@@ -4306,8 +4318,8 @@ int reroute_links_through_intermediate_waypoints(const WaypointCellMap& cell_map
             continue;
         }
 
-        // Never reroute tele_entrance→tele_exit links — teleports work regardless of geometry.
-        if (from_node.type == WaypointType::tele_entrance) {
+        // Never reroute tele_entrance or jump_pad outbound links — these bypass normal geometry.
+        if (from_node.type == WaypointType::tele_entrance || from_node.type == WaypointType::jump_pad) {
             continue;
         }
 
@@ -4541,6 +4553,7 @@ GeneratedWaypointLinkStats link_generated_waypoint_grid()
 
     stats.pass_through_links_rerouted = reroute_links_through_intermediate_waypoints(cell_map, kWaypointLinkRadius);
     stats.redundant_links_pruned = prune_redundant_generated_links();
+
     return stats;
 }
 
@@ -4578,6 +4591,382 @@ int auto_link_special_waypoints_post_generation()
     }
 
     return links_added;
+}
+
+// --- Jump pad trajectory simulation and destination linking ---
+
+rf::PushRegion* find_push_region_by_uid(int uid)
+{
+    for (int i = 0; i < rf::level.pushers.size(); ++i) {
+        auto* pr = rf::level.pushers[i];
+        if (pr && pr->uid == uid) {
+            return pr;
+        }
+    }
+    return nullptr;
+}
+
+// Add trajectory points fanned out in a circle around a position to simulate air control.
+// Only adds points that have clear geometry between the center and the offset position.
+void add_air_control_fan_points(const rf::Vector3& center, float radius, std::vector<rf::Vector3>& out_points)
+{
+    constexpr int kFanDirections = 8;
+    constexpr float kDegToRad = 0.01745329252f;
+    for (int d = 0; d < kFanDirections; ++d) {
+        const float angle = static_cast<float>(d) * (360.0f / kFanDirections) * kDegToRad;
+        rf::Vector3 offset_pos = center;
+        offset_pos.x += std::cos(angle) * radius;
+        offset_pos.z += std::sin(angle) * radius;
+
+        // Verify the player can actually strafe to this position (no wall in the way).
+        rf::GCollisionOutput collision{};
+        rf::Vector3 center_copy = center;
+        if (!rf::collide_linesegment_level_solid(center_copy, offset_pos, kWaypointSolidTraceFlags, &collision)) {
+            out_points.push_back(offset_pos);
+        }
+    }
+}
+
+// Simulate the parabolic trajectory of a jump pad launch.
+// Records trajectory points for destination searching.
+// Returns true if the simulation produced a usable trajectory.
+bool simulate_jump_pad_trajectory(
+    const rf::PushRegion& push_region,
+    const rf::Vector3& start_pos,
+    std::vector<rf::Vector3>& out_trajectory_points,
+    rf::Vector3& out_landing_pos)
+{
+    const float grav = rf::gravity;
+
+    // Compute effective launch velocity.
+    float effective_strength = push_region.strength;
+    if ((push_region.flags_and_turbulence & rf::PushRegionFlags::PRF_MASS_INDEPENDENT) == 0) {
+        effective_strength *= 0.6f;
+    }
+
+    rf::Vector3 vel = push_region.orient.fvec * effective_strength;
+    rf::Vector3 pos = start_pos;
+
+    const float dt = kJumpPadTrajectoryTimeStep;
+    const float max_time = kJumpPadTrajectoryMaxTime;
+    bool found_landing = false;
+
+    out_trajectory_points.clear();
+    out_trajectory_points.push_back(pos);
+    bool apex_reached = false;
+
+    for (float t = 0.0f; t < max_time; t += dt) {
+        const float prev_vel_y = vel.y;
+
+        rf::Vector3 next_pos;
+        next_pos.x = pos.x + vel.x * dt;
+        next_pos.y = pos.y + vel.y * dt - 0.5f * grav * dt * dt;
+        next_pos.z = pos.z + vel.z * dt;
+
+        vel.y -= grav * dt;
+
+        // Detect apex — velocity transitions from upward to downward.
+        // Fan out air control points since the player has maximum hang time here.
+        if (!apex_reached && prev_vel_y > 0.0f && vel.y <= 0.0f) {
+            apex_reached = true;
+            add_air_control_fan_points(pos, kJumpPadAirControlRadius, out_trajectory_points);
+        }
+
+        rf::GCollisionOutput collision{};
+        if (rf::collide_linesegment_level_solid(pos, next_pos, kWaypointSolidTraceFlags, &collision)) {
+            if (collision.normal.y >= kJumpPadLandingFloorNormalThreshold) {
+                // Floor hit — record as landing point.
+                out_landing_pos = collision.hit_point;
+                out_trajectory_points.push_back(collision.hit_point);
+                found_landing = true;
+                break;
+            }
+            // Determine if this is a ceiling hit (normal pointing down) vs a wall hit.
+            const bool is_ceiling = collision.normal.y < -kJumpPadLandingFloorNormalThreshold;
+
+            if (is_ceiling) {
+                // Ceiling hit — player bumps head, loses upward velocity but keeps horizontal.
+                // They can still air control from this point to reach nearby platforms.
+                // Fan out trajectory points to simulate air-strafing from the peak.
+                vel.y = 0.0f;
+                pos = collision.hit_point;
+                out_trajectory_points.push_back(pos);
+                add_air_control_fan_points(pos, kJumpPadAirControlRadius, out_trajectory_points);
+                continue;
+            }
+
+            // Wall hit — kill most horizontal velocity. Players don't bounce off walls cleanly.
+            const float dot = vel.x * collision.normal.x + vel.y * collision.normal.y + vel.z * collision.normal.z;
+            vel.x = (vel.x - collision.normal.x * dot) * 0.2f;
+            vel.z = (vel.z - collision.normal.z * dot) * 0.2f;
+            vel.y = std::min(vel.y - collision.normal.y * dot, 0.0f);
+            pos = collision.hit_point;
+            out_trajectory_points.push_back(pos);
+            continue;
+        }
+
+        pos = next_pos;
+        out_trajectory_points.push_back(pos);
+    }
+
+    // Even without a clean floor landing, the trajectory points are still useful
+    // for finding reachable destinations via air control.
+    if (!found_landing && out_trajectory_points.size() > 1) {
+        out_landing_pos = out_trajectory_points.back();
+    }
+
+    return out_trajectory_points.size() > 1;
+}
+
+// Score a candidate destination waypoint for a jump pad.
+float score_jump_pad_destination(
+    const rf::Vector3& jump_pad_pos,
+    const rf::Vector3& launch_dir,
+    const rf::Vector3& landing_pos,
+    int candidate_index,
+    float search_radius)
+{
+    const auto& candidate = g_waypoints[candidate_index];
+    const float dist = std::sqrt(distance_sq(landing_pos, candidate.pos));
+
+    // Proximity to landing point (most important — must be reachable).
+    const float proximity_score = std::max(0.0f, 1.0f - (dist / search_radius));
+
+    // Height advantage over the jump pad origin.
+    const float height_diff = candidate.pos.y - jump_pad_pos.y;
+    const float height_score = std::max(0.0f, std::min(1.0f, height_diff / kJumpPadHeightAdvantageScale));
+
+    // Directional alignment: favor destinations in the direction the push region points.
+    const rf::Vector3 to_candidate{
+        candidate.pos.x - jump_pad_pos.x,
+        candidate.pos.y - jump_pad_pos.y,
+        candidate.pos.z - jump_pad_pos.z,
+    };
+    const float to_candidate_len = std::sqrt(
+        to_candidate.x * to_candidate.x + to_candidate.y * to_candidate.y + to_candidate.z * to_candidate.z);
+    float direction_score = 0.0f;
+    if (to_candidate_len > 0.1f) {
+        const float dot = (to_candidate.x * launch_dir.x + to_candidate.y * launch_dir.y + to_candidate.z * launch_dir.z)
+            / to_candidate_len;
+        direction_score = std::max(0.0f, dot); // 0 to 1, higher = more aligned with launch direction
+    }
+
+    // Proximity to item waypoints (weapons, powerups).
+    float item_score = 0.0f;
+    for (int i = 1; i < static_cast<int>(g_waypoints.size()); ++i) {
+        const auto& node = g_waypoints[i];
+        if (!node.valid || node.type != WaypointType::item || i == candidate_index) {
+            continue;
+        }
+        if (distance_sq(candidate.pos, node.pos) <= kJumpPadItemProximityRadius * kJumpPadItemProximityRadius) {
+            item_score = 1.0f;
+            break;
+        }
+    }
+
+    // High power zone bonus.
+    float zone_score = 0.0f;
+    if (waypoints_waypoint_has_zone_type(candidate_index, WaypointZoneType::high_power_zone)) {
+        zone_score = 1.0f;
+    }
+
+    // Weighted combination — direction and height are most important for jump pads.
+    return proximity_score * 2.0f
+        + height_score * 3.0f
+        + direction_score * 4.0f
+        + item_score * 1.0f
+        + zone_score * 1.5f;
+}
+
+// Create outbound links from a jump pad waypoint to the best trajectory destinations.
+int link_jump_pad_to_trajectory_destinations(int jump_pad_index)
+{
+    const auto& jp_node = g_waypoints[jump_pad_index];
+    if (!jp_node.valid || jp_node.type != WaypointType::jump_pad || jp_node.identifier < 0) {
+        return 0;
+    }
+
+    rf::PushRegion* push_region = find_push_region_by_uid(jp_node.identifier);
+    if (!push_region) {
+        return 0;
+    }
+
+    std::vector<rf::Vector3> trajectory_points;
+    rf::Vector3 landing_pos{};
+    if (!simulate_jump_pad_trajectory(*push_region, jp_node.pos, trajectory_points, landing_pos)) {
+        waypoint_log("Jump pad {} (uid {}): trajectory simulation failed"
+            " (strength={:.1f}, fvec=[{:.2f},{:.2f},{:.2f}], flags=0x{:x})",
+            jump_pad_index, jp_node.identifier,
+            push_region->strength,
+            push_region->orient.fvec.x, push_region->orient.fvec.y, push_region->orient.fvec.z,
+            push_region->flags_and_turbulence);
+        return 0;
+    }
+
+    waypoint_log("Jump pad {} (uid {}): trajectory with {} points, landed at [{:.1f},{:.1f},{:.1f}]"
+        " (strength={:.1f}, fvec=[{:.2f},{:.2f},{:.2f}], flags=0x{:x})",
+        jump_pad_index, jp_node.identifier,
+        static_cast<int>(trajectory_points.size()),
+        landing_pos.x, landing_pos.y, landing_pos.z,
+        push_region->strength,
+        push_region->orient.fvec.x, push_region->orient.fvec.y, push_region->orient.fvec.z,
+        push_region->flags_and_turbulence);
+
+    // Collect candidate waypoints reachable from the trajectory arc.
+    // The bot can use air control to steer horizontally during flight, so we search
+    // near every point along the trajectory, not just the landing point.
+    const float air_control_sq = kJumpPadAirControlRadius * kJumpPadAirControlRadius;
+    const float search_radius_sq = kJumpPadLandingSearchRadius * kJumpPadLandingSearchRadius;
+    struct Candidate {
+        int index;
+        float score;
+        float best_dist_sq;
+    };
+    std::vector<Candidate> candidates;
+
+    for (int i = 1; i < static_cast<int>(g_waypoints.size()); ++i) {
+        if (i == jump_pad_index) {
+            continue;
+        }
+        const auto& node = g_waypoints[i];
+        if (!node.valid) {
+            continue;
+        }
+        // Skip types that don't make sense as jump pad destinations.
+        if (node.type == WaypointType::jump_pad
+            || node.type == WaypointType::tele_entrance
+            || node.type == WaypointType::lift_body) {
+            continue;
+        }
+
+        // Skip destinations at or below the jump pad — the whole point is to reach higher ground.
+        if (node.pos.y < jp_node.pos.y + kJumpPadMinHeightAboveStart) {
+            continue;
+        }
+
+        // Check if this waypoint is near any point on the trajectory arc.
+        // The bot must be at or above the waypoint height to reach it (can fall to it,
+        // not fly up to it), and within air control distance horizontally.
+        float best_dist = std::numeric_limits<float>::max();
+        bool reachable = false;
+        for (const auto& traj_pt : trajectory_points) {
+            // Must be at or above the waypoint to reach it by falling/strafing.
+            if (traj_pt.y < node.pos.y - 1.0f) {
+                continue;
+            }
+            const float dx = traj_pt.x - node.pos.x;
+            const float dz = traj_pt.z - node.pos.z;
+            const float horiz_dist_sq = dx * dx + dz * dz;
+            if (horiz_dist_sq <= air_control_sq) {
+                // Verify the player can actually fall/strafe from this trajectory point
+                // to the candidate without a wall blocking the path.
+                if (can_link_waypoints(traj_pt, node.pos)) {
+                    reachable = true;
+                    const float dist = distance_sq(traj_pt, node.pos);
+                    if (dist < best_dist) {
+                        best_dist = dist;
+                    }
+                }
+            }
+        }
+
+        // Also check near the landing point with the wider search radius.
+        if (!reachable) {
+            if (distance_sq(landing_pos, node.pos) <= search_radius_sq
+                && can_link_waypoints(landing_pos, node.pos)) {
+                reachable = true;
+                best_dist = distance_sq(landing_pos, node.pos);
+            }
+        }
+
+        if (!reachable) {
+            continue;
+        }
+
+        const rf::Vector3& launch_dir = push_region->orient.fvec;
+        const float score = score_jump_pad_destination(jp_node.pos, launch_dir, landing_pos, i, kJumpPadLandingSearchRadius);
+        candidates.push_back({i, score, best_dist});
+    }
+
+    if (candidates.empty()) {
+        return 0;
+    }
+
+    // Find the furthest candidate distance from the jump pad.
+    float max_dist_sq = 0.0f;
+    for (const auto& cand : candidates) {
+        const float d = distance_sq(jp_node.pos, g_waypoints[cand.index].pos);
+        if (d > max_dist_sq) {
+            max_dist_sq = d;
+        }
+    }
+
+    // Exclude candidates closer than 50% of the furthest destination distance.
+    // This avoids wasting limited link slots on nearby waypoints when the jump pad
+    // can reach much further locations.
+    const float min_dist_sq = max_dist_sq * 0.25f; // 0.5^2 = 0.25 for the 50% distance threshold
+    candidates.erase(
+        std::remove_if(candidates.begin(), candidates.end(), [&](const Candidate& c) {
+            return distance_sq(jp_node.pos, g_waypoints[c.index].pos) < min_dist_sq;
+        }),
+        candidates.end());
+
+    if (candidates.empty()) {
+        return 0;
+    }
+
+    // Sort by score descending.
+    std::sort(candidates.begin(), candidates.end(), [](const Candidate& a, const Candidate& b) {
+        return a.score > b.score;
+    });
+
+    // Greedily select diverse destinations.
+    int links_added = 0;
+    std::vector<int> selected;
+    selected.reserve(kMaxWaypointLinks);
+
+    for (const auto& cand : candidates) {
+        if (static_cast<int>(selected.size()) >= kMaxWaypointLinks) {
+            break;
+        }
+
+        // Diversity check: skip if too close to an already-selected destination.
+        bool too_close = false;
+        for (int sel : selected) {
+            if (distance_sq(g_waypoints[cand.index].pos, g_waypoints[sel].pos)
+                < kJumpPadMinDiversityDistance * kJumpPadMinDiversityDistance) {
+                too_close = true;
+                break;
+            }
+        }
+        if (too_close) {
+            continue;
+        }
+
+        // Use link_waypoint directly — trajectory links bypass geometry trace
+        // (the parabolic path is already validated by simulation).
+        link_waypoint(jump_pad_index, cand.index);
+        if (waypoint_link_exists(g_waypoints[jump_pad_index], cand.index)) {
+            selected.push_back(cand.index);
+            ++links_added;
+        }
+    }
+
+    return links_added;
+}
+
+// Create trajectory-based outbound links for all jump pad waypoints.
+int link_jump_pads_to_trajectory_destinations()
+{
+    int total_links = 0;
+    for (int i = 1; i < static_cast<int>(g_waypoints.size()); ++i) {
+        const auto& node = g_waypoints[i];
+        if (!node.valid || node.type != WaypointType::jump_pad) {
+            continue;
+        }
+        total_links += link_jump_pad_to_trajectory_destinations(i);
+    }
+    return total_links;
 }
 
 bool trace_segment_hits_detail_brush(const rf::Vector3& from, const rf::Vector3& to)
@@ -6503,6 +6892,7 @@ ConsoleCommand2 waypoint_generate_cmd{
         const int generated_count = generate_waypoints_from_seed_probes(seed_indices);
         const auto link_stats = link_generated_waypoint_grid();
         const int special_links_added = auto_link_special_waypoints_post_generation();
+        const int jump_pad_trajectory_links = link_jump_pads_to_trajectory_destinations();
         const int generated_explosion_target_count = generate_explosion_targets_for_autogen();
         const int generated_shatter_target_count = generate_shatter_targets_for_autogen();
 
@@ -6553,6 +6943,14 @@ ConsoleCommand2 waypoint_generate_cmd{
             waypoint_log(
                 "Special waypoint cleanup pass added {} links",
                 special_links_added);
+        }
+        if (jump_pad_trajectory_links > 0) {
+            rf::console::print(
+                "Jump pad trajectory pass added {} destination links",
+                jump_pad_trajectory_links);
+            waypoint_log(
+                "Jump pad trajectory pass added {} destination links",
+                jump_pad_trajectory_links);
         }
         if (generated_explosion_target_count > 0) {
             rf::console::print(
@@ -7348,6 +7746,35 @@ bool waypoints_auto_link_nearby(const int waypoint_uid, WaypointAutoLinkStats& o
     const bool source_inbound_only =
         source_node.type == WaypointType::jump_pad || source_node.type == WaypointType::tele_entrance;
 
+    // For jump pad waypoints, use trajectory prediction for outbound links instead of
+    // proximity-based linking. Inbound links from nearby waypoints are still created normally.
+    if (source_node.type == WaypointType::jump_pad) {
+        // Create inbound links from nearby waypoints to the jump pad.
+        for (int candidate_uid = 1; candidate_uid < static_cast<int>(g_waypoints.size()); ++candidate_uid) {
+            if (candidate_uid == waypoint_uid || !is_waypoint_uid_valid(candidate_uid)) {
+                continue;
+            }
+            const auto& candidate_node = g_waypoints[candidate_uid];
+            const float candidate_auto_link_radius = waypoint_auto_link_detection_radius(candidate_node);
+            const float effective_radius = std::max(link_radius, candidate_auto_link_radius);
+            const float effective_radius_sq = effective_radius * effective_radius;
+            if (distance_sq(source_pos, candidate_node.pos) > effective_radius_sq) {
+                continue;
+            }
+            ++out_stats.candidate_waypoints;
+            const bool candidate_inbound_only =
+                candidate_node.type == WaypointType::jump_pad || candidate_node.type == WaypointType::tele_entrance;
+            if (!candidate_inbound_only) {
+                if (try_add_waypoint_link_if_clear(candidate_uid, waypoint_uid)) {
+                    ++out_stats.neighbor_links_added;
+                }
+            }
+        }
+        // Create outbound links via trajectory prediction.
+        out_stats.source_links_added += link_jump_pad_to_trajectory_destinations(waypoint_uid);
+        return true;
+    }
+
     for (int candidate_uid = 1; candidate_uid < static_cast<int>(g_waypoints.size()); ++candidate_uid) {
         if (candidate_uid == waypoint_uid || !is_waypoint_uid_valid(candidate_uid)) {
             continue;
@@ -7363,23 +7790,60 @@ bool waypoints_auto_link_nearby(const int waypoint_uid, WaypointAutoLinkStats& o
 
         ++out_stats.candidate_waypoints;
 
-        // Jump pad and tele entrance waypoints only receive inbound links, never create outbound links.
+        // Tele entrance waypoints only receive inbound links, never create outbound links.
         const bool candidate_inbound_only =
             candidate_node.type == WaypointType::jump_pad || candidate_node.type == WaypointType::tele_entrance;
 
-        if (!source_inbound_only) {
-            if (try_add_waypoint_link_if_clear(waypoint_uid, candidate_uid)) {
-                ++out_stats.source_links_added;
+        const bool within_incline = waypoint_link_within_incline(
+            source_pos, candidate_node.pos, kWaypointGenerateMaxInclineDeg);
+
+        if (within_incline) {
+            // Level terrain or special waypoint — create bidirectional links.
+            if (!source_inbound_only) {
+                if (try_add_waypoint_link_if_clear(waypoint_uid, candidate_uid)) {
+                    ++out_stats.source_links_added;
+                }
+            }
+            if (!candidate_inbound_only) {
+                if (try_add_waypoint_link_if_clear(candidate_uid, waypoint_uid)) {
+                    ++out_stats.neighbor_links_added;
+                }
             }
         }
-        if (!candidate_inbound_only) {
-            if (try_add_waypoint_link_if_clear(candidate_uid, waypoint_uid)) {
-                ++out_stats.neighbor_links_added;
+        else {
+            // Steep slope between standard waypoints — only create downward link.
+            const int higher = (source_pos.y > candidate_node.pos.y) ? waypoint_uid : candidate_uid;
+            const int lower = (higher == waypoint_uid) ? candidate_uid : waypoint_uid;
+            const bool higher_inbound_only = (higher == waypoint_uid) ? source_inbound_only : candidate_inbound_only;
+            if (!higher_inbound_only) {
+                if (try_add_waypoint_link_if_clear(higher, lower)) {
+                    if (higher == waypoint_uid) {
+                        ++out_stats.source_links_added;
+                    }
+                    else {
+                        ++out_stats.neighbor_links_added;
+                    }
+                }
             }
         }
     }
 
     return true;
+}
+
+int waypoints_send_probe(int waypoint_uid)
+{
+    if (!is_waypoint_uid_valid(waypoint_uid)) {
+        return 0;
+    }
+
+    const std::vector<int> seed_indices{waypoint_uid};
+    const int generated_count = generate_waypoints_from_seed_probes(seed_indices);
+    if (generated_count > 0) {
+        link_generated_waypoint_grid();
+        auto_link_special_waypoints_post_generation();
+    }
+    return generated_count;
 }
 
 bool waypoints_waypoint_has_zone(int waypoint_uid, int zone_uid)
