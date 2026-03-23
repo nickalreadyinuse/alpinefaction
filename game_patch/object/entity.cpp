@@ -4,7 +4,6 @@
 #include <patch_common/AsmWriter.h>
 #include <cstring>
 #include <string>
-#include <unordered_set>
 #include <xlog/xlog.h>
 #include "../misc/achievements.h"
 #include "../misc/alpine_settings.h"
@@ -448,72 +447,46 @@ void apply_entity_sim_distance() {
 // Fix for footstep audio bug in multiplayer where remote players' footsteps
 // only play when they have a pistol equipped. Only pistol walk/run animations
 // have footstep triggers defined in entity.tbl; other weapons lack them.
-// We hook the animation update function (0x0051bce3) to inject trigger values
-// into skeletons that have empty trigger names, using VMVF time range data.
+// We inject trigger values into skeletons that have empty trigger names when the
+// entity is in the attack_run state, using VMVF time range data.
 
 bool g_footsteps_active = false;
 
 // Footstep trigger positions as percentages of animation duration
-static constexpr float footstep_walk_left_pct = 0.15f;
-static constexpr float footstep_walk_right_pct = 0.55f;
 static constexpr float footstep_run_left_pct = 0.12f;
 static constexpr float footstep_run_right_pct = 0.52f;
 
-CodeInjection footstep_trigger_fixup_injection{
-    0x0051bce3,
-    [](auto& regs) {
-        if (!g_footsteps_active) return;
+// Inject footstep trigger data into a skeleton that has empty triggers
+static void inject_footstep_triggers(rf::Skeleton* skeleton)
+{
+    if (!skeleton || !skeleton->animation_data) return;
+    if (skeleton->triggers[0].name[0] != '\0' || skeleton->triggers[1].name[0] != '\0') return;
 
-        uint32_t* anims_array = reinterpret_cast<uint32_t*>(static_cast<uint32_t>(regs.edx));
-        int anim_index = static_cast<int32_t>(regs.ebp);
-        rf::Skeleton* skeleton = reinterpret_cast<rf::Skeleton*>(anims_array[anim_index]);
-        if (!skeleton) return;
+    uint8_t* data = static_cast<uint8_t*>(skeleton->animation_data);
+    if (skeleton->data_size < 0x18) return;
+    if (data[0] != 'V' || data[1] != 'M' || data[2] != 'V' || data[3] != 'F') return;
 
-        // Only inject if both trigger names are empty (no existing footstep data)
-        if (skeleton->triggers[0].name[0] != '\0' || skeleton->triggers[1].name[0] != '\0') return;
+    int start_time = 0;
+    int end_time = 0;
+    std::memcpy(&start_time, data + 0x10, sizeof(start_time));
+    std::memcpy(&end_time, data + 0x14, sizeof(end_time));
+    int duration = end_time - start_time;
+    if (duration <= 0) return;
 
-        const char* name = skeleton->mvf_filename;
-        if (!name || name[0] == '\0') return;
+    int left_trigger = start_time + static_cast<int>(duration * footstep_run_left_pct);
+    int right_trigger = start_time + static_cast<int>(duration * footstep_run_right_pct);
 
-        bool is_walk = std::strstr(name, "walk") != nullptr;
-        bool is_run = !is_walk && std::strstr(name, "run") != nullptr;
-        if (!is_walk && !is_run) return;
+    std::strncpy(skeleton->triggers[0].name, "footstep_left", 15);
+    skeleton->triggers[0].name[15] = '\0';
+    skeleton->triggers[0].value = left_trigger;
 
-        if (!skeleton->animation_data) return;
+    std::strncpy(skeleton->triggers[1].name, "footstep_right", 15);
+    skeleton->triggers[1].name[15] = '\0';
+    skeleton->triggers[1].value = right_trigger;
 
-        uint8_t* data = static_cast<uint8_t*>(skeleton->animation_data);
-        if (skeleton->data_size < 0x18) return;
-        if (data[0] != 'V' || data[1] != 'M' || data[2] != 'V' || data[3] != 'F') return;
-
-        int start_time = 0;
-        int end_time = 0;
-        std::memcpy(&start_time, data + 0x10, sizeof(start_time));
-        std::memcpy(&end_time, data + 0x14, sizeof(end_time));
-        int duration = end_time - start_time;
-        if (duration <= 0) return;
-
-        float left_pct = is_walk ? footstep_walk_left_pct : footstep_run_left_pct;
-        float right_pct = is_walk ? footstep_walk_right_pct : footstep_run_right_pct;
-
-        int left_trigger = start_time + static_cast<int>(duration * left_pct);
-        int right_trigger = start_time + static_cast<int>(duration * right_pct);
-
-        std::strncpy(skeleton->triggers[0].name, "footstep_left", 15);
-        skeleton->triggers[0].name[15] = '\0';
-        skeleton->triggers[0].value = left_trigger;
-
-        std::strncpy(skeleton->triggers[1].name, "footstep_right", 15);
-        skeleton->triggers[1].name[15] = '\0';
-        skeleton->triggers[1].value = right_trigger;
-
-        static std::unordered_set<std::string> logged_injected;
-        if (logged_injected.insert(name).second) {
-            xlog::info("Footstep fix: {} injected left={} right={} (start={} end={} dur={} type={})",
-                name, left_trigger, right_trigger, start_time, end_time, duration,
-                is_walk ? "walk" : "run");
-        }
-    }
-};
+    xlog::info("Footstep fix: {} injected left={} right={} (start={} end={} dur={})",
+        skeleton->mvf_filename, left_trigger, right_trigger, start_time, end_time, duration);
+}
 
 void evaluate_footsteps()
 {
@@ -563,12 +536,27 @@ ConsoleCommand2 cl_footsteps_cmd{
     "cl_footsteps",
 };
 
-// Mute footstep audio for dying entities - prevents footstep sounds from playing
-// throughout the death animation when walk/run animation triggers persist
+// Footstep processing hook: injects triggers for attack_run state animations
+// and mutes footstep audio for dying entities
 FunHook<void(rf::Entity*)> entity_footsteps_do_frame_hook{
     0x0042F940,
     [](rf::Entity* ep) {
-        if (ep && rf::entity_is_dying(ep)) return;
+        if (!ep || rf::entity_is_dying(ep)) return;
+
+        // Inject footstep triggers for entities in attack_run state
+        if (g_footsteps_active && ep->current_state_anim == rf::ENTITY_STATE_ATTACK_RUN) {
+            auto* vmesh = ep->vmesh;
+            if (vmesh && vmesh->type == rf::MESH_TYPE_CHARACTER) {
+                auto* ci = static_cast<rf::CharacterInstance*>(vmesh->instance);
+                if (ci && ci->base_character) {
+                    int anim_idx = ep->state_anims[rf::ENTITY_STATE_ATTACK_RUN].vmesh_anim_index;
+                    if (anim_idx >= 0 && anim_idx < ci->base_character->num_anims) {
+                        inject_footstep_triggers(ci->base_character->animations[anim_idx]);
+                    }
+                }
+            }
+        }
+
         entity_footsteps_do_frame_hook.call_target(ep);
     }
 };
@@ -649,11 +637,8 @@ void entity_do_patch()
 	// Restore cut stock game feature for entities and corpses exploding into chunks
 	entity_blood_throw_gibs_hook.install();
 
-    // Footstep fix: inject trigger frames on-the-fly when animations have empty triggers
+    // Footstep fix: inject trigger frames for attack_run animations and mute dying entities
     evaluate_footsteps();
-    footstep_trigger_fixup_injection.install();
-
-    // Mute footstep audio for dying entities
     entity_footsteps_do_frame_hook.install();
 
     // Commands
