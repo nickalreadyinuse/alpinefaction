@@ -117,6 +117,7 @@ struct AlpineGameSettings
     bool burning_entity_lights = true;
     bool death_bars = true;
     bool mesh_static_lighting = true;
+    bool vertex_lighting = false;
     bool show_glares = true;
     bool show_enemy_bullets = true;
     bool fps_counter = true;
@@ -179,6 +180,11 @@ struct AlpineGameSettings
     bool simple_server_chat_msgs = true;
     bool quick_exit = false;
     uint32_t bot_shared_secret = 0;
+    std::string bot_personality_preset = "balanced";
+    std::string bot_skill_preset = "average";
+    bool bot_quit_when_disconnected = true;
+    bool waypoints_edit_mode = false;
+    bool waypoints_edit_default_enabled = false;
     int suppress_autoswitch_alias = -1;
     bool always_autoswitch_empty = true;
     bool apply_exposure_damage = true;
@@ -343,6 +349,21 @@ struct AlpineGameSettings
     bool rendering_enabled = true;
     bool sound_enabled = true;
     bool background_mouse = false;
+    bool dbg_bot = false;
+
+    // entity shadow settings
+    bool shadow_corpses = true;
+    bool shadow_items = true;
+    int shadow_distance = 3; // 0=lowest, 1=low, 2=medium, 3=high, 4=very_high, 5=maximum
+    void set_shadow_distance(int value)
+    {
+        shadow_distance = std::clamp(value, 0, 5);
+    }
+    int shadow_quality = 3; // 0=lowest(blob), 1=low, 2=medium, 3=high, 4=very_high, 5=maximum
+    void set_shadow_quality(int value)
+    {
+        shadow_quality = std::clamp(value, 0, 5);
+    }
 };
 
 struct FpsCounterState

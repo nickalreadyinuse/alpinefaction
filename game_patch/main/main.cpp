@@ -21,7 +21,7 @@
 #include "../bmpman/bmpman.h"
 #include "../debug/debug.h"
 #include "../graphics/gr.h"
-#include "../graphics/legacy/gr_d3d.h"
+#include "../graphics/d3d11/gr_d3d11_mesh.h"
 #include "../hud/hud.h"
 #include "../hud/hud_world.h"
 #include "../hud/multi_scoreboard.h"
@@ -39,7 +39,9 @@
 #include "../misc/vpackfile.h"
 #include "../misc/high_fps.h"
 #include "../misc/player.h"
+#include "../misc/waypoints.h"
 #include "../misc/level.h"
+#include "../object/alpine_corona.h"
 #include "../input/input.h"
 #include "../rf/gr/gr.h"
 #include "../rf/multi.h"
@@ -51,6 +53,8 @@
 #ifdef HAS_EXPERIMENTAL
 #include "../experimental/experimental.h"
 #endif
+
+#include "../multi/bots/bot_main.h"
 
 GameConfig g_game_config;
 AlpineCoreConfig g_alpine_system_config;
@@ -67,13 +71,13 @@ void initialize_random_generator() {
 
 CallHook<void()> rf_init_hook{
     0x004B27CD,
-    []() {
-        auto start_ticks = GetTickCount();
+    [] {
+        const uint64_t start_ticks = GetTickCount64();
         xlog::info("Initializing game...");
         initialize_alpine_core_config();
         rf_init_hook.call_target();
         vpackfile_disable_overriding();
-        xlog::info("Game initialized ({} ms).", GetTickCount() - start_ticks);
+        xlog::info("Game initialized ({} ms).", GetTickCount64() - start_ticks);
     },
 };
 
@@ -103,7 +107,9 @@ CodeInjection after_full_game_init_hook{
         console_init();
         multi_after_full_game_init();
         debug_init();
-        load_world_hud_assets();
+        if (!client_bot_headless_enabled()) {
+            load_world_hud_assets();
+        }
         execute_startup_scripts();
 
         xlog::info("Game fully initialized");
@@ -143,12 +149,14 @@ FunHook<int()> rf_do_frame_hook{
         rf::os_poll();
         high_fps_update();
         server_do_frame();
+        client_bot_do_frame();
         koth_do_frame();
         alpine_mesh_do_frame();
         int result = rf_do_frame_hook.call_target();
         maybe_autosave();
         debug_do_frame_post();
         multi_level_download_update();
+        waypoints_do_frame();
         return result;
     },
 };
@@ -156,10 +164,15 @@ FunHook<int()> rf_do_frame_hook{
 CodeInjection after_level_render_hook{
     0x00432375,
     []() {
+        if (client_bot_headless_enabled()) {
+            return;
+        }
 #if !defined(NDEBUG) && defined(HAS_EXPERIMENTAL)
         experimental_render_in_game();
 #endif
         debug_render();
+        waypoints_render_debug();
+        client_bot_render_debug();
         hud_world_do_frame();
     },
 };
@@ -167,7 +180,7 @@ CodeInjection after_level_render_hook{
 CodeInjection after_frame_render_hook{
     0x004B2DC2,
     []() {
-        if (!rf::is_dedicated_server) {
+        if (!rf::is_dedicated_server && !client_bot_headless_enabled()) {
             // Draw on top (after scene)
             frametime_render_ui();
             achievement_system_do_frame();
@@ -185,11 +198,21 @@ FunHook<int(rf::String&, rf::String&, char*)> level_load_hook{
     [](rf::String& level_filename, rf::String& save_filename, char* error) {
         xlog::info("Loading level: {}", level_filename);
         evaluate_pow2tex(level_filename);
+        waypoints_level_reset();
         if (!save_filename.empty())
             xlog::info("Restoring game from save file: {}", save_filename);
 
         // attempt to load level_info tbl file
         load_level_info_config(level_filename);
+
+        // evaluate and cache vertex lighting mode for this level (D3D11 only)
+        if (is_d3d11()) {
+            df::gr::d3d11::evaluate_vertex_lighting(level_filename);
+            if (g_alpine_level_info_config.is_option_loaded(level_filename, AlpineLevelInfoID::UseVertexLighting)
+                && get_level_info_value<bool>(AlpineLevelInfoID::UseVertexLighting)) {
+                rf::console::print("Applying legacy vertex lighting for {} (per override present in mapname_info.tbl)", level_filename);
+            }
+        }
 
         int ret = level_load_hook.call_target(level_filename, save_filename, error);
         if (ret != 0)
@@ -206,6 +229,10 @@ FunHook<void(bool)> level_init_post_hook{
     [](bool transition) {
         level_init_post_hook.call_target(transition);
         xlog::info("Level loaded: {}{}", rf::level.filename, transition ? " (transition)" : "");
+        waypoints_level_init();
+
+        // Create corona objects (clutter + glare pairs) now that geometry is loaded
+        alpine_corona_create_all();
 
         apply_maximum_fps(); // set maximum FPS based on game state
         process_queued_spawn_points_from_items();
@@ -215,7 +242,7 @@ FunHook<void(bool)> level_init_post_hook{
         apply_geoable_flags();
         apply_breakable_materials();
 
-        if (!rf::is_dedicated_server) {
+        if (!rf::is_dedicated_server && !client_bot_headless_enabled()) {
             explosion_flash_lights_level_init();
             evaluate_fullbright_meshes();
             set_levelmod_autotexture_ppm();
@@ -440,7 +467,7 @@ extern "C" void subhook_unk_opcode_handler(uint8_t* opcode)
 extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
 {
     g_process_startup_time = std::time(nullptr);
-    const DWORD startup_ticks = GetTickCount();
+    const uint64_t startup_ticks = GetTickCount64();
 
     // Init logging and crash dump support first
     init_logging();
@@ -489,7 +516,7 @@ extern "C" DWORD __declspec(dllexport) Init([[maybe_unused]] void* unused)
 #endif
     debug_apply_patches();
 
-    xlog::info("Installing hooks took {} ms", GetTickCount() - startup_ticks);
+    xlog::info("Installing hooks took {} ms", GetTickCount64() - startup_ticks);
 
     return 1; // success
 }

@@ -24,6 +24,35 @@ add_packfile(alpinefaction.vpp
     tables/events.tbl
     tables/af_level_quirks.tbl
 
+    # waypoint files
+    waypoints/dm01.awp
+    waypoints/dm02.awp
+    waypoints/dm03.awp
+    waypoints/dm04.awp
+    waypoints/dm05.awp
+    waypoints/dm06.awp
+    waypoints/dm07.awp
+    waypoints/dm08.awp
+    waypoints/dm09.awp
+    waypoints/dm10.awp
+    waypoints/dm11.awp
+    waypoints/dm12.awp
+    waypoints/dm13.awp
+    waypoints/dm14.awp
+    waypoints/dm15.awp
+    waypoints/dm16.awp
+    waypoints/dm17.awp
+    waypoints/dm18.awp
+    waypoints/dm19.awp
+    waypoints/dm20.awp
+    waypoints/ctf01.awp
+    waypoints/ctf02.awp
+    waypoints/ctf03.awp
+    waypoints/ctf04.awp
+    waypoints/ctf05.awp
+    waypoints/ctf06.awp
+    waypoints/ctf07.awp
+
     # compatibility _info.tbls
     tables/pdm01_info.tbl
     tables/pdm02_info.tbl
@@ -45,6 +74,13 @@ add_packfile(alpinefaction.vpp
     tables/CTF_EuropaOneOutpost_info.tbl
     tables/dm-SpecialForces_info.tbl
     tables/Dm-NukeTown2050_info.tbl
+    tables/DM-Catan-Hill_info.tbl
+    tables/DM-Catan-Mountain_info.tbl
+    tables/DM-Catan-Field_info.tbl
+    tables/DM-Catan-Field1-1_info.tbl
+    tables/DM-Catan-Pasture_info.tbl
+    tables/DM-Catan-Forest_info.tbl
+    tables/DM-RFU8-Catan_info.tbl
 
     sounds/af_achievement1.wav
     sounds/af_pinglocation1.wav
@@ -200,6 +236,7 @@ add_packfile(alpinefaction.vpp
     images/Icon_EAX.tga
     images/Icon_Event.tga
     images/Icon_AFNote.tga
+    images/Icon_AFCorona.tga
     images/radar_dish.tga
     images/score_aflogo.tga
     images/mtl_archway04-mip1.tga
@@ -227,8 +264,11 @@ add_packfile(alpinefaction.vpp
     standard_vs:${CMAKE_BINARY_DIR}/shaders/standard_vs.bin
     character_vs:${CMAKE_BINARY_DIR}/shaders/character_vs.bin
     transformed_vs:${CMAKE_BINARY_DIR}/shaders/transformed_vs.bin
+    shadow_standard_vs:${CMAKE_BINARY_DIR}/shaders/shadow_standard_vs.bin
+    shadow_character_vs:${CMAKE_BINARY_DIR}/shaders/shadow_character_vs.bin
     standard_ps:${CMAKE_BINARY_DIR}/shaders/standard_ps.bin
     ui_ps:${CMAKE_BINARY_DIR}/shaders/ui_ps.bin
+    shadow_debug_ps:${CMAKE_BINARY_DIR}/shaders/shadow_debug_ps.bin
 )
 
 # Copy licensing-info.txt

@@ -5,6 +5,16 @@ Version 1.3.0 (Bakeapple): Not yet released
 --------------------------------
 ### Major features
 [@GooberRF](https://github.com/GooberRF)
+- Advanced multiplayer bots system
+  - Headless bot clients with server control
+  - Bot profile customization
+  - Integrated waypoint grid editor with autogeneration support for custom maps
+  - Waypoint grid files for all default maps included
+- Promote Direct3D 11 renderer to recommended and add several notable improvements
+  - Add GPU accelerated per-pixel lighting for meshes (Direct3D 11 renderer only)
+  - Add full mesh shadows for entities, corpses, and items
+  - Support `Alpha` field in `Decal` objects placed in version >= 304 levels
+  - Support movers, meshes, and mesh pixel lighting in skyboxes
 - Expanded destruction capabilities available to developers
   - `Brush-based geomod` switch added to level properties; if true, use level hardness for geoable brushes (RF2-style)
   - Geo regions allow traditional world-based geomod to be used even when brush-based switch is true
@@ -14,13 +24,13 @@ Version 1.3.0 (Bakeapple): Not yet released
   - `No Debris` flag added to brush properties for breakable detail brushes
 - Added new object types
   - `Mesh` for configuring custom static, skeletal, or animated meshes in levels
+  - `Corona` for configuring custom glare effects in levels
   - `Note` for leaving important information in levels (editor only)
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Standardize user agent string format across all use cases
 - Bump RFL version to 304
-- Support `Alpha` field in `Decal` objects placed in version >= 304 levels (Direct3D 11 renderer only)
 - Improve output of object create failure log message
 - Add `Players in linked triggers` application setting for `AF_Heal` events
 - Add speedometer to HUD, bind to `ui_show_speed` console command
@@ -55,8 +65,18 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Add `Reload Meshes` and `Reload Textures` options to level editor `Tools` menu, to scan for new assets in `\user_maps\`
 - Add `To Mesh` tool for converting brushes to `.v3m` static meshes directly in the level editor
 - Improve level editor packfile creation process to include meshes and animations from `Mesh` objects and `Switch_Model`, `Play_Animation`, and `Mesh_Animate` events
+- Add new and revised `Select Objects` and `Hide Objects` windows in level editor
+- Add `r_shadowquality [0-5]`, `r_shadowdistance [0-5]`, `r_shadowitems`, `r_shadowcorpses`, and `dbg_shadows` console commands
+- Add `r_vertexlighting` console command and `$Use Vertex Lighting` `MAPNAME_info.tbl` option to restore legacy vertex lighting for meshes
+- Alias `TAB` in level editor to toggle maximized viewport (stock hotkeys `F4`/`F5`)
+- In TDM match mode, made self kills reduce team score by 1 (floor of 0)
+- Add `-bot` command line argument to run a client in bot mode
+- Add `disconnect` console command
+- Suppress pointless warnings for file `tech_gren_attack.rfa` which is missing from but referenced by stock game files
+- Add `force_rail_reload` dedicated server config option, to force reloading the rail before being able to switch weapons
 
 [@is-this-c](https://github.com/is-this-c)
+- Use 64-bit integers for time deltas
 - Replace `os_sleep` in `frametime_calculate` with `wait_for`
 - Add version and uptime to a server's printed config
 - Default gore level to 1
@@ -82,6 +102,7 @@ Version 1.3.0 (Bakeapple): Not yet released
 
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
+- Fix pings of zero after 24 days of uptime
 - Fix `AF_Heal` event forwarding received messages
 - Fix rare crash when shooting at alpha-masked surfaces in Direct3D 11 renderer
 - Fix overflow fix for `emitters.tbl` entries not being correctly applied
@@ -95,8 +116,13 @@ Version 1.3.0 (Bakeapple): Not yet released
 - Fix level editor packfile creation process to include textures from bolt emitters, liquid surfaces, `Display_Fullscreen_Image` events, `Swap_Textures` events, and geomod crater textures
 - Fix rare level editor crash when transforming decal objects in a level with a large number of decals
 - Fix level editor clip tool silently failing on certain brush orientations
+- Fix P2T Fix not working properly on Direct3D 11 renderer
+- Fix level editor crash when maximizing the bottom right viewport
+- Fix bots not always spawning correctly when `ideal_player_count` is 32
+- Fix possible crash in substring handling
 
 [@is-this-c](https://github.com/is-this-c)
+- Fix parse of `flag_return_time` to be as a float instead of an integer
 - Fix faulty cull in fpgun infrared scanners
 - Fix stale weapon selection time stamps
 

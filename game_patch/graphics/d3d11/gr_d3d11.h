@@ -13,6 +13,7 @@ namespace rf
     struct GRoom;
     struct VifMesh;
     struct VifLodMesh;
+    struct MeshMaterial;
     struct MeshRenderParams;
     struct CharacterInstance;
 }
@@ -31,6 +32,7 @@ namespace df::gr::d3d11
     class RenderContext;
     class SolidRenderer;
     class MeshRenderer;
+    class EntityShadowRenderer;
 
     class Renderer
     {
@@ -68,20 +70,22 @@ namespace df::gr::d3d11
         void render_solid(rf::GSolid* solid, rf::GRoom** rooms, int num_rooms);
         void render_movable_solid(rf::GSolid* solid, const rf::Vector3& pos, const rf::Matrix3& orient);
         void render_alpha_detail_room(rf::GRoom *room, rf::GSolid *solid);
-        void render_sky_room(rf::GRoom *room);
+        void render_sky_room(rf::GRoom *room, rf::Vector3& out_sky_transform_pos, rf::Matrix3& out_sky_transform_orient);
         void render_room_liquid_surface(rf::GSolid* solid, rf::GRoom* room);
         void clear_solid_cache();
         void reset_solid_cache_after_boolean();
-        void render_v3d_vif(rf::VifLodMesh *lod_mesh, int lod_index, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::MeshRenderParams& params);
-        void render_character_vif(rf::VifLodMesh *lod_mesh, int lod_index, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::CharacterInstance *ci, const rf::MeshRenderParams& params);
+        void render_v3d_vif(rf::VifLodMesh *lod_mesh, int lod_index, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::MeshRenderParams& params, bool skip_ambient_cache = false);
+        void render_character_vif(rf::VifLodMesh *lod_mesh, int lod_index, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::CharacterInstance *ci, const rf::MeshRenderParams& params, bool skip_ambient_cache = false);
         void clear_vif_cache(rf::VifLodMesh *lod_mesh);
         void fog_set();
-        void page_in_v3d_mesh(rf::VifLodMesh* lod_mesh);
+        void page_in_v3d_mesh(rf::VifLodMesh* lod_mesh, rf::MeshMaterial* materials = nullptr, int num_materials = 0);
         void page_in_character_mesh(rf::VifLodMesh* lod_mesh);
         void page_in_solid(rf::GSolid* solid);
         void page_in_movable_solid(rf::GSolid* solid);
         void flush_caches();
         void reset_static_vertex_color_tracking();
+        void clear_mesh_lights();
+        void set_pow2_tex_active(bool active);
         float z_far() const;
 
     private:
@@ -107,6 +111,7 @@ namespace df::gr::d3d11
         std::unique_ptr<RenderContext> render_context_;
         std::unique_ptr<SolidRenderer> solid_renderer_;
         std::unique_ptr<MeshRenderer> mesh_renderer_;
+        std::unique_ptr<EntityShadowRenderer> entity_shadow_renderer_;
         int render_target_bm_handle_ = -1;
     };
 

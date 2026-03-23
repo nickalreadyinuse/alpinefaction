@@ -18,6 +18,7 @@
 #include "../hud/hud_internal.h"
 #include "../misc/alpine_settings.h"
 #include "server_internal.h"
+#include "multi_private.h"
 #include "alpine_packets.h"
 #include "../misc/player.h"
 
@@ -511,7 +512,7 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
     update_player_active_status(killed_player); // active pulse on killed
 
     if (rf::is_server) {
-        killed_player->death_time.emplace(std::chrono::high_resolution_clock::now());
+        killed_player->death_time.emplace(std::chrono::steady_clock::now());
     }
 
     auto* killed_stats = static_cast<PlayerStatsNew*>(killed_player->stats);
@@ -525,6 +526,12 @@ void on_player_kill(rf::Player* killed_player, rf::Player* killer_player)
         }
         else {
             rf::player_add_score(killer_player, -1);
+
+            // decrement TDM team score on self kill in match mode servers
+            if (g_alpine_server_config.vote_match.enabled
+                && rf::multi_get_game_type() == rf::NG_TYPE_TEAMDM) {
+                multi_tdm_add_team_score(killer_player, -1);
+            }
         }
 
         multi_apply_kill_reward(killer_player);

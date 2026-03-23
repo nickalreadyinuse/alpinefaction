@@ -12,6 +12,8 @@
 #include "../../rf/gr/gr.h"
 #include "../../rf/gr/gr_light.h"
 #include "../../rf/level.h"
+#include "../../rf/mover.h"
+#include <common/utils/list-utils.h>
 #include "../../os/console.h"
 #include "../../misc/misc.h"
 #include "gr_d3d11.h"
@@ -36,9 +38,6 @@ namespace df::gr::d3d11
     static auto& gr_solid_alpha_mode = addr_as_ref<gr::Mode>(0x0180832C);
     static auto& geo_cache_rooms = addr_as_ref<GRoom*[256]>(0x01375DB4);
     static auto& geo_cache_num_rooms = addr_as_ref<int>(0x013761B8);
-    static auto& sky_room_center = addr_as_ref<Vector3>(0x0088FB10);
-    static auto& sky_room_offset = addr_as_ref<Vector3>(0x0087BB00);
-    static auto& sky_room_orient = addr_as_ref<Matrix3*>(0x009BB56C);
 
     static auto& set_currently_rendered_room = addr_as_ref<void (GRoom *room)>(0x004D3350);
 
@@ -222,13 +221,16 @@ namespace df::gr::d3d11
         }
 
         geometry_buffers_.bind_buffers(render_context);
+        // World geometry UVs are authored for pow2 texture dimensions on old GPUs,
+        // so suppress UV scaling for this entire pass
+        render_context.set_suppress_texture_uv_scale(true);
         for (SolidBatch& b : batches) {
             bool lightmap_only = rf::gr::show_lightmaps && what != FaceRenderType::alpha;
             render_context.set_mode(b.mode, {255, 255, 255, 255}, lightmap_only);
             render_context.set_textures(b.textures[0], b.textures[1]);
-            //xlog::warn("DrawIndexed {} {}", b.num_indices, b.start_index);
             render_context.draw_indexed(b.num_indices, b.start_index, b.base_vertex);
         }
+        render_context.set_suppress_texture_uv_scale(false);
     }
 
     class GRenderCacheBuilder
@@ -812,28 +814,54 @@ namespace df::gr::d3d11
         }
     }
 
-    void SolidRenderer::render_sky_room(GRoom *room)
+    void SolidRenderer::render_sky_room(GRoom *room, Vector3& out_sky_transform_pos, Matrix3& out_sky_transform_orient)
     {
         xlog::trace("Rendering sky room {} cache {}", room->room_index, room->geo_cache);
         render_context_.update_lights(true);
-        if (const Matrix3* skybox_orient = sky_room_orient) {
-            Matrix3 skybox_orient_inv = *skybox_orient;
-            skybox_orient_inv.inverse();
 
-            const Vector3 rotated_center = skybox_orient_inv.transform_vector(sky_room_center);
-            before_render(sky_room_offset + sky_room_center - rotated_center, skybox_orient_inv);
+        // Compute sky room transform: maps world coords to camera-relative coords
+        if (const Matrix3* skybox_orient = sky_room_orient) {
+            out_sky_transform_orient = *skybox_orient;
+            out_sky_transform_orient.inverse();
+            const Vector3 rotated_center = out_sky_transform_orient.transform_vector(sky_room_center);
+            out_sky_transform_pos = sky_room_offset + sky_room_center - rotated_center;
         }
         else {
-            before_render(sky_room_offset, rf::identity_matrix);
+            out_sky_transform_pos = sky_room_offset;
+            out_sky_transform_orient = rf::identity_matrix;
         }
+
+        before_render(out_sky_transform_pos, out_sky_transform_orient);
         render_room_faces(rf::level.geometry, room, FaceRenderType::opaque);
         render_room_faces(rf::level.geometry, room, FaceRenderType::alpha);
+
+        // Render mover brushes that are in the sky room being projected
+        for (auto& mb : DoublyLinkedList{rf::mover_brush_list}) {
+            if (!mb.geometry || mb.room != room) {
+                continue;
+            }
+            if (mb.obj_flags & rf::OF_HIDDEN) {
+                continue;
+            }
+            // Transform mover position and orientation by the sky room transform
+            Vector3 transformed_pos = out_sky_transform_orient.transform_vector(mb.pos) + out_sky_transform_pos;
+            Matrix3 transformed_orient = out_sky_transform_orient;
+            transformed_orient.mul(mb.orient);
+
+            GRenderCache* cache = get_or_create_movable_solid_cache(mb.geometry);
+            before_render(transformed_pos, transformed_orient);
+            cache->render(FaceRenderType::opaque, render_context_);
+            cache->render(FaceRenderType::alpha, render_context_);
+        }
+
         render_context_.update_lights();
     }
 
     void SolidRenderer::render_movable_solid(GSolid* solid, const Vector3& pos, const Matrix3& orient)
     {
         xlog::trace("Rendering movable solid {}", solid);
+        // Upload gathered lights so the pixel shader can apply point lighting to movers
+        render_context_.update_lights();
         GRenderCache* cache = get_or_create_movable_solid_cache(solid);
         before_render(pos, orient);
         cache->render(FaceRenderType::opaque, render_context_);
@@ -864,6 +892,10 @@ namespace df::gr::d3d11
             // Happens when glass is killed
             return;
         }
+        // Clear stale point lights that may remain from mesh rendering (which runs
+        // between render_solid and render_alpha_detail). Without this, alpha surfaces
+        // pick up mesh lights and get overbright/blinking artifacts.
+        render_context_.update_lights();
         before_render(rf::zero_vector, rf::identity_matrix);
         render_detail(solid, room, true);
         if (decals_enabled) {
@@ -931,4 +963,5 @@ namespace df::gr::d3d11
             get_or_create_detail_room_cache(solid, room);
         }
     }
+
 }
