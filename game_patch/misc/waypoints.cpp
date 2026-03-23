@@ -83,6 +83,8 @@ std::array<CtfDroppedFlagPacketHint, 2> g_ctf_dropped_flag_packet_hints{};
 void remap_waypoints();
 bool link_waypoint_if_clear_autogen(int from, int to);
 bool segment_blocked_only_by_geoable_brushes(const rf::Vector3& from, const rf::Vector3& to);
+bool ground_is_breakable_glass(const rf::Vector3& pos, float max_downward_dist);
+bool trace_segment_hits_breakable_glass(const rf::Vector3& from, const rf::Vector3& to);
 rf::Mover* find_mover_by_uid(int mover_uid);
 void update_ctf_dropped_flag_temporary_waypoints();
 bool is_waypoint_bot_mode_active();
@@ -2869,6 +2871,9 @@ bool link_waypoint_if_clear_autogen(int from, int to)
     if (link_segment_passes_through_death_zone(g_waypoints[from].pos, g_waypoints[to].pos)) {
         return false;
     }
+    if (trace_segment_hits_breakable_glass(g_waypoints[from].pos, g_waypoints[to].pos)) {
+        return false;
+    }
 
     link_waypoint(from, to);
     return true;
@@ -3113,14 +3118,16 @@ void sanitize_waypoint_links_against_geometry()
         for (int read_index = 0; read_index < node.num_links; ++read_index) {
             const int link = node.links[read_index];
             if (!can_link_waypoint_indices(index, link)) {
-                // Preserve downward drop links — these intentionally pass through
-                // geometry (the bot walks off a ledge and falls).
+                // Preserve links that intentionally pass through geometry:
+                // - Jump pad outbound links (trajectory-based, parabolic path)
+                // - Downward drop links (bot walks off a ledge and falls)
+                const bool is_jump_pad_link = node.type == WaypointType::jump_pad;
                 const bool is_drop_link = link > 0
                     && link < waypoint_total
                     && g_waypoints[link].valid
                     && (node.pos.y - g_waypoints[link].pos.y) >= 2.0f
                     && !waypoint_has_link_to(link, index);
-                if (!is_drop_link) {
+                if (!is_jump_pad_link && !is_drop_link) {
                     ++removed_links;
                     continue;
                 }
@@ -3510,6 +3517,14 @@ void seed_waypoints_from_objects()
     while (obj != &rf::object_list) {
         if (obj->type == rf::OT_ITEM) {
             auto* item = static_cast<rf::Item*>(obj);
+
+            // Skip dropped weapons during default grid generation — they are
+            // temporary and shouldn't have permanent item waypoints.
+            if (item->item_flags & rf::ItemFlags::IF_DROPPED) {
+                obj = obj->next_obj;
+                continue;
+            }
+
             const std::string_view item_name = item->name.c_str();
 
             if (auto ctf_subtype = get_default_grid_ctf_flag_subtype(item_name); ctf_subtype) {
@@ -4149,6 +4164,12 @@ int generate_waypoints_from_seed_probes(const std::vector<int>& seed_indices)
                 continue;
             }
 
+            // Skip generating waypoints on breakable glass — the bot can't walk
+            // there safely after the glass is broken.
+            if (ground_is_breakable_glass(candidate_pos, kBridgeWaypointMaxGroundDistance)) {
+                continue;
+            }
+
             WaypointType generated_type = WaypointType::std_new;
             int generated_subtype = 0;
             int generated_movement_subtype = static_cast<int>(WaypointDroppedSubtype::normal);
@@ -4208,6 +4229,9 @@ bool link_waypoint_if_clear_no_replace(int from, int to)
         return false;
     }
     if (link_segment_passes_through_death_zone(g_waypoints[from].pos, g_waypoints[to].pos)) {
+        return false;
+    }
+    if (trace_segment_hits_breakable_glass(g_waypoints[from].pos, g_waypoints[to].pos)) {
         return false;
     }
 
@@ -5239,6 +5263,70 @@ bool segment_blocked_only_by_geoable_brushes(const rf::Vector3& from, const rf::
     }
 
     return hit_any_geoable;
+}
+
+// Check if the ground below a point is breakable glass.
+bool ground_is_breakable_glass(const rf::Vector3& pos, float max_downward_dist)
+{
+    rf::Vector3 p0 = pos;
+    rf::Vector3 p1 = pos - rf::Vector3{0.0f, max_downward_dist, 0.0f};
+    rf::GCollisionOutput collision{};
+    if (!rf::collide_linesegment_level_solid(
+            p0, p1, kWaypointSolidTraceFlags, &collision)) {
+        return false;
+    }
+    return collision.face
+        && collision.face->which_room
+        && collision.face->which_room->is_breakable_glass();
+}
+
+// Check if a line segment passes through breakable glass.
+bool trace_segment_hits_breakable_glass(const rf::Vector3& from, const rf::Vector3& to)
+{
+    rf::Vector3 segment = to - from;
+    const float segment_length = segment.len();
+    if (segment_length <= kWaypointLinkRadiusEpsilon) {
+        return false;
+    }
+    segment.normalize_safe();
+
+    constexpr int kMaxTraceIterations = 64;
+    constexpr float kTraceAdvanceEpsilon = 0.05f;
+    constexpr float kMinAdvanceDelta = 0.001f;
+
+    rf::Vector3 trace_start = from;
+    float advanced_distance = 0.0f;
+    for (int iteration = 0;
+         iteration < kMaxTraceIterations
+         && advanced_distance + kTraceAdvanceEpsilon < segment_length;
+         ++iteration) {
+        rf::Vector3 p0 = trace_start;
+        rf::Vector3 p1 = to;
+        rf::GCollisionOutput collision{};
+        if (!rf::collide_linesegment_level_solid(
+                p0, p1, kWaypointSolidTraceFlags, &collision)) {
+            return false;
+        }
+
+        if (collision.face && collision.face->which_room
+            && collision.face->which_room->is_breakable_glass()) {
+            return true;
+        }
+
+        const float hit_distance_from_start = (collision.hit_point - from).len();
+        const float next_advanced_distance = std::clamp(
+            hit_distance_from_start + kTraceAdvanceEpsilon,
+            0.0f,
+            segment_length);
+        if (next_advanced_distance <= advanced_distance + kMinAdvanceDelta) {
+            break;
+        }
+
+        advanced_distance = next_advanced_distance;
+        trace_start = from + segment * advanced_distance;
+    }
+
+    return false;
 }
 
 bool compute_blocked_link_wall_midpoint(
@@ -8131,14 +8219,18 @@ bool try_add_waypoint_link_if_clear(int from, int to)
         return false;
     }
 
-    // Reject links that pass through instant death zones.
+    // Reject links that pass through instant death zones or breakable glass.
     if (from > 0 && from < static_cast<int>(g_waypoints.size())
         && to > 0 && to < static_cast<int>(g_waypoints.size())) {
         const auto& from_node = g_waypoints[from];
         const auto& to_node = g_waypoints[to];
-        if (from_node.valid && to_node.valid
-            && link_segment_passes_through_death_zone(from_node.pos, to_node.pos)) {
-            return false;
+        if (from_node.valid && to_node.valid) {
+            if (link_segment_passes_through_death_zone(from_node.pos, to_node.pos)) {
+                return false;
+            }
+            if (trace_segment_hits_breakable_glass(from_node.pos, to_node.pos)) {
+                return false;
+            }
         }
     }
 
