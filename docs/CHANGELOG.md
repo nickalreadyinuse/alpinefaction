@@ -8,6 +8,7 @@ Version 1.4.0 (Lupin): Not yet released
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
 - Add vote-allowed levels to level autodownload list for dedicated servers
+- Add `fflink_gsk` dedicated server config field and `sv_fflink_status` / `sv_fflink_resync` console commands for FactionFiles session key exchange
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `NOT IN ROUND`, `IDLE`, and `SPECTATOR` to spectate UI
