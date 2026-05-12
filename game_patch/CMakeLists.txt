@@ -57,11 +57,15 @@ set(SRCS
     rf/v3d.h
     rf/vmesh.h
     rf/weapon.h
+    bmpman/atx.cpp
+    bmpman/atx.h
     bmpman/dds.cpp
     bmpman/bmpman.cpp
     bmpman/bmpman.h
     bmpman/fmt_conv.cpp
     bmpman/fmt_conv_templates.h
+    bmpman/stb_image_loader.cpp
+    bmpman/stb_image_loader.h
     graphics/bink.cpp
     graphics/gr_font.cpp
     graphics/gr.cpp
@@ -307,8 +311,6 @@ target_include_directories(AlpineFaction PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/xxhash
     ${CMAKE_SOURCE_DIR}/vendor/stb
     ${CMAKE_SOURCE_DIR}/vendor/freetype/include
-    ${CMAKE_SOURCE_DIR}/vendor/dds
-    ${CMAKE_SOURCE_DIR}/vendor/toml++
     ${CMAKE_SOURCE_DIR}/vendor/nlohmann
 )
 
