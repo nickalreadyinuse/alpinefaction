@@ -9,6 +9,7 @@ Version 1.4.0 (Lupin): Not yet released
   - Fine tuned texture animation without being subject to VBM format limitations
   - Accessible to event system via handle for level-driven behaviour scripting
 - Support PNG and JPG texture formats in game and level editor
+- Add Bagman (`BM`) and Team Bagman (`TBM`) game types
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -33,6 +34,7 @@ Version 1.4.0 (Lupin): Not yet released
 - Fix team balance not properly randomizing the distribution order of equal-scoring human players
 - Fix incorrect clickable area size for launcher FFLink button
 - Fix "allow clientside mods from legacy directories" option not applying correctly for DDS files
+- Fix ability to configure invalid values for `individual_kill_limit` in ADS configs
 
 [@is-this-c](https://github.com/is-this-c)
 - Clear cached server config output after a shuffle of a server's rotation
