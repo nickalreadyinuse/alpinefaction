@@ -3822,7 +3822,7 @@ std::tuple<bool, int, bool, bool> server_features_require_alpine_client()
         min_minor_version = std::max(min_minor_version, 2);
     }
 
-    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= 3) {
+    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= rf::NG_TYPE_KOTH) {
         requires_alpine = true;
         hard_reject = true;
         min_minor_version = std::max(min_minor_version, 2);
@@ -3842,6 +3842,12 @@ std::tuple<bool, int, bool, bool> server_features_require_alpine_client()
     if (g_alpine_server_config.alpine_restricted_config.require_d3d11) {
         requires_alpine = true;
         min_minor_version = std::max(min_minor_version, 3);
+    }
+
+    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= rf::NG_TYPE_BM) {
+        requires_alpine = true;
+        hard_reject = true;
+        min_minor_version = std::max(min_minor_version, 4);
     }
 
     return {requires_alpine, min_minor_version, hard_reject, require_release_version};
