@@ -39,6 +39,9 @@ Version 1.4.0 (Lupin): Not yet released
 - Fix "allow clientside mods from legacy directories" option not applying correctly for DDS files
 - Fix `AF_Teleport_Player` event clientside smoothly interpolating the teleported entity position
 - Fix ability to configure invalid values for `individual_kill_limit` in ADS configs
+- Fix dedicated server crash when a non-player entity dies while `spawn_delay` is enabled
+- Fix future game types not being correctly handled by joining clients
+- Fix `Join Server` crash if `favlist.adr` entries have newer game types
 
 [@is-this-c](https://github.com/is-this-c)
 - Clear cached server config output after a shuffle of a server's rotation
