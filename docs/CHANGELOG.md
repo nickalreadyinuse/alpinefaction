@@ -42,6 +42,7 @@ Version 1.4.0 (Lupin): Not yet released
 - Fix dedicated server crash when a non-player entity dies while `spawn_delay` is enabled
 - Fix future game types not being correctly handled by joining clients
 - Fix `Join Server` crash if `favlist.adr` entries have newer game types
+- Fix client crash when a bot targets a player whose name contains `$`
 
 [@is-this-c](https://github.com/is-this-c)
 - Clear cached server config output after a shuffle of a server's rotation
