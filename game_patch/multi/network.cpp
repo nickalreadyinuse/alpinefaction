@@ -172,6 +172,10 @@ std::array g_buffer_overflow_patches{
     BufferOverflowPatch{0x00479FAA, 0x00479FB3, 256}, // process_item_create_packet (item name)
     BufferOverflowPatch{0x0046C590, 0x0046C59B, 256}, // process_rcon_req_packet (password)
     BufferOverflowPatch{0x0046C751, 0x0046C75A, 512}, // process_rcon_packet (command)
+    // These functions are not called anymore, but are patched for completeness.
+    BufferOverflowPatch{0x0047B2D3, 0x0047B2DE, 256}, // process_game_info_packet (server name)
+    BufferOverflowPatch{0x0047B334, 0x0047B33D, 256}, // process_game_info_packet (level name)
+    BufferOverflowPatch{0x0047B38E, 0x0047B397, 256}, // process_game_info_packet (mod name)
 };
 
 // clang-format off
@@ -2158,24 +2162,29 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     },
 };
 
-FunHook<int(const rf::NetAddr&, const rf::JoinRequest*)> check_access_for_new_player_hook {
+FunHook<int(const rf::NetAddr&, const rf::JoinRequest&)> check_access_for_new_player_hook {
     0x0047AE10,
-    [] (const rf::NetAddr& addr, const rf::JoinRequest* const join_req) {
+    [] (const rf::NetAddr& addr, const rf::JoinRequest& join_req) {
         const int reason = check_access_for_new_player_hook.call_target(addr, join_req);
-        if (reason != 0 && rf::is_dedicated_server) {
+
+        // Restore our limbo check.
+        if (!reason && !(rf::multi_server_flags & rf::NG_FLAG_LEVEL_LOADED)) {
+            // Handle `RF_JDR_LEVEL_CHANGING` in `process_join_req_injection`.
+            return 0;
+        }
+
+        if (reason != 0) {
             const RF_JoinDenyReason jdr = static_cast<RF_JoinDenyReason>(reason);
             std::string jdr_str = "unknown";
 
             if (jdr == RF_JoinDenyReason::RF_JDR_INVALID_PASSWORD) {
-                jdr_str = std::format("wrong password '{}'", join_req->password);
+                jdr_str = std::format("wrong password '{}'", join_req.password);
             }  else if (jdr == RF_JoinDenyReason::RF_JDR_BANNED) {
                 jdr_str = "banned";
             } else if (jdr == RF_JoinDenyReason::RF_JDR_SERVER_IS_FULL) {
                 jdr_str = "server full";
             } else if (jdr == RF_JoinDenyReason::RF_JDR_THE_SAME_IP) {
                 jdr_str = "same socket as another player";
-            } else if (jdr == RF_JoinDenyReason::RF_JDR_LEVEL_CHANGING) {
-                jdr_str = "level change in progress";
             } else if (jdr == RF_JoinDenyReason::RF_JDR_DATA_DOESNT_MATCH) {
                 jdr_str = "failed data validation";
             }
@@ -2192,11 +2201,34 @@ FunHook<int(const rf::NetAddr&, const rf::JoinRequest*)> check_access_for_new_pl
 };
 
 static std::tuple<AlpineRestrictVerdict, std::string, bool> check_join_request_restrict_status(
-    ClientSoftware cv, const AlpineFactionJoinReqPacketExt& info)
-{
-    const ClientVersionInfoProfile version_info{cv, info.version_major, info.version_minor, info.version_patch, info.version_type, info.max_rfl_version};
+    const ClientSoftware cv,
+    const AlpineFactionJoinReqPacketExt& info
+) {
+    const ClientVersionInfoProfile version_info{
+        cv,
+        info.version_major,
+        info.version_minor,
+        info.version_patch,
+        info.version_type,
+        info.max_rfl_version
+    };
 
-    const auto [verdict, verdict_string, hard_reject] = evaluate_alpine_restrict_status(version_info, true);
+    const auto [verdict, verdict_string, hard_reject] =
+        evaluate_alpine_restrict_status(version_info, true);
+
+    if (verdict == AlpineRestrictVerdict::ok
+        && !(rf::multi_server_flags & rf::NG_FLAG_LEVEL_LOADED)
+        && (version_info.software != ClientSoftware::AlpineFaction
+            || version_is_older(version_info.major, version_info.minor, 1, 4))
+        && version_info.software != ClientSoftware::Browser) {
+        return {
+            version_info.software != ClientSoftware::AlpineFaction
+                ? AlpineRestrictVerdict::need_alpine
+                : AlpineRestrictVerdict::need_update,
+            "Alpine Faction >=1.4.0 is required to join a server between levels",
+            true
+        };
+    }
 
     return {verdict, verdict_string, hard_reject};
 }
@@ -2223,7 +2255,11 @@ CodeInjection process_join_req_injection{
                 addr,
                 reason
             );
-            regs.eax = 8; // RF_JDR_UNSUPPORTED_VERSION
+            if (!(rf::multi_server_flags & rf::NG_FLAG_LEVEL_LOADED)) {
+                regs.eax = RF_JDR_LEVEL_CHANGING;
+            } else {
+                regs.eax = RF_JDR_UNSUPPORTED_VERSION;
+            }
         }
     },
 };
@@ -3002,6 +3038,8 @@ void network_init()
 
     // print join_req denial reasons
     check_access_for_new_player_hook.install();
+    // Move our limbo check to `check_access_for_new_player_hook`.
+    AsmWriter{0x0047AE64}.nop(6);
 
     // Use port 7755 when hosting a server without 'Force port' option
     multi_start_hook.install();

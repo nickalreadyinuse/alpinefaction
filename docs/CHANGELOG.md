@@ -17,15 +17,17 @@ Version 1.4.0 (Lupin): Not yet released
 - Bump RFL version to 305
 - Add `ATX_Set_Frame`, `ATX_Play`, `ATX_Pause`, `ATX_Set_Frame_Time` events
 - Add vote-allowed levels to level autodownload list for dedicated servers
-- Add `fflink_gsk` dedicated server config field and `sv_fflink_status` / `sv_fflink_resync` console commands for FactionFiles session key exchange
+- Add `fflink_gsk` dedicated server config field and `sv_fflink_status` and `sv_fflink_resync` console commands for FactionFiles session key exchange
 - Make clock clutter objects correctly display the current local real world time
 - Add mini scoreboard HUD element to FFA game types
 
 [@is-this-c](https://github.com/is-this-c)
+- Allow players to join between levels
 - Add `mp_join_flash` console command to flash your window upon player joins, if your window is out of focus
 - Rename `mp_notifyonjoin` console command to `mp_join_beep`
-- Disable `Refresh Selected` in the server browser, only if `Refresh Selected` was pressed
-- Never disable `Add Server` in the server browser
+- Server browser
+  - Disable `Refresh Selected`, only if `Refresh Selected` was pressed
+  - Never disable `Add Server`
 - Add `NOT IN ROUND`, `IDLE`, and `SPECTATOR` to the spectate UI
 - Remote server config UI
   - Add `Net FPS` and `Target FPS`
