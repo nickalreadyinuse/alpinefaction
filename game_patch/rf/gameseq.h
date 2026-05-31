@@ -31,7 +31,7 @@ namespace rf
         GS_CREDITS = 0x17,
         GS_BOMB_DEFUSE = 0x18,
         GS_MULTI_LEVEL_DOWNLOAD = 0x19, // unused by the base game
-        GS_MULTI_LIMBO_JUST_JOINED = 0x1A, // unused
+        GS_MULTI_LIMBO_JUST_JOINED = 0x1A, // unused by the base game
         GS_1B = 0x1B, // unused
         GS_1C = 0x1C, // unused
         GS_1D = 0x1D, // unused
