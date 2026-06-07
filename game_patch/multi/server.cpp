@@ -818,11 +818,11 @@ std::optional<rf::NetGameType> resolve_gametype_from_name(std::string_view gamet
     if (string_iequals(gametype_name, "esc")) {
         return rf::NetGameType::NG_TYPE_ESC;
     }
-    if (string_iequals(gametype_name, "bm") || string_iequals(gametype_name, "bagman")) {
-        return rf::NetGameType::NG_TYPE_BM;
+    if (string_iequals(gametype_name, "bag") || string_iequals(gametype_name, "bm")) {
+        return rf::NetGameType::NG_TYPE_BAG;
     }
-    if (string_iequals(gametype_name, "tbm") || string_iequals(gametype_name, "team_bagman")) {
-        return rf::NetGameType::NG_TYPE_TBM;
+    if (string_iequals(gametype_name, "tbag") || string_iequals(gametype_name, "tbm")) {
+        return rf::NetGameType::NG_TYPE_TBAG;
     }
 
     return std::nullopt;
@@ -906,7 +906,7 @@ ConsoleCommand2 sv_game_type_cmd{
         }
     },
     "Load a specific gametype. Loads level if specificed, otherwise restarts current level. Only available for ADS dedicated servers.",
-    "sv_gametype <dm|tdm|ctf|koth|dc|rev> [level]",
+    "sv_gametype <dm|tdm|ctf|koth|dc|rev|run|esc|bag|tbag> [level]",
 };
 
 DcCommandAlias gt_cmd{
@@ -2661,8 +2661,8 @@ bool round_is_tied(rf::NetGameType game_type)
 
     switch (game_type) {
     case rf::NG_TYPE_DM:
-    case rf::NG_TYPE_BM: {
-        // DM and BM have the same tie condition: two or more players share the highest score.
+    case rf::NG_TYPE_BAG: {
+        // DM and BAG have the same tie condition: two or more players share the highest score.
         const auto current_players = get_clients(false, true);
 
         if (current_players.empty())
@@ -2773,7 +2773,7 @@ bool round_is_tied(rf::NetGameType game_type)
 
         return false;
     }
-    case rf::NG_TYPE_TBM: {
+    case rf::NG_TYPE_TBAG: {
         return bagman_get_red_team_score() == bagman_get_blue_team_score();
     }
     default: // other modes (e.g. RUN) can't be tied
@@ -2868,10 +2868,10 @@ FunHook<void()> multi_check_for_round_end_hook{
                 }
                 break;
             }
-            case rf::NG_TYPE_BM: {
+            case rf::NG_TYPE_BAG: {
                 auto current_players = get_clients(false, true);
                 if (current_players.empty()) break;
-                const int limit = g_alpine_server_config_active_rules.bagman.bm_score_limit;
+                const int limit = g_alpine_server_config_active_rules.bagman.bag_score_limit;
                 for (rf::Player* player : current_players) {
                     if (player->stats->score >= limit) {
                         round_over = true;
@@ -2880,8 +2880,8 @@ FunHook<void()> multi_check_for_round_end_hook{
                 }
                 break;
             }
-            case rf::NG_TYPE_TBM: {
-                const int limit = g_alpine_server_config_active_rules.bagman.tbm_score_limit;
+            case rf::NG_TYPE_TBAG: {
+                const int limit = g_alpine_server_config_active_rules.bagman.tbag_score_limit;
                 if (bagman_get_red_team_score() >= limit ||
                     bagman_get_blue_team_score() >= limit) {
                     round_over = true;
@@ -3842,7 +3842,7 @@ std::tuple<bool, int, bool, bool> server_features_require_alpine_client()
         min_minor_version = std::max(min_minor_version, 3);
     }
 
-    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= rf::NG_TYPE_BM) {
+    if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= rf::NG_TYPE_BAG) {
         requires_alpine = true;
         hard_reject = true;
         min_minor_version = std::max(min_minor_version, 4);
