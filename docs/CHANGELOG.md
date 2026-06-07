@@ -45,6 +45,7 @@ Version 1.4.0 (Lupin): Not yet released
 - Fix future game types not being correctly handled by joining clients
 - Fix `Join Server` crash if `favlist.adr` entries have newer game types
 - Fix client crash when a bot targets a player whose name contains `$`
+- Fix crash when a collision query targets an object whose mesh failed to load
 
 [@is-this-c](https://github.com/is-this-c)
 - Clear cached server config output after a shuffle of a server's rotation
