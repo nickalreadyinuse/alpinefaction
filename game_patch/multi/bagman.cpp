@@ -210,7 +210,8 @@ void spawn_bag_item(const rf::Vector3& pos, rf::Matrix3& orient)
         return;
     }
 
-    item->item_flags |= rf::IF_DROPPED | rf::IF_NO_PICKUP;
+    // IF_PERMANENT exempts the bag from being culled
+    item->item_flags |= rf::IF_DROPPED | rf::IF_NO_PICKUP | rf::IF_PERMANENT;
     g_bagman_info.bag_item_handle = item->handle;
     g_bagman_info.pickup_unlock_timer.set(kBagPickupUnlockDelayMs);
 
