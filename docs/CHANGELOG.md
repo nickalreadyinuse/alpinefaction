@@ -28,6 +28,8 @@ Version 1.4.0 (Lupin): Not yet released
 - Add HUD notification messages via `AF_SERVER_MSG_TYPE_HUD_NOTIFICATION` server message type
 - Add server-initiated HUD countdown via `AF_SERVER_MSG_TYPE_ROUND_COUNTDOWN` server message type
 - Add server-initiated custom sound play via `AF_SERVER_MSG_TYPE_PLAY_CUSTOM_SOUND` server message type
+- Add per-type object count next to each entry in the `Show In List` filter in the editor's Select Objects and Show/Hide Objects windows
+- Add `Sort` options (by name or by UID, with an optional `Group by type` toggle) to the editor's Select Objects and Show/Hide Objects windows
 
 [@is-this-c](https://github.com/is-this-c)
 - Allow players to join between levels
