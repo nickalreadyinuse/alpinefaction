@@ -30,6 +30,8 @@ Version 1.4.0 (Lupin): Not yet released
 - Add server-initiated custom sound play via `AF_SERVER_MSG_TYPE_PLAY_CUSTOM_SOUND` server message type
 - Add per-type object count next to each entry in the `Show In List` filter in the editor's Select Objects and Show/Hide Objects windows
 - Add `Sort` options (by name or by UID, with an optional `Group by type` toggle) to the editor's Select Objects and Show/Hide Objects windows
+- Add `camera4` console command for static camera in single player
+- Add `camera5` console command for tripod (follow player) camera in single player
 
 [@is-this-c](https://github.com/is-this-c)
 - Allow players to join between levels
@@ -58,6 +60,7 @@ Version 1.4.0 (Lupin): Not yet released
 - Fix crash when a collision query targets an object whose mesh failed to load
 - Fix skybox rendering issues with Direct3D 11 renderer on community level `ctf-stronghold.rfl`
 - Fix unbounded read when a request to play a sound above `g_num_sounds` is made
+- Fix camera angle snapping when switching between free look and third person camera modes
 
 [@is-this-c](https://github.com/is-this-c)
 - Clear cached server config output after a shuffle of a server's rotation
