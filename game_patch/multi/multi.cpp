@@ -114,9 +114,11 @@ static bool find_head_csphere_pos(const rf::Entity* entity, rf::Vector3* out_pos
     if (num <= 0)
         return false;
 
-    // During lag comp, use rewound p_data pos/orient; otherwise use live entity pos/orient
-    const rf::Vector3& transform_pos = s_in_lag_comp_raycast ? entity->p_data.pos : entity->pos;
-    const rf::Matrix3& transform_orient = s_in_lag_comp_raycast ? entity->p_data.orient : entity->orient;
+    // During lag comp, use rewound p_data pos/orient; otherwise use live entity pos/orient.
+    // Local copies: vmesh_get_csphere_pos takes non-const pointers, so copying avoids casting away
+    // const and guarantees the engine cannot mutate live/rewound entity state through them.
+    rf::Vector3 transform_pos = s_in_lag_comp_raycast ? entity->p_data.pos : entity->pos;
+    rf::Matrix3 transform_orient = s_in_lag_comp_raycast ? entity->p_data.orient : entity->orient;
 
     // Find the csphere with highest world-space Y
     int highest_y_index = -1;
@@ -126,8 +128,7 @@ static bool find_head_csphere_pos(const rf::Entity* entity, rf::Vector3* out_pos
     for (int i = 0; i < num; i++) {
         rf::Vector3 pos;
         if (rf::vmesh_get_csphere_pos(entity->vmesh, i, &pos,
-                const_cast<rf::Vector3*>(&transform_pos),
-                const_cast<rf::Matrix3*>(&transform_orient))) {
+                &transform_pos, &transform_orient)) {
             if (pos.y > highest_y) {
                 highest_y = pos.y;
                 highest_y_index = i;
@@ -170,8 +171,7 @@ static bool find_head_csphere_pos(const rf::Entity* entity, rf::Vector3* out_pos
         if (cached_index >= 0 && cached_index < num) {
             rf::Vector3 cached_pos;
             if (rf::vmesh_get_csphere_pos(entity->vmesh, cached_index, &cached_pos,
-                    const_cast<rf::Vector3*>(&transform_pos),
-                    const_cast<rf::Matrix3*>(&transform_orient))) {
+                    &transform_pos, &transform_orient)) {
                 *out_pos = cached_pos;
                 get_csphere_radius(cached_index, out_radius);
                 return true;
@@ -273,6 +273,9 @@ static bool ix_ray_sphere(const rf::Vector3& ray_origin, const rf::Vector3& ray_
     float oz = ray_origin.z - center.z;
 
     float a = ray_dir.x * ray_dir.x + ray_dir.y * ray_dir.y + ray_dir.z * ray_dir.z;
+    if (a < 1e-12f) // degenerate (zero-length ray) — avoid divide-by-zero / NaN
+        return false;
+
     float b = 2.0f * (ox * ray_dir.x + oy * ray_dir.y + oz * ray_dir.z);
     float c = ox * ox + oy * oy + oz * oz - radius * radius;
 
