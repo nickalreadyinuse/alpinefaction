@@ -32,6 +32,7 @@
 #include "server_internal.h"
 #include "bots/bot_chat_manager.h"
 #include "../main/main.h"
+#include "../os/os.h"
 #include "../hud/hud.h"
 #include "../hud/multi_spectate.h"
 #include "../rf/multi.h"
@@ -45,6 +46,7 @@
 #include "../rf/os/timer.h"
 #include "../rf/geometry.h"
 #include "../rf/level.h"
+#include "../rf/ui.h"
 #include "../misc/misc.h"
 #include "../misc/player.h"
 #include "../misc/alpine_settings.h"
@@ -61,6 +63,25 @@
 #endif
 
 static constexpr int CLIENT_NET_FPS = 30;
+
+// Popup shown when the user attempts to join a server whose game type this build doesn't recognize.
+static void show_unsupported_game_type_popup()
+{
+    rf::ui::popup_message(
+        "Update Required",
+        "This server is running a game type that your version of Alpine\n"
+        "Faction doesn't support. Visit alpinefaction.com to update.",
+        nullptr,
+        false);
+}
+
+// Lightweight cancel sequence for an in-progress join.
+// Stock cancel path (0x0044B9A0) does this, but also kicks off a server list refresh.
+static void cancel_pending_join()
+{
+    rf::multi_clear_current_server_addr();
+    rf::multi_join_in_progress = false;
+}
 
 ClientSoftware g_joining_client_version = ClientSoftware::Unknown;
 AlpineFactionJoinReqPacketExt g_joining_player_info{};
@@ -151,6 +172,10 @@ std::array g_buffer_overflow_patches{
     BufferOverflowPatch{0x00479FAA, 0x00479FB3, 256}, // process_item_create_packet (item name)
     BufferOverflowPatch{0x0046C590, 0x0046C59B, 256}, // process_rcon_req_packet (password)
     BufferOverflowPatch{0x0046C751, 0x0046C75A, 512}, // process_rcon_packet (command)
+    // These functions are not called anymore, but are patched for completeness.
+    BufferOverflowPatch{0x0047B2D3, 0x0047B2DE, 256}, // process_game_info_packet (server name)
+    BufferOverflowPatch{0x0047B334, 0x0047B33D, 256}, // process_game_info_packet (level name)
+    BufferOverflowPatch{0x0047B38E, 0x0047B397, 256}, // process_game_info_packet (mod name)
 };
 
 // clang-format off
@@ -227,7 +252,8 @@ enum packet_type : uint8_t {
     af_spectate_notify     = 0x5C,
     af_server_msg          = 0x5D,
     af_server_req          = 0x5E,
-    af_server_bot_control  = 0x5F
+    af_server_bot_control  = 0x5F,
+    af_bagman_state        = 0x60
 };
 
 // client -> server
@@ -312,7 +338,8 @@ std::array g_client_side_packet_whitelist{
     af_spectate_notify,
     af_server_msg,
     af_server_req,
-    af_server_bot_control
+    af_server_bot_control,
+    af_bagman_state
 };
 // clang-format on
 
@@ -595,7 +622,10 @@ FunHook<MultiIoPacketHandler> process_game_info_packet_hook{
         char name[256]{};
         if (!read_string(name, sizeof(name))) { clear_extra(); return; }
         if (end - r < 3) { clear_extra(); return; }
-        uint8_t game_type = std::clamp<uint8_t>(*r++, 0, 7);
+        // Values from newer-protocol servers show as UNK
+        const uint8_t raw_game_type = *r++;
+        const bool unknown_game_type = raw_game_type >= RF_GT_UNK;
+        const uint8_t game_type = std::min<uint8_t>(raw_game_type, RF_GT_UNK);
         uint8_t players = *r++;
         uint8_t max_players = *r++;
 
@@ -642,6 +672,7 @@ FunHook<MultiIoPacketHandler> process_game_info_packet_hook{
                     extra.num_human_players = *ext_r++;
                     extra.num_browsers = *ext_r++;
                     extra.num_total_clients = *ext_r++;
+                    extra.unknown_game_type = unknown_game_type;
                     g_server_browser_extra[key] = std::move(extra);
                     parsed = true;
                 }
@@ -673,13 +704,24 @@ FunHook<MultiIoPacketHandler> process_game_info_packet_hook{
                 if (ext_r < footer_start)
                     extra.level_filename.assign(
                         reinterpret_cast<const char*>(fname_start), ext_r - fname_start);
+                extra.unknown_game_type = unknown_game_type;
                 g_server_browser_extra[key] = std::move(extra);
                 parsed = true;
             }
         }
 
-        if (!parsed)
-            clear_extra();
+        if (!parsed) {
+            if (unknown_game_type) {
+                // No AF extension on the wire, but the server is reporting a
+                // game type this build doesn't recognize.
+                // This should never be possible under normal circumstances,
+                // but the guard is very cheap and safer.
+                g_server_browser_extra[key].unknown_game_type = true;
+            }
+            else {
+                clear_extra();
+            }
+        }
 
         // Update netgame name if this is from the connected server
         if (addr == rf::netgame.server_addr) {
@@ -705,10 +747,25 @@ FunHook<MultiIoPacketHandler> process_join_deny_packet_hook{
 
 FunHook<MultiIoPacketHandler> process_new_player_packet_hook{
     0x0047A580,
-    [](char* data, const rf::NetAddr& addr) {
-        if (GetForegroundWindow() != rf::main_wnd && g_alpine_game_config.player_join_beep)
-            Beep(750, 300);
+    [] (char* const data, const rf::NetAddr& addr) {
         process_new_player_packet_hook.call_target(data, addr);
+        if (!rf::is_server && !is_headless_mode() && GetForegroundWindow() != rf::main_wnd) {
+            if (g_alpine_game_config.player_join_beep) {
+                try {
+                    std::thread{[] {
+                        Beep(750, 300);
+                    }}
+                    .detach();
+                }
+                catch (const std::exception& e) {
+                    xlog::error("Failed to start player join beep thread: {}", e.what());
+                }
+            }
+
+            if (g_alpine_game_config.player_join_flash) {
+                wnd_set_flash(rf::main_wnd);
+            }
+        }
     },
 };
 
@@ -735,11 +792,11 @@ static void verify_player_id_in_packet(char* player_id_ptr, const rf::NetAddr& a
 
 FunHook<MultiIoPacketHandler> process_left_game_packet_hook{
     0x0047BBC0,
-    [](char* data, const rf::NetAddr& addr) {
+    [] (char* const data, const rf::NetAddr& addr) {
         // server-side and client-side
         verify_player_id_in_packet(&data[0], addr, "left_game");
 
-        if (!rf::is_server && !rf::is_dedicated_server) {
+        if (!rf::is_server) {
             rf::Player* const player = rf::multi_find_player_by_id(data[0]);
             if (player) {
                 g_local_player_spectators.erase(player);
@@ -1456,6 +1513,17 @@ enum JoinReqTlv : uint8_t {
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [] (const rf::NetAddr* const addr, std::byte* const data, const size_t len) {
+        // If this server's browser entry says its game type is one we don't
+        // recognize, block the join here before any packet goes out.
+        if (addr) {
+            const AFGameInfoExtra* extra = get_server_browser_extra(*addr);
+            if (extra && extra->unknown_game_type) {
+                cancel_pending_join();
+                show_unsupported_game_type_popup();
+                return 0;
+            }
+        }
+
         const bool session_client_bot_mode = client_bot_launch_enabled();
 
         // Add Alpine Faction info to join_req packet
@@ -1657,6 +1725,49 @@ static bool parse_join_accept_af_ext(const uint8_t* payload, size_t payload_len,
     std::memcpy(&out, p, copy_len);
     return out.af_signature == ALPINE_FACTION_SIGNATURE;
 }
+
+// Gate process_join_accept_packet so the engine never assigns an unknown
+// game type to rf::netgame.type. Covers cases the browser-side gate can't.
+// Examples: direct connect and stale browser entries.
+FunHook<MultiIoPacketHandler> process_join_accept_unsupported_gt_guard{
+    0x0047A840,
+    [](char* data, const rf::NetAddr& addr) {
+        if (data) {
+            uint16_t payload_len = 0;
+            std::memcpy(&payload_len, data - 2, sizeof(payload_len));
+
+            const uint8_t* payload = reinterpret_cast<const uint8_t*>(data);
+            const uint8_t* end = payload + payload_len;
+            const uint8_t* p = payload;
+
+            // Skip null-terminated level filename
+            while (p < end && *p != 0) ++p;
+            if (p < end) {
+                ++p; // skip null terminator
+                if (static_cast<size_t>(end - p) >= sizeof(RF_JoinAcceptRest)) {
+                    RF_JoinAcceptRest rest;
+                    std::memcpy(&rest, p, sizeof(rest));
+                    if (rest.game_type >= RF_GT_UNK) {
+                        // Cache the result. The server browser only sends
+                        // game_info_req to tracker-discovered servers, so a
+                        // server reached via -url / direct-connect won't have
+                        // an entry.
+                        AFGameInfoExtra cached{};
+                        cached.unknown_game_type = true;
+                        g_server_browser_extra[addr_key(addr)] = std::move(cached);
+
+                        cancel_pending_join();
+                        rf::multi_stop();
+                        show_unsupported_game_type_popup();
+                        rf::gameseq_set_state(rf::GS_MAIN_MENU, false);
+                        return;
+                    }
+                }
+            }
+        }
+        process_join_accept_unsupported_gt_guard.call_target(data, addr);
+    },
+};
 
 CodeInjection process_join_accept_injection{
     0x0047A979,
@@ -2055,24 +2166,23 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
     },
 };
 
-FunHook<int(const rf::NetAddr&, const rf::JoinRequest*)> check_access_for_new_player_hook {
+FunHook<int(const rf::NetAddr&, const rf::JoinRequest&)> check_access_for_new_player_hook {
     0x0047AE10,
-    [] (const rf::NetAddr& addr, const rf::JoinRequest* const join_req) {
+    [] (const rf::NetAddr& addr, const rf::JoinRequest& join_req) {
         const int reason = check_access_for_new_player_hook.call_target(addr, join_req);
-        if (reason != 0 && rf::is_dedicated_server) {
+
+        if (reason != 0) {
             const RF_JoinDenyReason jdr = static_cast<RF_JoinDenyReason>(reason);
             std::string jdr_str = "unknown";
 
             if (jdr == RF_JoinDenyReason::RF_JDR_INVALID_PASSWORD) {
-                jdr_str = std::format("wrong password '{}'", join_req->password);
+                jdr_str = std::format("wrong password '{}'", join_req.password);
             }  else if (jdr == RF_JoinDenyReason::RF_JDR_BANNED) {
                 jdr_str = "banned";
             } else if (jdr == RF_JoinDenyReason::RF_JDR_SERVER_IS_FULL) {
                 jdr_str = "server full";
             } else if (jdr == RF_JoinDenyReason::RF_JDR_THE_SAME_IP) {
                 jdr_str = "same socket as another player";
-            } else if (jdr == RF_JoinDenyReason::RF_JDR_LEVEL_CHANGING) {
-                jdr_str = "level change in progress";
             } else if (jdr == RF_JoinDenyReason::RF_JDR_DATA_DOESNT_MATCH) {
                 jdr_str = "failed data validation";
             }
@@ -2089,11 +2199,34 @@ FunHook<int(const rf::NetAddr&, const rf::JoinRequest*)> check_access_for_new_pl
 };
 
 static std::tuple<AlpineRestrictVerdict, std::string, bool> check_join_request_restrict_status(
-    ClientSoftware cv, const AlpineFactionJoinReqPacketExt& info)
-{
-    const ClientVersionInfoProfile version_info{cv, info.version_major, info.version_minor, info.version_patch, info.version_type, info.max_rfl_version};
+    const ClientSoftware cv,
+    const AlpineFactionJoinReqPacketExt& info
+) {
+    const ClientVersionInfoProfile version_info{
+        cv,
+        info.version_major,
+        info.version_minor,
+        info.version_patch,
+        info.version_type,
+        info.max_rfl_version
+    };
 
-    const auto [verdict, verdict_string, hard_reject] = evaluate_alpine_restrict_status(version_info, true);
+    const auto [verdict, verdict_string, hard_reject] =
+        evaluate_alpine_restrict_status(version_info, true);
+
+    if (verdict == AlpineRestrictVerdict::ok
+        && !(rf::multi_server_flags & rf::NG_FLAG_LEVEL_LOADED)
+        && (version_info.software != ClientSoftware::AlpineFaction
+            || version_is_older(version_info.major, version_info.minor, 1, 4))
+        && version_info.software != ClientSoftware::Browser) {
+        return {
+            version_info.software != ClientSoftware::AlpineFaction
+                ? AlpineRestrictVerdict::need_alpine
+                : AlpineRestrictVerdict::need_update,
+            "Alpine Faction >=1.4.0 is required to join a server between levels",
+            true
+        };
+    }
 
     return {verdict, verdict_string, hard_reject};
 }
@@ -2120,7 +2253,11 @@ CodeInjection process_join_req_injection{
                 addr,
                 reason
             );
-            regs.eax = 8; // RF_JDR_UNSUPPORTED_VERSION
+            if (!(rf::multi_server_flags & rf::NG_FLAG_LEVEL_LOADED)) {
+                regs.eax = RF_JDR_LEVEL_CHANGING;
+            } else {
+                regs.eax = RF_JDR_UNSUPPORTED_VERSION;
+            }
         }
     },
 };
@@ -2773,6 +2910,78 @@ void clear_server_browser_extra()
     g_server_browser_extra.clear();
 }
 
+// Kill the zero-timeout select() that stock net_send runs before every sendto.
+// No-op for valid traffic. Helps mitigate performance issues on dedicated servers running via
+// Wine. Under Wine >= 6.12 each select() is a full wineserver round trip, so returning 1
+// (writable) unconditionally removes one RPC per outbound packet with no behavior change.
+FunHook<int()> net_select_for_write_hook{
+    0x00528780,
+    [] { return 1; },
+};
+
+// Reimplementation of the stock recv pump that drops the per-packet select(), fixes performance
+// issues on dedicated servers running via Wine.
+FunHook<void()> net_receive_packets_hook{
+    0x00529A80,
+    [] {
+        rf::net_stats_update();
+
+        uint8_t buf[0x2A8];
+        while (true) {
+            sockaddr_in from;
+            int from_len = sizeof(sockaddr_in);
+            const int len = recvfrom(static_cast<SOCKET>(rf::net_udp_socket), reinterpret_cast<char*>(buf),
+                sizeof(buf), 0, reinterpret_cast<sockaddr*>(&from), &from_len);
+            if (len == -1) {
+                // WSAEWOULDBLOCK once drained (or a genuine error); stock also ended the drain
+                // on any recvfrom == -1.
+                return;
+            }
+            if (len == 0) {
+                // A zero-length UDP datagram is never a valid RF packet (every packet carries a
+                // type byte). Stock passed len - 1 == -1 to the queue push, underflowing its copy
+                // length into an unbounded REP MOVSD (crash/DoS vector); skip it and keep draining.
+                continue;
+            }
+
+            rf::NetAddr addr{};
+            addr.ip_addr.inner = ntohl(from.sin_addr.s_addr);
+            addr.port = ntohs(from.sin_port);
+
+            const unsigned type = buf[0];
+            if (type < 3) {
+                rf::net_stats_add(len, 0, 0, type == 1);
+                rf::net_stats_add(0x1E, 1, 0, type == 1);
+                rf::net_packet_queue_push(rf::net_packet_queues[type], buf + 1, len - 1, &addr);
+            }
+        }
+    },
+};
+
+// Stock socket setup caps SO_RCVBUF at 32 KB, which overflows within a few hundred ms
+// at 30-player packet rates and triggers reliable-retransmit cascades. Raise it to 256 KB after
+// init (deliberately bounded so a post-stall backlog of stale packets stays small). Linux clamps
+// the request to net.core.rmem_max, so log what the socket actually accepted.
+FunHook<void(unsigned short)> net_init_socket_hook{
+    0x00528F10,
+    [](unsigned short port) {
+        net_init_socket_hook.call_target(port);
+        if (rf::net_udp_socket != -1) {
+            int rcvbuf = 0x40000; // 256 KB
+            if (setsockopt(static_cast<SOCKET>(rf::net_udp_socket), SOL_SOCKET, SO_RCVBUF,
+                    reinterpret_cast<const char*>(&rcvbuf), sizeof(rcvbuf)) != 0) {
+                xlog::warn("Failed to raise UDP socket receive buffer ({})", WSAGetLastError());
+            }
+            int actual = 0;
+            int actual_len = sizeof(actual);
+            if (getsockopt(static_cast<SOCKET>(rf::net_udp_socket), SOL_SOCKET, SO_RCVBUF,
+                    reinterpret_cast<char*>(&actual), &actual_len) == 0) {
+                xlog::info("UDP socket receive buffer set to {} bytes", actual);
+            }
+        }
+    },
+};
+
 void network_init()
 {
     // Support af_obj_update packet
@@ -2889,6 +3098,7 @@ void network_init()
     process_join_req_packet_hook.install();
     process_join_req_injection.install();
     send_join_accept_packet_hook.install();
+    process_join_accept_unsupported_gt_guard.install();
     process_join_accept_injection.install();
     process_join_accept_send_game_info_req_injection.install();
     multi_stop_hook.install();
@@ -2898,6 +3108,8 @@ void network_init()
 
     // print join_req denial reasons
     check_access_for_new_player_hook.install();
+    // Move our limbo check to `check_join_request_restrict_status`.
+    AsmWriter{0x0047AE64}.nop(6);
 
     // Use port 7755 when hosting a server without 'Force port' option
     multi_start_hook.install();
@@ -2957,4 +3169,10 @@ void network_init()
     // Drain queues of reliable packets.
     multi_io_do_frame_hook.install();
     psnet_rel_close_socket_hook.install();
+
+    // Reduce wineserver RPC load for dedicated servers under Wine: drop the redundant per-packet
+    // select() on both the send and receive paths, and raise the receive buffer above 32 KB.
+    net_select_for_write_hook.install();
+    net_receive_packets_hook.install();
+    net_init_socket_hook.install();
 }

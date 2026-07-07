@@ -9,6 +9,10 @@ Version 1.4.0 (Lupin): Not yet released
   - Fine tuned texture animation without being subject to VBM format limitations
   - Accessible to event system via handle for level-driven behaviour scripting
 - Support PNG and JPG texture formats in game and level editor
+- Add new multiplayer game types:
+  - Bagman (`BAG`)
+  - Team Bagman (`TBAG`)
+  - Last Miner Standing (`LMS`)
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -16,12 +20,37 @@ Version 1.4.0 (Lupin): Not yet released
 - Bump RFL version to 305
 - Add `ATX_Set_Frame`, `ATX_Play`, `ATX_Pause`, `ATX_Set_Frame_Time` events
 - Add vote-allowed levels to level autodownload list for dedicated servers
-- Add `fflink_gsk` dedicated server config field and `sv_fflink_status` / `sv_fflink_resync` console commands for FactionFiles session key exchange
+- Add `fflink_gsk` dedicated server config field and `sv_fflink_status` and `sv_fflink_resync` console commands for FactionFiles session key exchange
 - Make clock clutter objects correctly display the current local real world time
+- Add mini scoreboard HUD element to FFA game types
+- Add support for round-based game types
+- Add dedicated server config fields `max_rounds`, `round_time`, `post_round_time`, and `intermission_time`
+- Add HUD notification messages via `AF_SERVER_MSG_TYPE_HUD_NOTIFICATION` server message type
+- Add server-initiated HUD countdown via `AF_SERVER_MSG_TYPE_ROUND_COUNTDOWN` server message type
+- Add server-initiated custom sound play via `AF_SERVER_MSG_TYPE_PLAY_CUSTOM_SOUND` server message type
+- Add per-type object count next to each entry in the `Show In List` filter in the editor's Select Objects and Show/Hide Objects windows
+- Add `Sort` options (by name or by UID, with an optional `Group by type` toggle) to the editor's Select Objects and Show/Hide Objects windows
+- Add `camera4` console command for static camera in single player
+- Add `camera5` console command for tripod (follow player) camera in single player
+- Remove the redundant per-packet `select()` before each `net_send` and in the packet receive pump, reducing dedicated server network syscall overhead (and wineserver round trips on Linux)
+- Raise the UDP socket `SO_RCVBUF` from 32 KB to 256 KB to reduce reliable-packet retransmit cascades on busy dedicated servers
+- Batch win32 console writes and throttle console input line reprints to reduce dedicated server console API overhead
+- Use `Sleep` instead of a waitable timer in `wait_for` when running under Wine to reduce dedicated server CPU load
+- Automatically enable the win32 console for dedicated servers running under Wine
+- Gather `af_obj_update` packet data once per frame instead of once per recipient and reuse packet buffers
+- Add full_admin profile rcon access to `maxfps` and `sv_netfps` commands
+- Require a fresh `Alt` press to kill an unresponsive process
 
 [@is-this-c](https://github.com/is-this-c)
-- Disable `Refresh Selected` in the server browser, only if `Refresh Selected` was pressed
-- Never disable `Add Server` in the server browser
+- Add `Anti-aliasing` option to `ADVANCED` options panel
+- Add `r_antialiasing_mode` console command to set anti-aliasing mode at run-time
+- Rename `antialiasing` console command to `r_antialiasing`
+- Allow players to join between levels
+- Add `mp_join_flash` console command to flash your window upon player joins, if your window is out of focus
+- Rename `mp_notifyonjoin` console command to `mp_join_beep`
+- Server browser
+  - Disable `Refresh Selected`, only if `Refresh Selected` was pressed
+  - Never disable `Add Server`
 - Add `NOT IN ROUND`, `IDLE`, and `SPECTATOR` to the spectate UI
 - Remote server config UI
   - Add `Net FPS` and `Target FPS`
@@ -31,17 +60,34 @@ Version 1.4.0 (Lupin): Not yet released
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add hybrid (sphere, capsule, cylinder) hitbox system with bone tracking for torso and head
 
+[@AL2009man](https://github.com/AL2009man)
+- Add support for binding controls to additional mouse buttons and `Alt` keys
+
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix team balance not properly randomizing the distribution order of equal-scoring human players
 - Fix incorrect clickable area size for launcher FFLink button
 - Fix "allow clientside mods from legacy directories" option not applying correctly for DDS files
+- Fix `AF_Teleport_Player` event clientside smoothly interpolating the teleported entity position
+- Fix ability to configure invalid values for `individual_kill_limit` in ADS configs
+- Fix dedicated server crash when a non-player entity dies while `spawn_delay` is enabled
+- Fix future game types not being correctly handled by joining clients
+- Fix `Join Server` crash if `favlist.adr` entries have newer game types
+- Fix client crash when a bot targets a player whose name contains `$`
+- Fix crash when a collision query targets an object whose mesh failed to load
+- Fix skybox rendering issues with Direct3D 11 renderer on community level `ctf-stronghold.rfl`
+- Fix unbounded read when a request to play a sound above `g_num_sounds` is made
+- Fix camera angle snapping when switching between free look and third person camera modes
+- Fix a server crash that could be triggered by a zero-length UDP packet in the packet receive pump
 
 [@is-this-c](https://github.com/is-this-c)
 - Clear cached server config output after a shuffle of a server's rotation
 - For `Refresh Selected`, re-enable `Get Servers` etc. immediately upon response instead of waiting for timeout
 - Disable weapon cycle selection, if `Mouse 3` is pressed
 - For `Run` games, rename `Score` column to `Deaths`, and compare `Loads` in `std::ranges::sort`
+
+[@AL2009man](https://github.com/AL2009man)
+- Fix brief game freeze whenever an `Alt` key is pressed
 
 Version 1.3.0 (Bakeapple): Released Apr-22-2026
 --------------------------------
@@ -59,14 +105,14 @@ Version 1.3.0 (Bakeapple): Released Apr-22-2026
   - Support `Alpha` field in `Decal` objects placed in version >= 304 levels
   - Support movers, meshes, and mesh pixel lighting in skyboxes
   - Support gas regions
-- Expanded destruction capabilities available to developers
+- Expand destruction capabilities available to developers
   - `Brush-based geomod` switch added to level properties; if true, use level hardness for geoable brushes (RF2-style)
   - Geo regions allow traditional world-based geomod to be used even when brush-based switch is true
   - `Is Geoable` flag added to brush properties
   - Support for rock, wood, cement, metal, and ice breakable detail brushes
   - Add dynamic debris generation from breakable detail brushes
   - `No Debris` flag added to brush properties for breakable detail brushes
-- Added new object types
+- Add new object types
   - `Mesh` for configuring custom static, skeletal, or animated meshes in levels
   - `Corona` for configuring custom glare effects in levels
   - `Note` for leaving important information in levels (editor only)

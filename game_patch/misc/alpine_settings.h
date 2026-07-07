@@ -162,6 +162,7 @@ struct AlpineGameSettings
     bool af_branding = true;
     int seasonal_effect = 1; // 0=none, 1=auto, 2=always_snow
     bool player_join_beep = false;
+    bool player_join_flash = true;
     bool full_range_lighting = true;
     bool always_clamp_official_lightmaps = false;
     bool ignore_tbl_vertex_lighting = false;
@@ -212,6 +213,10 @@ struct AlpineGameSettings
     bool autodl_download_awps = false;
     bool hide_chat = false;
     bool spectate_cinematic_mode = false;
+
+    // MSAA anti-aliasing
+    // 1 = disabled, 2/4/8 = MSAA level
+    uint32_t sample_count = 1;
 
     // hud color overrides
     std::optional<uint32_t> sniper_scope_color_override{};

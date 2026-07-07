@@ -5,6 +5,7 @@
 #include <variant>
 #include <vector>
 #include <optional>
+#include <string>
 #include <string_view>
 
 enum class ChatMenuType : int
@@ -15,6 +16,17 @@ enum class ChatMenuType : int
     Commands,
     Spectate
 };
+
+enum class HudNotificationType : int
+{
+    None = 0,
+    ReadyUp,
+    BagCarrier,
+    Round,  // round-based gametypes (LMS countdown, round start, milestones)
+};
+
+void hud_notification_show(std::string text, int duration_seconds, HudNotificationType type, bool fade_on_expire);
+void hud_notification_remove(HudNotificationType type, bool instant);
 
 // Returns true if HUD should be hidden (cl_hud off, or cinematic spectate freelook)
 bool is_hud_effectively_hidden();

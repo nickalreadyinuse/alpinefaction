@@ -37,6 +37,7 @@ enum class af_packet_type : uint8_t
     af_server_msg = 0x5D,               // Alpine 1.2
     af_server_req = 0x5E,               // Alpine 1.2.1
     af_server_bot_control = 0x5F,       // Alpine 1.3
+    af_bagman_state = 0x60,             // Alpine 1.4
 };
 
 struct af_ping_location_req_packet
@@ -98,6 +99,7 @@ struct af_client_req_packet
 enum class af_server_req_type : uint8_t
 {
     af_sreq_should_gib = 0x0,
+    af_sreq_teleport_entity = 0x1,  // Alpine 1.4
 };
 
 struct ShouldGibPayload
@@ -105,7 +107,15 @@ struct ShouldGibPayload
     uint32_t obj_handle = 0;
 };
 
-using af_server_req_payload = std::variant<ShouldGibPayload>;
+struct TeleportEntityPayload
+{
+    uint32_t obj_handle = 0;
+    RF_Vector pos = {};
+    RF_Matrix orient = {};
+    RF_Vector vel = {};
+};
+
+using af_server_req_payload = std::variant<ShouldGibPayload, TeleportEntityPayload>;
 
 struct af_server_req_packet
 {
@@ -190,6 +200,17 @@ struct af_koth_hill_state_packet
     uint16_t blue_score;
 };
 
+struct af_bagman_state_packet
+{
+    RF_GamePacketHeader header;
+    uint8_t carrier_player_id;
+    uint8_t state;
+    uint16_t return_time_left_ms;
+    uint16_t red_team_score;
+    uint16_t blue_team_score;
+    int16_t  carrier_score;
+};
+
 struct af_koth_hill_captured_packet
 {
     RF_GamePacketHeader header;
@@ -271,7 +292,36 @@ enum af_server_msg_type : uint8_t {
     AF_SERVER_MSG_TYPE_AUTOMATED_CHAT = 0x2,
     AF_SERVER_MSG_TYPE_REMOTE_SERVER_CFG_EOF = 0x3,
     AF_SERVER_MSG_TYPE_CONSOLE = 0x4,
+    AF_SERVER_MSG_TYPE_HUD_NOTIFICATION = 0x5, // Alpine 1.4 ( text follows after the fixed prefix)
+    AF_SERVER_MSG_TYPE_ROUND_COUNTDOWN = 0x6,  // Alpine 1.4
+    AF_SERVER_MSG_TYPE_PLAY_CUSTOM_SOUND = 0x7, // Alpine 1.4
 };
+
+#pragma pack(push, 1)
+struct af_round_countdown_payload {
+    uint8_t duration_seconds;
+};
+#pragma pack(pop)
+static_assert(sizeof(af_round_countdown_payload) == 1);
+
+// Must reference a custom sound ID.
+#pragma pack(push, 1)
+struct af_play_custom_sound_payload {
+    uint16_t custom_sound_id;
+};
+#pragma pack(pop)
+static_assert(sizeof(af_play_custom_sound_payload) == 2);
+
+// Text follows immediately after this struct.
+// Keep in sync with HudNotificationType in hud.h.
+#pragma pack(push, 1)
+struct af_hud_notification_prefix {
+    int8_t duration_seconds;    // negative = persistent
+    uint8_t notification_type;  // cast to HudNotificationType on the client
+    uint8_t fade_on_expire;     // bool
+};
+#pragma pack(pop)
+static_assert(sizeof(af_hud_notification_prefix) == 3);
 
 struct af_server_msg_packet {
     RF_GamePacketHeader header;
@@ -379,12 +429,16 @@ void af_send_client_req_packet(const af_client_req_packet& packet);
 static void af_process_client_req_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_server_req_packet(const af_server_req_packet& packet, rf::Player* player);
 void af_send_should_gib_req(uint32_t obj_handle);
+void af_send_teleport_entity_req(uint32_t obj_handle, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::Vector3& vel);
 static void af_process_server_req_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_just_spawned_loadout(rf::Player* to_player, std::vector<WeaponLoadoutEntry> loadout);
 static void af_process_just_spawned_info_packet(const void* data, size_t len, const rf::NetAddr& addr);
 void af_send_koth_hill_state_packet(rf::Player* player, const HillInfo& h, const Presence& pres); // sent to new joiners
 void af_send_koth_hill_state_packet_to_all(const HillInfo& h, const Presence& pres);
 static void af_process_koth_hill_state_packet(const void* data, size_t len, const rf::NetAddr&);
+void af_send_bagman_state_packet(rf::Player* player);
+void af_send_bagman_state_packet_to_all();
+void af_process_bagman_state_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_koth_hill_captured_packet_to_all(uint8_t hill_uid, HillOwner owner, const std::vector<uint8_t>& new_owner_player_ids);
 static void af_process_koth_hill_captured_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_just_died_info_packet(rf::Player* to_player, bool respawn_allowed, bool force_respawn, uint16_t spawn_delay);
@@ -400,6 +454,16 @@ void af_send_server_cfg(rf::Player* player);
 void af_process_server_msg_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_broadcast_automated_chat_msg(std::string_view msg);
 void af_send_automated_chat_msg(std::string_view msg, rf::Player* player, bool tell_server = false);
+void af_broadcast_hud_notification(
+    std::string_view text, int duration_seconds, int notification_type, bool fade_on_expire = true);
+void af_send_hud_notification(
+    std::string_view text, int duration_seconds, int notification_type, bool fade_on_expire, rf::Player* player);
+
+// Instruct clients to render the big number countdown for the next N seconds (max 10).
+void af_broadcast_round_countdown(int duration_seconds);
+
+void af_broadcast_play_custom_sound(int custom_sound_id);
+void af_send_play_custom_sound(int custom_sound_id, rf::Player* player);
 void af_send_server_console_msg(std::string_view msg, rf::Player* player, bool tell_server = false);
 
 // client requests

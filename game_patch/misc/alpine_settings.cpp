@@ -32,6 +32,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <xlog/xlog.h>
+#include "../graphics/gr.h"
 
 bool g_loaded_alpine_settings_file = false;
 bool g_loaded_alpine_core_config_file = false;
@@ -664,6 +665,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.ignore_tbl_lightmap_clamping = std::stoi(settings["IgnoreTblLightmapClamping"]);
         processed_keys.insert("IgnoreTblLightmapClamping");
     }
+    if (settings.contains("SampleCount")) {
+        g_alpine_game_config.sample_count = std::stoi(settings["SampleCount"]);
+        processed_keys.insert("SampleCount");
+    }
 
     // Load UI settings
     if (settings.count("BigHUD")) {
@@ -1010,6 +1015,10 @@ bool alpine_player_settings_load(rf::Player* player)
     if (settings.count("PlayerJoinBeep")) {
         g_alpine_game_config.player_join_beep = std::stoi(settings["PlayerJoinBeep"]);
         processed_keys.insert("PlayerJoinBeep");
+    }
+    if (settings.count("PlayerJoinFlash")) {
+        g_alpine_game_config.player_join_flash = std::stoi(settings["PlayerJoinFlash"]);
+        processed_keys.insert("PlayerJoinFlash");
     }
     if (settings.count("WorldHUDAltDamageIndicators")) {
         g_alpine_game_config.world_hud_alt_damage_indicators = std::stoi(settings["WorldHUDAltDamageIndicators"]);
@@ -1377,6 +1386,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "IgnoreTblVertexLighting=" << g_alpine_game_config.ignore_tbl_vertex_lighting << "\n";
     file << "IgnoreTblPixelLightOverbright=" << g_alpine_game_config.ignore_tbl_pixel_light_overbright << "\n";
     file << "IgnoreTblLightmapClamping=" << g_alpine_game_config.ignore_tbl_lightmap_clamping << "\n";
+    file << "SampleCount=" << g_alpine_game_config.sample_count << "\n";
 
     // UI
     file << "\n[UISettings]\n";
@@ -1480,6 +1490,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ServerNetFPS=" << g_alpine_game_config.server_netfps << "\n";
     file << "DisableMultiCharacterLOD=" << g_alpine_game_config.multi_no_character_lod << "\n";
     file << "PlayerJoinBeep=" << g_alpine_game_config.player_join_beep << "\n";
+    file << "PlayerJoinFlash=" << g_alpine_game_config.player_join_flash << "\n";
     file << "WorldHUDAltDamageIndicators=" << g_alpine_game_config.world_hud_alt_damage_indicators << "\n";
     file << "DesiredHandicap=" << g_alpine_game_config.desired_handicap << "\n";
     file << "CPOutlineHeightScale=" << g_alpine_game_config.control_point_outline_height_scale << "\n";
@@ -1589,6 +1600,11 @@ CallHook<void(rf::Player*)> player_settings_load_hook{
             else {
                 xlog::warn("Legacy RF settings file not found. Applying default settings.");
             }
+        }
+
+        // HACKFIX.  We need to load our settings earlier.
+        if (g_alpine_game_config.sample_count != 1) {
+           gr_flush_frame_buffers();
         }
 
         // display popup recommending ff link (skip for bots)
@@ -1707,7 +1723,7 @@ ConsoleCommand2 shadow_items_cmd{
 ConsoleCommand2 dbg_shadows_cmd{
     "dbg_shadows",
     []() {
-        using ESR = df::gr::d3d11::EntityShadowRenderer;
+        using ESR = gr::d3d11::EntityShadowRenderer;
         if (rf::is_multi && !rf::is_server) {
             rf::console::print("This command is only available in single-player or as host");
             return;
@@ -1724,7 +1740,7 @@ ConsoleCommand2 shadow_distance_cmd{
         if (value_opt) {
             g_alpine_game_config.set_shadow_distance(value_opt.value());
         }
-        using ESR = df::gr::d3d11::EntityShadowRenderer;
+        using ESR = gr::d3d11::EntityShadowRenderer;
         int d = g_alpine_game_config.shadow_distance;
         rf::console::print("Shadow distance: {} ({}) [0-5]",
             d, ESR::preset_names[d]);
@@ -1739,7 +1755,7 @@ ConsoleCommand2 shadow_quality_cmd{
         if (value_opt) {
             g_alpine_game_config.set_shadow_quality(value_opt.value());
         }
-        using ESR = df::gr::d3d11::EntityShadowRenderer;
+        using ESR = gr::d3d11::EntityShadowRenderer;
         int q = g_alpine_game_config.shadow_quality;
         const auto& preset = ESR::shadow_quality_presets[q];
         if (preset.resolution == 0) {
