@@ -387,9 +387,14 @@ static void draw_3d_aabb(const rf::Vector3& bbox_min, const rf::Vector3& bbox_ma
     rf::gr::line_vec(c[3], c[7], mode);
 }
 
+// Fraction of the bbox height by which the engine lowers a crouched entity's bbox_max.y (matches
+// the FMUL constant at 0x005893C0 in the stock collision path). Used to reconstruct the same bbox
+// the server hit-tests against before handing it to compute_hitbox_geometry().
+static constexpr float k_crouch_bbox_top_fraction = 0.5f;
+
 static void render_hitboxes()
 {
-    if (!g_dbg_hitboxes)
+    if (!g_dbg_hitboxes && !g_dbg_cspheres)
         return;
 
     auto& multi_entity_bbox_size = addr_as_ref<rf::Vector3>(0x007C6A70);
@@ -407,101 +412,73 @@ static void render_hitboxes()
         if (rf::local_player && entity->handle == rf::local_player->entity_handle)
             continue;
 
-        // Match engine bbox computation: entity->pos ± half_size,
-        // then for crouching only bbox_max.y is lowered (feet stay on floor)
-        rf::Vector3 half_size = multi_entity_bbox_size;
-        rf::Vector3 bbox_min = entity->pos - half_size;
-        rf::Vector3 bbox_max = entity->pos + half_size;
-        bool crouching = rf::entity_is_crouching(entity);
-        if (crouching) {
-            bbox_max.y -= multi_entity_bbox_size.y * 0.5f;
+        // Hybrid (or legacy) hitbox volume — independent toggle: `debug hitbox`
+        if (g_dbg_hitboxes) {
+            // Match engine bbox computation: entity->pos ± half_size,
+            // then for crouching only bbox_max.y is lowered (feet stay on floor)
+            rf::Vector3 half_size = multi_entity_bbox_size;
+            rf::Vector3 bbox_min = entity->pos - half_size;
+            rf::Vector3 bbox_max = entity->pos + half_size;
+            bool crouching = rf::entity_is_crouching(entity);
+            if (crouching) {
+                bbox_max.y -= multi_entity_bbox_size.y * k_crouch_bbox_top_fraction;
+            }
+
+            if (legacy) {
+                // Legacy mode: draw the AABB that the engine actually uses for collision
+                rf::gr::set_color(255, 128, 0, 255);
+                draw_3d_aabb(bbox_min, bbox_max);
+            }
+            else {
+                // Compute the exact same volume the server hit-tests (shared with the collision path).
+                HitboxGeometry geo = compute_hitbox_geometry(entity, bbox_min, bbox_max);
+
+                // Lower capsule (green)
+                rf::gr::set_color(0, 255, 0, 255);
+                draw_3d_capsule_general(geo.lower_bot, geo.lower_top, geo.radius);
+
+                if (geo.split) {
+                    // Torso cylinder (cyan)
+                    rf::gr::set_color(0, 255, 255, 255);
+                    draw_3d_cylinder_general(geo.upper_a, geo.upper_b, geo.radius);
+
+                    // Head sphere (magenta)
+                    if (geo.has_head) {
+                        rf::gr::set_color(255, 0, 255, 255);
+                        auto mode = rf::gr::Mode{
+                            rf::gr::TEXTURE_SOURCE_NONE,
+                            rf::gr::COLOR_SOURCE_VERTEX,
+                            rf::gr::ALPHA_SOURCE_VERTEX,
+                            rf::gr::ALPHA_BLEND_NONE,
+                            rf::gr::ZBUFFER_TYPE_FULL,
+                            rf::gr::FOG_NOT_ALLOWED,
+                        };
+                        rf::gr::sphere(geo.head_pos, geo.head_radius, mode);
+                    }
+                }
+            }
         }
 
-        if (legacy) {
-            // Legacy mode: draw the AABB that the engine actually uses for collision
-            rf::gr::set_color(255, 128, 0, 255);
-            draw_3d_aabb(bbox_min, bbox_max);
-            continue;
-        }
-
-        float cx = (bbox_min.x + bbox_max.x) * 0.5f;
-        float cz = (bbox_min.z + bbox_max.z) * 0.5f;
-        float radius = (bbox_max.x - bbox_min.x) * 0.5f;
-
-        // Extend effective top for crouching (models don't always crouch as low as the engine bbox)
-        float effective_max_y = bbox_max.y;
-        if (crouching) {
-            float h = bbox_max.y - bbox_min.y;
-            effective_max_y += h * 0.3f;
-        }
-
-        float split_ratio = crouching ? 0.35f : 0.55f;
-        float bbox_height = effective_max_y - bbox_min.y;
-        float split_y = bbox_min.y + bbox_height * split_ratio;
-        float upper_height = effective_max_y - split_y;
-
-        // Lower capsule (green): inset bottom so hemisphere doesn't extend below bbox
-        rf::gr::set_color(0, 255, 0, 255);
-        rf::Vector3 lower_bot{cx, bbox_min.y + radius, cz};
-        rf::Vector3 lower_top{cx, split_y, cz};
-        draw_3d_capsule_general(lower_bot, lower_top, radius);
-
-        // Torso cylinder (cyan) + head sphere (magenta)
-        rf::Vector3 upper_a{cx, split_y, cz};
-        float head_dist;
-        float head_radius;
-        rf::Vector3 head_world_pos;
-        rf::Vector3 tilt_axis = compute_tilt_axis(entity, upper_a, &head_dist, &head_radius, &head_world_pos);
-        rf::gr::set_color(0, 255, 255, 255);
-        float upper_len = upper_height;
-        if (head_dist > 0.0f)
-            upper_len = std::min(upper_len, head_dist);
-
-        // Shorten so flat top stops just before head sphere (matching collision)
-        if (head_radius > 0.0f && head_dist > 0.0f) {
-            float max_endpoint = head_dist - head_radius;
-            upper_len = std::min(upper_len, max_endpoint);
-        }
-        upper_len = std::max(upper_len, 0.0f);
-        upper_len *= 1.05f;
-
-        rf::Vector3 upper_b = upper_a + tilt_axis * upper_len;
-        draw_3d_cylinder_general(upper_a, upper_b, radius);
-
-        // Head sphere
-        if (head_radius > 0.0f && head_dist > 0.0f) {
-            rf::gr::set_color(255, 0, 255, 255);
-            auto mode = rf::gr::Mode{
-                rf::gr::TEXTURE_SOURCE_NONE,
-                rf::gr::COLOR_SOURCE_VERTEX,
-                rf::gr::ALPHA_SOURCE_VERTEX,
-                rf::gr::ALPHA_BLEND_NONE,
-                rf::gr::ZBUFFER_TYPE_FULL,
-                rf::gr::FOG_NOT_ALLOWED,
-            };
-            rf::gr::sphere(head_world_pos, head_radius, mode);
-        }
-
-        // Collision spheres (yellow) — toggle via g_dbg_hitboxes_show_cspheres
-        if (!g_dbg_hitboxes_show_cspheres)
-            continue;
-        int num_cspheres = rf::vmesh_get_num_cspheres(entity->vmesh);
-        for (int i = 0; i < num_cspheres; i++) {
-            rf::Vector3 sphere_pos;
-            if (rf::vmesh_get_csphere_pos(entity->vmesh, i, &sphere_pos, &entity->pos, &entity->orient)) {
-                rf::Vector3 local_pos;
-                float sphere_radius;
-                if (rf::vmesh_get_csphere(entity->vmesh, i, &local_pos, &sphere_radius)) {
-                    rf::gr::set_color(255, 255, 0, 180);
-                    auto mode = rf::gr::Mode{
-                        rf::gr::TEXTURE_SOURCE_NONE,
-                        rf::gr::COLOR_SOURCE_VERTEX,
-                        rf::gr::ALPHA_SOURCE_VERTEX,
-                        rf::gr::ALPHA_BLEND_ALPHA,
-                        rf::gr::ZBUFFER_TYPE_FULL,
-                        rf::gr::FOG_NOT_ALLOWED,
-                    };
-                    rf::gr::sphere(sphere_pos, sphere_radius, mode);
+        // Engine collision spheres (yellow) — independent toggle: `debug cspheres`
+        if (g_dbg_cspheres) {
+            int num_cspheres = rf::vmesh_get_num_cspheres(entity->vmesh);
+            for (int i = 0; i < num_cspheres; i++) {
+                rf::Vector3 sphere_pos;
+                if (rf::vmesh_get_csphere_pos(entity->vmesh, i, &sphere_pos, &entity->pos, &entity->orient)) {
+                    rf::Vector3 local_pos;
+                    float sphere_radius;
+                    if (rf::vmesh_get_csphere(entity->vmesh, i, &local_pos, &sphere_radius)) {
+                        rf::gr::set_color(255, 255, 0, 180);
+                        auto mode = rf::gr::Mode{
+                            rf::gr::TEXTURE_SOURCE_NONE,
+                            rf::gr::COLOR_SOURCE_VERTEX,
+                            rf::gr::ALPHA_SOURCE_VERTEX,
+                            rf::gr::ALPHA_BLEND_ALPHA,
+                            rf::gr::ZBUFFER_TYPE_FULL,
+                            rf::gr::FOG_NOT_ALLOWED,
+                        };
+                        rf::gr::sphere(sphere_pos, sphere_radius, mode);
+                    }
                 }
             }
         }

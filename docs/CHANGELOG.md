@@ -228,7 +228,6 @@ Version 1.3.0 (Bakeapple): Released Apr-22-2026
 [@AL2009man](https://github.com/AL2009man)
 - Add `ms_scale` toggle to use various mouse sensitivity scaling options between Classic (original scaling), Raw and Modern (id Tech/Source).
 
-
 [@natarii](https://github.com/natarii)
 - Implement FFLink client functionality in launcher
 

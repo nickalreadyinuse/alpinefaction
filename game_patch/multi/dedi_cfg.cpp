@@ -1269,10 +1269,6 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
         if (auto v = node.value<bool>())
             cfg.legacy_hitboxes = *v;
     }
-    else if (key == "exclude_bots_from_player_count") {
-        if (auto v = node.value<bool>())
-            cfg.exclude_bots_from_player_count = *v;
-    }
 }
 
 // apply base config toml tables
@@ -2169,7 +2165,6 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     std::format_to(iter, "  Allow outlines:                        {}\n", cfg.allow_outlines);
     std::format_to(iter, "  Allow outlines xray:                   {}\n", cfg.allow_outlines_xray);
     std::format_to(iter, "  Legacy hitboxes:                       {}\n", cfg.legacy_hitboxes);
-    std::format_to(iter, "  Exclude bots from player count:        {}\n", cfg.exclude_bots_from_player_count);
 
     // inactivity
     std::format_to(iter, "  Identify inactive players:             {}\n", cfg.inactivity_config.enabled);

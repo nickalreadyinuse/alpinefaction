@@ -20,7 +20,7 @@ bool g_dbg_geometry_rendering_stats = false;
 bool g_dbg_static_lights = false;
 bool g_dbg_particle_emitters = false;
 bool g_dbg_hitboxes = false;
-bool g_dbg_hitboxes_show_cspheres = false;
+bool g_dbg_cspheres = false;
 
 DebugFlagDesc g_debug_flags[] = {
     {addr_as_ref<bool>(0x0062F3AA), "thruster"},
@@ -54,6 +54,7 @@ DebugFlagDesc g_debug_flags[] = {
     {addr_as_ref<bool>(0x009BB5A8), "nolightmap", true}, // fullbright
     {addr_as_ref<bool>(0x009BB5B0), "show_invisible_faces", true},
     {g_dbg_hitboxes, "hitbox", false, true},
+    {g_dbg_cspheres, "cspheres", false, true},
 };
 
 ConsoleCommand2 debug_cmd{
@@ -81,7 +82,7 @@ ConsoleCommand2 debug_cmd{
     nullptr,
     "debug [thruster | light | light2 | push_climb_reg | geo_reg | glass | mover | ignite | movemode | perf |\n"
     "perfbar | waypoint | network | particlestats | weapon | event | trigger | objrender | roomstats | trans |\n"
-    "room | portal | lightmap | nolightmap | show_invisible_faces | hitbox]",
+    "room | portal | lightmap | nolightmap | show_invisible_faces | hitbox | cspheres]",
 };
 
 void debug_cmd_multi_init()

@@ -102,7 +102,7 @@ struct AlpineFactionServerInfo
     bool geo_chunk_physics = false;
     bool location_pinging = false;
     bool delayed_spawns = false;
-    bool legacy_hitboxes = false;
+    bool legacy_hitboxes = true; // assume legacy until a server advertises the hybrid_hitboxes flag
     int koth_score_limit = 0;
     int dc_score_limit = 0;
     bool allow_footsteps = false;
@@ -159,7 +159,33 @@ rf::Vector3 compute_tilt_axis(const rf::Entity* entity, const rf::Vector3& split
                               float* head_dist_out = nullptr,
                               float* head_radius_out = nullptr,
                               rf::Vector3* head_pos_out = nullptr);
+
+// Hybrid hitbox volume computed from an entity's (already crouch-adjusted) multiplayer bounding box.
+// Shared by the server-side collision ray-test and the client-side debug visualizer so both always
+// describe the exact same volume.
+struct HitboxGeometry {
+    float radius = 0.0f;
+
+    // Lower vertical capsule (hemisphere centers). When `split` is false this single bbox-tall
+    // capsule is the entire hitbox and the torso/head fields are unused.
+    rf::Vector3 lower_bot;
+    rf::Vector3 lower_top;
+
+    bool split = false; // true: also has an upper torso cylinder (+ optional head sphere)
+
+    // Upper torso cylinder (tilted toward the head), flat disc caps at upper_a..upper_b.
+    rf::Vector3 upper_a;
+    rf::Vector3 upper_b;
+
+    bool has_head = false; // true: head sphere is valid
+    rf::Vector3 head_pos;
+    float head_radius = 0.0f;
+};
+
+HitboxGeometry compute_hitbox_geometry(rf::Entity* entity,
+                                       const rf::Vector3& bbox_min, const rf::Vector3& bbox_max);
 void set_lag_comp_flag(bool active);
+void hitbox_reset_head_csphere_cache();
 void print_player_info(rf::Player* player, bool new_join);
 void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
 void start_level_in_multi(std::string filename);
