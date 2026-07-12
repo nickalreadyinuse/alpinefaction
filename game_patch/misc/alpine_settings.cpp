@@ -973,6 +973,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.show_run_timer = std::stoi(settings["ShowRunTimer"]);
         processed_keys.insert("ShowRunTimer");
     }
+    if (settings.count("ShowMiniScoreboardDM")) {
+        g_alpine_game_config.show_mini_scoreboard_dm = std::stoi(settings["ShowMiniScoreboardDM"]);
+        processed_keys.insert("ShowMiniScoreboardDM");
+    }
     if (settings.count("VisualRicochet")) {
         g_alpine_game_config.multi_ricochet = std::stoi(settings["VisualRicochet"]);
         processed_keys.insert("VisualRicochet");
@@ -1488,6 +1492,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "HitSoundIntervalMs=" << g_alpine_game_config.hit_sound_min_interval_ms << "\n";
     file << "PlayTaunts=" << g_alpine_game_config.play_taunt_sounds << "\n";
     file << "ShowRunTimer=" << g_alpine_game_config.show_run_timer << "\n";
+    file << "ShowMiniScoreboardDM=" << g_alpine_game_config.show_mini_scoreboard_dm << "\n";
     file << "VisualRicochet=" << g_alpine_game_config.multi_ricochet << "\n";
     file << "DeathBars=" << g_alpine_game_config.death_bars << "\n";
     file << "ShowEnemyBullets=" << g_alpine_game_config.show_enemy_bullets << "\n";

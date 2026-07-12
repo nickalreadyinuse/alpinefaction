@@ -25,7 +25,6 @@ Version 1.4.0 (Lupin): Not yet released
 - Add vote-allowed levels to level autodownload list for dedicated servers
 - Add `fflink_gsk` dedicated server config field and `sv_fflink_status` and `sv_fflink_resync` console commands for FactionFiles session key exchange
 - Make clock clutter objects correctly display the current local real world time
-- Add mini scoreboard HUD element to FFA game types
 - Add support for round-based game types
 - Add dedicated server config fields `max_rounds`, `round_time`, `post_round_time`, and `intermission_time`
 - Add HUD notification messages via `AF_SERVER_MSG_TYPE_HUD_NOTIFICATION` server message type
@@ -43,6 +42,8 @@ Version 1.4.0 (Lupin): Not yet released
 - Gather `af_obj_update` packet data once per frame instead of once per recipient and reuse packet buffers
 - Add full_admin profile rcon access to `maxfps` and `sv_netfps` commands
 - Require a fresh `Alt` press to kill an unresponsive process
+- Add mini scoreboard HUD element to FFA game types
+- Add `ui_minisb_dm` console command to toggle whether mini scoreboard is displayed in DM mode
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `Anti-aliasing` option to `ADVANCED` options panel
