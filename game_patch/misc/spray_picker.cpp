@@ -9,6 +9,7 @@
 #include "../rf/bmpman.h"
 #include "../rf/input.h"
 #include "../rf/ui.h"
+#include "../rf/gameseq.h"
 #include "../hud/hud.h"
 #include "../hud/hud_internal.h"
 
@@ -110,6 +111,12 @@ void spray_picker_open()
     g_scroll = 0.0f;
 }
 
+void spray_picker_close()
+{
+    g_open = false;
+    g_scroll = 0.0f;
+}
+
 bool spray_picker_is_open()
 {
     return g_open;
@@ -118,6 +125,13 @@ bool spray_picker_is_open()
 void spray_picker_render()
 {
     if (!g_open) {
+        return;
+    }
+
+    // Close the picker if our game state changes (i.e. level change, disconnect, etc.)
+    // so the picker doesn't get stuck open.
+    if (rf::gameseq_get_state() != rf::GS_OPTIONS_MENU) {
+        spray_picker_close();
         return;
     }
 

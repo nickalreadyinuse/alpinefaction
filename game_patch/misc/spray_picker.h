@@ -3,6 +3,7 @@
 #include "../rf/input.h"
 
 void spray_picker_open();
+void spray_picker_close();
 bool spray_picker_is_open();
 void spray_picker_render();
 void spray_picker_handle_mouse(int x, int y);

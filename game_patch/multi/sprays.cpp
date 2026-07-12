@@ -116,6 +116,9 @@ namespace
     std::unordered_map<uint8_t, ClientSprayState> g_client_sprays;
     std::unordered_map<uint8_t, ServerSprayState> g_server_sprays;
 
+    constexpr int64_t kMinRequestIntervalMs = 500;
+    std::unordered_map<uint8_t, int64_t> g_last_spray_request_ms;
+
     int get_cached_spray_bitmap(uint16_t id)
     {
         if (id >= kSprayCount) {
@@ -320,6 +323,7 @@ void sprays_level_init()
 {
     g_server_sprays.clear();
     g_client_sprays.clear();
+    g_last_spray_request_ms.clear();
 }
 
 void sprays_on_player_destroyed(rf::Player* player)
@@ -331,6 +335,7 @@ void sprays_on_player_destroyed(rf::Player* player)
 
     if (rf::is_server) {
         g_server_sprays.erase(player_id);
+        g_last_spray_request_ms.erase(player_id);
     }
 
     auto it = g_client_sprays.find(player_id);
@@ -359,6 +364,15 @@ void sprays_handle_spray_request(rf::Player* player, uint16_t texture_id, const 
     if (!rf::is_server || !player || !player->net_data) {
         return;
     }
+
+    // Drop requests that arrive too quickly, before doing any work or sending any reply.
+    const uint8_t requester_id = player->net_data->player_id;
+    const int64_t now = timer::get_i64(1000);
+    auto req_it = g_last_spray_request_ms.find(requester_id);
+    if (req_it != g_last_spray_request_ms.end() && now - req_it->second < kMinRequestIntervalMs) {
+        return; // too many requests too fast: silent drop
+    }
+    g_last_spray_request_ms[requester_id] = now;
 
     //xlog::info("sprays: request from '{}' (id={}, pos=({:.2f}, {:.2f}, {:.2f}))", player->name, texture_id, pos_in.x, pos_in.y, pos_in.z);
 
@@ -405,7 +419,6 @@ void sprays_handle_spray_request(rf::Player* player, uint16_t texture_id, const 
         return;
     }
 
-    const int64_t now = timer::get_i64(1000);
     if (player->last_spray_ms && (now - *player->last_spray_ms) < server_spray_cooldown_ms()) {
         //xlog::info("sprays: rejected '{}': on cooldown ({} ms since last)", player->name, now - *player->last_spray_ms);
         af_send_automated_chat_msg("Spray rejected: on cooldown", player);
@@ -430,6 +443,9 @@ void sprays_apply_client_state(uint8_t player_id, uint16_t texture_id, const rf:
 {
     if (rf::is_dedicated_server) {
         return; // dedicated servers do not render
+    }
+    if (!is_finite_vec(pos) || !is_finite_vec(normal)) {
+        return;
     }
     if (!is_valid_spray_id(texture_id)) {
         xlog::debug("sprays: ignoring spray with unknown id {} for player_id {}", texture_id, player_id);
