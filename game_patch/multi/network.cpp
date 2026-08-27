@@ -2010,6 +2010,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::stats_enabled;
             xlog::debug("[afstats] advertising stats-enabled in join_accept");
         }
+        if (server_capsule_hitboxes()) {
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::capsule_hitboxes;
+        }
         // AF 1.3+ clients: use footer-based format for forward compatibility
         // Older clients: use legacy raw struct (they don't know about the footer)
         bool use_footer = g_joining_client_version == ClientSoftware::AlpineFaction

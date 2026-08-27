@@ -43,6 +43,7 @@ bool server_clear_stale_movement_input();
 bool server_allow_footsteps();
 bool server_sprays_enabled();
 int server_spray_cooldown_ms();
+bool server_capsule_hitboxes();
 std::tuple<bool, int, bool, bool> server_features_require_alpine_client();
 void server_reliable_socket_ready(rf::Player* player);
 bool server_weapon_items_give_full_ammo();

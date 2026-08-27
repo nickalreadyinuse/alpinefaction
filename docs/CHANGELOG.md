@@ -9,6 +9,9 @@ Version 1.5.0 (TBD): Not yet released
 [@GooberRF](https://github.com/GooberRF)
 - Restore cut first person weapon aim sway, toggleable with `cl_weaponsway`
 
+[@nickalreadyinuse](https://github.com/nickalreadyinuse)
+- Implement capsule-shaped multiplayer hitboxes for dedicated servers (`capsule_hitboxes`)
+
 ### Bug fixes
 
 Version 1.4.0 (Lupin): Released Aug-25-2026

@@ -1245,6 +1245,10 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
         if (auto v = node.value<bool>())
             cfg.allow_outlines_xray = *v;
     }
+    else if (key == "capsule_hitboxes") {
+        if (auto v = node.value<bool>())
+            cfg.capsule_hitboxes = *v;
+    }
 }
 
 // apply base config toml tables
@@ -2190,6 +2194,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     std::format_to(iter, "  SP-style damage calculation:           {}\n", cfg.use_sp_damage_calculation);
     std::format_to(iter, "  Allow outlines:                        {}\n", cfg.allow_outlines);
     std::format_to(iter, "  Allow outlines xray:                   {}\n", cfg.allow_outlines_xray);
+    std::format_to(iter, "  Capsule hitboxes:                      {}\n", cfg.capsule_hitboxes);
 
     // inactivity
     std::format_to(iter, "  Identify inactive players:             {}\n", cfg.inactivity_config.enabled);

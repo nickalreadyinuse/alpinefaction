@@ -5505,6 +5505,11 @@ int server_spray_cooldown_ms()
     return g_alpine_server_config.spray_config.cooldown_ms;
 }
 
+bool server_capsule_hitboxes()
+{
+    return g_alpine_server_config.capsule_hitboxes;
+}
+
 std::tuple<bool, int, bool, bool> server_features_require_alpine_client()
 {
     bool requires_alpine = false; // alpine required to spawn
