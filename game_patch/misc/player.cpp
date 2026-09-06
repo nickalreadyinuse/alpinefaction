@@ -40,6 +40,8 @@
 #include "../multi/alpine_packets.h"
 #include "../fflink/afstats_events.h"
 #include "../hud/hud_world.h"
+#include <algorithm>
+#include <cctype>
 #include <common/utils/list-utils.h>
 #include <common/version/version.h>
 #include <common/config/GameConfig.h>
@@ -504,6 +506,73 @@ ConsoleCommand2 mp_set_character_cmd{
     },
     "Get multiplayer character index or set by index",
     "mp_character <index>",
+};
+
+// Shared handler for cl_force_character_* commands. Stores the pc_multi.tbl name (empty = off).
+static void force_character_cmd_handler(std::string& setting, const char* label, const std::optional<std::string>& arg)
+{
+    if (arg.has_value()) {
+        const std::string& val = arg.value();
+        if (val.empty() || _stricmp(val.c_str(), "off") == 0) {
+            setting.clear();
+        }
+        else {
+            std::string name = val;
+            char skin = 0;
+            if (const auto slash = name.find('/'); slash != std::string::npos) {
+                const std::string suffix = name.substr(slash + 1);
+                name.resize(slash);
+                skin = suffix.empty() ? 0 : static_cast<char>(std::tolower(static_cast<unsigned char>(suffix[0])));
+                if (skin != 'r' && skin != 'b' && skin != 'n') {
+                    rf::console::print("Unknown skin '{}'. Use /r (red), /b (blue) or /n (neutral), or omit for stock team skins.", suffix);
+                    return;
+                }
+            }
+            int idx = -1;
+            const bool numeric = name.size() <= 3 && !name.empty() && std::all_of(name.begin(), name.end(), [](unsigned char c) { return std::isdigit(c); });
+            if (numeric) {
+                idx = std::stoi(name);
+                if (idx >= rf::num_multi_characters) {
+                    idx = -1;
+                }
+            }
+            else {
+                idx = rf::multi_find_character(name.c_str());
+            }
+            if (idx < 0) {
+                rf::console::print("Unknown character '{}'. Valid characters:", name);
+                for (int i = 0; i < rf::num_multi_characters; ++i) {
+                    rf::console::print("  {} = {}", i, rf::mp_characters[i].name);
+                }
+                return;
+            }
+            setting = rf::mp_characters[idx].name;
+            if (skin) {
+                setting += '/';
+                setting += skin;
+            }
+        }
+    }
+    rf::console::print("Forced {} character: {} (applies on each player's next spawn)",
+        label, setting.empty() ? "off" : setting.c_str());
+}
+
+ConsoleCommand2 cl_force_character_enemy_cmd{
+    "cl_force_character_enemy",
+    [](std::optional<std::string> arg) {
+        force_character_cmd_handler(g_alpine_game_config.force_character_enemy, "enemy", arg);
+    },
+    "Render all enemy players (everyone in non-team modes) as the given multiplayer character; add /r, /b or /n to force the red, blue or neutral skin",
+    "cl_force_character_enemy <name|index>[/r|/b|/n] | off",
+};
+
+ConsoleCommand2 cl_force_character_teammate_cmd{
+    "cl_force_character_teammate",
+    [](std::optional<std::string> arg) {
+        force_character_cmd_handler(g_alpine_game_config.force_character_teammate, "teammate", arg);
+    },
+    "Render all teammates as the given multiplayer character (team modes only); add /r, /b or /n to force the red, blue or neutral skin",
+    "cl_force_character_teammate <name|index>[/r|/b|/n] | off",
 };
 
 FunHook<void(rf::Player*, int)> player_make_weapon_current_selection_hook{
@@ -1080,6 +1149,8 @@ void player_do_patch()
     mp_join_beep_cmd.register_cmd();
     mp_join_flash_cmd.register_cmd();
     mp_set_character_cmd.register_cmd();
+    cl_force_character_enemy_cmd.register_cmd();
+    cl_force_character_teammate_cmd.register_cmd();
     localhitsound_cmd.register_cmd();
     hit_sound_interval_cmd.register_cmd();
     tauntsound_cmd.register_cmd();

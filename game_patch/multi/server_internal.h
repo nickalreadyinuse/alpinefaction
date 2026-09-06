@@ -1010,6 +1010,7 @@ struct AlpineServerConfig
     bool allow_footsteps = true;
     bool allow_outlines = false;
     bool allow_outlines_xray = true;
+    bool allow_force_character = true;
     bool use_sp_damage_calculation = false;
     AlpineRestrictConfig alpine_restricted_config;
     InactivityConfig inactivity_config;

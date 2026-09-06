@@ -841,6 +841,7 @@ namespace
         info->allow_footsteps = true;
         info->allow_outlines = true;
         info->allow_outlines_xray = true;
+        info->allow_force_character = true;
         info->max_fov.reset(); // no FOV cap while watching
         // The only gated option evaluated before this point (in the join_accept injection)
         evaluate_footsteps();

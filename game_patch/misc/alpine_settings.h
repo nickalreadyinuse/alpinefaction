@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <string>
 #include "../rf/os/timestamp.h"
 #include "../hud/hud.h"
 #include "../hud/remote_server_cfg_ui.h"
@@ -58,6 +59,10 @@ struct AlpineGameSettings
 
     // lod settings
     bool multi_no_character_lod = true;
+
+    // client-side forced remote player characters (pc_multi.tbl names, empty = off)
+    std::string force_character_enemy;
+    std::string force_character_teammate;
 
     float entity_sim_distance = 100.0f;
     void set_entity_sim_distance(float dist)

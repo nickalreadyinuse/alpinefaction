@@ -32,6 +32,7 @@
 #include "multi.h"
 #include "demo/demo.h"
 #include "mutators.h"
+#include "gametype.h"
 #include "alpine_packets.h"
 #include "server.h"
 #include "server_internal.h"
@@ -1119,6 +1120,214 @@ FunHook<MultiIoPacketHandler> process_rate_change_packet_hook{
     },
 };
 
+// Client-side forced remote player character (cl_force_character_*).
+// Returns the pc_multi.tbl index the viewer wants for a remote player on `team`, or -1 to leave it alone.
+// Nothing on the wire is character-specific (anim bindings are resolved per entity at creation), so this is
+// purely local. Servers may disallow it via allow_force_character; legacy servers cannot express a policy.
+// skin_code: 'r' red, 'b' blue, 'n' neutral (stock non-team skin), 0 = stock team behaviour.
+static int force_character_for_team(uint8_t team, char& skin_code)
+{
+    skin_code = 0;
+    if (rf::is_server || !rf::local_player) {
+        return -1;
+    }
+    const auto& server_info = get_af_server_info();
+    if (server_info.has_value() && !server_info->allow_force_character) {
+        return -1;
+    }
+    const bool teammate = multi_is_team_game_type() && team == rf::local_player->team;
+    std::string name = teammate ? g_alpine_game_config.force_character_teammate
+                                : g_alpine_game_config.force_character_enemy;
+    if (name.empty()) {
+        return -1;
+    }
+    if (const auto slash = name.find('/'); slash != std::string::npos) {
+        if (slash + 1 < name.size()) {
+            skin_code = name[slash + 1];
+        }
+        name.resize(slash);
+    }
+    return rf::multi_find_character(name.c_str());
+}
+
+// Forced look on the real body. The server simulates the real character's body: collision spheres, crouch
+// spheres and crouch distance all come from mp_characters[idx].entity_type (Entity::info2). The client entity
+// is created as the forced character (mesh, anims, skins, corpse, tags) and only the body reads are redirected
+// to the real character's EntityInfo: the physics sphere setup inside entity_create and the three per-frame
+// readers (entity_update_collision_spheres, entity_crouch, entity_maybe_stop_crouching). No table slots needed.
+namespace
+{
+    struct ForcedBody
+    {
+        const rf::EntityInfo* body; // real character's EntityInfo
+        float lift;                 // mesh lift so the forced feet meet the real body's feet (cl_force_character_lift)
+    };
+    // ponytail: keyed by entity handle (unique per object lifetime), never erased; a few bytes per spawn
+    std::unordered_map<int, ForcedBody> g_forced_bodies;
+    const rf::EntityInfo* g_pending_forced_body = nullptr; // consumed by entity_create_body_spheres_injection
+    bool g_force_character_lift = false;
+
+    const ForcedBody* forced_body_of(const rf::Entity* ep)
+    {
+        if (!ep || g_forced_bodies.empty()) {
+            return nullptr;
+        }
+        auto it = g_forced_bodies.find(ep->handle);
+        return it == g_forced_bodies.end() ? nullptr : &it->second;
+    }
+
+    // Collision sphere centres/radii, crouch spheres and crouch distance on an EntityInfo are not in
+    // entity.tbl: entity_info_setup_bone_damage_modifiers builds them from the mesh the first time an entity of
+    // that character is created (done-flag 0x40000000 in EntityInfo::flags). Both characters must have been
+    // created once, or the real body is empty / the forced one gets rebuilt from its mesh at creation and
+    // clobbers our spheres. Same trick as save_restore: a throwaway entity runs the game's own setup, then dies.
+    void ensure_character_body_setup(int mp_idx)
+    {
+        constexpr unsigned body_done_flag = 0x40000000;
+        rf::EntityInfo& info = rf::entity_types[rf::mp_characters[mp_idx].entity_type];
+        if (static_cast<unsigned>(info.flags) & body_done_flag) {
+            return;
+        }
+        const int base_type = rf::local_player_entity ? rf::local_player_entity->info_index : rf::entity_lookup_type("miner1");
+        if (base_type < 0) {
+            return;
+        }
+        const rf::Vector3 far_below{0.0f, -10000.0f, 0.0f};
+        rf::Entity* probe = rf::entity_create(base_type, "", -1, far_below, rf::identity_matrix, 1, mp_idx);
+        if (probe) {
+            rf::obj_flag_dead(probe);
+        }
+        if (!(static_cast<unsigned>(info.flags) & body_done_flag)) {
+            xlog::warn("force_character: body setup of character {} ({}) failed", mp_idx, info.name.c_str());
+        }
+    }
+
+    // Lowest point of the standing collision spheres relative to the entity origin: where the floor is
+    // for this body. The stock mesh of a character is built to stand on its own body's feet.
+    float body_feet_height(const rf::EntityInfo& info)
+    {
+        float feet = 0.0f;
+        for (int i = 0; i < info.collision_spheres.size(); ++i) {
+            const rf::EntityCollisionSphere& s = info.collision_spheres[i];
+            const float bottom = s.center.y - s.radius;
+            if (i == 0 || bottom < feet) {
+                feet = bottom;
+            }
+        }
+        return feet;
+    }
+
+    // Stock team skin rules from player_create_entity: a character whose skin is "default" gets generated
+    // default_red / default_blue alt skins (textures with _red/_blue variants, done once per type); any other
+    // skin uses "<skin>_red" / "<skin>_blue". 'n' is the stock non-team skin.
+    std::string forced_skin_name(const rf::MpCharacterInfo& mp, rf::Entity* ep, char code)
+    {
+        static auto& needs_generated_team_skins =
+            addr_as_ref<bool(const rf::MpCharacterInfo* mp, const rf::EntityInfo* info)>(0x004A4540);
+        static auto& generate_team_skins = addr_as_ref<void(const rf::MpCharacterInfo* mp, rf::Entity* ep)>(0x004A45A0);
+        if (code == 'n') {
+            return mp.skin_name;
+        }
+        const bool red = code == 'r';
+        if (needs_generated_team_skins(&mp, &rf::entity_types[mp.entity_type])) {
+            generate_team_skins(&mp, ep);
+            return red ? "default_red" : "default_blue";
+        }
+        return std::string(mp.skin_name) + (red ? "_red" : "_blue");
+    }
+
+    // Run f with ep->info2 pointing at the real body so stock code reads the real spheres / crouch data.
+    template<typename F>
+    void with_real_body(rf::Entity* ep, F&& f)
+    {
+        const ForcedBody* fb = forced_body_of(ep);
+        if (!fb) {
+            f();
+            return;
+        }
+        rf::EntityInfo* look = ep->info2;
+        ep->info2 = const_cast<rf::EntityInfo*>(fb->body);
+        f();
+        ep->info2 = look;
+    }
+}
+
+// entity_create builds the physics spheres from info2->collision_spheres (lea edi,[eax+0xCEC]); at this point
+// eax is the mp character's EntityInfo (ebp, non-null for mp characters). Substitute the real body.
+CodeInjection entity_create_body_spheres_injection{
+    0x004225ED,
+    [](auto& regs) {
+        if (g_pending_forced_body && regs.ebp != 0) {
+            regs.eax = reinterpret_cast<uintptr_t>(g_pending_forced_body);
+        }
+    },
+};
+
+// Later in entity_create the physics sphere centres are copied again from ep->info2->collision_spheres
+// (mov ecx,[esi+0x29C]; add ecx,0xCEC; loop). ecx holds info2 here; substitute the real body again.
+CodeInjection entity_create_body_sphere_centers_injection{
+    0x00423285,
+    [](auto& regs) {
+        if (g_pending_forced_body) {
+            regs.ecx = reinterpret_cast<uintptr_t>(g_pending_forced_body);
+        }
+    },
+};
+
+FunHook<void(rf::Entity*)> entity_update_collision_spheres_body_hook{
+    0x0041DA00,
+    [](rf::Entity* ep) {
+        with_real_body(ep, [&] { entity_update_collision_spheres_body_hook.call_target(ep); });
+    },
+};
+
+FunHook<void(rf::Entity*)> entity_crouch_body_hook{
+    0x004289D0,
+    [](rf::Entity* ep) {
+        with_real_body(ep, [&] { entity_crouch_body_hook.call_target(ep); });
+    },
+};
+
+FunHook<void(rf::Entity*)> entity_maybe_stop_crouching_body_hook{
+    0x00428A60,
+    [](rf::Entity* ep) {
+        with_real_body(ep, [&] { entity_maybe_stop_crouching_body_hook.call_target(ep); });
+    },
+};
+
+// Eye offsets come from info2 too; use the real body's so spectating a forced player matches their real view.
+FunHook<void(rf::Entity*)> entity_set_eye_pos_body_hook{
+    0x004194E0,
+    [](rf::Entity* ep) {
+        with_real_body(ep, [&] { entity_set_eye_pos_body_hook.call_target(ep); });
+    },
+};
+
+ConsoleCommand2 cl_force_character_lift_cmd{
+    "cl_force_character_lift",
+    []() {
+        g_force_character_lift = !g_force_character_lift;
+        rf::console::print("Forced character mesh lift: {}", g_force_character_lift ? "enabled" : "disabled");
+    },
+    "Toggle lifting forced character meshes so their feet meet the floor (experimental)",
+};
+
+// Lift/lower only the rendered mesh so the forced feet meet the real body's feet; physics keeps the real body.
+FunHook<void(rf::Entity*)> entity_render_forced_lift_hook{
+    0x00421850,
+    [](rf::Entity* ep) {
+        float y_off = 0.0f;
+        if (g_force_character_lift) {
+            if (const ForcedBody* fb = forced_body_of(ep)) {
+                y_off = fb->lift;
+            }
+        }
+        ep->pos.y += y_off;
+        entity_render_forced_lift_hook.call_target(ep);
+        ep->pos.y -= y_off;
+    },
+};
+
 FunHook<MultiIoPacketHandler> process_entity_create_packet_hook{
     0x00475420,
     [](char* data, const rf::NetAddr& addr) {
@@ -1150,6 +1359,36 @@ FunHook<MultiIoPacketHandler> process_entity_create_packet_hook{
             char player_id = data[name_size + 58];
             // Check if this is not NPC
             if (player_id != '\xFF') {
+                // Forced remote player character: rewrite the wire character index before the stock handler
+                // stores it and spawns the entity (mesh, anim bindings and skins follow the index); the body
+                // stays the real character's via g_pending_forced_body / g_forced_bodies.
+                int forced = -1;
+                char forced_skin = 0;
+                const rf::EntityInfo* forced_body = nullptr;
+                float forced_lift = 0.0f;
+                if (rf::local_player && rf::local_player->net_data
+                    && static_cast<uint8_t>(player_id) != rf::local_player->net_data->player_id) {
+                    int real_idx;
+                    std::memcpy(&real_idx, data + name_size + 59, sizeof(real_idx));
+                    forced = force_character_for_team(static_cast<uint8_t>(data[name_size]), forced_skin);
+                    if (forced >= 0 && (real_idx < 0 || real_idx >= rf::num_multi_characters)) {
+                        forced = -1;
+                    }
+                    if (forced >= 0 && real_idx != forced) {
+                        const rf::MpCharacterInfo& real = rf::mp_characters[real_idx];
+                        const rf::MpCharacterInfo& look = rf::mp_characters[forced];
+                        if (real.entity_type != look.entity_type) {
+                            ensure_character_body_setup(forced);
+                            ensure_character_body_setup(real_idx);
+                            forced_body = &rf::entity_types[real.entity_type];
+                            forced_lift = body_feet_height(*forced_body) - body_feet_height(rf::entity_types[look.entity_type]);
+                            xlog::info("force_character: body of {} ({}) + look of {} ({}), lift {:.3f}",
+                                real_idx, forced_body->name.c_str(), forced, rf::entity_types[look.entity_type].name.c_str(), forced_lift);
+                        }
+                        std::memcpy(data + name_size + 59, &forced, sizeof(forced));
+                        g_pending_forced_body = forced_body;
+                    }
+                }
                 int weapon_type;
                 std::memcpy(&weapon_type, data + name_size + 63, sizeof(weapon_type));
                 // Bounds-check the wire-supplied weapon_type before indexing rf::weapon_types[64].
@@ -1161,6 +1400,19 @@ FunHook<MultiIoPacketHandler> process_entity_create_packet_hook{
                 }
                 else {
                     process_entity_create_packet_hook.call_target(data, addr);
+                }
+                g_pending_forced_body = nullptr;
+                if (forced >= 0) {
+                    rf::Player* player = rf::multi_find_player_by_id(static_cast<uint8_t>(player_id));
+                    rf::Entity* ep = player ? rf::entity_from_handle(player->entity_handle) : nullptr;
+                    if (ep && ep->mp_character_id == forced) {
+                        if (forced_body) {
+                            g_forced_bodies[ep->handle] = ForcedBody{forced_body, forced_lift};
+                        }
+                        if (forced_skin == 'r' || forced_skin == 'b' || forced_skin == 'n') {
+                            rf::entity_set_skin(ep, forced_skin_name(rf::mp_characters[forced], ep, forced_skin).c_str());
+                        }
+                    }
                 }
             }
             else {
@@ -1959,6 +2211,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         if (server_allow_outlines_xray()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_outlines_xray;
         }
+        if (server_allow_force_character()) {
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::allow_force_character;
+        }
         if (server_clear_stale_movement_input()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::clear_stale_movement_input;
         }
@@ -2197,6 +2452,7 @@ CodeInjection process_join_accept_injection{
             server_info.allow_footsteps = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_footsteps);
             server_info.allow_outlines = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_outlines);
             server_info.allow_outlines_xray = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_outlines_xray);
+            server_info.allow_force_character = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_force_character);
             server_info.clear_stale_movement_input = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::clear_stale_movement_input);
             server_info.allow_sprays = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::allow_sprays);
             server_info.match_mode = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::match_mode);
@@ -3724,6 +3980,14 @@ void network_init()
     process_ctf_flag_returned_packet_hook.install();
     process_ctf_flag_dropped_packet_hook.install();
     process_entity_create_packet_hook.install();
+    entity_create_body_spheres_injection.install();
+    entity_create_body_sphere_centers_injection.install();
+    entity_update_collision_spheres_body_hook.install();
+    entity_set_eye_pos_body_hook.install();
+    entity_crouch_body_hook.install();
+    entity_maybe_stop_crouching_body_hook.install();
+    entity_render_forced_lift_hook.install();
+    cl_force_character_lift_cmd.register_cmd();
     process_reload_packet_hook.install();
     process_reload_request_packet_hook.install();
     process_pong_packet_hook.install();

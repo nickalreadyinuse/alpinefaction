@@ -5534,6 +5534,11 @@ bool server_allow_footsteps()
     return g_alpine_server_config.allow_footsteps;
 }
 
+bool server_allow_force_character()
+{
+    return g_alpine_server_config.allow_force_character;
+}
+
 bool server_sprays_enabled()
 {
     return g_alpine_server_config.spray_config.enabled;

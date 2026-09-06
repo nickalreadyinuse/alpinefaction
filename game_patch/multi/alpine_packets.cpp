@@ -3813,6 +3813,8 @@ uint32_t af_compute_server_info_flags()
         af |= af_server_info_flags::SIF_ALLOW_OUTLINES;
     if (g_alpine_server_config.allow_outlines_xray)
         af |= af_server_info_flags::SIF_ALLOW_OUTLINES_XRAY;
+    if (g_alpine_server_config.allow_force_character)
+        af |= af_server_info_flags::SIF_ALLOW_FORCE_CHARACTER;
     if (g_alpine_server_config_active_rules.clear_stale_movement_input)
         af |= af_server_info_flags::SIF_CLEAR_STALE_MOVEMENT_INPUT;
     if (was_level_loaded_manually())
@@ -3961,6 +3963,7 @@ static void decode_af_server_info_flags(const af_server_info_packet& pkt, Alpine
     server_info.allow_footsteps = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_FOOTSTEPS) != 0;
     server_info.allow_outlines = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_OUTLINES) != 0;
     server_info.allow_outlines_xray = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_OUTLINES_XRAY) != 0;
+    server_info.allow_force_character = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_FORCE_CHARACTER) != 0;
     server_info.clear_stale_movement_input = (pkt.af_flags & af_server_info_flags::SIF_CLEAR_STALE_MOVEMENT_INPUT) != 0;
     server_info.was_manual_level_load = (pkt.af_flags & af_server_info_flags::SIF_MANUAL_LEVEL_LOAD) != 0;
     server_info.allow_sprays = (pkt.af_flags & af_server_info_flags::SIF_ALLOW_SPRAYS) != 0;

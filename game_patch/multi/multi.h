@@ -142,6 +142,7 @@ struct AlpineFactionServerInfo
     bool allow_footsteps = false;
     bool allow_outlines = false;
     bool allow_outlines_xray = false;
+    bool allow_force_character = false;
     bool clear_stale_movement_input = false;
     bool was_manual_level_load = false;
     bool allow_sprays = false;
