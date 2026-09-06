@@ -185,6 +185,14 @@ float3 apply_colorblind(float3 color)
     return mul(color, mat);
 }
 
+// vkd3d-shader (Wine's d3dcompiler, used by the Linux CI build) requires float3 gradients for
+// Texture2DArray::SampleGrad; FXC requires float2 and warns on truncation.
+#ifdef ARRAY_GRAD_FLOAT3
+#define ARRAY_GRAD(g) float3(g, 0.0f)
+#else
+#define ARRAY_GRAD(g) (g)
+#endif
+
 // One triplanar plane: two drifting layers, each blended across two animation frames.
 float caustic_sample_plane(float2 p, float2 drift, float s0, float s1, float sf,
                            float2 dpdx, float2 dpdy)
@@ -195,10 +203,10 @@ float caustic_sample_plane(float2 p, float2 drift, float s0, float s1, float sf,
     float2 ga_y = dpdy * caustic_scale;
     float2 gb_x = float2(-dpdx.y, dpdx.x) * caustic_scale * 0.61f;
     float2 gb_y = float2(-dpdy.y, dpdy.x) * caustic_scale * 0.61f;
-    float ca = lerp(caustic_tex.SampleGrad(caustic_samp, float3(uv_a, s0), ga_x, ga_y).r,
-                    caustic_tex.SampleGrad(caustic_samp, float3(uv_a, s1), ga_x, ga_y).r, sf);
-    float cb = lerp(caustic_tex.SampleGrad(caustic_samp, float3(uv_b, s0), gb_x, gb_y).r,
-                    caustic_tex.SampleGrad(caustic_samp, float3(uv_b, s1), gb_x, gb_y).r, sf);
+    float ca = lerp(caustic_tex.SampleGrad(caustic_samp, float3(uv_a, s0), ARRAY_GRAD(ga_x), ARRAY_GRAD(ga_y)).r,
+                    caustic_tex.SampleGrad(caustic_samp, float3(uv_a, s1), ARRAY_GRAD(ga_x), ARRAY_GRAD(ga_y)).r, sf);
+    float cb = lerp(caustic_tex.SampleGrad(caustic_samp, float3(uv_b, s0), ARRAY_GRAD(gb_x), ARRAY_GRAD(gb_y)).r,
+                    caustic_tex.SampleGrad(caustic_samp, float3(uv_b, s1), ARRAY_GRAD(gb_x), ARRAY_GRAD(gb_y)).r, sf);
     return (ca + cb) * 0.5f;
 }
 
