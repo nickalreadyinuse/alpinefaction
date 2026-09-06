@@ -508,28 +508,17 @@ ConsoleCommand2 mp_set_character_cmd{
     "mp_character <index>",
 };
 
-// Shared handler for cl_force_character_* commands. Stores the pc_multi.tbl name (empty = off).
+// Shared handler for cl_force_character_* commands. Stores the pc_multi.tbl name (empty = game-driven).
 static void force_character_cmd_handler(std::string& setting, const char* label, const std::optional<std::string>& arg)
 {
     if (arg.has_value()) {
-        const std::string& val = arg.value();
-        if (val.empty() || _stricmp(val.c_str(), "off") == 0) {
+        const std::string& name = arg.value();
+        if (name.empty() || _stricmp(name.c_str(), "clear") == 0) {
             setting.clear();
         }
         else {
-            std::string name = val;
-            char skin = 0;
-            if (const auto slash = name.find('/'); slash != std::string::npos) {
-                const std::string suffix = name.substr(slash + 1);
-                name.resize(slash);
-                skin = suffix.empty() ? 0 : static_cast<char>(std::tolower(static_cast<unsigned char>(suffix[0])));
-                if (skin != 'r' && skin != 'b' && skin != 'n') {
-                    rf::console::print("Unknown skin '{}'. Use /r (red), /b (blue) or /n (neutral), or omit for stock team skins.", suffix);
-                    return;
-                }
-            }
             int idx = -1;
-            const bool numeric = name.size() <= 3 && !name.empty() && std::all_of(name.begin(), name.end(), [](unsigned char c) { return std::isdigit(c); });
+            const bool numeric = name.size() <= 3 && std::all_of(name.begin(), name.end(), [](unsigned char c) { return std::isdigit(c); });
             if (numeric) {
                 idx = std::stoi(name);
                 if (idx >= rf::num_multi_characters) {
@@ -547,14 +536,31 @@ static void force_character_cmd_handler(std::string& setting, const char* label,
                 return;
             }
             setting = rf::mp_characters[idx].name;
-            if (skin) {
-                setting += '/';
-                setting += skin;
-            }
         }
     }
     rf::console::print("Forced {} character: {} (applies on each player's next spawn)",
-        label, setting.empty() ? "off" : setting.c_str());
+        label, setting.empty() ? "clear (game-driven)" : setting.c_str());
+}
+
+// Shared handler for cl_force_skin_* commands. Stores "red", "blue" or "neutral" (empty = game-driven).
+static void force_skin_cmd_handler(std::string& setting, const char* label, const std::optional<std::string>& arg)
+{
+    if (arg.has_value()) {
+        const std::string& val = arg.value();
+        if (val.empty() || _stricmp(val.c_str(), "clear") == 0) {
+            setting.clear();
+        }
+        else if (_stricmp(val.c_str(), "red") == 0 || _stricmp(val.c_str(), "blue") == 0 || _stricmp(val.c_str(), "neutral") == 0) {
+            setting = val;
+            std::transform(setting.begin(), setting.end(), setting.begin(), [](unsigned char c) { return std::tolower(c); });
+        }
+        else {
+            rf::console::print("Unknown skin '{}'. Use red, blue, neutral or clear.", val);
+            return;
+        }
+    }
+    rf::console::print("Forced {} skin: {} (applies on each player's next spawn)",
+        label, setting.empty() ? "clear (game-driven)" : setting.c_str());
 }
 
 ConsoleCommand2 cl_force_character_enemy_cmd{
@@ -562,8 +568,8 @@ ConsoleCommand2 cl_force_character_enemy_cmd{
     [](std::optional<std::string> arg) {
         force_character_cmd_handler(g_alpine_game_config.force_character_enemy, "enemy", arg);
     },
-    "Render all enemy players (everyone in non-team modes) as the given multiplayer character; add /r, /b or /n to force the red, blue or neutral skin",
-    "cl_force_character_enemy <name|index>[/r|/b|/n] | off",
+    "Render all enemy players (everyone in non-team modes) as the given multiplayer character",
+    "cl_force_character_enemy <name|index> | clear",
 };
 
 ConsoleCommand2 cl_force_character_teammate_cmd{
@@ -571,8 +577,26 @@ ConsoleCommand2 cl_force_character_teammate_cmd{
     [](std::optional<std::string> arg) {
         force_character_cmd_handler(g_alpine_game_config.force_character_teammate, "teammate", arg);
     },
-    "Render all teammates as the given multiplayer character (team modes only); add /r, /b or /n to force the red, blue or neutral skin",
-    "cl_force_character_teammate <name|index>[/r|/b|/n] | off",
+    "Render all teammates as the given multiplayer character (team modes only)",
+    "cl_force_character_teammate <name|index> | clear",
+};
+
+ConsoleCommand2 cl_force_skin_enemy_cmd{
+    "cl_force_skin_enemy",
+    [](std::optional<std::string> arg) {
+        force_skin_cmd_handler(g_alpine_game_config.force_skin_enemy, "enemy", arg);
+    },
+    "Render all enemy players (everyone in non-team modes) with the red, blue or neutral skin",
+    "cl_force_skin_enemy red|blue|neutral | clear",
+};
+
+ConsoleCommand2 cl_force_skin_teammate_cmd{
+    "cl_force_skin_teammate",
+    [](std::optional<std::string> arg) {
+        force_skin_cmd_handler(g_alpine_game_config.force_skin_teammate, "teammate", arg);
+    },
+    "Render all teammates with the red, blue or neutral skin (team modes only)",
+    "cl_force_skin_teammate red|blue|neutral | clear",
 };
 
 FunHook<void(rf::Player*, int)> player_make_weapon_current_selection_hook{
@@ -1151,6 +1175,8 @@ void player_do_patch()
     mp_set_character_cmd.register_cmd();
     cl_force_character_enemy_cmd.register_cmd();
     cl_force_character_teammate_cmd.register_cmd();
+    cl_force_skin_enemy_cmd.register_cmd();
+    cl_force_skin_teammate_cmd.register_cmd();
     localhitsound_cmd.register_cmd();
     hit_sound_interval_cmd.register_cmd();
     tauntsound_cmd.register_cmd();

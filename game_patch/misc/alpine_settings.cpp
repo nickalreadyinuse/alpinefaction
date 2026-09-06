@@ -964,6 +964,14 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.force_character_teammate = settings["ForceCharacterTeammate"];
         processed_keys.insert("ForceCharacterTeammate");
     }
+    if (settings.count("ForceSkinEnemy")) {
+        g_alpine_game_config.force_skin_enemy = settings["ForceSkinEnemy"];
+        processed_keys.insert("ForceSkinEnemy");
+    }
+    if (settings.count("ForceSkinTeammate")) {
+        g_alpine_game_config.force_skin_teammate = settings["ForceSkinTeammate"];
+        processed_keys.insert("ForceSkinTeammate");
+    }
     if (settings.count("WorldHUDObjIcons")) {
         g_alpine_game_config.world_hud_ctf_icons = std::stoi(settings["WorldHUDObjIcons"]);
         processed_keys.insert("WorldHUDObjIcons");
@@ -1610,6 +1618,8 @@ void alpine_player_settings_save(rf::Player* player)
     file << "MultiplayerCharacter=" << player->settings.multi_character << "\n";
     file << "ForceCharacterEnemy=" << g_alpine_game_config.force_character_enemy << "\n";
     file << "ForceCharacterTeammate=" << g_alpine_game_config.force_character_teammate << "\n";
+    file << "ForceSkinEnemy=" << g_alpine_game_config.force_skin_enemy << "\n";
+    file << "ForceSkinTeammate=" << g_alpine_game_config.force_skin_teammate << "\n";
     file << "WorldHUDObjIcons=" << g_alpine_game_config.world_hud_ctf_icons << "\n";
     file << "WorldHUDFlagOverdraw=" << g_alpine_game_config.world_hud_flag_overdraw << "\n";
     file << "WorldHUDHillOverdraw=" << g_alpine_game_config.world_hud_hill_overdraw << "\n";

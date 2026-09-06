@@ -63,6 +63,9 @@ struct AlpineGameSettings
     // client-side forced remote player characters (pc_multi.tbl names, empty = off)
     std::string force_character_enemy;
     std::string force_character_teammate;
+    // client-side forced remote player skins ("red", "blue", "neutral", empty = stock team skins)
+    std::string force_skin_enemy;
+    std::string force_skin_teammate;
 
     float entity_sim_distance = 100.0f;
     void set_entity_sim_distance(float dist)

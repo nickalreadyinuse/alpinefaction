@@ -1136,18 +1136,13 @@ static int force_character_for_team(uint8_t team, char& skin_code)
         return -1;
     }
     const bool teammate = multi_is_team_game_type() && team == rf::local_player->team;
-    std::string name = teammate ? g_alpine_game_config.force_character_teammate
-                                : g_alpine_game_config.force_character_enemy;
-    if (name.empty()) {
-        return -1;
+    const std::string& skin = teammate ? g_alpine_game_config.force_skin_teammate : g_alpine_game_config.force_skin_enemy;
+    if (!skin.empty()) {
+        skin_code = skin[0]; // "red" / "blue" / "neutral"
     }
-    if (const auto slash = name.find('/'); slash != std::string::npos) {
-        if (slash + 1 < name.size()) {
-            skin_code = name[slash + 1];
-        }
-        name.resize(slash);
-    }
-    return rf::multi_find_character(name.c_str());
+    const std::string& name = teammate ? g_alpine_game_config.force_character_teammate
+                                       : g_alpine_game_config.force_character_enemy;
+    return name.empty() ? -1 : rf::multi_find_character(name.c_str());
 }
 
 // Forced look on the real body. The server simulates the real character's body: collision spheres, crouch
@@ -1402,15 +1397,17 @@ FunHook<MultiIoPacketHandler> process_entity_create_packet_hook{
                     process_entity_create_packet_hook.call_target(data, addr);
                 }
                 g_pending_forced_body = nullptr;
-                if (forced >= 0) {
+                if (forced >= 0 || forced_skin) {
                     rf::Player* player = rf::multi_find_player_by_id(static_cast<uint8_t>(player_id));
                     rf::Entity* ep = player ? rf::entity_from_handle(player->entity_handle) : nullptr;
-                    if (ep && ep->mp_character_id == forced) {
+                    if (ep && (forced < 0 || ep->mp_character_id == forced)) {
                         if (forced_body) {
                             g_forced_bodies[ep->handle] = ForcedBody{forced_body, forced_lift};
                         }
-                        if (forced_skin == 'r' || forced_skin == 'b' || forced_skin == 'n') {
-                            rf::entity_set_skin(ep, forced_skin_name(rf::mp_characters[forced], ep, forced_skin).c_str());
+                        const int look = ep->mp_character_id;
+                        if ((forced_skin == 'r' || forced_skin == 'b' || forced_skin == 'n')
+                            && look >= 0 && look < rf::num_multi_characters) {
+                            rf::entity_set_skin(ep, forced_skin_name(rf::mp_characters[look], ep, forced_skin).c_str());
                         }
                     }
                 }
