@@ -14,6 +14,7 @@ Version 1.5.0 (TBD): Not yet released
 - Add flames to gib chunks thrown by exploding entities, toggleable with `cl_gibflames`
 - Add `Jetpacks explode` option to the Jetpacks mutator
 - Add animated underwater caustics on submerged geometry and meshes, toggleable with `r_caustics` (Direct3D 11 renderer only)
+- Raise level editor per-room and per-mesh render vertex limit from 8000 to 32768
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -26,6 +27,7 @@ Version 1.5.0 (TBD): Not yet released
 - Fix phantom visual flag mesh being visible after Salvage flag is picked up on rare occasions
 - Fix scrolling textures jumping forward when the Direct3D 11 renderer rebuilds a room's render cache, most visibly after a brush-based geomod crater
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
+- Fix level editor crashing without an error message when drawing a room or mesh containing more than 8000 vertices
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
