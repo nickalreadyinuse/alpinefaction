@@ -11,6 +11,7 @@ Version 1.5.0 (TBD): Not yet released
 - Restore cut first person weapon aim sway, toggleable with `cl_weaponsway`
 - Add terms of use and notices document to installer
 - Add compatibility table (lightmap clamp floor) for `dm-halloween.rfl`
+- Add `Display_Projection` event and `Projection Camera` object for rendering live camera views onto ATX textures (Direct3D 11 renderer only)
 - Add flames to gib chunks thrown by exploding entities, toggleable with `cl_gibflames`
 - Add `Jetpacks explode` option to the Jetpacks mutator
 - Add animated underwater caustics on submerged geometry and meshes, toggleable with `r_caustics` (Direct3D 11 renderer only)
@@ -26,6 +27,7 @@ Version 1.5.0 (TBD): Not yet released
 [@GooberRF](https://github.com/GooberRF)
 - Fix phantom visual flag mesh being visible after Salvage flag is picked up on rare occasions
 - Fix scrolling textures jumping forward when the Direct3D 11 renderer rebuilds a room's render cache, most visibly after a brush-based geomod crater
+- Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
 - Fix level editor crashing without an error message when drawing a room or mesh containing more than 8000 vertices
 
