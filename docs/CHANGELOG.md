@@ -14,6 +14,7 @@ Version 1.5.0 (TBD): Not yet released
 - Add `Display_Projection` event and `Projection Camera` object for rendering live camera views onto ATX textures (Direct3D 11 renderer only)
 - Add flames to gib chunks thrown by exploding entities, toggleable with `cl_gibflames`
 - Add `Jetpacks explode` option to the Jetpacks mutator
+- Add `Brush` collision mode for Alpine Mesh objects
 - Add animated underwater caustics on submerged geometry and meshes, toggleable with `r_caustics` (Direct3D 11 renderer only)
 - Raise level editor per-room and per-mesh render vertex limit from 8000 to 32768
 
