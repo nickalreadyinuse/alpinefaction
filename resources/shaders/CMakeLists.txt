@@ -1,7 +1,7 @@
 
 if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
     set(SHADER_COMPILER shader_compiler)
-    set(SHADER_HOST_DEFS "")
+    set(SHADER_HOST_DEFS)
 else()
     set(SHADER_COMPILER wine ${CMAKE_BINARY_DIR}/bin/shader_compiler.exe)
     set(SHADER_HOST_DEFS -DARRAY_GRAD_FLOAT3)
@@ -36,3 +36,5 @@ add_shader(outline_ps outline_ps.hlsl ps_4_0)
 
 add_shader(gamma_vs gamma_vs.hlsl vs_4_0)
 add_shader(gamma_ps gamma_ps.hlsl ps_4_0)
+
+add_shader(scenefx_ps scenefx_ps.hlsl ps_4_0)
