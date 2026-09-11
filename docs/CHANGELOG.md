@@ -19,6 +19,7 @@ Version 1.5.0 (TBD): Not yet released
 - Add edge-vignette damage feedback as `cl_damageflash 2` (Direct3D 11 renderer only); `cl_damageflash` is now a level: 0 off, 1 screen flash, 2 vignette
 - Add `Brush` collision mode for Alpine Mesh objects
 - Raise level editor per-room and per-mesh render vertex limit from 8000 to 32768
+- Add `dbg_collision_pairs` console command to print object collision pair pool statistics
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -33,6 +34,7 @@ Version 1.5.0 (TBD): Not yet released
 - Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
 - Fix level editor crashing without an error message when drawing a room or mesh containing more than 8000 vertices
+- Fix object collision pairs silently running out on levels with many collidable clutter objects, triggers, and items when many players are connected
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
