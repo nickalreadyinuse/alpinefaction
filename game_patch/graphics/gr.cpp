@@ -18,7 +18,9 @@
 #include "../main/main.h"
 #include "../multi/multi.h"
 #include "../misc/alpine_settings.h"
+#include "../misc/level.h"
 #include "../rf/gr/gr.h"
+#include "../rf/gr/gr_light.h"
 #include "../rf/gameseq.h"
 #include "../rf/level.h"
 #include "../rf/geometry.h"
@@ -591,6 +593,58 @@ CodeInjection gr_d3d_render_lod_vif_injection{
         }
     },
 };
+
+SunLightState gr_get_sun_state()
+{
+    SunLightState state;
+    if (!(rf::level.flags & rf::LEVEL_LOADED)) {
+        return state;
+    }
+
+    const auto& props = AlpineLevelProperties::instance();
+    if (!props.enable_sun) {
+        return state;
+    }
+    // the chunk reader already constrains these, but this is the last thing between a level
+    // property and a constant buffer, and a NaN direction takes a whole frame of lighting with it
+    if (!std::isfinite(props.sun_yaw) || !std::isfinite(props.sun_pitch)) {
+        return state;
+    }
+    const float yaw = props.sun_yaw;
+    const float pitch = props.sun_pitch;
+    const float intensity =
+        std::isfinite(props.sun_intensity) ? std::clamp(props.sun_intensity, 0.0f, 10.0f) : 0.0f;
+
+    state.enabled = true;
+    state.affects_meshes = props.sun_affects_meshes;
+    state.drives_shadowmap_dir = props.sun_drives_shadowmap_dir;
+    state.mesh_mode = props.sun_mesh_mode;
+    rf::Vector3 to_sun = alpine_sun_to_light_dir(yaw, pitch);
+    state.travel_dir = {-to_sun.x, -to_sun.y, -to_sun.z};
+    state.color[0] = props.sun_color_r / 255.0f * intensity;
+    state.color[1] = props.sun_color_g / 255.0f * intensity;
+    state.color[2] = props.sun_color_b / 255.0f * intensity;
+    return state;
+}
+
+float gr_sun_get_mesh_scale(const float* ambient)
+{
+    const SunLightState sun = gr_get_sun_state();
+    if (!sun.enabled || !sun.affects_meshes) {
+        return 0.0f;
+    }
+    if (sun.mesh_mode != 0) {
+        return 1.0f;
+    }
+    float global_ambient[3];
+    if (!ambient) {
+        rf::gr::light_get_ambient(&global_ambient[0], &global_ambient[1], &global_ambient[2]);
+        ambient = global_ambient;
+    }
+    // an ambient luminance of 0.5 and up takes full sunlight, anything darker scales down with it
+    float luminance = ambient[0] * 0.299f + ambient[1] * 0.587f + ambient[2] * 0.114f;
+    return std::clamp(luminance * 2.0f, 0.0f, 1.0f);
+}
 
 // Power of 2 texture enforcement
 // Access p2t flag directly to avoid pulling in D3D8 types from gr_direct3d.h

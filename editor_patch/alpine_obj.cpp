@@ -10,6 +10,7 @@
 #include <string>
 #include <xlog/xlog.h>
 #include <common/utils/string-utils.h>
+#include <common/version/version.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/AsmWriter.h>
@@ -2084,6 +2085,13 @@ CodeInjection alpine_group_save_hook{
                     flags |= 1;
                 }
 
+                // Check no shadow cast
+                if (std::find(props.no_shadow_cast_brush_uids.begin(),
+                              props.no_shadow_cast_brush_uids.end(), uid)
+                    != props.no_shadow_cast_brush_uids.end()) {
+                    flags |= 4;
+                }
+
                 // Check breakable
                 auto bit = std::find(props.breakable_brush_uids.begin(),
                                      props.breakable_brush_uids.end(), uid);
@@ -2189,7 +2197,9 @@ CodeInjection alpine_group_load_hook{
             if (chunk_size < 0 || chunk_size > 10000000) break;
 
             if (chunk_id == alpine_mesh_chunk_id) {
-                mesh_deserialize_chunk(*level, *file, chunk_size);
+                // .rfg has no version discipline yet (stock RED stamps 200 in its own space), so
+                // group content is treated as current-content; trailing blocks are length-checked.
+                mesh_deserialize_chunk(*level, *file, chunk_size, MAXIMUM_RFL_VERSION);
             }
             else if (chunk_id == alpine_note_chunk_id) {
                 note_deserialize_chunk(*level, *file, chunk_size);
@@ -2396,6 +2406,13 @@ CodeInjection alpine_group_load_hook{
                                           props.geoable_brush_uids.end(), uid)
                                 == props.geoable_brush_uids.end()) {
                                 props.geoable_brush_uids.push_back(uid);
+                            }
+                        }
+                        if (bge.flags & 4) { // no shadow cast
+                            if (std::find(props.no_shadow_cast_brush_uids.begin(),
+                                          props.no_shadow_cast_brush_uids.end(), uid)
+                                == props.no_shadow_cast_brush_uids.end()) {
+                                props.no_shadow_cast_brush_uids.push_back(uid);
                             }
                         }
                         if (bge.flags & 2) { // breakable

@@ -260,7 +260,7 @@ static void alpine_mesh_create_object(const AlpineMeshInfo& info);
 
 // ─── Chunk Loading ──────────────────────────────────────────────────────────
 
-void alpine_mesh_load_chunk(rf::File& file, std::size_t chunk_len)
+void alpine_mesh_load_chunk(rf::File& file, std::size_t chunk_len, int content_version)
 {
     std::size_t remaining = chunk_len;
 
@@ -292,6 +292,8 @@ void alpine_mesh_load_chunk(rf::File& file, std::size_t chunk_len)
     uint32_t count = 0;
     if (!read_bytes(&count, sizeof(count))) return;
     if (count > 10000) count = 10000;
+
+    uint32_t loaded = 0;
 
     for (uint32_t i = 0; i < count; i++) {
         AlpineMeshInfo info;
@@ -407,6 +409,15 @@ void alpine_mesh_load_chunk(rf::File& file, std::size_t chunk_len)
         // resolver runs. This lets the stock resolver convert event→mesh link UIDs
         // to handles automatically, just like any other object type.
         alpine_mesh_create_object(info);
+        loaded++;
+    }
+
+    // Trailing per-object flag block, added in rfl v306.
+    if (content_version >= 306 && loaded == count && remaining >= count) {
+        for (uint32_t i = 0; i < count; i++) {
+            uint8_t flags = 0;
+            if (!read_bytes(&flags, sizeof(flags))) return;
+        }
     }
 }
 

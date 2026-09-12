@@ -399,8 +399,9 @@ static_assert(sizeof(DedEvent) == 0xC4, "DedEvent size mismatch");
 
 struct DedRoomEffect : DedObject
 {
-    int effect_type;                   // 0x94 — 2 = Liquid Room
-    char pad_98[0xA8 - 0x98];
+    int effect_type;                   // 0x94 — 2 = Liquid Room, 3 = Ambient Light
+    uint32_t ambient_color;            // 0x98 — ambient color for effect_type 3
+    char pad_9C[0xA8 - 0x9C];
     VString liquid_bitmap;             // 0xA8 — liquid surface texture filename
     char pad_B0[0xD4 - 0xB0];
 };
@@ -438,6 +439,7 @@ struct DedMesh : DedObject
     bool simulate_in_editor = false;   // v3c only: play animation continuously instead of freezing frame 0
     int material = 0;                  // material type for impact sounds (0=default, applies to all meshes)
     MeshClutterProps clutter_props;
+    bool no_shadow_cast = false;       // excluded from the lightmap bake's mesh occluders
 };
 
 struct DedNote : DedObject
@@ -748,6 +750,15 @@ struct CDocument
 };
 static_assert(sizeof(CDocument) == 0x50);
 
+struct CDedDoc : CDocument
+{
+    char LoadSaveLevel(const char* path, int is_load, int is_autosave)
+    {
+        return AddrCaller{0x0041CCE0}.this_call<char>(this, path, is_load, is_autosave);
+    }
+};
+static_assert(sizeof(CDedDoc) == sizeof(CDocument));
+
 struct VFile
 {
     int DirId;
@@ -783,7 +794,7 @@ struct CMainFrame : CFrameWnd
 {
     void* views[4];
     void* unk_view;
-    CDocument* doc;
+    CDedDoc* doc;
     VString field_D4;
     char dialog_bar[0x88]; // CDialogBar
     char status_bar[0x7C]; // CStatusBar
@@ -797,7 +808,7 @@ struct CMainFrame : CFrameWnd
     float camera_speed_allowed_values[6];
     int camera_speed_index;
     float grid_brightness;
-    int custom_colors[16];
+    COLORREF custom_colors[16];
     int favorite_textures[8];
     bool play_no_tnl;
     char padding_tail[3];
@@ -812,8 +823,14 @@ struct CMainFrame : CFrameWnd
     {
         AddrCaller{0x00447670}.this_call(this);
     }
+
+    void OnCalculateLighting()
+    {
+        AddrCaller{0x00449680}.this_call(this);
+    }
 };
 static_assert(sizeof(CMainFrame) == 0x550);
+static_assert(offsetof(CMainFrame, custom_colors) == 0x4E8, "custom_colors offset mismatch!");
 
 static auto& g_main_frame = addr_as_ref<CMainFrame*>(0x006F9E68);
 static auto& g_maximized_viewport = addr_as_ref<int>(0x0057B9C0);
