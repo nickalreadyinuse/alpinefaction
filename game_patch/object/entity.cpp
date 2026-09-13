@@ -26,6 +26,7 @@
 #include "../rf/sound/sound.h"
 #include "../rf/object.h"
 #include "../rf/vmesh.h"
+#include "../rf/v3d.h"
 #include "../rf/character.h"
 #include "../rf/math/vector.h"
 #include "../rf/gameseq.h"
@@ -879,9 +880,109 @@ CodeInjection clear_stale_movement_input_injection{
     },
 };
 
+// Perf: physics_stick_to_ground does a full world collision sweep under the entity and
+// obj_move_all_post calls it for every walking non-falling entity every frame. For a
+// non-local entity that has not moved since its last trace and is not standing on an
+// object (mover), the previous result still holds - skip the sweep. A forced re-trace
+// every 8th call per entity catches the ground changing under a stationary entity (geomod).
+FunHook<void(rf::Entity*)> physics_stick_to_ground_perf_hook{
+    0x004A0840,
+    [](rf::Entity* ep) {
+        constexpr int pf_standing_on_object = 0x400000; // set/cleared by the trace itself
+        // ponytail: per-handle cache; wholesale clear at 2048 instead of level-init hookup
+        static std::unordered_map<int, std::pair<rf::Vector3, int>> last_trace; // handle -> (pos, skips)
+        if (ep != rf::local_player_entity
+            && !(ep->p_data.flags & pf_standing_on_object)
+            && !rf::entity_is_falling(ep)) {
+            auto it = last_trace.find(ep->handle);
+            if (it != last_trace.end()) {
+                auto& [pos, skips] = it->second;
+                const rf::Vector3 delta = ep->pos - pos;
+                const bool stationary = delta.dot_prod(delta) < 1e-8f;
+                // Stationary: re-trace every 8th call (catches geomod under the entity).
+                // Moving (walking, not falling): trace every 4th frame - the trace mostly
+                // re-confirms ground; falling entities above are always traced. The moving
+                // skip is client-only (server positions are authoritative - lift edges must
+                // not lag) and only at high framerates (below ~125 fps a 4-frame gap gets
+                // visually long on stairs).
+                const bool moving_skip_ok = !rf::is_server && rf::frametime < 0.008f;
+                const int max_skips = stationary ? 8 : (moving_skip_ok ? 3 : 0);
+                if (skips < max_skips) {
+                    ++skips;
+                    return;
+                }
+            }
+        }
+        physics_stick_to_ground_perf_hook.call_target(ep);
+        if (last_trace.size() > 2048) {
+            last_trace.clear();
+        }
+        last_trace[ep->handle] = {ep->pos, 0};
+    },
+};
+
+// Perf: run the stock "fast animations" alternate-frame character pose evaluation for
+// every character regardless of LOD and the menu option. Stock gates it to LOD >= 1, so
+// with character LODs disabled it never engages; render-side pose eval (0x0051BA00)
+// measured ~9% of client frametime in bot-heavy demos. The skip uses the engine's own
+// per-instance alternate-frame flag (CharacterInstance+0x12cc), i.e. the proven stock
+// mechanism, just un-gated.
+CodeInjection character_pose_eval_half_rate_injection{
+    0x0052FBA5,
+    [](auto& regs) {
+        // The overwritten region (TEST EBP,EBP / JZ rel8 / MOV AL,[g_fast_animations])
+        // contains a short jump subhook cannot relocate, so the trampoline is null and
+        // this handler MUST always set regs.eip - it fully emulates the stock branch:
+        //   lod_index (EBP) != 0 && g_fast_animations -> alternate-frame path (0x0052FBB2)
+        //   otherwise -> full evaluation path (0x0052FBF4)
+        // Our addition: also take the alternate-frame path at any LOD, at
+        // high framerates only (below ~125 fps stock full-rate is kept so slow machines
+        // don't get visibly choppy anims) and never for the first-person weapon (stock's
+        // lod==0 check happened to exempt it; keep reload/fire anims full-rate).
+        // ESI = MeshRenderParams* (flags at +0)
+        const int render_flags = *reinterpret_cast<int*>(regs.esi.value);
+        const bool half_rate = rf::frametime < 0.008f
+            && !(render_flags & rf::MRF_FIRST_PERSON);
+        const bool stock_fast_anims = regs.ebp.value != 0 && addr_as_ref<bool>(0x005A4459);
+        regs.eip = (half_rate || stock_fast_anims) ? 0x0052FBB2 : 0x0052FBF4;
+    },
+};
+
+// Perf: entity_process_pre advances character animation state (vmesh_process) for every
+// near entity every frame. The advance is time-based, so accumulating frametime and
+// flushing at ~250 Hz per entity is lossless for animation timing while cutting most
+// calls at uncapped framerates. No-op at framerates <= 250 fps.
+CallHook<void(rf::VMesh*, float, int, rf::Vector3*, rf::Matrix3*, int)> entity_pre_vmesh_process_hook{
+    0x0041DD41,
+    [](rf::VMesh* vmesh, float frametime, int increment_only, rf::Vector3* pos, rf::Matrix3* orient, int lod_level) {
+        // ponytail: keyed by VMesh*, pointers used only as keys; wholesale clear caps growth
+        static std::unordered_map<rf::VMesh*, float> pending_dt;
+        if (pending_dt.size() > 512) {
+            pending_dt.clear();
+        }
+        float& acc = pending_dt[vmesh];
+        acc += frametime;
+        if (acc < 0.004f) {
+            return;
+        }
+        frametime = acc;
+        acc = 0.0f;
+        entity_pre_vmesh_process_hook.call_target(vmesh, frametime, increment_only, pos, orient, lod_level);
+    },
+};
+
 void entity_do_patch()
 {
     //player_create_entity_patch.install(); // force team skin experiment
+
+    // Skip redundant per-frame ground traces for stationary remote entities
+    physics_stick_to_ground_perf_hook.install();
+
+    // Half-rate character pose evaluation at all LODs
+    character_pose_eval_half_rate_injection.install();
+
+    // ~250 Hz entity animation state updates
+    entity_pre_vmesh_process_hook.install();
 
     // Handle toggle for pain sounds
     entity_maybe_play_pain_sound_hook.install();
