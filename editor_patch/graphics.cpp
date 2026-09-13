@@ -15,6 +15,8 @@
 
 HWND GetMainFrameHandle();
 
+bool g_editor_force_lod0 = true;
+
 // After geometry rebuild, rooms allocated from recycled heap memory may have stale
 // non-NULL geo_cache pointers left over from the previous cycle. The D3D8 renderer
 // checks geo_cache != NULL to decide whether to use an existing cache or rebuild.
@@ -63,47 +65,6 @@ static void repoint_array_refs(std::initializer_list<uintptr_t> sites, uintptr_t
 
 namespace red
 {
-    struct GrScreen
-    {
-        int signature;
-        int max_width;
-        int max_height;
-        int mode;
-        int window_mode;
-        int field_14;
-        float aspect;
-        int field_1c;
-        int bits_per_pixel;
-        int bytes_ber_pixel;
-        int field_28;
-        int offset_x;
-        int offset_y;
-        int clip_width;
-        int clip_height;
-        int max_tex_width;
-        int max_tex_height;
-        int clip_left;
-        int clip_right;
-        int clip_top;
-        int clip_bottom;
-        int current_color;
-        int current_bitmap;
-        int current_bitmap2;
-        int fog_mode;
-        int fog_color;
-        float fog_near;
-        float fog_far;
-        float fog_far_scaled;
-        bool recolor_enabled;
-        float recolor_red;
-        float recolor_green;
-        float recolor_blue;
-        int field_84;
-        int field_88;
-        int zbuffer_mode;
-    };
-    static_assert(sizeof(GrScreen) == 0x90);
-
     struct Vector3;
     struct Matrix3;
 
@@ -113,8 +74,45 @@ namespace red
     auto& gr_d3d_max_hw_index = addr_as_ref<int>(0x01621FAC);
     auto& gr_d3d_num_vertices = addr_as_ref<int>(0x01839310);
     auto& gr_d3d_num_indices = addr_as_ref<int>(0x01839314);
-    auto& gr_screen = addr_as_ref<GrScreen>(0x014CF748);
+    auto& gr_d3d_vertex_buffer_data = addr_as_ref<u8*>(0x0183B908);
+    auto& gr_d3d_index_buffer_data = addr_as_ref<u8*>(0x0183B90C);
 
+}
+
+// All six sites that lock the global dynamic vertex/index buffers discard the Lock HRESULT and
+// write through the returned pointer, so a failed Lock crashes on a null store. Substitute scratch
+// for whichever side failed: the batch lands in our own memory and the editor survives until the
+// device recovers. Scratch is sized for the largest possible write: u16 section vertex/face counts
+// (40 bytes per vertex, three u16 indices per face) plus the clipping pass's 0x300-entry slack.
+static constexpr int lock_clip_slack = 0x300;
+static constexpr int max_lock_verts = 0x10000 + lock_clip_slack;
+static constexpr int max_lock_indices = 0x10000 * 3 + lock_clip_slack;
+alignas(16) static u8 lock_vert_scratch[max_lock_verts * 40];
+static u8 lock_index_scratch[max_lock_indices * 2];
+
+// Only gr_d3d_prepare_buffers has a hook site where the HRESULT is still in a register.
+static int last_vertex_lock_hr;
+
+// Pointers are passed by address because half the sites keep them in a stack local.
+static void substitute_failed_locks(u8** vertex_data, u8** index_data, const char* site)
+{
+    if (vertex_data && !*vertex_data) {
+        WARN_ONCE("Vertex buffer lock failed in {} (last lock hr 0x{:08x}), discarding geometry "
+                  "until the device recovers", site, static_cast<unsigned>(last_vertex_lock_hr));
+        *vertex_data = lock_vert_scratch;
+    }
+    if (index_data && !*index_data) {
+        WARN_ONCE("Index buffer lock failed in {}, discarding geometry until the device recovers",
+            site);
+        *index_data = lock_index_scratch;
+    }
+}
+
+// Both submit families hold the lock pointers in their own frame; the hook sites sit on the first
+// instruction after the pair of Lock calls, where ESP is back at the frame base.
+static u8** frame_slot(uintptr_t esp, unsigned offset)
+{
+    return reinterpret_cast<u8**>(esp + offset);
 }
 
 CallHook<void()> frametime_calculate_hook{
@@ -349,6 +347,72 @@ CodeInjection detail_room_overflow_check{
     },
 };
 
+CodeInjection gr_d3d_prepare_buffers_lock_hr{
+    0x004E9982, // MOV ECX, [gr_d3d_max_hw_index] — first instruction after the vertex Lock
+    [](auto& regs) {
+        last_vertex_lock_hr = regs.eax;
+    },
+};
+
+CodeInjection gr_d3d_lock_failure_guard{
+    0x004E99BC, // MOV byte [gr_d3d_buffers_locked], 1 — after both Lock calls
+    []() {
+        substitute_failed_locks(&red::gr_d3d_vertex_buffer_data, &red::gr_d3d_index_buffer_data,
+                                "gr_d3d_prepare_buffers");
+    },
+};
+
+// FUN_00505c60 — v3d LOD submit. The dump's fault site.
+CodeInjection mesh_submit_lock_failure_guard{
+    0x00505F1B,
+    [](auto& regs) {
+        substitute_failed_locks(frame_slot(static_cast<uintptr_t>(regs.esp), 0x58), frame_slot(static_cast<uintptr_t>(regs.esp), 0x68),
+                                "the mesh submit path");
+    },
+};
+
+// FUN_00506830 — the morph-target twin of FUN_00505c60.
+CodeInjection morph_mesh_submit_lock_failure_guard{
+    0x00506B9A,
+    [](auto& regs) {
+        substitute_failed_locks(frame_slot(static_cast<uintptr_t>(regs.esp), 0x68), frame_slot(static_cast<uintptr_t>(regs.esp), 0x78),
+                                "the morphed mesh submit path");
+    },
+};
+
+CodeInjection room_submit_lock_failure_guard{
+    0x00502C46,
+    [](auto& regs) {
+        substitute_failed_locks(frame_slot(static_cast<uintptr_t>(regs.esp), 0x7C), frame_slot(static_cast<uintptr_t>(regs.esp), 0x8C),
+                                "a room submit path");
+    },
+};
+
+CodeInjection room_submit_lock_failure_guard_2{
+    0x00503718,
+    [](auto& regs) {
+        substitute_failed_locks(frame_slot(static_cast<uintptr_t>(regs.esp), 0x18), frame_slot(static_cast<uintptr_t>(regs.esp), 0x60),
+                                "a room submit path");
+    },
+};
+
+// FUN_005040b0 locks only the vertex buffer, and into the same global gr_d3d_prepare_buffers uses.
+CodeInjection geometry_submit_lock_failure_guard{
+    0x00504219,
+    []() {
+        substitute_failed_locks(&red::gr_d3d_vertex_buffer_data, nullptr,
+                                "the level geometry submit path");
+    },
+};
+
+CodeInjection geometry_submit_lock_failure_guard_2{
+    0x005044B4,
+    []() {
+        substitute_failed_locks(&red::gr_d3d_vertex_buffer_data, nullptr,
+                                "the level geometry submit path");
+    },
+};
+
 CodeInjection gr_d3d_init_load_library_injection{
     0x004EC50E,
     [](auto& regs) {
@@ -435,6 +499,16 @@ void ApplyGraphicsPatches()
     gr_d3d_bitmap_patch_2.install();
     gr_d3d_render_geometry_face_patch_1.install();
     gr_d3d_render_geometry_face_patch_2.install();
+
+    // Keep the batch lock pointers non-null when a D3D buffer lock fails
+    gr_d3d_prepare_buffers_lock_hr.install();
+    gr_d3d_lock_failure_guard.install();
+    mesh_submit_lock_failure_guard.install();
+    morph_mesh_submit_lock_failure_guard.install();
+    room_submit_lock_failure_guard.install();
+    room_submit_lock_failure_guard_2.install();
+    geometry_submit_lock_failure_guard.install();
+    geometry_submit_lock_failure_guard_2.install();
 
     // Fix editor not using all space for rendering when used with a big monitor
     gr_init_hook.install();
@@ -597,6 +671,11 @@ void ApplyGraphicsPatches()
     repoint_array_refs({0x00505f4f, 0x00505f63, 0x00505ffc, 0x00506444, 0x00506bd1, 0x00506cc3,
                         0x005074b1},
                        0x01ab6294, mesh_vert_rgb);
+
+    if (g_editor_force_lod0) {
+        write_mem<u8>(0x00507907, 0xEB);
+        write_mem<u8>(0x00507915, 0xEB);
+    }
 
     // Restore render state after D3D device Reset()
     gr_d3d_device_reset_state_recovery.install();
