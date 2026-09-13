@@ -500,6 +500,8 @@ namespace gr::d3d11
         DF_GR_D3D11_CHECK_HR(
             device_->CreateDepthStencilView(depth_stencil, &view_desc, &depth_stencil_view_)
         );
+
+        scene_depth_.reset(device_, context_, depth_stencil);
     }
 
     bool Renderer::supports_sample_count(const uint32_t sample_count) {
@@ -962,7 +964,14 @@ namespace gr::d3d11
         // projection to apply, so the widened far plane reaches begin_frame and the frustum setup.
         if (render_target_bm_handle_ == -1 && liquid_update_frame_ != rf::frame_count) {
             liquid_update_frame_ = rf::frame_count;
-            proj = render_context_->update_liquid_fx(proj, rf::gr::eye_pos, rf::gr::eye_matrix);
+            // The depth copy is only worth allocating where a liquid surface will read it. The
+            // state still holds last frame's answer here, so the frame a liquid room first comes
+            // into range runs without the clamp; the buffer is ready from the next one on.
+            const LiquidState& prev = render_context_->liquid_state();
+            const bool want_depth = g_alpine_game_config.underwater_fx >= 2
+                && prev.mode != 0 && !prev.eye_under && scene_depth_.ensure(device_, context_);
+            proj = render_context_->update_liquid_fx(proj, rf::gr::eye_pos, rf::gr::eye_matrix,
+                                                    want_depth ? scene_depth_.mode() : 0.0f);
         }
         render_context_->update_view_proj_transform(proj);
         // Only initialize outlines when rendering to the back buffer, and only after the
@@ -1031,6 +1040,13 @@ namespace gr::d3d11
         // contaminating outline colors.
         outline_renderer_->flush(*mesh_renderer_);
         dyn_geo_renderer_->flush();
+        // Snapshot the depth buffer once, before the first surface of the frame reads it: the
+        // world, its objects and the outlines are all in by now, and taking it here keeps a
+        // surface from bounding its own column on a surface drawn earlier this frame.
+        if (render_target_bm_handle_ == -1 && scene_depth_frame_ != rf::frame_count) {
+            scene_depth_frame_ = rf::frame_count;
+            scene_depth_.capture(context_);
+        }
         // Disable shadows for liquid surfaces — shadows pass through water/lava
         // and land on the solid geometry below
         entity_shadow_renderer_->disable_shadow_rendering(context_);
@@ -1134,7 +1150,9 @@ namespace gr::d3d11
             return false;
         }
         const LiquidState& liquid = render_context_->liquid_state();
-        if (liquid.mode == 0) {
+        // The overlay is about the liquid the camera is standing in; a room it can only see into
+        // still feeds the fog volumes but must not put a waterline on the screen.
+        if (liquid.mode == 0 || !liquid.eye_room_liquid) {
             return false;
         }
         // The near plane reaches near_dist / proj_sy above the eye, so liquid can still cover
