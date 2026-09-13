@@ -1328,9 +1328,15 @@ CodeInjection process_rcon_packet_injection{
 
                     if (check_result == RconCommandCheckResult::Allowed) {
                         std::string payload_str{payload.value()};
-                        // special handling for "info" command, so rcon holder gets server output
+                        // special handling for status commands, so rcon holder gets server output
                         if (cmd_lower == "info") {
                             send_rcon_feedback(*addr, build_info_command_output());
+                        }
+                        else if (cmd_lower == "sv_afstats_events_status") {
+                            send_rcon_feedback(*addr, afstats::build_afstats_events_status_output());
+                        }
+                        else if (cmd_lower == "sv_fflink_status") {
+                            send_rcon_feedback(*addr, fflink::build_fflink_status_output());
                         }
                         // otherwise just execute it on the server
                         else {

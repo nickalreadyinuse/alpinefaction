@@ -36,6 +36,8 @@ Version 1.5.0 (TBD): Not yet released
 - Add `High-resolution lightmaps` level property, used in lightmap bake in level editor
 - Deprecate and remove `-smoothlights` level editor switch
 - Add `dbg_collision_pairs` console command to print object collision pair pool statistics
+- Add `sv_afstats_events_reset` console command to clear a stuck stats event send, a 401 pause, or a stretched retry pulse and resume the stream without discarding queued events
+- Add rcon profile access to `sv_afstats` and `sv_fflink` commands and make status commands return their output to the rcon holder
 - Use the modern Windows file dialogs for every open and save in the level editor
 - Always render meshes at their highest LOD in the level editor
 - Make a mesh exported from a brush in the level editor immediately usable as a `Mesh` object
@@ -61,6 +63,7 @@ Version 1.5.0 (TBD): Not yet released
   - Fix several accuracy issues on face edges that resulted in dark bands and splotches along polygon boundaries
   - Blend coplanar surfaces across room boundaries
 - Fix object collision pairs silently running out on levels with many collidable clutter objects, triggers, and items when many players are connected
+- Fix FactionFiles stats event reporting stalling permanently when a send attempt hangs inside WinINet
 - Fix level editor crashing when a mesh is played with an animation that does not fit its skeleton
 - Fix level editor crashing when a Direct3D buffer lock fails
 - Fix level editor crashing when a Weather Region's snow `Bitmap` names a loose file instead of one inside a packfile
