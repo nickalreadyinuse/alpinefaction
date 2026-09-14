@@ -76,6 +76,7 @@ Version 1.5.0 (TBD): Not yet released
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Cap FPS-dependent launch velocity when head jumping
 - Fix landing sound spam on ramps and jump pads at high FPS
+- Fix lighting for pistol silencer and remote charge detonator
 
 Version 1.4.0 (Lupin): Released Aug-25-2026
 --------------------------------
