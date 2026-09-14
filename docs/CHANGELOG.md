@@ -69,6 +69,7 @@ Version 1.5.0 (TBD): Not yet released
 - Fix level editor crashing when a Weather Region's snow `Bitmap` names a loose file instead of one inside a packfile
 - Fix a one frame flash to the default pose each time an animation loops on a mesh being simulated in the level editor
 - Update Weather Region bounds in viewport live when values are changed
+- Fix crash when a bone, tag, or prop point is queried on a character whose mesh file contains no submeshes, or when such a character's weapon or textures are preloaded for rendering
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
