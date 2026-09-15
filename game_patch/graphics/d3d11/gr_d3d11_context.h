@@ -671,9 +671,7 @@ namespace gr::d3d11
             current_blend_state_ = nullptr;
             current_depth_stencil_state_ = nullptr;
             current_rasterizer_state_ = nullptr;
-            zbias_ = 0;
             zbias_changed_ = true;
-            depth_clip_enabled_ = true;
             depth_clip_enabled_changed_ = true;
             // Re-bind RenderContext's own constant buffers (restores b1 VP after shadow pass etc.)
             bind_cbuffers();

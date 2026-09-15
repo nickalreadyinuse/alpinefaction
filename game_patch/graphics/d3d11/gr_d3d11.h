@@ -182,6 +182,7 @@ namespace gr::d3d11
         int object_room_uid_ = -1;
         int liquid_update_frame_ = -1;
         int scene_depth_frame_ = -1;
+        bool scene_depth_wanted_ = false;
         rf::Player* deferred_reticle_player_ = nullptr;
         int render_target_bm_handle_ = -1;
         bool skip_gamma_pass_ = false;

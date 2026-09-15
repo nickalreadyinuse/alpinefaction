@@ -4,6 +4,7 @@
 #include <limits>
 #include "gr_d3d11.h"
 #include "gr_d3d11_liquid.h"
+#include "gr_d3d11_shader.h"
 #include "../../misc/alpine_settings.h"
 #include "../../os/os.h"
 #include "../../rf/geometry.h"
@@ -25,12 +26,13 @@ namespace gr::d3d11
         constexpr float liquid_blend_tau = 0.35f;
         constexpr float liquid_blend_max_dt = 0.1f;
 
-        constexpr UINT scene_depth_slot = 6;        // t6 Texture2D, t7 Texture2DMS
+        constexpr UINT scene_depth_slot = 6;        // t6 Texture2D
 
         // Same type group as the depth buffer's DXGI_FORMAT_D24_UNORM_S8_UINT, which is what
         // CopyResource requires, and the only way to get a shader resource view on it.
         constexpr DXGI_FORMAT scene_depth_format = DXGI_FORMAT_R24G8_TYPELESS;
         constexpr DXGI_FORMAT scene_depth_srv_format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+        constexpr DXGI_FORMAT scene_depth_dsv_format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
         // slack so adjacent rooms leave no seam; the top face is contracted instead (liquid_surface_epsilon)
         constexpr float liquid_box_epsilon = 0.05f;
@@ -68,15 +70,18 @@ namespace gr::d3d11
                                   ID3D11Texture2D* depth_texture)
     {
         depth_texture_ = depth_texture;
-        copy_texture_.release();
-        copy_srv_.release();
+        release_copy();
         copy_failed_ = false;
         multisampled_ = false;
+        resolve_capable_ = false;
         if (!depth_texture) {
             return;
         }
         depth_texture->GetDesc(&depth_desc_);
         multisampled_ = depth_desc_.SampleDesc.Count > 1;
+        // The shader-resource bind flag is only requested where the feature level allows an SRV on
+        // a multisampled depth buffer, so it doubles as the resolve-path gate.
+        resolve_capable_ = multisampled_ && (depth_desc_.BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0;
 
         if (!stand_in_srv_) {
             D3D11_TEXTURE2D_DESC desc{};
@@ -102,18 +107,70 @@ namespace gr::d3d11
         bind(device_context);
     }
 
-    bool SceneDepthCapture::ensure(ID3D11Device* device, ID3D11DeviceContext* device_context)
+    void SceneDepthCapture::release_copy()
+    {
+        copy_texture_.release();
+        copy_srv_.release();
+        copy_dsv_.release();
+        depth_srv_.release();
+        resolve_vs_.release();
+        resolve_ps_.release();
+        resolve_depth_state_.release();
+        resolve_rasterizer_state_.release();
+    }
+
+    bool SceneDepthCapture::create_resolve_objects(ID3D11Device* device, ShaderManager& shader_manager)
+    {
+        D3D11_DEPTH_STENCIL_VIEW_DESC dsv_desc{};
+        dsv_desc.Format = scene_depth_dsv_format;
+        dsv_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+        if (FAILED(device->CreateDepthStencilView(copy_texture_, &dsv_desc, &copy_dsv_))) {
+            return false;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC ms_srv_desc{};
+        ms_srv_desc.Format = scene_depth_srv_format;
+        ms_srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+        if (FAILED(device->CreateShaderResourceView(depth_texture_, &ms_srv_desc, &depth_srv_))) {
+            return false;
+        }
+
+        resolve_vs_ = shader_manager.load_vertex_shader_only(
+            get_vertex_shader_filename(VertexShaderId::gamma));
+        resolve_ps_ = shader_manager.get_pixel_shader(PixelShaderId::depth_resolve);
+        if (!resolve_vs_ || !resolve_ps_) {
+            return false;
+        }
+
+        CD3D11_DEPTH_STENCIL_DESC ds_desc{D3D11_DEFAULT};
+        ds_desc.DepthEnable = TRUE;
+        ds_desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        ds_desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+        ds_desc.StencilEnable = FALSE;
+        if (FAILED(device->CreateDepthStencilState(&ds_desc, &resolve_depth_state_))) {
+            return false;
+        }
+
+        CD3D11_RASTERIZER_DESC rast_desc{D3D11_DEFAULT};
+        rast_desc.CullMode = D3D11_CULL_NONE;
+        return SUCCEEDED(device->CreateRasterizerState(&rast_desc, &resolve_rasterizer_state_));
+    }
+
+    bool SceneDepthCapture::ensure(ID3D11Device* device, ID3D11DeviceContext* device_context,
+                                   ShaderManager& shader_manager)
     {
         if (copy_srv_) {
             return true;
         }
-        if (!depth_texture_ || multisampled_ || copy_failed_) {
+        if (!depth_texture_ || copy_failed_ || (multisampled_ && !resolve_capable_)) {
             return false;
         }
         // Depth-stencil bindable as well as readable: the copy stays the same kind of resource as
-        // the depth buffer it is copied from, which is what CopyResource is happiest with.
+        // the depth buffer it is copied from, which is what CopyResource is happiest with. Under
+        // MSAA it is instead the target of the resolve pass, which needs the same bind flags.
         D3D11_TEXTURE2D_DESC desc = depth_desc_;
         desc.Format = scene_depth_format;
+        desc.SampleDesc = {1, 0};
         desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DEPTH_STENCIL;
         desc.CPUAccessFlags = 0;
@@ -123,10 +180,10 @@ namespace gr::d3d11
         srv_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
         srv_desc.Texture2D.MipLevels = 1;
         if (FAILED(device->CreateTexture2D(&desc, nullptr, &copy_texture_))
-            || FAILED(device->CreateShaderResourceView(copy_texture_, &srv_desc, &copy_srv_))) {
+            || FAILED(device->CreateShaderResourceView(copy_texture_, &srv_desc, &copy_srv_))
+            || (multisampled_ && !create_resolve_objects(device, shader_manager))) {
             xlog::warn("Liquid: scene depth copy unavailable, surfaces keep their far-clip fade");
-            copy_texture_.release();
-            copy_srv_.release();
+            release_copy();
             copy_failed_ = true;
             return false;
         }
@@ -134,11 +191,44 @@ namespace gr::d3d11
         return true;
     }
 
-    void SceneDepthCapture::capture(ID3D11DeviceContext* device_context)
+    bool SceneDepthCapture::capture(ID3D11DeviceContext* device_context)
     {
-        if (copy_srv_) {
-            device_context->CopyResource(copy_texture_, depth_texture_);
+        if (!copy_srv_) {
+            return false;
         }
+        if (!multisampled_) {
+            device_context->CopyResource(copy_texture_, depth_texture_);
+            return false;
+        }
+
+        // The copy is about to become a depth target, so drop its own binding first; the MSAA
+        // depth buffer likewise has to leave the OM before it can be read as an SRV.
+        ID3D11ShaderResourceView* null_srv = nullptr;
+        device_context->PSSetShaderResources(scene_depth_slot, 1, &null_srv);
+        device_context->OMSetRenderTargets(0, nullptr, copy_dsv_);
+
+        D3D11_VIEWPORT viewport{};
+        viewport.Width = static_cast<float>(depth_desc_.Width);
+        viewport.Height = static_cast<float>(depth_desc_.Height);
+        viewport.MinDepth = 0.0f;
+        viewport.MaxDepth = 1.0f;
+        device_context->RSSetViewports(1, &viewport);
+        device_context->RSSetState(resolve_rasterizer_state_);
+        device_context->OMSetDepthStencilState(resolve_depth_state_, 0);
+        device_context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+        device_context->IASetInputLayout(nullptr);
+        device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        device_context->VSSetShader(resolve_vs_, nullptr, 0);
+        device_context->PSSetShader(resolve_ps_, nullptr, 0);
+        ID3D11ShaderResourceView* depth_srv = depth_srv_;
+        device_context->PSSetShaderResources(0, 1, &depth_srv);
+
+        device_context->Draw(3, 0);
+
+        device_context->PSSetShaderResources(0, 1, &null_srv);
+        device_context->OMSetRenderTargets(0, nullptr, nullptr);
+        bind(device_context);
+        return true;
     }
 
     void SceneDepthCapture::bind(ID3D11DeviceContext* device_context)

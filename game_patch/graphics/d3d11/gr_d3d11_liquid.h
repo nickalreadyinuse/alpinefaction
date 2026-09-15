@@ -13,6 +13,8 @@
 
 namespace gr::d3d11
 {
+    class ShaderManager;
+
     // Matches the caustics gather: the cull bound now reaches the engine far clip above water and
     // collects from the whole level, so long water bodies routinely span more than eight rooms.
     constexpr int max_liquid_volumes = 16;
@@ -81,8 +83,9 @@ namespace gr::d3d11
     public:
         void reset(ID3D11Device* device, ID3D11DeviceContext* device_context, ID3D11Texture2D* depth_texture);
         // Allocates the full-size copy on first use; levels without liquid never pay for it
-        bool ensure(ID3D11Device* device, ID3D11DeviceContext* device_context);
-        void capture(ID3D11DeviceContext* device_context);
+        bool ensure(ID3D11Device* device, ID3D11DeviceContext* device_context, ShaderManager& shader_manager);
+        // True when the multisampled resolve pass ran and left its own state on the pipeline
+        bool capture(ID3D11DeviceContext* device_context);
 
         // 0 none, 1 Texture2D, matching LiquidBufferData::depth_mode
         float mode() const
@@ -92,14 +95,24 @@ namespace gr::d3d11
 
     private:
         void bind(ID3D11DeviceContext* device_context);
+        bool create_resolve_objects(ID3D11Device* device, ShaderManager& shader_manager);
+        void release_copy();
 
         ComPtr<ID3D11Texture2D> depth_texture_;
         ComPtr<ID3D11Texture2D> copy_texture_;
         ComPtr<ID3D11ShaderResourceView> copy_srv_;
         ComPtr<ID3D11Texture2D> stand_in_texture_;
         ComPtr<ID3D11ShaderResourceView> stand_in_srv_;
+        // Multisampled resolve path only
+        ComPtr<ID3D11DepthStencilView> copy_dsv_;
+        ComPtr<ID3D11ShaderResourceView> depth_srv_;
+        ComPtr<ID3D11VertexShader> resolve_vs_;
+        ComPtr<ID3D11PixelShader> resolve_ps_;
+        ComPtr<ID3D11DepthStencilState> resolve_depth_state_;
+        ComPtr<ID3D11RasterizerState> resolve_rasterizer_state_;
         D3D11_TEXTURE2D_DESC depth_desc_{};
         bool multisampled_ = false;
+        bool resolve_capable_ = false;
         bool copy_failed_ = false;
     };
 
