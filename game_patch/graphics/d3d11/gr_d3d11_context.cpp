@@ -8,6 +8,7 @@
 #include "../../rf/os/frametime.h"
 #include "../../rf/multi.h"
 #include "../../misc/level.h"
+#include "../gr.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_context.h"
 #include "gr_d3d11_texture.h"
@@ -225,8 +226,13 @@ namespace gr::d3d11
         std::array<float, 3> ambient_light;
         float num_point_lights;
         PointLight point_lights[max_point_lights];
+        std::array<float, 3> sun_travel_dir;
+        float sun_scale;
+        std::array<float, 3> sun_color;       // premultiplied by sun intensity
+        float _sun_pad;
     };
     static_assert(sizeof(LightsBufferData::PointLight) % 16 == 0);
+    static_assert(sizeof(LightsBufferData) % 16 == 0);
 
     LightsBuffer::LightsBuffer(ID3D11Device* device)
     {
@@ -239,7 +245,8 @@ namespace gr::d3d11
         DF_GR_D3D11_CHECK_HR(device->CreateBuffer(&desc, nullptr, &buffer_));
     }
 
-    void LightsBuffer::update(ID3D11DeviceContext* device_context, bool force_neutral, const float* ambient_override)
+    void LightsBuffer::update(ID3D11DeviceContext* device_context, bool force_neutral, const float* ambient_override,
+        float sun_scale)
     {
         D3D11_MAPPED_SUBRESOURCE mapped_subres;
         DF_GR_D3D11_CHECK_HR(
@@ -309,6 +316,13 @@ namespace gr::d3d11
             data.num_point_lights = 0.0f;
         }
 
+        if (sun_scale > 0.0f && !force_neutral) {
+            const SunLightState sun = gr_get_sun_state();
+            data.sun_travel_dir = {sun.travel_dir.x, sun.travel_dir.y, sun.travel_dir.z};
+            data.sun_scale = sun_scale;
+            data.sun_color = {sun.color[0], sun.color[1], sun.color[2]};
+        }
+
         std::memcpy(mapped_subres.pData, &data, sizeof(data));
 
         device_context->Unmap(buffer_, 0);
@@ -331,8 +345,10 @@ namespace gr::d3d11
         float gas_fog_allowed;
         float sky_room;
         float draw_room_uid;
+        float liquid_surface;
+        std::array<float, 3> _pad;
     };
-    static_assert(sizeof(RenderModeBufferData) == 80);
+    static_assert(sizeof(RenderModeBufferData) == 96);
     static_assert(sizeof(RenderModeBufferData) % 16 == 0);
 
     RenderModeBuffer::RenderModeBuffer(ID3D11Device* device)
@@ -587,6 +603,7 @@ namespace gr::d3d11
         data.gas_fog_allowed = current_fog_allowed_ ? 1.0f : 0.0f;
         data.sky_room = current_sky_room_ ? 1.0f : 0.0f;
         data.draw_room_uid = static_cast<float>(current_draw_room_uid_);
+        data.liquid_surface = current_liquid_surface_ ? 1.0f : 0.0f;
 
         D3D11_MAPPED_SUBRESOURCE mapped_subres;
         DF_GR_D3D11_CHECK_HR(

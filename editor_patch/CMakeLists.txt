@@ -1,14 +1,22 @@
 set(SRCS
     exports.h
+    alpine_color_picker.cpp
+    alpine_color_picker.h
     alpine_obj.cpp
     alpine_obj.h
     event.cpp
+    file_dialogs.cpp
+    file_dialogs.h
     geometry.cpp
     graphics.cpp
+    headless_bake.cpp
+    headless_bake.h
     mesh_export.cpp
     main.cpp
     mesh.cpp
     mesh.h
+    mesh_browser.cpp
+    mesh_browser.h
     note.cpp
     note.h
     corona.cpp
@@ -32,6 +40,8 @@ set(SRCS
     resources.h
     level.cpp
     lightmap.cpp
+    lightmap_mesh_occluders.cpp
+    lightmap_mesh_occluders.h
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRCS})
 
@@ -58,5 +68,8 @@ target_link_libraries(AlpineEditor
     Xlog
     CrashHandlerStub
     shlwapi
+    ole32
+    shell32
+    uuid
     stb_image
 )

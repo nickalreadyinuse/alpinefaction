@@ -19,6 +19,7 @@
 #include "../../misc/alpine_settings.h"
 #include "../../misc/alpine_options.h"
 #include "../../rf/level.h"
+#include "../gr.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_mesh.h"
 #include "gr_d3d11_context.h"
@@ -881,7 +882,7 @@ namespace gr::d3d11
         if (!ir_scanner) {
             if (use_vtx_lighting) {
                 // Old (master) vertex lighting: approximate lighting via mode color
-                if (is_character_mesh) {
+                if (is_character_mesh || is_fp_weapon) {
                     color = add_clamped(params.ambient_color, {224, 224, 224, 224});
                 } else {
                     if (params.flags & rf::MeshRenderFlags::MRF_CUSTOM_AMBIENT_COLOR) {
@@ -943,21 +944,21 @@ namespace gr::d3d11
                     if (!skip_ambient_cache) {
                         entity_ambient_cache[&params] = {mesh_ambient[0], mesh_ambient[1], mesh_ambient[2]};
                     }
-                    render_context_.update_lights(false, mesh_ambient);
+                    render_context_.update_lights(false, mesh_ambient, gr_sun_get_mesh_scale(mesh_ambient));
                 } else {
                     if (!skip_ambient_cache) {
                         auto it = entity_ambient_cache.find(&params);
                         if (it != entity_ambient_cache.end()) {
-                            render_context_.update_lights(false, it->second.data());
+                            render_context_.update_lights(false, it->second.data(), gr_sun_get_mesh_scale(it->second.data()));
                         } else {
-                            render_context_.update_lights();
+                            render_context_.update_lights(false, nullptr, gr_sun_get_mesh_scale(nullptr));
                         }
                     } else {
-                        render_context_.update_lights();
+                        render_context_.update_lights(false, nullptr, gr_sun_get_mesh_scale(nullptr));
                     }
                 }
             } else {
-                render_context_.update_lights();
+                render_context_.update_lights(false, nullptr, gr_sun_get_mesh_scale(nullptr));
             }
         } else {
             render_context_.update_lights();
@@ -1044,7 +1045,9 @@ namespace gr::d3d11
                 self_illum = 1.0f;
             }
 
-            render_context_.set_mode(forced_mode.value_or(b.mode), color, false, gpu_dynamic_lighting, self_illum, !is_character_mesh, emissive);
+            // Static-mesh light scale is skipped for first person meshes too: fpguns are character meshes, and
+            // static fpgun attachments (silencer) must match them
+            render_context_.set_mode(forced_mode.value_or(b.mode), color, false, gpu_dynamic_lighting, self_illum, !is_character_mesh && !is_fp_weapon, emissive);
             render_context_.set_textures(texture, -1);
             render_context_.draw_indexed(b.num_indices, b.start_index, b.base_vertex);
         }
