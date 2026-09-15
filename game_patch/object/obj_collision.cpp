@@ -6,10 +6,12 @@
 #include <xlog/xlog.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CodeInjection.h>
+#include <patch_common/CallHook.h>
 #include "../rf/object.h"
 #include "../rf/physics.h"
 #include "../rf/geometry.h"
 #include "../rf/vmesh.h"
+#include "../rf/entity.h"
 #include "../os/console.h"
 #include "../os/os.h"
 #include "obj_collision.h"
@@ -209,6 +211,90 @@ CodeInjection weapon_create_hitscan_pairs_injection{
     },
 };
 
+// ObjInterp::set_next_pos_orient (0x00483360) dead-reckons every remote entity on every
+// received keyframe by pushing just that entity into a one-slot sim array and calling
+// obj_process_physics(arr, not_interp=false). obj_process_physics then runs
+// object_pairs_check_all_collisions over the WHOLE pair list (~47 us on object-heavy maps,
+// ~90 times on a packet frame with 16 players). Restrict that call to the moved entity's own
+// pairs. Stale pairs are left for the two real substeps per frame to reap, and the pairs of
+// other entities (whose PF_SIMULATED_THIS_FRAME is still set from obj_move_all pass 2) are
+// not re-checked here - the main tick already checks them.
+static rf::Object* g_dead_reckon_obj = nullptr;
+
+FunHook<void(rf::SimObjArray*, bool)> obj_process_physics_hook{
+    0x00487770,
+    [](rf::SimObjArray* arr, bool not_interp) {
+        rf::Object* prev = g_dead_reckon_obj;
+        g_dead_reckon_obj = (!not_interp && arr->count == 1) ? arr->objects[0] : nullptr;
+        obj_process_physics_hook.call_target(arr, not_interp);
+        g_dead_reckon_obj = prev;
+    },
+};
+
+// Per-pair dispatch of object_pairs_check_all_collisions (0x0048CA60), minus the unlinking
+static void pairs_check_one(rf::ObjCollisionPair* pair)
+{
+    if (rf::object_pairs_can_delete_pair(pair)) {
+        return;
+    }
+    rf::Object* a = pair->a;
+    rf::Object* b = pair->b;
+    if (!((a->p_data.flags | b->p_data.flags) & rf::PF_SIMULATED_THIS_FRAME)) {
+        return;
+    }
+    if (a->type == rf::OT_TRIGGER || b->type == rf::OT_TRIGGER) {
+        rf::object_pairs_check_trigger_pair(pair);
+        return;
+    }
+    if (!rf::object_pairs_should_check_pair(pair)) {
+        return;
+    }
+    const uint32_t flags = pair->flags;
+    if (flags & 0x20) {
+        auto* ea = static_cast<rf::Entity*>(a);
+        auto* eb = static_cast<rf::Entity*>(b);
+        if (ea->move_mode->mode == 1 && eb->move_mode->mode == 1) {
+            rf::collide_object_object(a, b);
+        }
+        else {
+            rf::collide_object_object_spheres(a, b);
+        }
+    }
+    else if ((flags & 0x4) && b->vmesh) {
+        rf::collide_object_object_mesh(a, b);
+    }
+    else if ((flags & 0x2) && a->vmesh) {
+        rf::collide_object_object_mesh(b, a);
+    }
+    else if ((flags & 0x10) && b->type == rf::OT_DEBRIS) {
+        rf::collide_object_debris_solid(a, b);
+    }
+    else if ((flags & 0x8) && a->type == rf::OT_DEBRIS) {
+        rf::collide_object_debris_solid(b, a);
+    }
+    else {
+        rf::collide_object_object_spheres(a, b);
+    }
+}
+
+CallHook<void()> obj_process_physics_pairs_check_hook{
+    0x00487849,
+    []() {
+        if (!g_dead_reckon_obj) {
+            obj_process_physics_pairs_check_hook.call_target();
+            return;
+        }
+        auto it = g_pairs_by_obj.find(g_dead_reckon_obj);
+        if (it == g_pairs_by_obj.end()) {
+            return;
+        }
+        // pair tests never add or free pairs, so iterating the live vector is safe
+        for (rf::ObjCollisionPair* pair : it->second) {
+            pairs_check_one(pair);
+        }
+    },
+};
+
 ConsoleCommand2 collision_pairs_cmd{
     "dbg_collision_pairs",
     []() {
@@ -246,6 +332,8 @@ void obj_collision_apply_patch()
     obj_collision_pair_list_push_hook.install();
     collide_stick2ground_hook.install();
     weapon_create_hitscan_pairs_injection.install();
+    obj_process_physics_hook.install();
+    obj_process_physics_pairs_check_hook.install();
 
     collision_pairs_cmd.register_cmd();
 }

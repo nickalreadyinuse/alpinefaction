@@ -99,6 +99,8 @@ namespace rf
     // Both write hit results into the objects' p_data.collide_out and return true on hit.
     static auto& collide_object_object_spheres = addr_as_ref<bool(Object* obj1, Object* obj2)>(0x0049A420);
     static auto& collide_object_object_mesh = addr_as_ref<bool(Object* sphere_obj, Object* mesh_obj)>(0x0049AFE0);
+    static auto& collide_object_object = addr_as_ref<bool(Object* obj1, Object* obj2)>(0x0049AB00);
+    static auto& collide_object_debris_solid = addr_as_ref<bool(Object* sphere_obj, Object* debris_obj)>(0x0049B570);
     // collide_stick2ground ignores clutter/debris whose p_data.radius is not above this
     static auto& collide_stick2ground_min_radius = addr_as_ref<float>(0x005A00D4);
 
