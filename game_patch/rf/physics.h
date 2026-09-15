@@ -95,6 +95,10 @@ namespace rf
     static auto& collide_spheres_spheres = addr_as_ref<bool(Vector3* p1, Vector3* p2, PhysicsData* pd1, PhysicsData* pd2, PCollisionOut* collision)>(0x00499670);
     static auto& collide_spheres_mesh = addr_as_ref<bool(Vector3* p1, Vector3* p2, PhysicsData* pd, Vector3* mesh_pos, Matrix3* mesh_orient, VMesh* vmesh, PCollisionOut* collision)>(0x00499AC0);
     static auto& collide_spheres_solid = addr_as_ref<bool(Vector3* p1, Vector3* p2, PhysicsData* pd, Vector3* solid_pos, Matrix3* solid_orient, GSolid* solid, PCollisionOut* collision)>(0x00499C80);
+    // Pair-level object tests used by object_pairs_check_all_collisions and the weapon_create hitscan sweep.
+    // Both write hit results into the objects' p_data.collide_out and return true on hit.
+    static auto& collide_object_object_spheres = addr_as_ref<bool(Object* obj1, Object* obj2)>(0x0049A420);
+    static auto& collide_object_object_mesh = addr_as_ref<bool(Object* sphere_obj, Object* mesh_obj)>(0x0049AFE0);
     // collide_stick2ground ignores clutter/debris whose p_data.radius is not above this
     static auto& collide_stick2ground_min_radius = addr_as_ref<float>(0x005A00D4);
 

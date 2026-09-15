@@ -5,6 +5,7 @@
 #include <vector>
 #include <xlog/xlog.h>
 #include <patch_common/FunHook.h>
+#include <patch_common/CodeInjection.h>
 #include "../rf/object.h"
 #include "../rf/physics.h"
 #include "../rf/geometry.h"
@@ -176,6 +177,38 @@ FunHook<bool(rf::Object*, rf::Vector3*, rf::Vector3*, rf::PCollisionOut*, rf::Ob
     },
 };
 
+// weapon_create hitscan sweep (0x004C7F65-0x004C7FF1): stock walks the whole global pair list looking
+// for the new weapon's pairs, bbox-tests each and runs the swept pair test; the first pair test that
+// hits ends the sweep. Same loop over the weapon's own pairs. Stock list is head-pushed (newest first),
+// so iterate the index newest-first to keep the same first-hit preference.
+CodeInjection weapon_create_hitscan_pairs_injection{
+    0x004C7F65,
+    [](auto& regs) {
+        rf::Object* weapon = regs.esi;
+        rf::PhysicsData& pd = weapon->p_data;
+        auto it = g_pairs_by_obj.find(weapon);
+        if (it != g_pairs_by_obj.end()) {
+            auto& nodes = it->second;
+            for (auto rit = nodes.rbegin(); rit != nodes.rend(); ++rit) {
+                rf::ObjCollisionPair* pair = *rit;
+                rf::Object* other = pair->a == weapon ? pair->b : pair->a;
+                if (!rf::bbox_intersect(pd.bbox_min, pd.bbox_max, other->p_data.bbox_min, other->p_data.bbox_max)) {
+                    continue;
+                }
+                pair->a->p_data.collide_out.hit_time = 1.0f;
+                pair->b->p_data.collide_out.hit_time = 1.0f;
+                bool hit = (pair->flags & 0x6) ? rf::collide_object_object_mesh(weapon, other)
+                                               : rf::collide_object_object_spheres(weapon, other);
+                if (hit) {
+                    regs.eip = 0x004C7FFE; // weapon hit object
+                    return;
+                }
+            }
+        }
+        regs.eip = 0x004C7FF3; // no pair hit: collide_object_world
+    },
+};
+
 ConsoleCommand2 collision_pairs_cmd{
     "dbg_collision_pairs",
     []() {
@@ -212,6 +245,7 @@ void obj_collision_apply_patch()
     // Per-object pair index so collide_stick2ground stops walking the whole pair list per trace
     obj_collision_pair_list_push_hook.install();
     collide_stick2ground_hook.install();
+    weapon_create_hitscan_pairs_injection.install();
 
     collision_pairs_cmd.register_cmd();
 }
