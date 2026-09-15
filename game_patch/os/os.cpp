@@ -12,9 +12,11 @@
 #include "../rf/crt.h"
 #include "../main/main.h"
 #include "../multi/multi.h"
+#include "../misc/alpine_settings.h"
 #include "os.h"
 #include "win32_console.h"
 #include "../input/mouse.h"
+#include "../input/raw_input.h"
 
 FunHook<void()> os_poll_hook{
     0x00524B60,
@@ -50,7 +52,7 @@ LRESULT WINAPI wnd_proc(HWND wnd_handle, UINT msg, WPARAM w_param, LPARAM l_para
     }
 
     switch (msg) {
-    case WM_ACTIVATE:
+    case WM_ACTIVATE: {
         if (is_headless_mode()) {
             // In headless mode, the console window will have focus and WM_ACTIVATE for the
             // hidden game window may report inactive. Keep active state pinned so client
@@ -59,9 +61,12 @@ LRESULT WINAPI wnd_proc(HWND wnd_handle, UINT msg, WPARAM w_param, LPARAM l_para
             return 0;
         }
 
+        // Low word is WA_INACTIVE/WA_ACTIVE/WA_CLICKACTIVE; high word is the minimized flag, so
+        // testing the whole wParam reports "active" for a minimized inactive window.
+        const bool active = LOWORD(w_param) != WA_INACTIVE;
         if (!rf::is_dedicated_server) {
             // Show cursor if window is not active
-            if (w_param) {
+            if (active) {
                 ShowCursor(FALSE);
                 while (ShowCursor(FALSE) >= 0)
                     ;
@@ -71,10 +76,14 @@ LRESULT WINAPI wnd_proc(HWND wnd_handle, UINT msg, WPARAM w_param, LPARAM l_para
                 while (ShowCursor(TRUE) < 0)
                     ;
             }
+
+            // Raw input uses RIDEV_INPUTSINK and needs to know when to drop background input
+            raw_input_set_focused(active || g_alpine_game_config.background_mouse);
         }
 
-        rf::is_main_wnd_active = w_param;
+        rf::is_main_wnd_active = active;
         return 0;
+    }
 
     case WM_WINDOWPOSCHANGING:
         if (is_headless_mode() && l_param) {
@@ -274,6 +283,7 @@ void wnd_set_flash(const HWND hwnd) {
 static FunHook<void()> os_close_hook{
     0x00525240,
     []() {
+        raw_input_stop();
         os_close_hook.call_target();
         win32_console_close();
     },

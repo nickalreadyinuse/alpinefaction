@@ -106,6 +106,8 @@ set(SRCS
     input/input.h
     input/mouse.h
     input/mouse.cpp
+    input/raw_input.cpp
+    input/raw_input.h
     input/key.cpp
     input/control_input_filter.h
     input/control_input_filter.cpp

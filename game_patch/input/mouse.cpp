@@ -17,6 +17,7 @@
 #include "mouse.h"
 #include "../multi/multi.h"
 #include "input.h"
+#include "raw_input.h"
 
 // Raw mouse delta accumulators — captured in mouse_get_delta_hook, then consumed
 // by consume_raw_mouse_deltas() (via linear_pitch_patch for the player entity, or
@@ -156,6 +157,8 @@ bool set_direct_input_enabled(bool enabled)
     return true;
 }
 
+static void activate_input_mode();
+
 FunHook<void()> mouse_eval_deltas_hook{
     0x0051DC70,
     []() {
@@ -163,9 +166,29 @@ FunHook<void()> mouse_eval_deltas_hook{
             return;
         }
 
+        // Absolute-coordinate devices (remote desktop, VMs, tablets) give raw input no deltas. DirectInput
+        // sits on the same raw stream on modern Windows, so the Win32 cursor path is the one that works.
+        if (g_alpine_game_config.input_mode == 2) {
+            if (const char* device = raw_input_absolute_device()) {
+                xlog::warn("Raw input: device {} sends absolute coordinates, falling back to Win32 mouse input", device);
+                rf::console::print("Raw input is unavailable for this mouse (absolute coordinates), using Win32 input");
+                g_alpine_game_config.input_mode = 0;
+                activate_input_mode();
+            }
+        }
+
         // disable mouse when window is not active
-        if (rf::os_foreground() || g_alpine_game_config.background_mouse) {
-            mouse_eval_deltas_hook.call_target();
+        if (!rf::os_foreground() && !g_alpine_game_config.background_mouse)
+            return;
+
+        // Always call the original function. In raw input mode DirectInput is disabled so it runs
+        // the Win32 path, which still handles buttons, the scroll wheel (legacy WM_MOUSEWHEEL keeps
+        // arriving since RIDEV_NOLEGACY is not used), absolute position and cursor re-centering.
+        // Only the movement deltas are replaced with raw input values.
+        mouse_eval_deltas_hook.call_target();
+
+        if (g_alpine_game_config.input_mode == 2 && rf::keep_mouse_centered && raw_input_is_running()) {
+            raw_input_consume_deltas(addr_as_ref<int>(0x01885464), addr_as_ref<int>(0x01885468));
         }
     },
 };
@@ -193,6 +216,35 @@ FunHook<void()> mouse_eval_deltas_di_hook{
     },
 };
 
+// Activates the configured input backend for gameplay, downgrading input_mode when a backend
+// fails to initialize. The raw input thread is started once and kept alive across menu
+// transitions; it is stopped here when another mode is activated (covers the options menu
+// cycling the mode), on mode change (apply_input_mode) and on shutdown (os_close).
+static void activate_input_mode()
+{
+    if (g_alpine_game_config.input_mode != 2) {
+        raw_input_stop();
+    }
+    if (g_alpine_game_config.input_mode == 2) {
+        set_direct_input_enabled(false);
+        raw_input_start();
+        if (raw_input_is_running()) {
+            int dx, dy;
+            raw_input_consume_deltas(dx, dy); // discard deltas accumulated while in menus
+            return;
+        }
+        xlog::warn("Raw input failed to start, falling back to DirectInput");
+        g_alpine_game_config.input_mode = 1;
+    }
+    if (g_alpine_game_config.input_mode == 1 && !set_direct_input_enabled(true)) {
+        rf::console::print("Failed to initialize DirectInput");
+        g_alpine_game_config.input_mode = 0;
+    }
+    if (g_alpine_game_config.input_mode == 0) {
+        set_direct_input_enabled(false);
+    }
+}
+
 FunHook<void()> mouse_keep_centered_enable_hook{
     0x0051E690,
     []() {
@@ -202,8 +254,9 @@ FunHook<void()> mouse_keep_centered_enable_hook{
             return;
         }
 
-        if (!rf::keep_mouse_centered && !rf::is_dedicated_server)
-            set_direct_input_enabled(g_alpine_game_config.direct_input);
+        if (!rf::keep_mouse_centered && !rf::is_dedicated_server) {
+            activate_input_mode();
+        }
         mouse_keep_centered_enable_hook.call_target();
     },
 };
@@ -285,32 +338,57 @@ FunHook<void(int&, int&, int&)> mouse_get_delta_hook{
     },
 };
 
+static const char* input_mode_name(int mode)
+{
+    switch (mode) {
+    case 0: return "Win32";
+    case 1: return "DirectInput";
+    case 2: return "RawInput";
+    default: return "Unknown";
+    }
+}
+
+static void apply_input_mode()
+{
+    if (g_alpine_game_config.input_mode != 2) {
+        raw_input_stop();
+    }
+    if (rf::keep_mouse_centered) {
+        activate_input_mode();
+    }
+    else {
+        // Not in gameplay; the enable hook activates the mode when gameplay starts
+        set_direct_input_enabled(false);
+    }
+}
+
 ConsoleCommand2 input_mode_cmd{
     "inputmode",
-    []() {
+    [](std::optional<int> mode_opt) {
         if (is_headless_mode()) {
-            g_alpine_game_config.direct_input = false;
+            g_alpine_game_config.input_mode = 0;
             set_direct_input_enabled(false);
-            rf::console::print("DirectInput is disabled in headless bot mode");
+            rf::console::print("Input mode is forced to Win32 in headless bot mode");
             return;
         }
 
-        g_alpine_game_config.direct_input = !g_alpine_game_config.direct_input;
-
-        if (g_alpine_game_config.direct_input) {
-            if (!set_direct_input_enabled(g_alpine_game_config.direct_input)) {
-                rf::console::print("Failed to initialize DirectInput");
-            }
-            else {
-                set_direct_input_enabled(rf::keep_mouse_centered);
-                rf::console::print("DirectInput is enabled");
+        if (mode_opt) {
+            g_alpine_game_config.input_mode = std::clamp(mode_opt.value(), 0, 2);
+            apply_input_mode();
+        }
+        rf::console::print("Input mode: {} ({})", g_alpine_game_config.input_mode,
+            input_mode_name(g_alpine_game_config.input_mode));
+        if (g_alpine_game_config.input_mode == 2) {
+            rf::console::print("  Raw input thread: {}", raw_input_is_running() ? "running" : "stopped");
+            if (raw_input_is_running()) {
+                rf::console::print("  WM_INPUT events received: {}", raw_input_get_event_count());
             }
         }
-        else {
-            rf::console::print("DirectInput is disabled");
-        }
+        rf::console::print("  DirectInput disabled: {}", rf::direct_input_disabled ? "yes" : "no");
+        rf::console::print("  keep_mouse_centered: {}", rf::keep_mouse_centered ? "yes" : "no");
     },
-    "Toggles DirectInput mouse mode",
+    "Sets input mode (0=Win32, 1=DirectInput, 2=RawInput)",
+    "inputmode [0|1|2]",
 };
 
 ConsoleCommand2 ms_cmd{

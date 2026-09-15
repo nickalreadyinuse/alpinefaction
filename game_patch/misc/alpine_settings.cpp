@@ -1168,8 +1168,13 @@ bool alpine_player_settings_load(rf::Player* player)
         player->settings.controls.axes[1].invert = std::stoi(settings["MouseYInvert"]);
         processed_keys.insert("MouseYInvert");
     }
-    if (settings.count("DirectInput")) {
-        g_alpine_game_config.direct_input = std::stoi(settings["DirectInput"]);
+    if (settings.count("InputMode")) {
+        g_alpine_game_config.input_mode = std::clamp(std::stoi(settings["InputMode"]), 0, 2);
+        processed_keys.insert("InputMode");
+    }
+    else if (settings.count("DirectInput")) {
+        // Backwards compat: 0->Win32(0), 1->DirectInput(1)
+        g_alpine_game_config.input_mode = std::stoi(settings["DirectInput"]) ? 1 : 0;
         processed_keys.insert("DirectInput");
     }
     if (settings.count("MouseLinearPitch")) {
@@ -1324,7 +1329,7 @@ void alpine_control_config_serialize(std::ofstream& file, const rf::ControlConfi
     file << "\n[InputSettings]\n";
     file << "MouseSensitivity=" << cc.mouse_sensitivity << "\n";
     file << "MouseYInvert=" << cc.axes[1].invert << "\n";
-    file << "DirectInput=" << g_alpine_game_config.direct_input << "\n";
+    file << "InputMode=" << g_alpine_game_config.input_mode << "\n";
     file << "MouseLinearPitch=" << g_alpine_game_config.mouse_linear_pitch << "\n";
     file << "MouseScale=" << g_alpine_game_config.mouse_scale << "\n";
     file << "SwapARBinds=" << g_alpine_game_config.swap_ar_controls << "\n";
@@ -1713,7 +1718,7 @@ static void set_headless_defaults(rf::Player* player, const char* player_name, u
     g_alpine_game_config.swap_ar_controls = false;
     g_alpine_game_config.swap_gn_controls = false;
     g_alpine_game_config.swap_sg_controls = false;
-    g_alpine_game_config.direct_input = false;
+    g_alpine_game_config.input_mode = 0;
     g_alpine_game_config.save_console_history = false;
     g_alpine_game_config.set_max_fps(max_fps);
     g_alpine_game_config.dbg_bot = false;

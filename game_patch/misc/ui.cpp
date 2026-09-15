@@ -565,11 +565,23 @@ void ao_bighud_cbox_on_click(int x, int y) {
     ao_play_button_snd(g_alpine_game_config.big_hud);
 }
 
+static const char* input_mode_label(int mode)
+{
+    switch (mode) {
+    case 0: return "Win32";
+    case 1: return "DirectInput";
+    case 2: return "Raw Input";
+    default: return "Unknown";
+    }
+}
+
 void ao_dinput_cbox_on_click(int x, int y)
 {
-    g_alpine_game_config.direct_input = !g_alpine_game_config.direct_input;
-    ao_dinput_cbox.checked = g_alpine_game_config.direct_input;
-    ao_play_button_snd(g_alpine_game_config.direct_input);
+    // Cycle: 0->1->2->0
+    g_alpine_game_config.input_mode = (g_alpine_game_config.input_mode + 1) % 3;
+    ao_dinput_cbox.checked = (g_alpine_game_config.input_mode != 0);
+    ao_dinput_label.text = const_cast<char*>(input_mode_label(g_alpine_game_config.input_mode));
+    ao_play_button_snd(g_alpine_game_config.input_mode != 0);
 }
 
 void ao_linearpitch_cbox_on_click(int x, int y) {
@@ -1313,7 +1325,7 @@ void alpine_options_panel_init() {
 
     // panel 2
     alpine_options_panel_checkbox_init(
-        &ao_dinput_cbox, &ao_dinput_label, &alpine_options_panel2, ao_dinput_cbox_on_click, g_alpine_game_config.direct_input, 112, 54, "DirectInput"); 
+        &ao_dinput_cbox, &ao_dinput_label, &alpine_options_panel2, ao_dinput_cbox_on_click, g_alpine_game_config.input_mode != 0, 112, 54, input_mode_label(g_alpine_game_config.input_mode));
     alpine_options_panel_checkbox_init(
         &ao_linearpitch_cbox, &ao_linearpitch_label, &alpine_options_panel2, ao_linearpitch_cbox_on_click, g_alpine_game_config.mouse_linear_pitch, 112, 84, "Linear pitch");
     alpine_options_panel_checkbox_init(
