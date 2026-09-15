@@ -92,6 +92,11 @@ const std::vector<std::string> g_rcon_cmd_masterlist = {
     "sv_timelimit",
     "download_level",
     "sv_loadconfig",
+    "sv_afstats_events_status",
+    "sv_afstats_events_reset",
+    "sv_afstats_trace",
+    "sv_fflink_status",
+    "sv_fflink_resync",
 };
 
 std::vector<rf::AlpineRespawnPoint> g_alpine_respawn_points;

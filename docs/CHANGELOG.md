@@ -1,9 +1,21 @@
 ⚙️⛏ Alpine Faction Changelog ⛏⚙️
 ===================================
 
-Version 1.5.0 (TBD): Not yet released
+Version 1.5.0 (Trillium): Not yet released
 --------------------------------
 ### Major features
+[@GooberRF](https://github.com/GooberRF)
+- Add ray cast lightmap baking to level editor
+  - Add `Invisible faces block light` and `Alpha-textured faces block light` level properties to control whether those faces occlude baked light
+  - Add `No shadow cast` brush property for solid detail brushes and movers
+  - Add `Meshes block light` level property to make Alpine Mesh objects cast baked shadows
+  - Add `No shadow cast` checkbox to Alpine Mesh object properties to exclude individual objects
+- Add per-level directional sunlight, configured in the `Sunlight` section of Level Properties
+  - `Directional sunlight` checkbox, with `Yaw`, `Pitch`, `Intensity`, `Spread` (soft shadow angle) and `Color` fields, plus a `Set from camera` button that takes the sun direction from the perspective viewport
+  - `Casts shadows (lightmaps)` bakes the sun into the level's lightmaps with ray traced shadows
+  - `Affects mesh lighting` lights meshes and entities per pixel from the sun direction, with `Scale mesh sunlight by lightmaps` to keep sunlight out of unlit interiors
+  - `Aligns dynamic shadows` points entity shadows along the sun instead of the fixed default direction
+  - `Water blocks sunlight` stops sun rays at liquid surfaces during the bake
 
 ### Minor features, changes, and enhancements
 [@GooberRF](https://github.com/GooberRF)
@@ -11,6 +23,7 @@ Version 1.5.0 (TBD): Not yet released
 - Restore cut first person weapon aim sway, toggleable with `cl_weaponsway`
 - Add terms of use and notices document to installer
 - Add compatibility table (lightmap clamp floor) for `dm-halloween.rfl`
+- Bump RFL version to 306
 - Add `Display_Projection` event and `Projection Camera` object for rendering live camera views onto ATX textures (Direct3D 11 renderer only)
 - Add flames to gib chunks thrown by exploding entities, toggleable with `cl_gibflames`
 - Add `Jetpacks explode` option to the Jetpacks mutator
@@ -19,7 +32,17 @@ Version 1.5.0 (TBD): Not yet released
 - Add edge-vignette damage feedback as `cl_damageflash 2` (Direct3D 11 renderer only); `cl_damageflash` is now a level: 0 off, 1 screen flash, 2 vignette
 - Add `Brush` collision mode for Alpine Mesh objects
 - Raise level editor per-room and per-mesh render vertex limit from 8000 to 32768
+- Add `-bake in.rfl -bakeout out.rfl` launcher command line switches to calculate a level's lighting without user interaction, writing the result to a new level file and progress to a log beside it
+- Add `High-resolution lightmaps` level property, used in lightmap bake in level editor
+- Deprecate and remove `-smoothlights` level editor switch
 - Add `dbg_collision_pairs` console command to print object collision pair pool statistics
+- Add `sv_afstats_events_reset` console command to clear a stuck stats event send, a 401 pause, or a stretched retry pulse and resume the stream without discarding queued events
+- Add rcon profile access to `sv_afstats` and `sv_fflink` commands and make status commands return their output to the rcon holder
+- Use the modern Windows file dialogs for every open and save in the level editor
+- Always render meshes at their highest LOD in the level editor
+- Make a mesh exported from a brush in the level editor immediately usable as a `Mesh` object
+- Add a mesh browser to the level editor for picking meshes and animations for `Mesh` objects
+- Add a new and modern color picker to the level editor
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -34,7 +57,20 @@ Version 1.5.0 (TBD): Not yet released
 - Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
 - Fix level editor crashing without an error message when drawing a room or mesh containing more than 8000 vertices
+- Fix level editor crashing while calculating lighting for a level containing a smoothed face with more than 32 vertices
+- Lightmap baking fixes in the level editor, based on the `Glacier` level editor
+  - Fix grey speckling on smoothed faces and the dark edges around lightmap fragments
+  - Fix several accuracy issues on face edges that resulted in dark bands and splotches along polygon boundaries
+  - Blend coplanar surfaces across room boundaries
 - Fix object collision pairs silently running out on levels with many collidable clutter objects, triggers, and items when many players are connected
+- Fix FactionFiles stats event reporting stalling permanently when a send attempt hangs inside WinINet
+- Fix level editor crashing when a mesh is played with an animation that does not fit its skeleton
+- Fix level editor crashing when a Direct3D buffer lock fails
+- Fix level editor crashing when a Weather Region's snow `Bitmap` names a loose file instead of one inside a packfile
+- Fix a one frame flash to the default pose each time an animation loops on a mesh being simulated in the level editor
+- Update Weather Region bounds in viewport live when values are changed
+- Fix crash when a bone, tag, or prop point is queried on a character whose mesh file contains no submeshes, or when such a character's weapon or textures are preloaded for rendering
+- Fix items not rotating correctly when out of view or when viewed through a Projection Camera
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
@@ -43,6 +79,7 @@ Version 1.5.0 (TBD): Not yet released
 - Cap FPS-dependent launch velocity when head jumping
 - Fix landing sound spam on ramps and jump pads at high FPS
 - Fix reload animation playing in third person for other players when client tries to reload with a full clip/magazine
+- Fix lighting for pistol silencer and remote charge detonator
 
 Version 1.4.0 (Lupin): Released Aug-25-2026
 --------------------------------

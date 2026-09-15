@@ -1,11 +1,44 @@
 #pragma once
 
 #include <windows.h>
+#include <commdlg.h>
 #include <patch_common/MemUtils.h>
 #include <mbstring.h>
 #include <algorithm>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 extern "C" IMAGE_DOS_HEADER __ImageBase;
+
+// Alpine's dialog templates carry no DS_CENTER, so a modal opens at its owner's top left unless it
+// is placed in WM_INITDIALOG.
+inline void alpine_center_dialog_on_owner(HWND hdlg)
+{
+    HWND owner = GetWindow(hdlg, GW_OWNER);
+    if (!owner) {
+        owner = GetDesktopWindow();
+    }
+    RECT owner_rect;
+    RECT dlg_rect;
+    if (!owner || !GetWindowRect(owner, &owner_rect) || !GetWindowRect(hdlg, &dlg_rect)) {
+        return;
+    }
+    const int width = dlg_rect.right - dlg_rect.left;
+    const int height = dlg_rect.bottom - dlg_rect.top;
+    int x = static_cast<int>(owner_rect.left) + ((owner_rect.right - owner_rect.left) - width) / 2;
+    int y = static_cast<int>(owner_rect.top) + ((owner_rect.bottom - owner_rect.top) - height) / 2;
+
+    MONITORINFO info{};
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoA(MonitorFromWindow(owner, MONITOR_DEFAULTTONEAREST), &info)) {
+        const int left = static_cast<int>(info.rcWork.left);
+        const int top = static_cast<int>(info.rcWork.top);
+        x = std::clamp(x, left, std::max(left, static_cast<int>(info.rcWork.right) - width));
+        y = std::clamp(y, top, std::max(top, static_cast<int>(info.rcWork.bottom) - height));
+    }
+    SetWindowPos(hdlg, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
 
 struct CWnd_mbrs
 {
@@ -399,8 +432,9 @@ static_assert(sizeof(DedEvent) == 0xC4, "DedEvent size mismatch");
 
 struct DedRoomEffect : DedObject
 {
-    int effect_type;                   // 0x94 — 2 = Liquid Room
-    char pad_98[0xA8 - 0x98];
+    int effect_type;                   // 0x94 — 2 = Liquid Room, 3 = Ambient Light
+    uint32_t ambient_color;            // 0x98 — ambient color for effect_type 3
+    char pad_9C[0xA8 - 0x9C];
     VString liquid_bitmap;             // 0xA8 — liquid surface texture filename
     char pad_B0[0xD4 - 0xB0];
 };
@@ -438,6 +472,7 @@ struct DedMesh : DedObject
     bool simulate_in_editor = false;   // v3c only: play animation continuously instead of freezing frame 0
     int material = 0;                  // material type for impact sounds (0=default, applies to all meshes)
     MeshClutterProps clutter_props;
+    bool no_shadow_cast = false;       // excluded from the lightmap bake's mesh occluders
 };
 
 struct DedNote : DedObject
@@ -521,15 +556,38 @@ static_assert(sizeof(DedBoltEmitter) == 0xD4, "DedBoltEmitter size mismatch");
 
 struct CDialog_mbrs
 {
-    char padding[0x58]; // placeholder
+    char padding[0x4C]; // placeholder
+    CWnd* m_pParentWnd; // owner PreModal disables, read at 0x0052F3C2
+    HWND m_hWndTop;     // the window PostModal re-enables, written through at 0x0052F3CC
+    char padding2[0x4];
 };
 
 struct CDialog
 {
     void* _vft;
     CDialog_mbrs _d;
+
+    // Disables the owner and registers the modal state, returning the window to parent the dialog
+    // to. Both halves are the whole of what CColorDialog::DoModal does around ChooseColorA.
+    HWND PreModal()
+    {
+        return AddrCaller{0x0052F3A9}.this_call<HWND>(this);
+    }
+
+    void PostModal()
+    {
+        AddrCaller{0x0052F3E3}.this_call(this);
+    }
 };
 static_assert(sizeof(CDialog) == 0x5C, "CDialog size mismatch!");
+static_assert(offsetof(CDialog, _d.m_pParentWnd) == 0x50, "m_pParentWnd offset mismatch!");
+static_assert(offsetof(CDialog, _d.m_hWndTop) == 0x54, "m_hWndTop offset mismatch!");
+
+struct CColorDialog : CDialog
+{
+    CHOOSECOLORA m_cc;
+};
+static_assert(offsetof(CColorDialog, m_cc) == 0x5C, "CColorDialog m_cc offset mismatch!");
 
 struct CEdit : CWnd
 {
@@ -748,6 +806,15 @@ struct CDocument
 };
 static_assert(sizeof(CDocument) == 0x50);
 
+struct CDedDoc : CDocument
+{
+    char LoadSaveLevel(const char* path, int is_load, int is_autosave)
+    {
+        return AddrCaller{0x0041CCE0}.this_call<char>(this, path, is_load, is_autosave);
+    }
+};
+static_assert(sizeof(CDedDoc) == sizeof(CDocument));
+
 struct VFile
 {
     int DirId;
@@ -783,7 +850,7 @@ struct CMainFrame : CFrameWnd
 {
     void* views[4];
     void* unk_view;
-    CDocument* doc;
+    CDedDoc* doc;
     VString field_D4;
     char dialog_bar[0x88]; // CDialogBar
     char status_bar[0x7C]; // CStatusBar
@@ -797,7 +864,7 @@ struct CMainFrame : CFrameWnd
     float camera_speed_allowed_values[6];
     int camera_speed_index;
     float grid_brightness;
-    int custom_colors[16];
+    COLORREF custom_colors[16];
     int favorite_textures[8];
     bool play_no_tnl;
     char padding_tail[3];
@@ -812,8 +879,14 @@ struct CMainFrame : CFrameWnd
     {
         AddrCaller{0x00447670}.this_call(this);
     }
+
+    void OnCalculateLighting()
+    {
+        AddrCaller{0x00449680}.this_call(this);
+    }
 };
 static_assert(sizeof(CMainFrame) == 0x550);
+static_assert(offsetof(CMainFrame, custom_colors) == 0x4E8, "custom_colors offset mismatch!");
 
 static auto& g_main_frame = addr_as_ref<CMainFrame*>(0x006F9E68);
 static auto& g_maximized_viewport = addr_as_ref<int>(0x0057B9C0);
