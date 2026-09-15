@@ -880,16 +880,6 @@ CodeInjection clear_stale_movement_input_injection{
     },
 };
 
-// entity_set_next_state_anim(Entity*, int state, float transition_time) (0x0042A580), just after the state
-// index has been validated: ecx = ep, edx = state, esi/edi popped, so [esp+0xC] = transition_time.
-// Stock has no "already there" guard. Requesting the current state restarts a crossfade of that anim into
-// itself, and requesting it while a blend away from it is in flight leaves current == next stuck at ~50%
-// weight (the mirrored-elapsed swap re-arms every frame) or drops the incoming anim outright, then snaps.
-// entity_update_state_anim's crouch branch requests its state every frame with no entity_is_in_state_anim
-// check, so a crouched remote player whose interpolated speed dips through the 0.01 crouch-walk threshold
-// (every strafe reversal, and more of them arrive at high netfps) flashes crouch idle and snaps back.
-// Redundant requests are ignored; a request for the outgoing anim reverses the blend in place at the
-// mirrored weight, so the crossfade stays continuous.
 CodeInjection entity_set_next_state_anim_guard{
     0x0042A5BC,
     [](auto& regs) {
