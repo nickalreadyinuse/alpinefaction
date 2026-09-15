@@ -35,6 +35,7 @@ Version 1.5.0 (TBD): Not yet released
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
 - Fix level editor crashing without an error message when drawing a room or mesh containing more than 8000 vertices
 - Fix object collision pairs silently running out on levels with many collidable clutter objects, triggers, and items when many players are connected
+- Fix third-person crouch animations on remote players flickering and snapping
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize

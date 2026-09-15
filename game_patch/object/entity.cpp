@@ -919,11 +919,11 @@ void entity_do_patch()
 
     // Fix player being stuck to ground when jumping, especially when FPS is greater than 200
     stuck_to_ground_when_jumping_fix.install();
+    stuck_to_ground_when_using_jump_pad_fix.install();
+    stuck_to_ground_fix.install();
 
     // Ignore redundant state anim requests and reverse in-flight crossfades instead of restarting them
     entity_set_next_state_anim_guard.install();
-    stuck_to_ground_when_using_jump_pad_fix.install();
-    stuck_to_ground_fix.install();
 
     // Fix water deceleration on high FPS
     AsmWriter(0x0049D816).nop(5);
