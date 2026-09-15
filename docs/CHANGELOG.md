@@ -80,6 +80,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix landing sound spam on ramps and jump pads at high FPS
 - Fix reload animation playing in third person for other players when client tries to reload with a full clip/magazine
 - Fix lighting for pistol silencer and remote charge detonator
+- Fix third-person crouch animations on remote players flickering and snapping
 
 Version 1.4.0 (Lupin): Released Aug-25-2026
 --------------------------------
