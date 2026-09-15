@@ -882,7 +882,7 @@ namespace gr::d3d11
         if (!ir_scanner) {
             if (use_vtx_lighting) {
                 // Old (master) vertex lighting: approximate lighting via mode color
-                if (is_character_mesh) {
+                if (is_character_mesh || is_fp_weapon) {
                     color = add_clamped(params.ambient_color, {224, 224, 224, 224});
                 } else {
                     if (params.flags & rf::MeshRenderFlags::MRF_CUSTOM_AMBIENT_COLOR) {
