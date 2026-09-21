@@ -3,6 +3,7 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/MemUtils.h>
 #include <xlog/xlog.h>
+#include <common/utils/string-utils.h>
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
@@ -918,6 +919,50 @@ CodeInjection CDedLevel_SaveLevel_patch{
     },
 };
 
+// Stock FlagFaceTextureTraits (0x0041d3c0) only stamps the see-through face flags
+// (FACE_SEE_THRU, FACE_HAS_HOLES) on faces carrying FACE_IS_DETAIL, which the geometry
+// build sets exclusively on compiled static faces. Mover brushes are saved as raw brush
+// geometry, so their faces never get those bits and the game draws their alpha textures
+// opaque. Mirror stock's detail-brush rule for the faces of moving group detail brushes;
+// the stock pass already cleared the bits, so only OR them back in.
+static void flag_mover_face_texture_traits(GSolid* solid)
+{
+    for (GFace* face = solid->face_list_head; face; face = face->next_solid) {
+        if (face->flags & FACE_IS_DETAIL) continue; // stock already handled compiled detail faces
+        if (face->bitmap_id == -1 || !bm_has_alpha(face->bitmap_id)) continue;
+
+        face->flags |= FACE_SEE_THRU;
+
+        const char* filename = bm_get_filename(face->bitmap_id);
+        if (!filename || !string_istarts_with(filename, "gls_")) {
+            face->flags |= FACE_HAS_HOLES;
+        }
+    }
+}
+
+// Hook FUN_0041d330 (FlagFaceTextureTraits_all, cdecl), run on every level save and
+// before lightmap UV calculation.
+void __cdecl flag_face_texture_traits_all_hooked(CDedLevel* level);
+FunHook<decltype(flag_face_texture_traits_all_hooked)> flag_face_texture_traits_all_hook{
+    0x0041d330,
+    flag_face_texture_traits_all_hooked,
+};
+void __cdecl flag_face_texture_traits_all_hooked(CDedLevel* level)
+{
+    flag_face_texture_traits_all_hook.call_target(level);
+
+    BrushNode* head = level->brush_list;
+    if (!head) return;
+    BrushNode* node = head;
+    do {
+        auto* geom = static_cast<GSolid*>(node->geometry);
+        if (geom && node->is_detail && level->brush_in_moving_group(node)) {
+            flag_mover_face_texture_traits(geom);
+        }
+        node = node->next;
+    } while (node && node != head);
+}
+
 // Fill the sun yaw/pitch edit fields from the 3D viewport camera. The camera is aimed
 // ALONG the sun's rays (at the ground), so to-sun is the NEGATED camera forward vector.
 static void set_sun_angles_from_camera(HWND hdlg)
@@ -1383,4 +1428,7 @@ void ApplyLevelPatches()
 
     // Skip "objects outside of level" bounds check for some object types
     skip_alpine_objects_bounds_check.install();
+
+    // Mark see-through textures on moving group brush faces so alpha renders in game
+    flag_face_texture_traits_all_hook.install();
 }

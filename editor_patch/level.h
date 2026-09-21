@@ -190,6 +190,20 @@ static_assert(offsetof(GRoom, life) == 0x94);
 static_assert(offsetof(GRoom, liquid_type) == 0x180);
 static_assert(offsetof(GRoom, contains_liquid) == 0x184);
 
+// GFace::flags bits.
+enum GFaceFlags
+{
+    FACE_SHOW_SKY = 0x1,
+    FACE_MIRRORED = 0x2,
+    FACE_LIQUID = 0x4,
+    FACE_IS_DETAIL = 0x8,
+    FACE_SCROLL_TEXTURE = 0x10,
+    FACE_FULL_BRIGHT = 0x20,
+    FACE_SEE_THRU = 0x40,
+    FACE_HAS_HOLES = 0x80,
+    FACE_INVISIBLE = 0x2000,
+};
+
 // Editor-side GFace layout (0x60 bytes, matches stock RED.exe / RF.exe GFace)
 // Full game-side definition: game_patch/rf/geometry.h
 // GFaceAttributes fields (game-side nested struct) are inlined here for direct access.
@@ -1059,6 +1073,12 @@ struct CDedLevel
             b = b->next;
         } while (b != head);
         return false;
+    }
+
+    // FUN_0042a630: check if the brush belongs to any moving group (mover)
+    bool brush_in_moving_group(BrushNode* brush)
+    {
+        return AddrCaller{0x0042a630}.this_call<bool>(this, brush);
     }
 
     // FUN_0043bbe0: create undo snapshot (type 10, clones selected brushes)

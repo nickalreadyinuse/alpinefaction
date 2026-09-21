@@ -83,6 +83,9 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix level editor packfile creation to include the frames and alpha mask of ATX textures used on faces and decals, and to include `.atx` files referenced by a legacy texture name
 - Fix crash when a bone, tag, or prop point is queried on a character whose mesh file contains no submeshes, or when such a character's weapon or textures are preloaded for rendering
 - Fix items not rotating correctly when out of view or when viewed through a Projection Camera
+- Fix objects and effects behind see-through faces of mover brushes being hidden by those faces
+- Fix alpha textures on detail brushes in moving groups rendering opaque in game
+- Fix player outlines seen through see-through geometry disappearing depending on view direction
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
