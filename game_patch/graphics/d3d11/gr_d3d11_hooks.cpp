@@ -617,7 +617,8 @@ namespace gr::d3d11
             }
 
             bool fullbright_character = g_character_meshes_are_fullbright && !is_first_person;
-            bool synthesize_colors = params.vertex_colors == nullptr || fullbright_character;
+            // Baked vertex colors (character clutter) are only valid in vertex lighting modes
+            bool synthesize_colors = params.vertex_colors == nullptr || fullbright_character || !use_vertex_lighting;
 
             if (synthesize_colors) {
                 rf::MeshRenderParams params_with_vertex_colors = params;
