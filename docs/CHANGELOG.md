@@ -21,6 +21,7 @@ Version 1.5.0 (Trillium): Not yet released
 [@GooberRF](https://github.com/GooberRF)
 - Notify players in a server that is recording demos
 - Restore cut first person weapon aim sway, toggleable with `cl_weaponsway`
+- Add `cl_freelookslide` to scale the acceleration and deceleration slide of the freelook camera
 - Add terms of use and notices document to installer
 - Add compatibility table (lightmap clamp floor) for `dm-halloween.rfl`
 - Bump RFL version to 306
