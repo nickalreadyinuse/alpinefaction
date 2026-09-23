@@ -27,15 +27,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Bump RFL version to 306
 - Add `Display_Projection` event and `Projection Camera` object for rendering live camera views onto ATX textures (Direct3D 11 renderer only)
 - Add `Rope_State` event to switch `Rope Emitter` objects on and off at runtime
-- Add `Rope Emitter` object for ropes, cables and power lines, hanging with a true catenary sag between the emitter and a target object, or free from the emitter alone
-  - Optional `Dynamic` rope simulation that swings from nearby explosions, `Glow` additive rendering, and `Sway` idle motion
-  - `Sway` on a `Dynamic` rope becomes real wind, rippling the rope along its length instead of painting an idle wave over it
-  - `Dynamic` ropes are pushed aside by players, NPCs and vehicles
-  - Textured or untextured with a color tint, per-rope thickness, slack, mass, segment count and texture density
-  - Animated textures are supported on the rope itself; the frame is picked from the wall clock, so every rope sharing a texture stays in step
-  - Ropes start on or off as authored, and can be switched at runtime with the `Rope_State` event
-  - Optional `Decorations`: up to 6 meshes strung along the rope by fixed count, fixed spacing, or one instance at each end, at the start only, or at the target only, looped in order or shuffled, following the curve or standing upright
-  - Each decoration slot has its own position and rotation offset, an optional glare with the full corona settings, and an optional dynamic light (Direct3D 11 renderer only); decoration lights are uncapped, so they share the renderer's budget of 32 lights per draw like every other light in the level
+- Add `Rope Emitter` object for ropes, cables, and power lines, with optional decorations
 - Add flames to gib chunks thrown by exploding entities, toggleable with `cl_gibflames`
 - Add `Jetpacks explode` option to the Jetpacks mutator
 - Add underwater rendering effects — animated caustics, depth-based water fog with a waterline, screen tint/vignette and distortion — with quality levels 0-3 via `r_underwater` (Direct3D 11 renderer only)
