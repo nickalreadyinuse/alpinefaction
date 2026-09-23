@@ -873,6 +873,22 @@ static_assert(offsetof(GroupEntry, keyframes) == 0x1C);
 static_assert(offsetof(GroupEntry, name) == 0x20);
 static_assert(offsetof(GroupEntry, field_28) == 0x28);
 
+// Undo entry (0x34 bytes), created by FUN_0043ccf0(type)
+struct UndoEntry
+{
+    int type;                               // +0x00  4 = delete brushes, 7 = brush transform, 10 = modify snapshot, ...
+    VArray<DedObject*> objects;             // +0x04
+    VArray<BrushNode*> brushes;             // +0x10  type 10: live clones
+    VArray<BrushNode*> brushes_aux;         // +0x1C  type 10: originals, type 4: list predecessors
+    VArray<void*> raw_blocks;               // +0x28  operator-delete'd with the entry
+};
+static_assert(sizeof(UndoEntry) == 0x34);
+
+inline UndoEntry* undo_stack_top(const VArray<UndoEntry*>& stack)
+{
+    return stack.size > 0 ? stack.data_ptr[stack.size - 1] : nullptr;
+}
+
 struct CDedLevel
 {
     // --- vtable + string properties ---
@@ -944,7 +960,8 @@ struct CDedLevel
     int icon_keyframe_silver;                     // +0x224 (Icon_Keyframe_Silver.tga)
     int icon_camera;                              // +0x228 (Icon_CameraPosition.tga)
     int icon_push_region;                         // +0x22C (Icon_ClimbRegion.tga second)
-    char _pad_230[0x272 - 0x230];                // +0x230 (editor state)
+    bool transform_in_progress;                   // +0x230 set by the per-mode transform begins, cleared by FUN_00427260
+    char _pad_231[0x272 - 0x231];                // +0x231 (editor state)
     bool geometry_needs_rebuild;                   // +0x272
     char _pad_273[0x280 - 0x273];                // +0x273
 
@@ -953,8 +970,8 @@ struct CDedLevel
     // FUN_0043d320 (redo) pops from +0x28C, pushes to +0x280
     // Each entry's child VArray at +0x04 may hold raw DedObject* pointers
     // FUN_0043d170 cleanup calls FUN_0041c360 on those pointers (use-after-free risk)
-    VArray<void*> undo_stack;                     // +0x280
-    VArray<void*> redo_stack;                     // +0x28C
+    VArray<UndoEntry*> undo_stack;                // +0x280
+    VArray<UndoEntry*> redo_stack;                // +0x28C
 
     // --- selection ---
     VArray<DedObject*> selection;                 // +0x298
@@ -1085,6 +1102,20 @@ struct CDedLevel
     void create_undo_snapshot()
     {
         AddrCaller{0x0043bbe0}.this_call(this);
+    }
+
+    // FUN_00427260: commit the viewport transform in progress into its undo entry
+    void finish_transform()
+    {
+        AddrCaller{0x00427260}.this_call(this);
+    }
+
+    // A held transform records into whatever undo entry is on top when it finishes
+    void commit_pending_transform()
+    {
+        if (transform_in_progress) {
+            finish_transform();
+        }
     }
 
     void mark_geometry_dirty()

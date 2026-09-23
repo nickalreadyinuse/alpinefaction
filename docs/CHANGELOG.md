@@ -89,6 +89,10 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix objects and effects behind see-through faces of mover brushes being hidden by those faces
 - Fix alpha textures on detail brushes in moving groups rendering opaque in game
 - Fix player outlines seen through see-through geometry disappearing depending on view direction
+- Fix headless bot crash when a level references a texture by a file extension the stock bitmap loader does not support (e.g. `.dds`) and it cannot be loaded
+- Fix `Fuse` and `Carve` in the level editor dumping the textures and texture coordinates of faces taken from the later brush
+- Fix undoing `Fuse` in the level editor taking two steps
+- Fix level editor crashing or corrupting undo history when undoing, redoing, or autosaving while moving, rotating, or scaling in a viewport
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
