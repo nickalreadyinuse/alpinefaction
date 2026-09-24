@@ -101,6 +101,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix undoing `Fuse` in the level editor taking two steps
 - Fix level editor crashing or corrupting undo history when undoing, redoing, or autosaving while moving, rotating, or scaling in a viewport
 - Fix bolt emitters imported as part of a group in the level editor keeping their old target when the target object is renumbered to avoid a UID conflict
+- Fix geoable brush supports not being properly recognized if buried in level geometry
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize

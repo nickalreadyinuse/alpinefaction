@@ -550,9 +550,3 @@ void gas_region_add_modify_transition(int32_t region_uid, rf::Color target_color
 void gas_region_add_resize_transition(int32_t region_uid, int target_shape, float target_radius,
                                        float target_height, float target_width, float target_depth, float duration_sec);
 void gas_region_transition_do_frame();
-
-// used by RF2-style geomod
-struct RF2AnchorInfo {
-    rf::GRoom* room;
-    std::unordered_set<rf::GFace*> anchor_faces;
-};
