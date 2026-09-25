@@ -57,6 +57,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Support moving climbing regions with `Anchor_Marker` and `Anchor_Marker_Orient`
 - Add `When_Destroyed` catalyst event, which activates its links when the destructible detail brushes it links to are destroyed
 - Support linking events and triggers to detail brushes in the level editor
+- `Owner_Gate` can now take its capture points from linked `Capture_Point_Handler` events
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -102,6 +103,10 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix level editor crashing or corrupting undo history when undoing, redoing, or autosaving while moving, rotating, or scaling in a viewport
 - Fix bolt emitters imported as part of a group in the level editor keeping their old target when the target object is renumbered to avoid a UID conflict
 - Fix geoable brush supports not being properly recognized if buried in level geometry
+- Fix level editor crashing when moving decals in a level with more than 128 decals
+- Fix copying and pasting face textures in level editor texture mode removing Alpine objects from the clipboard or unintentionally pasting them into the level
+- Remove the level editor warning about levels with too many decals
+- Fix `Owner_Gate`, `Add_Link`, `Clone_Entity`, `Valid_Gate`, the trigger of `Inside_Gate`, and the eye anchor of `Set_Skybox` keeping the old UID when the object they reference is renumbered by a group import or pasted along with them in the level editor
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
