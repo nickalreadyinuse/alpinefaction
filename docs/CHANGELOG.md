@@ -57,6 +57,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Support moving climbing regions with `Anchor_Marker` and `Anchor_Marker_Orient`
 - Add `When_Destroyed` catalyst event, which activates its links when the destructible detail brushes it links to are destroyed
 - Support linking events and triggers to detail brushes in the level editor
+- Linking a `Bolt Emitter` or `Rope Emitter` to a `Target` in the level editor sets the emitter's target to it
 - `Owner_Gate` can now take its capture points from linked `Capture_Point_Handler` events
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
@@ -102,6 +103,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix undoing `Fuse` in the level editor taking two steps
 - Fix level editor crashing or corrupting undo history when undoing, redoing, or autosaving while moving, rotating, or scaling in a viewport
 - Fix bolt emitters imported as part of a group in the level editor keeping their old target when the target object is renumbered to avoid a UID conflict
+- Fix bolt emitters pasted in the level editor together with their target still targeting the original object
 - Fix geoable brush supports not being properly recognized if buried in level geometry
 - Fix level editor crashing when moving decals in a level with more than 128 decals
 - Fix copying and pasting face textures in level editor texture mode removing Alpine objects from the clipboard or unintentionally pasting them into the level

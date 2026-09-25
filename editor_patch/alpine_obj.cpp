@@ -79,6 +79,18 @@ static bool is_alpine_type(DedObjectType type)
            type == DedObjectType::DED_ROPE_EMITTER;
 }
 
+// -1 means unset and is never remapped.
+static bool remap_uid(int& uid, const std::map<int, int>& uid_map)
+{
+    if (uid == -1)
+        return false;
+    auto it = uid_map.find(uid);
+    if (it == uid_map.end())
+        return false;
+    uid = it->second;
+    return true;
+}
+
 // Event fields holding an object UID need to be remapped when UIDs are renumbered.
 static int remap_event_uid_fields(DedObject* const* objects, int count,
                                   const std::map<int, int>& uid_map)
@@ -91,13 +103,11 @@ static int remap_event_uid_fields(DedObject* const* objects, int count,
 
     int remapped = 0;
     auto remap = [&](int& uid, bool trigger_only) {
-        if (uid == -1)
-            return;
-        auto it = uid_map.find(uid);
-        if (it == uid_map.end() || (trigger_only && !new_trigger_uids.count(it->second)))
-            return;
-        uid = it->second;
-        remapped++;
+        int mapped = uid;
+        if (remap_uid(mapped, uid_map) && (!trigger_only || new_trigger_uids.count(mapped))) {
+            uid = mapped;
+            remapped++;
+        }
     };
     for (int i = 0; i < count; i++) {
         if (!objects[i] || objects[i]->type != DedObjectType::DED_EVENT)
@@ -200,7 +210,8 @@ static void capture_copy_link_snapshot()
 //   - stock→alpine links
 //   - alpine→stock links
 //   - alpine→alpine links
-//   - event UID fields (remap_event_uid_fields), which stock paste never touches
+//   - event UID fields (remap_event_uid_fields) and bolt emitter targets, which stock paste never
+//     touches
 static void fix_paste_links(CDedLevel* level, int stock_count, int mesh_count,
                             int note_count, int corona_count, int bag_count,
                             int weather_region_count, int projection_camera_count,
@@ -266,6 +277,17 @@ static void fix_paste_links(CDedLevel* level, int stock_count, int mesh_count,
     // naming the original, like a link to an object outside the copy.
     remap_event_uid_fields(sel.data_ptr, stock_count, uid_map);
 
+    // Stock paste copies a bolt's target unchanged. Adding the clone already synced its viewport bolt,
+    // so only a retargeted one needs another sync.
+    for (int i = 0; i < stock_count; i++) {
+        DedObject* obj = sel.data_ptr[i];
+        if (!obj || obj->type != DedObjectType::DED_BOLT_EMITTER)
+            continue;
+        auto* bolt = static_cast<DedBoltEmitter*>(obj);
+        if (remap_uid(bolt->target_uid, uid_map))
+            bolt->sync_preview();
+    }
+
     // Stock paste already handled stock->stock links
     if (!has_alpine) return;
 
@@ -312,10 +334,7 @@ static void fix_paste_links(CDedLevel* level, int stock_count, int mesh_count,
     for (int i = 0; i < rope_emitter_count; i++) {
         DedObject* obj = sel.data_ptr[rope_sel_start + i];
         if (!obj || obj->type != DedObjectType::DED_ROPE_EMITTER) continue;
-        auto* rope = static_cast<DedRopeEmitter*>(obj);
-        auto it = uid_map.find(rope->target_uid);
-        if (it != uid_map.end())
-            rope->target_uid = it->second;
+        remap_uid(static_cast<DedRopeEmitter*>(obj)->target_uid, uid_map);
     }
 
     xlog::trace("[AlpineObj] Fixed paste links for {} stock + {} mesh + {} note + {} corona + {} bag "
@@ -2459,8 +2478,9 @@ CodeInjection alpine_group_pre_load_hook{
     },
 };
 
-// Rope and bolt emitter targets and event UID fields are uid references outside the links array,
-// which stock's own fixup never touches — stock bolts keep a stale target on a colliding import.
+// Rope and bolt emitter targets and event UID fields are uid references outside the links array.
+// Stock's own fixup (0x004363C0) only rewrites bolt targets in the group entries it matches, so
+// bolts can keep a stale target on a colliding import.
 // Stock renumberings come from the table the importer leaves on the level; a target in neither map
 // was not renumbered, so it still names the right object.
 static void remap_imported_uid_refs(CDedLevel* level, const std::map<int, int>& alpine_uid_map,
@@ -2479,12 +2499,8 @@ static void remap_imported_uid_refs(CDedLevel* level, const std::map<int, int>& 
 
     int remapped = 0;
     auto remap_target = [&](int& target_uid) {
-        if (target_uid == -1)
-            return;
-        if (auto it = uid_map.find(target_uid); it != uid_map.end()) {
-            target_uid = it->second;
+        if (remap_uid(target_uid, uid_map))
             remapped++;
-        }
     };
 
     auto& ropes = level->GetAlpineLevelProperties().rope_emitter_objects;
