@@ -4,6 +4,7 @@ namespace rf
 {
     struct Entity;
     struct Weapon;
+    struct Vector3;
 }
 
 void projectile_lag_comp_init();
@@ -20,3 +21,5 @@ bool projectile_lag_comp_enabled();
 // so the shooter's view is a full round trip behind the server instead of half.
 bool projectile_lag_comp_rewind_for_killer(int killer_handle, int keep_handle = -1, bool full_ping = false);
 void restore_entities_after_projectile();
+// While rewound: how far this entity was moved from its live position (zero if it was not rewound)
+rf::Vector3 projectile_lag_comp_rewound_offset(int handle);

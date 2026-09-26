@@ -326,6 +326,7 @@ namespace
                 obj->obj_interp->Clear();
             }
         }
+        obj_interp_history_clear_all(); // the deeper keyframe history would otherwise span the jump
     }
 
     void seek_restore_audio()

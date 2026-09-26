@@ -2145,9 +2145,9 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
         std::format_to(iter, "  Uptime:                                {}\n", g_process_startup_time);
     }
     std::format_to(iter, "  Bandwidth:                             {} ({} netfps, {} fps)\n",
-                   g_alpine_game_config.net_rate_name(g_alpine_game_config.server_netfps),
+                   g_alpine_game_config.server_net_rate_tier().name,
                    g_alpine_game_config.server_netfps,
-                   g_alpine_game_config.net_rate_server_fps(g_alpine_game_config.server_netfps));
+                   g_alpine_game_config.server_net_rate_tier().server_fps);
     std::format_to(iter, "  Max players:                           {}\n", netgame.max_players);
     std::format_to(iter, "  Levels in rotation:                    {}\n", cfg.levels.size());
     std::format_to(iter, "  Dynamic rotation:                      {}\n", cfg.dynamic_rotation);

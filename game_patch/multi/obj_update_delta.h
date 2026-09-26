@@ -1,7 +1,7 @@
 #pragma once
 
 // Acked-baseline delta compression of the server -> client obj_update stream (af_obj_update_delta
-// 0x65 / af_obj_update_ack 0x66). Wire format and rules: research/functions-deep/obj_update_packet.md.
+// 0x6A / af_obj_update_ack 0x6B). Record wire format: encode() / decode_body() in obj_update_delta.cpp.
 // Kept free of game headers so rf/player/player.h can embed Sender by value.
 
 #include <array>
@@ -57,7 +57,7 @@ namespace obj_update_delta
     {
         std::array<Snapshot, ring_size> slots{};
         Snapshot* find(uint16_t seq);
-        void store(uint16_t seq, std::vector<Entry>&& entries);
+        void store(uint16_t seq, std::vector<Entry>& entries); // swaps entries in, hands back the old storage empty
         void clear();
     };
 
@@ -68,6 +68,7 @@ namespace obj_update_delta
         uint16_t next_seq = 0;
         std::vector<Entry> pending; // records already copied into the packet being built
         std::optional<Entry> last;  // record packed but not yet copied (the loop may flush first)
+        uint8_t* last_rec = nullptr; // last's wire bytes in the loop's scratch buffer, until copied
     };
 
     // Server: called from pack_obj_update_data_hook with the stock record; rewrites it in place
@@ -84,5 +85,7 @@ namespace obj_update_delta
     void client_reset();
 
     void on_level_init(); // both sides: handles are reused across levels
-    void selfcheck();     // codec round trips; asserts
+#ifndef NDEBUG
+    void selfcheck(); // codec round trips
+#endif
 }

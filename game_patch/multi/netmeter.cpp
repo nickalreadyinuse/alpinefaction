@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <common/utils/int-utils.h>
 #include <common/utils/list-utils.h>
 #include <patch_common/FunHook.h>
 #include "netmeter.h"
@@ -17,14 +18,6 @@ using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
 // cl_netmeter: client-side obj_update flow sampling. Packet timestamps are recorded by the
 // hook below and by netmeter_record_out(); rate and jitter are derived on demand by
 // netmeter_get_stats() for the HUD.
-
-// Netfps the server sends to this client: its tier (join_accept extension). Stock and pre-1.5
-// servers send the stock 40.
-static int client_recv_net_fps()
-{
-    const auto& info = get_af_server_info();
-    return (!info || !info->server_netfps) ? 40 : static_cast<int>(info->server_netfps);
-}
 
 struct NetMeterChannel
 {
@@ -139,11 +132,11 @@ NetMeterStats netmeter_get_stats()
     static int interp_samples = 0;
 
     const int now = static_cast<int>(timer::get_i64(1000));
-    // Nominal tick: inbound is the server tier capped by the rate we asked for, outbound the fixed
-    // client send rate; 0 lets the meter estimate it (stock/pre-1.5 server)
+    // Nominal tick: inbound is the server's tier (join_accept extension), outbound the fixed client
+    // send rate; 0 lets the meter estimate it (stock/pre-1.5 server)
     const auto& info = get_af_server_info();
     const bool known = info && info->server_netfps;
-    const auto in = g_netmeter_in.measure(now, known ? 1000 / client_recv_net_fps() : 0);
+    const auto in = g_netmeter_in.measure(now, known ? 1000 / info->server_netfps : 0);
     const auto out = g_netmeter_out.measure(now, known ? 1000 / static_cast<int>(AlpineGameSettings::client_net_rate) : 0);
 
     // Interp delay: how far behind the newest keyframe each remote entity is evaluated,
@@ -157,8 +150,7 @@ NetMeterStats netmeter_get_stats()
         }
         rf::Entity* ep = rf::entity_from_handle(player.entity_handle);
         if (ep && ep->obj_interp && ep->obj_interp->num_frames() > 0) {
-            interp_delay += static_cast<int16_t>(
-                static_cast<uint16_t>(ep->obj_interp->newest_frame_time() - ep->obj_interp->interp_time));
+            interp_delay += wrapped_diff16(ep->obj_interp->newest_frame_time(), ep->obj_interp->interp_time);
             ++interp_count;
         }
     }

@@ -205,9 +205,10 @@ struct AlpineFactionJoinAcceptPacketExt
     float max_fov = 0.0f;
     int32_t semi_auto_cooldown = 0;
     uint16_t server_netfps = 0; // 0: server predates this field, clients then send at 40
+    uint16_t projectile_lag_comp_max_ms = 0; // server's cap on the projectile advance; 0: uncapped (older server)
 };
 #pragma pack(pop)
-static_assert(sizeof(AlpineFactionJoinAcceptPacketExt) == 22, "unexpected AlpineFactionJoinAcceptPacketExt size");
+static_assert(sizeof(AlpineFactionJoinAcceptPacketExt) == 24, "unexpected AlpineFactionJoinAcceptPacketExt size");
 template<>
 struct EnableEnumBitwiseOperators<AlpineFactionJoinAcceptPacketExt::Flags> : std::true_type {};
 
@@ -300,9 +301,6 @@ JoiningClientKind get_joining_client_kind();
 // Look up AF extra data for a server by address. Returns nullptr if not found.
 const AFGameInfoExtra* get_server_browser_extra(const rf::NetAddr& addr);
 void clear_server_browser_extra();
-
-// Server: netfps this player receives obj_updates at (server tier capped per client)
-unsigned server_player_netfps(const rf::Player* pp);
 
 bool packet_check_whitelist(int packet_type);
 void handle_vote_or_ready_up_msg(std::string_view msg);

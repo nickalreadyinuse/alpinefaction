@@ -317,7 +317,7 @@ void apply_maximum_fps()
 
     if (rf::is_dedicated_server) {
         // Tied to the net rate tier so the send interval divides the frame (see sv_bandwidth)
-        max_fps = g_alpine_game_config.net_rate_server_fps(g_alpine_game_config.server_netfps);
+        max_fps = g_alpine_game_config.server_net_rate_tier().server_fps;
     }
     else if (rf::is_multi) {
         const auto& server_info_opt = get_af_server_info();
@@ -352,7 +352,7 @@ ConsoleCommand2 max_fps_cmd{
         if (limit_opt) {
             if (rf::is_dedicated_server) {
                 rf::console::print("maxfps follows sv_bandwidth on dedicated servers (currently {})",
-                                   g_alpine_game_config.net_rate_server_fps(g_alpine_game_config.server_netfps));
+                                   g_alpine_game_config.server_net_rate_tier().server_fps);
             } else {
                 g_alpine_game_config.set_max_fps(*limit_opt);
             }

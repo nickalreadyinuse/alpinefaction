@@ -9,7 +9,7 @@ namespace rf
 }
 
 // Remote-entity interpolation on top of the engine's 20-frame ObjInterp ring: a deeper per-entity
-// keyframe history (~1 s of hitscan rewind / povcomp bias at any netfps), a slewing sub-ms playout
+// keyframe history (spectate/demo povcomp bias; server hitscan rewind keeps the ring's reach), a slewing sub-ms playout
 // clock in place of the engine's snap-and-freeze one, and cubic Hermite through the replicated
 // velocities instead of the overshooting Catmull-Rom spline.
 void obj_interp_history_init();

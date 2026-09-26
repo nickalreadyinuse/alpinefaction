@@ -77,6 +77,7 @@ namespace rf
         PF_COLLIDE_OBJECTS = 0x20,       // participate in object-object collision pairs
         PF_UNK_40          = 0x40,
         PF_BOUNCE          = 0x100,      // bounce on impact (added when debris_flags & 0x04)
+        PF_UNK_400         = 0x400,      // collide_object_object_mesh (0x0049AFE0): a pair with it hits at time 0, no hit point
         PF_USE_CUSTOM_MAX_VEL = 0x200000, // movement clamps use Entity::custom_max_vel instead of EntityInfo::max_vel; cleared by entity_land (0x00419830)
         PF_SKIP_SIM_ONCE = 0x800000, // set by camera_enter_freelook/deadlook; obj_move_all skips one physics frame, then clears it
         PF_ACCEL_APPLIED = 0x1000000, // dispatcher tail sets this; stock acceleration blocks bail when set (once-per-frame gate)

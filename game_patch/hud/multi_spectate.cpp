@@ -42,6 +42,7 @@
 #include <optional>
 #include <vector>
 #include "../rf/os/frametime.h"
+#include <common/utils/int-utils.h>
 #include <common/utils/list-utils.h>
 #include <toml++/toml.hpp>
 #include "../rf/input.h"
@@ -955,7 +956,7 @@ static uint16_t povcomp_safe_bias(rf::ObjInterp* interp, const rf::Entity* entit
     // anchors interp_time (frame_start skips processing while it is set)
     if ((interp->flags & 1) != 0 || interp->num < 2)
         return 0; // ring unusable; the stock path holds the current pos anyway
-    const int avail = static_cast<int16_t>(static_cast<uint16_t>(interp->interp_time - obj_interp_oldest_tick(entity)));
+    const int avail = wrapped_diff16(interp->interp_time, obj_interp_oldest_tick(entity));
     if (avail <= 0)
         return 0; // stale/wrapped ring - leave it to the stock staleness handling
     return static_cast<uint16_t>(std::min(desired_ms, avail));
@@ -978,7 +979,9 @@ static int povcomp_bias_for(rf::Entity* entity)
 
 static void povcomp_interp_call(rf::Entity* entity, auto& hook)
 {
-    ObjInterpFrameEval frame_eval; // the tick evaluators add the playout clock's sub-ms part
+    // Every remote entity's per-frame evaluation passes through here, spectating or not: mark it so
+    // the tick evaluators (obj_interp_history.cpp) add the playout clock's sub-ms part
+    ObjInterpFrameEval frame_eval;
     // povcomp only biases interp state during demo playback or while following a
     // player in spectate; leave every other frame's interp untouched.
     if (!demo_playback_active() && !multi_spectate_is_following_player()) {

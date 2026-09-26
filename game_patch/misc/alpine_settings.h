@@ -386,39 +386,31 @@ struct AlpineGameSettings
     // Net rate tiers. Each tier's send interval is a whole number of ms that divides the server
     // frame at that tier's fps, so ticks are never truncated or bunched. sv_bandwidth toggles
     // between them; high matches 1.4 (40 net updates/s at 80 fps).
-    static constexpr unsigned net_rate_tiers[] = {20u, 40u};
-    // Dedicated server fps per tier: the send interval is two frames either way
-    static unsigned net_rate_server_fps(unsigned netfps)
+    struct NetRateTier
     {
-        return netfps <= 20u ? 40u : 80u;
-    }
-    // Anything that is not exactly a tier (a pre-1.5 ServerNetFPS of 60, 100, ...) becomes high:
+        const char* name;
+        unsigned netfps;
+        unsigned server_fps; // dedicated server fps: the send interval is two frames either way
+    };
+    static constexpr NetRateTier net_rate_tiers[] = {{"low", 20u, 40u}, {"high", 40u, 80u}};
+    // Anything that is not exactly a tier (a pre-1.5 ServerNetFPS of 60, 100, ...) is high:
     // operators should start there and only step down if the host cannot keep up
-    static unsigned snap_net_rate(unsigned netfps)
+    static const NetRateTier& net_rate_tier(unsigned netfps)
     {
-        for (unsigned tier : net_rate_tiers) {
-            if (tier == netfps)
-                return tier;
-        }
-        return net_rate_tiers[std::size(net_rate_tiers) - 1];
-    }
-    static const char* net_rate_name(unsigned netfps)
-    {
-        return netfps <= 20u ? "low" : "high";
-    }
-
-    // Listen servers only; dedicated servers run at net_rate_server_fps(server_netfps)
-    unsigned server_max_fps = 100u;
-    void set_server_max_fps(unsigned fps_value)
-    {
-        server_max_fps = std::clamp(fps_value, min_fps_limit, max_fps_limit);
+        const auto it = std::find_if(std::begin(net_rate_tiers), std::end(net_rate_tiers),
+                                     [netfps](const NetRateTier& tier) { return tier.netfps == netfps; });
+        return it != std::end(net_rate_tiers) ? *it : net_rate_tiers[std::size(net_rate_tiers) - 1];
     }
 
     // Server send rate, always one of net_rate_tiers
     unsigned server_netfps = 40u;
     void set_server_netfps(unsigned netfps_value)
     {
-        server_netfps = snap_net_rate(netfps_value);
+        server_netfps = net_rate_tier(netfps_value).netfps;
+    }
+    const NetRateTier& server_net_rate_tier() const
+    {
+        return net_rate_tier(server_netfps);
     }
 
     int desired_handicap = 0;

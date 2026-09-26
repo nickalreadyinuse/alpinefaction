@@ -475,7 +475,7 @@ std::string build_info_command_output() {
             rf::frametime,
             rf::current_fps,
             rf::is_dedicated_server
-                ? g_alpine_game_config.net_rate_server_fps(g_alpine_game_config.server_netfps)
+                ? g_alpine_game_config.server_net_rate_tier().server_fps
                 : g_alpine_game_config.max_fps,
             g_alpine_game_config.server_netfps
         );
@@ -5241,8 +5241,8 @@ void server_init()
     // Projectile lag compensation hooks
     projectile_lag_comp_init();
 
-    // Keyframe history deeper than ObjInterp's 20 frames, so hitscan lag comp and spectate/demo
-    // povcomp reach ~500 ms at any netfps
+    // Remote-entity playout clock and a keyframe history deeper than ObjInterp's 20 frames (spectate/demo
+    // povcomp; server hitscan rewind keeps the ring's reach)
     obj_interp_history_init();
 
     // console commands
