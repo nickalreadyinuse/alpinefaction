@@ -70,6 +70,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Retain RED+-specific chunks when RFLs are loaded and re-saved in the level editor
 - Make third person spectate an over-the-shoulder camera, and stop third person and orbit spectate cameras from clipping through walls
 - Switching from a spectated player to free look starts the free look camera at the current view instead of where free look was last left
+- Show the spectated player's jetpack fuel gauge in third person spectate and when `spectate_minui` is enabled
+- Add `cl_dominationmsgs` console command to toggle display of dominating and revenge server messages in chat
 - Add `dbg_terrain_batches` console command to tint terrain faces by render batch (Direct3D 11 renderer only)
 - Add `dbg_terrain_decorations` console command to toggle terrain mesh decorations and print their draw statistics
 - Levels saved with `D3D11-only lightmaps` refuse to load with the Direct3D 8/9 renderers
@@ -129,6 +131,18 @@ Version 1.5.0 (Trillium): Not yet released
 - Remove the level editor warning about levels with too many decals
 - Fix `Owner_Gate`, `Add_Link`, `Clone_Entity`, `Valid_Gate`, the trigger of `Inside_Gate`, and the eye anchor of `Set_Skybox` keeping the old UID when the object they reference is renumbered by a group import or pasted along with them in the level editor
 - Fix `Score Limit Override` mutator not working in Wipeout
+- Fix dedicated servers and headless bots using the Win32 console hanging when printing certain text
+- Fix dedicated server crashing when a `Clone_Entity` or `Set_Player_World_Collide` event is activated, and `Clone_Entity` crashing when the entity cannot be created
+- Fix `HUD_Message` crashing the game with certain message text
+- Improve validation of ATX texture files
+- Improve validation of `mapname_info.tbl`
+- Fix dedicated server crashes in certain level rotation configurations
+- Improve rcon failed login attempt handling
+- Fix a player joining mid-match occasionally being treated as a match participant after a participant leaves
+- Fix weapon select HUD reading and writing out of bounds for weapons past the 32nd entry in `weapons.tbl`
+- Fix Alpine event variable handler data leaking across level loads
+- Harden team change and server info packet handling against malformed data
+- Stop writing FactionFiles link tokens to the launcher log
 - Fix RF2-style geomod craters near the edge of a geoable brush not carving a neighboring geoable brush that the crater reaches
 - Fix RF2-style geomod giving up on geoable rooms with more than 5000 faces
 - Fix crash when a decal is created in a room containing a very large number of detail brushes
