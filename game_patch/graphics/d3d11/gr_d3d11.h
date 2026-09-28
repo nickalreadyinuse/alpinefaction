@@ -23,6 +23,7 @@ namespace rf
     struct MeshRenderParams;
     struct CharacterInstance;
     struct Player;
+    struct VfxSfxoRenderObj;
 }
 
 namespace gr::d3d11
@@ -36,6 +37,7 @@ namespace gr::d3d11
     class MeshRenderer;
     class EntityShadowRenderer;
     class OutlineRenderer;
+    class VfxMeshRenderer;
     class GammaPass;
 
     class Renderer
@@ -76,7 +78,9 @@ namespace gr::d3d11
         void project_vertex(rf::gr::Vertex* v);
         void setup_3d(Projection proj);
         void render_solid(rf::GSolid* solid, rf::GRoom** rooms, int num_rooms);
-        void render_movable_solid(rf::GSolid* solid, const rf::Vector3& pos, const rf::Matrix3& orient);
+        void render_movable_solid(rf::GSolid* solid, const rf::Vector3& pos, const rf::Matrix3& orient, bool include_alpha);
+        bool movable_solid_has_alpha(rf::GSolid* solid);
+        void render_movable_solid_alpha(rf::GSolid* solid, const rf::Vector3& pos, const rf::Matrix3& orient);
         void render_alpha_detail_room(rf::GRoom *room, rf::GSolid *solid);
         void render_sky_room(rf::GRoom *room, rf::Vector3& out_sky_transform_pos, rf::Matrix3& out_sky_transform_orient);
         void render_room_liquid_surface(rf::GSolid* solid, rf::GRoom* room);
@@ -85,6 +89,7 @@ namespace gr::d3d11
         void render_v3d_vif(rf::VifLodMesh *lod_mesh, int lod_index, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::MeshRenderParams& params, bool skip_ambient_cache = false);
         void render_character_vif(rf::VifLodMesh *lod_mesh, int lod_index, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::CharacterInstance *ci, const rf::MeshRenderParams& params, bool skip_ambient_cache = false);
         void clear_vif_cache(rf::VifLodMesh *lod_mesh);
+        void render_vfx(rf::VfxSfxoRenderObj* obj, float frame);
         void fog_set();
         void page_in_v3d_mesh(rf::VifLodMesh* lod_mesh, rf::MeshMaterial* materials = nullptr, int num_materials = 0);
         void page_in_character_mesh(rf::VifLodMesh* lod_mesh);
@@ -170,6 +175,7 @@ namespace gr::d3d11
         std::unique_ptr<RenderContext> render_context_;
         std::unique_ptr<SolidRenderer> solid_renderer_;
         std::unique_ptr<MeshRenderer> mesh_renderer_;
+        std::unique_ptr<VfxMeshRenderer> vfx_renderer_;
         std::unique_ptr<EntityShadowRenderer> entity_shadow_renderer_;
         std::unique_ptr<OutlineRenderer> outline_renderer_;
         std::unique_ptr<GammaPass> gamma_pass_;
@@ -182,6 +188,7 @@ namespace gr::d3d11
         int object_room_uid_ = -1;
         int liquid_update_frame_ = -1;
         int scene_depth_frame_ = -1;
+        bool scene_depth_wanted_ = false;
         rf::Player* deferred_reticle_player_ = nullptr;
         int render_target_bm_handle_ = -1;
         bool skip_gamma_pass_ = false;

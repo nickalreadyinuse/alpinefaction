@@ -159,7 +159,7 @@ cbuffer LiquidBuffer : register(b6)
     float  liq_dark_surface_y; float liq_viewport_y;   // blended surface, depth darkening only
     LiquidVolume liq_volumes[MAX_LIQUID_VOLUMES];
     float  liq_depth_sz;       float liq_depth_tz;     // view z = tz / (device depth - sz)
-    float  liq_depth_mode;     float _liq_pad2;        // 0 none, 1 Texture2D, 2 Texture2DMS
+    float  liq_depth_mode;     float _liq_pad2;        // 0 none, 1 Texture2D
 };
 
 Texture2D tex0;
@@ -171,10 +171,7 @@ SamplerComparisonState shadow_sampler : register(s2);
 SamplerState shadow_depth_sampler : register(s3);
 Texture2DArray caustic_tex : register(t3);
 SamplerState   caustic_samp : register(s4);
-// Copy of the scene depth buffer, for the liquid surface pass only. Single-sample only: ps_4_0
-// rejects an unsized Texture2DMS and the sample count is a user setting, so under MSAA
-// liq_depth_mode is 0 and the surface falls back to its far-clip term alone. A 1x1 stand-in keeps
-// the slot bound when there is no copy, so no draw ever sees an empty slot.
+// Copy of the scene depth buffer, for the liquid surface pass only.
 Texture2D<float> scene_depth : register(t6);
 
 // Poisson disk offsets for multi-tap PCF (up to 15 extra taps beyond center = 16 max)

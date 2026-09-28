@@ -1,9 +1,11 @@
 set(SRCS
     include/common/HttpRequest.h
     include/common/rfproto.h
+    include/common/rope_curve.h
     include/common/ComPtr.h
     include/common/afd_format.h
     include/common/tlv.h
+    include/common/scope_guard.h
     include/common/config/BuildConfig.h
     include/common/config/CfgVar.h
     include/common/config/GameConfig.h
