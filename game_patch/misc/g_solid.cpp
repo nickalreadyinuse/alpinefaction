@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 #include <new>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
@@ -1010,12 +1011,214 @@ CodeInjection sky_room_eye_position_patch{
     },
 };
 
+// Stock face lists append by walking to the tail and remove by walking to the predecessor,
+// which is O(n^2) when a face-heavy level's geometry is loaded. While it loads, shadow each list
+// with a tail cache and a predecessor map; every lookup is validated against the real links and
+// falls back to the stock walk. Outside the load the stock routines run untouched: the geomod
+// boolean (and RF2-style geomod) relinks these lists directly, bypassing the hooks.
+// A cached tail is only trusted while the face is still linked by an append to that same list.
+struct GFaceListRaw
+{
+    rf::GFace* head;
+    int count;
+};
+static_assert(sizeof(GFaceListRaw) == sizeof(rf::VList<rf::GFace>));
+
+template<rf::GFaceListId I>
+struct GFaceListShadow
+{
+    struct Link
+    {
+        rf::GFace* prev = nullptr; // nullptr = list head
+        GFaceListRaw* list = nullptr;
+    };
+
+    std::unordered_map<GFaceListRaw*, rf::GFace*> tail;
+    std::unordered_map<rf::GFace*, Link> links;
+
+    rf::GFace* cached_tail(GFaceListRaw* list) const
+    {
+        auto it = tail.find(list);
+        if (it == tail.end() || !it->second || it->second->next[I]) {
+            return nullptr;
+        }
+        auto lit = links.find(it->second);
+        return lit != links.end() && lit->second.list == list ? it->second : nullptr;
+    }
+
+    void append(GFaceListRaw* list, rf::GFace* face)
+    {
+        list->count++;
+        face->next[I] = nullptr;
+        if (!list->head) {
+            list->head = face;
+            links[face] = {nullptr, list};
+        }
+        else {
+            rf::GFace* t = cached_tail(list);
+            if (!t) {
+                t = list->head;
+                while (t->next[I]) {
+                    t = t->next[I];
+                }
+            }
+            t->next[I] = face;
+            links[face] = {t, list};
+        }
+        tail[list] = face;
+    }
+
+    void remove(GFaceListRaw* list, rf::GFace* face)
+    {
+        list->count--;
+        if (list->head == face) {
+            list->head = face->next[I];
+            if (list->head) {
+                links[list->head].prev = nullptr;
+            }
+            else {
+                tail.erase(list);
+            }
+            links.erase(face);
+            return;
+        }
+        if (!list->head) {
+            return;
+        }
+        rf::GFace* p;
+        auto it = links.find(face);
+        if (it != links.end() && it->second.prev && it->second.prev->next[I] == face) {
+            p = it->second.prev;
+        }
+        else {
+            p = list->head;
+            while (p && p->next[I] != face) {
+                p = p->next[I];
+            }
+            if (!p) {
+                return;
+            }
+        }
+        rf::GFace* nxt = face->next[I];
+        face->next[I] = nullptr;
+        p->next[I] = nxt;
+        if (nxt) {
+            links[nxt].prev = p;
+        }
+        else {
+            auto tit = tail.find(list);
+            if (tit != tail.end()) {
+                tit->second = p;
+            }
+        }
+        links.erase(face);
+    }
+
+    void clear()
+    {
+        tail.clear();
+        links.clear();
+    }
+};
+
+static GFaceListShadow<rf::FACE_LIST_SOLID> g_solid_face_list; // GSolid::face_list
+static GFaceListShadow<rf::FACE_LIST_BBOX> g_bbox_face_list;   // GBBox node face list
+static GFaceListShadow<rf::FACE_LIST_ROOM> g_room_face_list;   // GRoom::face_list
+static bool g_face_list_shadow_active = false;
+
+static void face_list_shadow_reset()
+{
+    g_face_list_shadow_active = false;
+    g_solid_face_list.clear();
+    g_bbox_face_list.clear();
+    g_room_face_list.clear();
+}
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> solid_face_list_add_hook{
+    0x004D3160,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            solid_face_list_add_hook.call_target(list, edx, face);
+            return;
+        }
+        g_solid_face_list.append(list, face);
+    },
+};
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> solid_face_list_remove_hook{
+    0x004CE2A0,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            solid_face_list_remove_hook.call_target(list, edx, face);
+            return;
+        }
+        g_solid_face_list.remove(list, face);
+    },
+};
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> bbox_face_list_add_hook{
+    0x004D30E0,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            bbox_face_list_add_hook.call_target(list, edx, face);
+            return;
+        }
+        g_bbox_face_list.append(list, face);
+    },
+};
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> bbox_face_list_remove_hook{
+    0x004E3B30,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            bbox_face_list_remove_hook.call_target(list, edx, face);
+            return;
+        }
+        g_bbox_face_list.remove(list, face);
+    },
+};
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> room_face_list_add_hook{
+    0x004CE200,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            room_face_list_add_hook.call_target(list, edx, face);
+            return;
+        }
+        g_room_face_list.append(list, face);
+    },
+};
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> room_face_list_remove_hook{
+    0x004CE240,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            room_face_list_remove_hook.call_target(list, edx, face);
+            return;
+        }
+        g_room_face_list.remove(list, face);
+    },
+};
+
+// Reads the faces, assigns them to rooms and builds the room bbox trees; runs no boolean.
+FunHook<void*(void*, void*, int)> geo_load_static_geometry_section_hook{
+    0x004ED520,
+    [](void* file, void* solid, int unk) {
+        face_list_shadow_reset();
+        g_face_list_shadow_active = true;
+        void* result = geo_load_static_geometry_section_hook.call_target(file, solid, unk);
+        face_list_shadow_reset();
+        return result;
+    },
+};
+
 // clean up sky room overrides and destruction state when shutting down level
 CodeInjection level_release_sky_room_shutdown_patch{
     0x0045CAF9,
     [](auto& regs) {
         set_sky_room_uid_override(-1, -1, false, -1);
         destruction_level_cleanup();
+        face_list_shadow_reset();
     },
 };
 
@@ -1125,6 +1328,15 @@ void g_solid_do_patch()
 
     // Set PPM for geo crater texture based on its resolution instead of static value of 32.0
     levelmod_do_blast_autotexture_ppm_patch.install();
+
+    // O(1) face list appends and removals while level geometry loads
+    geo_load_static_geometry_section_hook.install();
+    solid_face_list_add_hook.install();
+    solid_face_list_remove_hook.install();
+    bbox_face_list_add_hook.install();
+    bbox_face_list_remove_hook.install();
+    room_face_list_add_hook.install();
+    room_face_list_remove_hook.install();
 
     // Commands
     max_decals_cmd.register_cmd();
