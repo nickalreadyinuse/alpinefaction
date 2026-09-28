@@ -66,6 +66,7 @@ Version 1.5.0 (Trillium): Not yet released
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
 - Render animated (`.vfx`) meshes on the GPU with per-pixel lighting, and apply their materials' reflection maps (Direct3D 11 renderer only)
+- Load levels with very large face counts or many level sounds much faster
 
 [@is-this-c](https://github.com/is-this-c)
 - Do not kick a player, if they join right before limbo

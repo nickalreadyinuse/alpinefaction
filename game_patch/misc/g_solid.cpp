@@ -2,7 +2,6 @@
 #include <cmath>
 #include <unordered_map>
 #include <patch_common/FunHook.h>
-#include <patch_common/FunPrePostHook.h>
 #include <patch_common/CallHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
@@ -701,136 +700,205 @@ CodeInjection sky_room_eye_position_patch{
     },
 };
 
-// The stock face lists (intrusive singly-linked lists with next pointers at face+0x54, +0x58,
-// +0x5C) append by walking for the tail and remove by walking for the predecessor - O(n^2) on
-// face-heavy maps. Shadow each list with a tail cache and a face->predecessor map for O(1)
-// append/remove; every shadow lookup is validated against the real links and falls back to the
-// stock walk, so stale entries degrade to stock behavior instead of corrupting the list.
-template<int NextOffset>
-struct VListShadow
+// Stock face lists append by walking to the tail and remove by walking to the predecessor,
+// which is O(n^2) when a face-heavy level's geometry is loaded. While it loads, shadow each list
+// with a tail cache and a predecessor map; every lookup is validated against the real links and
+// falls back to the stock walk. Outside the load the stock routines run untouched: the geomod
+// boolean (and RF2-style geomod) relinks these lists directly, bypassing the hooks.
+// A cached tail is only trusted while the face is still linked by an append to that same list.
+struct GFaceListRaw
 {
-    struct VListRaw
+    rf::GFace* head;
+    int count;
+};
+static_assert(sizeof(GFaceListRaw) == sizeof(rf::VList<rf::GFace>));
+
+template<rf::GFaceListId I>
+struct GFaceListShadow
+{
+    struct Link
     {
-        void* head;
-        int count;
+        rf::GFace* prev = nullptr; // nullptr = list head
+        GFaceListRaw* list = nullptr;
     };
 
-    std::unordered_map<void*, void*> tail; // list -> last face
-    std::unordered_map<void*, void*> prev; // face -> predecessor face (nullptr = list head)
+    std::unordered_map<GFaceListRaw*, rf::GFace*> tail;
+    std::unordered_map<rf::GFace*, Link> links;
 
-    static void*& next_of(void* f)
+    rf::GFace* cached_tail(GFaceListRaw* list) const
     {
-        return *reinterpret_cast<void**>(static_cast<char*>(f) + NextOffset);
+        auto it = tail.find(list);
+        if (it == tail.end() || !it->second || it->second->next[I]) {
+            return nullptr;
+        }
+        auto lit = links.find(it->second);
+        return lit != links.end() && lit->second.list == list ? it->second : nullptr;
     }
 
-    void append(void* list_ptr, void* face)
+    void append(GFaceListRaw* list, rf::GFace* face)
     {
-        auto* list = static_cast<VListRaw*>(list_ptr);
         list->count++;
-        next_of(face) = nullptr;
+        face->next[I] = nullptr;
         if (!list->head) {
             list->head = face;
-            prev[face] = nullptr;
+            links[face] = {nullptr, list};
         }
         else {
-            void* t = nullptr;
-            auto it = tail.find(list_ptr);
-            if (it != tail.end() && it->second && !next_of(it->second)) {
-                t = it->second;
-            }
-            else {
+            rf::GFace* t = cached_tail(list);
+            if (!t) {
                 t = list->head;
-                while (next_of(t)) {
-                    t = next_of(t);
+                while (t->next[I]) {
+                    t = t->next[I];
                 }
             }
-            next_of(t) = face;
-            prev[face] = t;
+            t->next[I] = face;
+            links[face] = {t, list};
         }
-        tail[list_ptr] = face;
+        tail[list] = face;
     }
 
-    void remove(void* list_ptr, void* face)
+    void remove(GFaceListRaw* list, rf::GFace* face)
     {
-        auto* list = static_cast<VListRaw*>(list_ptr);
-        list->count--; // stock decrements unconditionally, even when the face is not found
+        list->count--;
         if (list->head == face) {
-            list->head = next_of(face); // stock leaves the removed face's next pointer intact here
+            list->head = face->next[I];
             if (list->head) {
-                prev[list->head] = nullptr;
+                links[list->head].prev = nullptr;
             }
             else {
-                tail.erase(list_ptr);
+                tail.erase(list);
             }
-            prev.erase(face);
+            links.erase(face);
             return;
         }
         if (!list->head) {
             return;
         }
-        void* p;
-        auto it = prev.find(face);
-        if (it != prev.end() && it->second && next_of(it->second) == face) {
-            p = it->second;
+        rf::GFace* p;
+        auto it = links.find(face);
+        if (it != links.end() && it->second.prev && it->second.prev->next[I] == face) {
+            p = it->second.prev;
         }
         else {
             p = list->head;
-            while (p && next_of(p) != face) {
-                p = next_of(p);
+            while (p && p->next[I] != face) {
+                p = p->next[I];
             }
             if (!p) {
-                return; // not in this list (stock bails the same way)
+                return;
             }
         }
-        void* nxt = next_of(face);
-        next_of(face) = nullptr; // stock zeroes next in the non-head case
-        next_of(p) = nxt;
+        rf::GFace* nxt = face->next[I];
+        face->next[I] = nullptr;
+        p->next[I] = nxt;
         if (nxt) {
-            prev[nxt] = p;
+            links[nxt].prev = p;
         }
         else {
-            auto tit = tail.find(list_ptr);
+            auto tit = tail.find(list);
             if (tit != tail.end()) {
                 tit->second = p;
             }
         }
-        prev.erase(face);
+        links.erase(face);
     }
 
     void clear()
     {
         tail.clear();
-        prev.clear();
+        links.clear();
     }
 };
 
-static VListShadow<0x54> g_vlist54; // GSolid face list (GSolid__create_face / VList__remove_face)
-static VListShadow<0x58> g_vlist58; // room face list (solid_recompute_normals rebuilds; no remover)
-static VListShadow<0x5C> g_vlist5c; // bbox face list (FUN_004ccec0 add / FUN_004ce240 remove)
+static GFaceListShadow<rf::FACE_LIST_SOLID> g_solid_face_list; // GSolid::face_list
+static GFaceListShadow<rf::FACE_LIST_BBOX> g_bbox_face_list;   // GBBox node face list
+static GFaceListShadow<rf::FACE_LIST_ROOM> g_room_face_list;   // GRoom::face_list
+static bool g_face_list_shadow_active = false;
 
-FunHook<void __fastcall(void*, int, void*)> vlist54_add_hook{
+static void face_list_shadow_reset()
+{
+    g_face_list_shadow_active = false;
+    g_solid_face_list.clear();
+    g_bbox_face_list.clear();
+    g_room_face_list.clear();
+}
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> solid_face_list_add_hook{
     0x004D3160,
-    [](void* list_ptr, int, void* face) { g_vlist54.append(list_ptr, face); },
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            solid_face_list_add_hook.call_target(list, edx, face);
+            return;
+        }
+        g_solid_face_list.append(list, face);
+    },
 };
 
-FunHook<void __fastcall(void*, int, void*)> vlist54_remove_hook{
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> solid_face_list_remove_hook{
     0x004CE2A0,
-    [](void* list_ptr, int, void* face) { g_vlist54.remove(list_ptr, face); },
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            solid_face_list_remove_hook.call_target(list, edx, face);
+            return;
+        }
+        g_solid_face_list.remove(list, face);
+    },
 };
 
-FunHook<void __fastcall(void*, int, void*)> vlist58_add_hook{
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> bbox_face_list_add_hook{
     0x004D30E0,
-    [](void* list_ptr, int, void* face) { g_vlist58.append(list_ptr, face); },
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            bbox_face_list_add_hook.call_target(list, edx, face);
+            return;
+        }
+        g_bbox_face_list.append(list, face);
+    },
 };
 
-FunHook<void __fastcall(void*, int, void*)> vlist5c_add_hook{
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> bbox_face_list_remove_hook{
+    0x004E3B30,
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            bbox_face_list_remove_hook.call_target(list, edx, face);
+            return;
+        }
+        g_bbox_face_list.remove(list, face);
+    },
+};
+
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> room_face_list_add_hook{
     0x004CE200,
-    [](void* list_ptr, int, void* face) { g_vlist5c.append(list_ptr, face); },
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            room_face_list_add_hook.call_target(list, edx, face);
+            return;
+        }
+        g_room_face_list.append(list, face);
+    },
 };
 
-FunHook<void __fastcall(void*, int, void*)> vlist5c_remove_hook{
+FunHook<void __fastcall(GFaceListRaw*, int, rf::GFace*)> room_face_list_remove_hook{
     0x004CE240,
-    [](void* list_ptr, int, void* face) { g_vlist5c.remove(list_ptr, face); },
+    [](GFaceListRaw* list, int edx, rf::GFace* face) FASTCALL_LAMBDA {
+        if (!g_face_list_shadow_active) {
+            room_face_list_remove_hook.call_target(list, edx, face);
+            return;
+        }
+        g_room_face_list.remove(list, face);
+    },
+};
+
+// Reads the faces, assigns them to rooms and builds the room bbox trees; runs no boolean.
+FunHook<void*(void*, void*, int)> geo_load_static_geometry_section_hook{
+    0x004ED520,
+    [](void* file, void* solid, int unk) {
+        face_list_shadow_reset();
+        g_face_list_shadow_active = true;
+        void* result = geo_load_static_geometry_section_hook.call_target(file, solid, unk);
+        face_list_shadow_reset();
+        return result;
+    },
 };
 
 // clean up sky room overrides and destruction state when shutting down level
@@ -839,9 +907,7 @@ CodeInjection level_release_sky_room_shutdown_patch{
     [](auto& regs) {
         set_sky_room_uid_override(-1, -1, false, -1);
         destruction_level_cleanup();
-        g_vlist54.clear();
-        g_vlist58.clear();
-        g_vlist5c.clear();
+        face_list_shadow_reset();
     },
 };
 
@@ -913,12 +979,14 @@ void g_solid_do_patch()
     // Set PPM for geo crater texture based on its resolution instead of static value of 32.0
     levelmod_do_blast_autotexture_ppm_patch.install();
 
-    // O(1) face list appends and removals (shadow tail caches + predecessor maps)
-    vlist54_add_hook.install();
-    vlist54_remove_hook.install();
-    vlist58_add_hook.install();
-    vlist5c_add_hook.install();
-    vlist5c_remove_hook.install();
+    // O(1) face list appends and removals while level geometry loads
+    geo_load_static_geometry_section_hook.install();
+    solid_face_list_add_hook.install();
+    solid_face_list_remove_hook.install();
+    bbox_face_list_add_hook.install();
+    bbox_face_list_remove_hook.install();
+    room_face_list_add_hook.install();
+    room_face_list_remove_hook.install();
 
     // Commands
     max_decals_cmd.register_cmd();

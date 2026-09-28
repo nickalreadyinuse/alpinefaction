@@ -431,7 +431,7 @@ static bool g_defer_snd_loads = false;
 FunHook<int(int)> snd_load_hint_defer_hook{
     0x005054D0,
     [](int snd_id) {
-        if (g_defer_snd_loads && snd_id >= 0) {
+        if (g_defer_snd_loads && rf::sound_enabled && snd_id >= 0) {
             g_deferred_snd_loads.push_back(snd_id);
             return 0;
         }
@@ -442,9 +442,13 @@ FunHook<int(int)> snd_load_hint_defer_hook{
 FunHook<void(void*)> level_read_events_snd_defer_hook{
     0x00462150,
     [](void* file) {
+        g_deferred_snd_loads.clear();
         g_defer_snd_loads = true;
         level_read_events_snd_defer_hook.call_target(file);
         g_defer_snd_loads = false;
+        std::ranges::sort(g_deferred_snd_loads);
+        auto dupes = std::ranges::unique(g_deferred_snd_loads);
+        g_deferred_snd_loads.erase(dupes.begin(), dupes.end());
     },
 };
 

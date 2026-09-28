@@ -6,7 +6,6 @@
 #include <stb_vorbis.h>
 #include <algorithm>
 #include <cstring>
-#include <memory>
 #include "../rf/sound/sound.h"
 #include "../rf/sound/sound_ds.h"
 #include "../rf/crt.h"
