@@ -131,6 +131,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Remove the level editor warning about levels with too many decals
 - Fix `Owner_Gate`, `Add_Link`, `Clone_Entity`, `Valid_Gate`, the trigger of `Inside_Gate`, and the eye anchor of `Set_Skybox` keeping the old UID when the object they reference is renumbered by a group import or pasted along with them in the level editor
 - Fix `Score Limit Override` mutator not working in Wipeout
+- Fix faces created by `Split` and `Bridge` in the level editor sharing an ID, which made them share scrolling texture settings and could map geoable or breakable brushes to the wrong room when saving before rebuilding
 - Fix dedicated servers and headless bots using the Win32 console hanging when printing certain text
 - Fix dedicated server crashing when a `Clone_Entity` or `Set_Player_World_Collide` event is activated, and `Clone_Entity` crashing when the entity cannot be created
 - Fix `HUD_Message` crashing the game with certain message text
