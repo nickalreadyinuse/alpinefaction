@@ -705,19 +705,15 @@ namespace gr::d3d11
 
     static bool g_vfx_gpu = true;
 
-    // gr_d3d_render_vfx: stock software T&L for .vfx SFXO triangle chunks (CPU rotate + CPU vertex
-    // lighting + shell sort + one gr_poly per face). Plain mesh chunks go to VfxMeshRenderer; anything
-    // it cannot draw (sky room pass, oversized chunks) stays on the stock function.
-    // The eligibility check runs before the light gather so a fallback never sees a reset light list.
+    // Eligibility is checked before the light gather so a stock fallback never sees a reset light list
     FunHook<void(rf::VfxSfxoRenderObj*, float)> gr_d3d_render_vfx_hook{
         0x00553EE0,
         [](rf::VfxSfxoRenderObj* obj, float frame) {
             float radius = 0.0f;
-            if (!g_vfx_gpu ||!renderer || !vfx_gpu_eligible(obj, &radius)) {
+            if (!g_vfx_gpu || !renderer || !vfx_gpu_eligible(obj, &radius)) {
                 gr_d3d_render_vfx_hook.call_target(obj, frame);
                 return;
             }
-            // Vertex-lit mode lights on the CPU from the engine light list, like render_v3d_vif
             bool lights_gathered = rf::level.geometry && !skip_mesh_light_gather && !level_uses_vertex_lighting();
             if (lights_gathered) {
                 gather_mesh_lights(obj->render_pos, radius);
@@ -730,20 +726,6 @@ namespace gr::d3d11
         },
     };
 
-#ifndef NDEBUG
-    extern D3D11_CULL_MODE g_vfx_cull_mode;
-    ConsoleCommand2 vfx_cull_cmd{
-        "dbg_vfxcull",
-        [](std::optional<int> mode) {
-            if (mode) {
-                g_vfx_cull_mode = static_cast<D3D11_CULL_MODE>(std::clamp(*mode, 1, 3));
-            }
-            rf::console::print("GPU vfx cull mode: {} (1 none, 2 front, 3 back)", static_cast<int>(g_vfx_cull_mode));
-        },
-        "Sets face culling for GPU-rendered .vfx meshes",
-        "dbg_vfxcull [1|2|3]",
-    };
-
     ConsoleCommand2 vfx_gpu_cmd{
         "dbg_vfxgpu",
         []() {
@@ -752,7 +734,6 @@ namespace gr::d3d11
         },
         "Toggles GPU rendering of .vfx meshes (off = stock CPU path)",
     };
-#endif
 
     void fog_set()
     {
@@ -1371,8 +1352,5 @@ void gr_d3d11_apply_patch()
 
     r_antialiasing_cmd.register_cmd();
     r_antialiasing_mode_cmd.register_cmd();
-#ifndef NDEBUG
     vfx_gpu_cmd.register_cmd();
-    vfx_cull_cmd.register_cmd();
-#endif
 }

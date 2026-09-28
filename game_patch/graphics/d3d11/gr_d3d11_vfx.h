@@ -33,6 +33,7 @@ namespace gr::d3d11
     public:
         VfxMeshRenderer(ComPtr<ID3D11Device> device, ShaderManager& shader_manager, RenderContext& render_context);
         void render(rf::VfxSfxoRenderObj* obj, float frame); // obj must have passed vfx_gpu_eligible
+        void clear_cache();
 
     private:
         // Compact copy of the chunk's static topology: the engine's 0x90-byte face records and

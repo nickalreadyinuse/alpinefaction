@@ -1416,6 +1416,7 @@ namespace gr::d3d11
     void Renderer::flush_caches()
     {
         mesh_renderer_->flush_caches();
+        vfx_renderer_->clear_cache();
         // Runs from level_page_out_injection, so it doubles as the level-change reset
         damage_vignette_ = {};
     }

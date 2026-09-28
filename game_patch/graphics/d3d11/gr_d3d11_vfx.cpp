@@ -21,8 +21,8 @@ namespace gr::d3d11
     constexpr int vfx_ring_verts = 32768;
     constexpr int vfx_ring_indices = 65536;
 
-    // dbg_vfxcull (debug builds): 1 none, 2 front, 3 back (D3D11_CULL_MODE values)
-    D3D11_CULL_MODE g_vfx_cull_mode = D3D11_CULL_BACK;
+    // Stock gr_d3d_render_vfx lights with a fixed 2.0 scale (gr_light_apply arg), not the static mesh modifier
+    constexpr float vfx_light_scale = 2.0f;
 
     // Engine helpers the stock gr_d3d_render_vfx (0x00553EE0) uses per material / per vertex
     static auto& gr_light_rotate_all = addr_as_ref<void()>(0x004D9FD0);
@@ -107,7 +107,7 @@ namespace gr::d3d11
             return false;
         }
         // Worst case: no corner sharing, plus specular and chrome copies
-        if (chunk->num_faces * 3 * 3 > vfx_ring_verts || chunk->num_faces * 3 > vfx_ring_indices) {
+        if (chunk->num_faces * 3 * 3 > vfx_ring_verts) {
             return false;
         }
         float r2 = 0.0f;
@@ -128,11 +128,14 @@ namespace gr::d3d11
         pixel_shader_no_gas_ = shader_manager.get_pixel_shader(PixelShaderId::standard_no_gas);
     }
 
+    void VfxMeshRenderer::clear_cache()
+    {
+        topology_cache_.clear();
+    }
+
     const VfxMeshRenderer::Topology& VfxMeshRenderer::get_topology(const rf::VfxSfxoChunk* chunk, const rf::VfxSfxoRenderObj* obj)
     {
         Topology& t = topology_cache_[chunk];
-        // ponytail: keyed by chunk address; a freed+reused address is caught by these checks, entries are
-        // never evicted (a handful of chunks per level)
         if (t.faces_ptr == chunk->faces && t.records_ptr == chunk->vertex_records && t.num_faces == chunk->num_faces &&
             t.num_vertices == chunk->num_vertices && t.num_records == chunk->num_vertex_records) {
             return t;
@@ -201,21 +204,16 @@ namespace gr::d3d11
     {
         rf::VfxSfxoChunk* chunk = obj->chunk;
         const Topology& topo = get_topology(chunk, obj);
-        const rf::Vector3* pos = obj->vertex_positions;
-        const int num_slots = chunk->num_materials;
         const int num_faces = static_cast<int>(topo.faces.size());
-        const int num_unique = static_cast<int>(topo.unique.size());
-        const bool fullbright = (chunk->render_flags & 0x10) != 0;
-        // Vertex-lit levels/settings: CPU colours via the engine's own gr_light_apply, like stock and like
-        // the v3d path (which keeps stock's CPU vertex colours there). Otherwise the pixel shader lights.
-        const bool vertex_lit = level_uses_vertex_lighting() && !fullbright;
         if (!num_faces) {
             return;
         }
+        const rf::Vector3* pos = obj->vertex_positions;
+        const int num_slots = chunk->num_materials;
+        const int num_unique = static_cast<int>(topo.unique.size());
+        const bool fullbright = (chunk->render_flags & 0x10) != 0;
+        const bool vertex_lit = level_uses_vertex_lighting() && !fullbright;
 
-        // Face normals from the animated positions (stock: set_face_normal every frame), then the
-        // smoothed per-record normals stock averages from the adjacent faces
-        // (a record's adjacent-face list is exactly the faces whose corners reference it)
         face_normals_.resize(num_faces);
         record_normals_.assign(topo.num_records, rf::Vector3{0.0f, 0.0f, 0.0f});
         for (int f = 0; f < num_faces; ++f) {
@@ -281,8 +279,7 @@ namespace gr::d3d11
             total_indices += sl.count;
         }
 
-        // Vertex lighting / specular / chrome reuse the engine's per-vertex functions, which expect the
-        // instance transform and lights rotated into it (exactly what stock sets up before its face loop)
+        // The engine's per-vertex light/specular/chrome functions expect the instance transform and rotated lights
         const bool need_instance = vertex_lit || any_specular || any_chrome;
         if (need_instance) {
             rf::gr::start_instance(obj->render_pos, obj->render_orient);
@@ -299,8 +296,7 @@ namespace gr::d3d11
             }
         }
 
-        // Vertex regions: base, then optional specular and chrome copies (same indices, base_vertex offset).
-        // Built in cached memory, then one memcpy into the write-combined mapped buffer.
+        // Vertex regions: base, then optional specular and chrome copies (same indices, base_vertex offset)
         const int spec_region = any_specular ? num_unique : -1;
         const int chrome_region = any_chrome ? num_unique * (any_specular ? 2 : 1) : -1;
         const int total_verts = num_unique * (1 + (any_specular ? 1 : 0) + (any_chrome ? 1 : 0));
@@ -313,7 +309,6 @@ namespace gr::d3d11
             const rf::VfxFaceUv& uv = obj->face_uvs[u.src_face];
             rf::Color diffuse = sl.tint;
             if (vertex_lit && u.record >= 0) {
-                // Stock: lit colour floored at self-illumination, then scaled by the type-2 tint
                 const rf::Color& lit = record_lit_[u.record];
                 diffuse.red = static_cast<rf::ubyte>(std::max(lit.red, sl.illum_floor) * sl.tint.red / 255);
                 diffuse.green = static_cast<rf::ubyte>(std::max(lit.green, sl.illum_floor) * sl.tint.green / 255);
@@ -376,8 +371,7 @@ namespace gr::d3d11
         render_context_.set_vertex_shader(vertex_shader_);
         render_context_.set_pixel_shader(render_context_.has_gas_regions() ? pixel_shader_ : pixel_shader_no_gas_);
         render_context_.set_primitive_topology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        // Stock culls faces whose normal points away from the camera (single-sided)
-        render_context_.set_cull_mode(g_vfx_cull_mode);
+        render_context_.set_cull_mode(D3D11_CULL_BACK);
 
         const bool gpu_lit = !vertex_lit && !fullbright;
         if (gpu_lit) {
@@ -387,8 +381,7 @@ namespace gr::d3d11
             render_context_.update_lights(true); // vertex colours are the whole result
         }
 
-        // Base passes, slots descending. ponytail: no intra-slot back-to-front face sort (z-test +
-        // alpha test cover foliage); add a slot-level depth sort if alpha-blended vfx visibly mis-order.
+        // Base passes, slots descending (stock sort key bias slot * 61)
         for (int s = num_slots - 1; s >= 0; --s) {
             const Slot& sl = slots[s];
             if (!sl.count) {
@@ -399,22 +392,22 @@ namespace gr::d3d11
                 const rf::ubyte w = to_byte(weight);
                 const rf::Color color{w, w, w, to_byte(weight * sl.opacity)};
                 render_context_.set_textures(bm, -1);
-                // Stock painter-sorts every face back to front. Without that, an alpha-blended soft edge
-                // drawn first writes depth and the leaf behind it is rejected, leaving a bright halo of
-                // background around each leaf. Split soft-alpha materials into an opaque cutout pass
-                // (alpha >= 0.5, z write) and a blended edge pass (z read only) instead.
-                if (mode.get_alpha_blend() == rf::gr::ALPHA_BLEND_ALPHA &&
+                // No per-face depth sort like stock: split soft alpha into an opaque cutout pass and a z-read
+                // edge pass so blended edges don't reject what's behind them. Fading materials stay single-pass.
+                if (sl.opacity >= 1.0f && mode.get_alpha_blend() == rf::gr::ALPHA_BLEND_ALPHA &&
                     mode.get_zbuffer_type() == rf::gr::ZBUFFER_TYPE_FULL_ALPHA_TEST) {
                     rf::gr::Mode cutout = mode;
                     cutout.set_alpha_blend(rf::gr::ALPHA_BLEND_NONE);
                     const float saved_threshold = g_alpha_test_threshold;
                     g_alpha_test_threshold = 0.5f;
-                    render_context_.set_mode(cutout, color, false, gpu_lit, gpu_lit ? sl.self_illum : 0.0f, gpu_lit, false);
+                    render_context_.set_mode(cutout, color, false, gpu_lit, gpu_lit ? sl.self_illum : 0.0f, gpu_lit, false,
+                        vfx_light_scale);
                     render_context_.draw_indexed(sl.count, ib_start + sl.offset, vb_start);
                     g_alpha_test_threshold = saved_threshold;
                     mode.set_zbuffer_type(rf::gr::ZBUFFER_TYPE_READ);
                 }
-                render_context_.set_mode(mode, color, false, gpu_lit, gpu_lit ? sl.self_illum : 0.0f, gpu_lit, false);
+                render_context_.set_mode(mode, color, false, gpu_lit, gpu_lit ? sl.self_illum : 0.0f, gpu_lit, false,
+                    vfx_light_scale);
                 render_context_.draw_indexed(sl.count, ib_start + sl.offset, vb_start);
             };
             if (m->material_type == 1) {
