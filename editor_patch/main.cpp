@@ -452,10 +452,15 @@ static void apply_no_debris_to_selected_brushes(int new_state)
                                 props.breakable_brush_uids.end(), node->uid);
             if (it != props.breakable_brush_uids.end()) {
                 auto idx = std::distance(props.breakable_brush_uids.begin(), it);
-                if (new_state == BST_CHECKED) {
-                    props.breakable_materials[idx] |= 0x80;
-                } else {
-                    props.breakable_materials[idx] &= 0x7F;
+                // Glass rows exist only to carry the brush UID -> room UID mapping, and the
+                // checkbox is disabled for Glass anyway; matching the mat > 0 rule the checkbox
+                // state is computed from keeps a mixed selection from flagging one.
+                if ((props.breakable_materials[idx] & 0x7F) != 0) {
+                    if (new_state == BST_CHECKED) {
+                        props.breakable_materials[idx] |= 0x80;
+                    } else {
+                        props.breakable_materials[idx] &= 0x7F;
+                    }
                 }
             }
         }
@@ -1039,6 +1044,27 @@ void CMainFrame_PlayMultiFromCamera(CWnd* this_)
     g_is_play_in_multi = false;
 }
 
+// Commit a held viewport transform before undo/redo moves its entry off the top, as holding Ctrl does
+void __fastcall CMainFrame_OnEditUndo_new(CWnd* this_, void* edx_unused);
+FunHook<decltype(CMainFrame_OnEditUndo_new)> CMainFrame_OnEditUndo_hook{0x00447830, CMainFrame_OnEditUndo_new};
+void __fastcall CMainFrame_OnEditUndo_new(CWnd* this_, void* edx_unused)
+{
+    if (auto* level = CDedLevel::Get()) {
+        level->commit_pending_transform();
+    }
+    CMainFrame_OnEditUndo_hook.call_target(this_, edx_unused);
+}
+
+void __fastcall CMainFrame_OnEditRedo_new(CWnd* this_, void* edx_unused);
+FunHook<decltype(CMainFrame_OnEditRedo_new)> CMainFrame_OnEditRedo_hook{0x00447870, CMainFrame_OnEditRedo_new};
+void __fastcall CMainFrame_OnEditRedo_new(CWnd* this_, void* edx_unused)
+{
+    if (auto* level = CDedLevel::Get()) {
+        level->commit_pending_transform();
+    }
+    CMainFrame_OnEditRedo_hook.call_target(this_, edx_unused);
+}
+
 void CMainFrame_BackLink([[maybe_unused]] CWnd* this_)
 {
     DedLevel_DoBackLink();
@@ -1193,6 +1219,44 @@ static void __fastcall decal_geometry_update_new(void* self, int /*edx*/, int p1
     decal_geometry_update_hook.call_target(self, 0, p1);
 }
 
+static void __fastcall decal_pos_update_new(void* self, int /*edx*/, void* pos);
+FunHook<decltype(decal_pos_update_new)> decal_pos_update_hook{
+    0x0044e950, decal_pos_update_new};
+static void __fastcall decal_pos_update_new(void* self, int /*edx*/, void* pos)
+{
+    auto* sub_obj = *reinterpret_cast<void**>(static_cast<std::byte*>(self) + 0xA4);
+    if (!sub_obj) {
+        WARN_ONCE("Skipping decal position update for object with null sub-object at +0xA4");
+        return;
+    }
+    decal_pos_update_hook.call_target(self, 0, pos);
+}
+
+static void __fastcall decal_align_to_surface_new(void* self);
+FunHook<decltype(decal_align_to_surface_new)> decal_align_to_surface_hook{
+    0x0044eab0, decal_align_to_surface_new};
+static void __fastcall decal_align_to_surface_new(void* self)
+{
+    auto* sub_obj = *reinterpret_cast<void**>(static_cast<std::byte*>(self) + 0xA4);
+    if (!sub_obj) {
+        WARN_ONCE("Skipping decal surface alignment for object with null sub-object at +0xA4");
+        return;
+    }
+    decal_align_to_surface_hook.call_target(self);
+}
+
+// Match the game's excpanded 512-decal pool
+constexpr int editor_max_decals = 512;
+constexpr std::size_t decal_slot_size = 0xEC;
+alignas(16) static std::byte g_decal_slots[editor_max_decals][decal_slot_size];
+
+static void decal_patch_limit()
+{
+    write_mem_ptr(0x00492281 + 1, &g_decal_slots[0]);
+    write_mem_ptr(0x004922C3 + 1, &g_decal_slots[editor_max_decals]);
+    write_mem<i32>(0x00494396 + 1, editor_max_decals);
+}
+
 static bool is_edit_key_held()
 {
     return g_dinput_keys[DIK_R]
@@ -1204,7 +1268,8 @@ static bool is_edit_key_held()
 CodeInjection autosave_defer_during_edit_injection{
     0x00483061,
     [](auto& regs) {
-        if (headless_bake_active() || is_edit_key_held()) {
+        auto* level = CDedLevel::Get();
+        if (headless_bake_active() || is_edit_key_held() || (level && level->transform_in_progress)) {
             regs.eip = 0x004831B4; // defer autosave until the text tick we are not in an edit operation
         }
         else {
@@ -1973,6 +2038,10 @@ extern "C" DWORD AF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Fix changing properties of multiple respawn points
     CDedLevel_OpenRespawnPointProperties_injection.install();
 
+    // Fix undo/redo during a viewport transform corrupting the undo history
+    CMainFrame_OnEditUndo_hook.install();
+    CMainFrame_OnEditRedo_hook.install();
+
     // Apply patches defined in other files
     ApplyGraphicsPatches();
     ApplyTriggerPatches();
@@ -1981,6 +2050,7 @@ extern "C" DWORD AF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     ApplyAlpineObjectPatches();
     ApplyTexturesPatches();
     ApplyLightmapPatches();
+    ApplyGeometryPatches();
     install_editor_bitmap_loader_hooks();
 
     // Browse for .v3m files instead of .v3d
@@ -2048,10 +2118,10 @@ extern "C" DWORD AF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     // Fix editor crash when building geometry after lightmap resolution for a face was set to Undefined
     write_mem<i8>(0x00402DFA + 1, 0);
 
-    // Allow more decals before displaying a warning message about too many decals in the level
-    write_mem<i8>(0x0041E2A9 + 2, 127);
-    write_mem<i8>(0x0041E2BA + 2, 127);
-    write_mem_ptr(0x0041E2C6 + 1, "There are more than 127 decals in the level! It can result in a crash for older game clients.");
+    // Never show the stock "more than 64 decals" warning.
+    AsmWriter{0x0041E2AC, 0x0041E2AE}.nop();
+    AsmWriter{0x0041E2BD}.jmp_short(0x0041E2D0);
+    decal_patch_limit();
 
     // Fix copying cutscene path node
     CDedLevel_CloneObject_injection.install();
@@ -2106,6 +2176,8 @@ extern "C" DWORD AF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     decal_orient_update_hook.install();
     decal_angles_update_hook.install();
     decal_geometry_update_hook.install();
+    decal_pos_update_hook.install();
+    decal_align_to_surface_hook.install();
 
     // Defer autosave while an edit operation is in progress to prevent teleporting
     autosave_defer_during_edit_injection.install();

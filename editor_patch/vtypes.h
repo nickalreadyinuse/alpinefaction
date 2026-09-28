@@ -298,6 +298,45 @@ static_assert(sizeof(EditorV3d) == 0x90);
 static_assert(offsetof(EditorV3d, num_meshes) == 0x48);
 static_assert(offsetof(EditorV3d, meshes) == 0x4C);
 
+// EditorVifFace::flags bit marking a face the renderer draws from both sides.
+constexpr int VIF_FACE_DOUBLE_SIDED = 0x20;
+
+// Calls fn(vif_mesh, chunk, vertex) for every LOD 0 chunk that carries geometry. Shared by the
+// lightmap mesh occluders and the mesh-to-brush conversion so both see the same set of chunks.
+// vertex(i) yields chunk vertex i in render-space mesh-local coordinates: the engine draws a
+// submesh at pos + orient * (lod_mesh->center + v), so the owning lod mesh's center is added here
+// and every caller works in the space the editor renders.
+template<typename Fn>
+inline void vmesh_for_each_lod0_chunk(const EditorVifLodMesh* lod, Fn&& fn)
+{
+    if (!lod || lod->num_levels <= 0) {
+        return;
+    }
+    const EditorVifMesh* vm = lod->meshes[0];
+    if (!vm || !vm->chunks) {
+        return;
+    }
+    const Vector3 center = lod->center;
+    for (int c = 0; c < vm->num_chunks; c++) {
+        const EditorVifChunk& chunk = vm->chunks[c];
+        if (!chunk.vecs || !chunk.faces || chunk.num_vecs == 0 || chunk.num_faces == 0) {
+            continue;
+        }
+        auto vertex = [&chunk, &center](int index) {
+            const Vector3& v = chunk.vecs[index];
+            return Vector3{v.x + center.x, v.y + center.y, v.z + center.z};
+        };
+        fn(*vm, chunk, vertex);
+    }
+}
+
+// Whether a face's three indices are inside its chunk's vertex array.
+inline bool vmesh_lod0_face_valid(const EditorVifChunk& chunk, const EditorVifFace& face)
+{
+    return face.vindex1 < chunk.num_vecs && face.vindex2 < chunk.num_vecs &&
+           face.vindex3 < chunk.num_vecs;
+}
+
 struct EditorCharacterMesh
 {
     EditorV3d v3d_file;
@@ -431,8 +470,15 @@ struct EditorColorPrefs
 {
     uint8_t pad_00[0x424];
     COLORREF background;
+    uint8_t pad_428[0x464 - 0x428];
+    uint8_t link_r;
+    uint8_t link_g;
+    uint8_t link_b;
 };
 static_assert(offsetof(EditorColorPrefs, background) == 0x424);
+static_assert(offsetof(EditorColorPrefs, link_r) == 0x464);
+static_assert(offsetof(EditorColorPrefs, link_g) == 0x465);
+static_assert(offsetof(EditorColorPrefs, link_b) == 0x466);
 static auto& editor_color_prefs = addr_as_ref<EditorColorPrefs* __cdecl()>(0x00483E10);
 
 // character_mesh_load_action: __thiscall on mesh_data, loads .rfa file, returns action index
@@ -446,6 +492,7 @@ static auto& vmesh_reset_actions = addr_as_ref<void(EditorVMesh* vmesh)>(0x004C0
 
 // Drawing primitives
 static auto& draw_3d_arrow = addr_as_ref<void(float, float, float, float, float, float, int, int, int)>(0x004CC2F0);
+static auto& draw_link_line = addr_as_ref<void(float, float, float, float, float, float, int, int, int)>(0x004CC2B0);
 static auto& project_to_screen = addr_as_ref<uint32_t(void* screen_out, const void* world_pos)>(0x004C5E30);
 static auto& set_draw_color = addr_as_ref<void(uint32_t r, uint32_t g, uint32_t b, uint32_t a)>(0x004B9700);
 static auto& gr_set_bitmap = addr_as_ref<void(int bm_handle, int unk)>(0x004B97E0);
