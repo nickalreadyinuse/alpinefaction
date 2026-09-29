@@ -159,6 +159,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix memory corruption when more than 1024 rooms are visible at once
 - Fix geomod crater relighting converting lightmap texels beyond the relit surface, which could write past the end of the lightmap for a surface at the bottom of a lightmap page
 - Fix a possible out-of-bounds read when drawing dynamic decals (Direct3D 11 renderer only)
+- Fix level editor crashing when more than 128 semi-transparent detail brushes in one room are in view
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
