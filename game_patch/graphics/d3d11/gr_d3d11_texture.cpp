@@ -1,5 +1,6 @@
 #include <cstring>
 #include <cassert>
+#include <common/utils/string-utils.h>
 #include "gr_d3d11.h"
 #include "gr_d3d11_texture.h"
 #include "../gr.h"
@@ -180,18 +181,20 @@ namespace gr::d3d11
             return create_texture(bm_handle, fmt, w, h, bits, pal, 1, false, w, h);
         }
 
-        std::unique_ptr<rf::ubyte[]> converted_bits;
-        rf::ubyte* upload_bits = bits;
-        int upload_pitch = bm_calculate_pitch(w, fmt);
-        if (fmt != supported_fmt) {
-            int dst_pitch = bm_calculate_pitch(w, supported_fmt);
-            converted_bits = std::make_unique<rf::ubyte[]>(dst_pitch * h);
-            ::bm_convert_format(converted_bits.get(), supported_fmt, bits, fmt, w, h, dst_pitch, upload_pitch, pal);
-            upload_bits = converted_bits.get();
-            upload_pitch = dst_pitch;
-        }
+        if (bits) {
+            std::unique_ptr<rf::ubyte[]> converted_bits;
+            rf::ubyte* upload_bits = bits;
+            int upload_pitch = bm_calculate_pitch(w, fmt);
+            if (fmt != supported_fmt) {
+                int dst_pitch = bm_calculate_pitch(w, supported_fmt);
+                converted_bits = std::make_unique<rf::ubyte[]>(dst_pitch * h);
+                ::bm_convert_format(converted_bits.get(), supported_fmt, bits, fmt, w, h, dst_pitch, upload_pitch, pal);
+                upload_bits = converted_bits.get();
+                upload_pitch = dst_pitch;
+            }
 
-        device_context_->UpdateSubresource(d3d_texture, 0, nullptr, upload_bits, upload_pitch, 0);
+            device_context_->UpdateSubresource(d3d_texture, 0, nullptr, upload_bits, upload_pitch, 0);
+        }
 
         ComPtr<ID3D11ShaderResourceView> srv;
         hr = device_->CreateShaderResourceView(d3d_texture, nullptr, &srv);
@@ -199,7 +202,10 @@ namespace gr::d3d11
             xlog::warn("Auto-mip SRV creation failed ({}x{}), falling back to single mip", w, h);
             return create_texture(bm_handle, fmt, w, h, bits, pal, 1, false, w, h);
         }
-        device_context_->GenerateMips(srv);
+
+        if (bits) {
+            device_context_->GenerateMips(srv);
+        }
 
         Texture texture{bm_handle, dxgi_format, {}};
         texture.gpu_texture = std::move(d3d_texture);
@@ -275,7 +281,8 @@ namespace gr::d3d11
         int w, h, num_pixels, mip_levels;
         rf::bm::get_mipmap_info(bm_handle, &w, &h, &num_pixels, &mip_levels);
         if (w <= 0 || h <= 0) {
-            xlog::warn("Bad bitmap dimensions: handle {} filename {} dimensions {}x{}", bm_handle, rf::bm::get_filename(bm_handle), w, h);
+            xlog::warn("Bad bitmap dimensions: handle {} filename {} dimensions {}x{}", bm_handle,
+                string_escape_control_chars(rf::bm::get_filename(bm_handle)), w, h);
             return {};
         }
 
@@ -295,6 +302,9 @@ namespace gr::d3d11
 
         if (rf::bm::get_type(bm_handle) == rf::bm::TYPE_USER) {
             xlog::trace("Creating user bitmap texture: handle {}", bm_handle);
+            if (bm_is_user_mipmap(bm_handle)) {
+                return create_texture_auto_mips(bm_handle, fmt, w, h, nullptr, nullptr);
+            }
             auto texture = create_texture(bm_handle, fmt, w, h, nullptr, nullptr, 1, staging);
             return texture;
         }
@@ -596,12 +606,26 @@ namespace gr::d3d11
 
     void TextureManager::unlock(rf::gr::LockInfo *lock)
     {
+        if (!lock) {
+            return;
+        }
         xlog::trace("unlocking texture: handle {} format {} size {}x{} data {}", lock->bm_handle, lock->format, lock->w, lock->h, lock->data);
         Texture& texture = get_or_load_texture(lock->bm_handle, true);
         if (texture.cpu_texture) {
             device_context_->Unmap(texture.cpu_texture, 0);
             if (lock->mode != rf::gr::LOCK_READ_ONLY && texture.gpu_texture) {
                 device_context_->CopySubresourceRegion(texture.gpu_texture, 0, 0, 0, 0, texture.cpu_texture, 0, nullptr);
+                // The copy above only refreshes mip 0, so the rest of the chain is now stale.
+                if (bm_is_user_mipmap(lock->bm_handle)) {
+                    D3D11_TEXTURE2D_DESC desc{};
+                    texture.gpu_texture->GetDesc(&desc);
+                    if (desc.MiscFlags & D3D11_RESOURCE_MISC_GENERATE_MIPS) {
+                        ID3D11ShaderResourceView* srv = texture.get_or_create_texture_view(device_, device_context_);
+                        if (srv) {
+                            device_context_->GenerateMips(srv);
+                        }
+                    }
+                }
             }
         }
     }
@@ -683,7 +707,8 @@ namespace gr::d3d11
             // once rather than once per draw for the rest of the level.
             if (!warned_missing) {
                 warned_missing = true;
-                xlog::warn("Both GPU and CPU textures are missing for {}", rf::bm::get_filename(bm_handle));
+                xlog::warn("Both GPU and CPU textures are missing for {}",
+                    string_escape_control_chars(rf::bm::get_filename(bm_handle)));
             }
             return;
         }

@@ -169,7 +169,7 @@ enum class AlpineRestrictVerdict : uint8_t
 };
 
 extern rf::Timestamp g_select_weapon_done_timestamp[rf::multi_max_player_id];
-extern bool g_multi_limbo_just_joined_req_leave;
+extern bool g_gameseq_defer_new_level;
 
 void set_local_pending_game_type(rf::NetGameType game_type, int win_condition);
 void reset_local_pending_game_type();
@@ -204,6 +204,8 @@ void multi_ban_apply_patch();
 std::expected<uint32_t, std::errc> get_level_file_version(const std::string& file_name);
 void print_player_info(rf::Player* player, bool new_join);
 void server_set_player_weapon(rf::Player* pp, rf::Entity* ep, int weapon_type);
+void multi_turn_weapon_on(rf::Entity* ep, rf::Player* pp, bool alt_fire);
+void multi_turn_weapon_off(rf::Entity* ep);
 bool is_remote_charge_pair(int weapon_a, int weapon_b);
 void multi_hide_level_items(const std::vector<int>& allowed_item_type_indices, bool preserve_ctf_objects = false);
 void start_level_in_multi(std::string filename);

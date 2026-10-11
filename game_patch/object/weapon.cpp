@@ -20,6 +20,7 @@
 #include "../multi/projectile_lag_comp.h"
 #include "../misc/misc.h"
 #include "../misc/alpine_settings.h"
+#include "alpine_rope.h"
 
 static std::array<uint8_t, 64U> weapon_reticle_custom_mask{}; // bit 0 = _0, bit 1 = _1
 static std::pair<bool, bool> rocket_locked_custom_reticle = {false, false};
@@ -215,6 +216,7 @@ static void weapon_apply_radius_damage(RadiusDamageHook& hook, rf::Vector3& epic
                                        int follow_handle = -1)
 {
     const float crit_scale = crits_on_explosion(&epicenter, radius);
+    alpine_rope_apply_explosion(epicenter, radius * crit_scale, damage);
     // Bullet impacts come through here too, with no blast to rewind for
     const bool rewound = damage > 0.0f && radius > 0.0f
         && projectile_lag_comp_rewind_for_killer(killer_handle, -1, full_ping);

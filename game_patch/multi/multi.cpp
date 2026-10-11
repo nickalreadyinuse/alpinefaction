@@ -10,6 +10,7 @@
 #include <patch_common/AsmWriter.h>
 #include <common/version/version.h>
 #include <common/utils/list-utils.h>
+#include <common/rfproto.h>
 #include "multi.h"
 #include "demo/demo.h"
 #include "endgame_votes.h"
@@ -22,6 +23,8 @@
 #include "gametype.h"
 #include "rounds.h"
 #include "salvage.h"
+#include "vehicles/vehicle.h"
+#include "vehicles/vehicle_physics.h"
 #include "mutators.h"
 #include "bots/bot_chat_manager.h"
 #include "../fflink/afstats_events.h"
@@ -166,7 +169,7 @@ static bool handle_bot_cmd_line_params()
             g_client_bot_launch_enabled = false;
             g_alpine_game_config.rendering_enabled = false;
             rf::sound_enabled = false;
-            rf::gameseq_set_state(rf::GS_QUITING, false);
+            rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
             return false;
         }
     }
@@ -274,7 +277,7 @@ bool handle_awpgen_param()
     const char* arg = get_awpgen_cmd_line_param().get_arg();
     if (!arg || arg[0] == '\0') {
         xlog::error("-awpgen: missing level filename, quitting");
-        rf::gameseq_set_state(rf::GS_QUITING, false);
+        rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
         return true;
     }
 
@@ -283,7 +286,7 @@ bool handle_awpgen_param()
     // Validate level file is installed
     if (rf::get_file_checksum(level_filename.c_str()) == 0) {
         xlog::error("-awpgen: unknown level {}, quitting", level_filename);
-        rf::gameseq_set_state(rf::GS_QUITING, false);
+        rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
         return true;
     }
 
@@ -646,6 +649,24 @@ FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hoo
     },
 };
 
+CallHook<void(rf::Entity*, int, int, int)> entity_reload_resync_send_hook{
+    0x00425403,
+    [](rf::Entity* ep, int weapon_type, int ammo, int clip_ammo) {
+        rf::Player* pp = rf::player_from_entity_handle(ep->handle);
+        if (!pp || pp == rf::local_player) {
+            return; // no owner, or listen server host (authoritative, nothing to resync)
+        }
+        RF_ReloadPacket packet;
+        packet.header.type = RF_GPT_RELOAD;
+        packet.header.size = sizeof(packet) - sizeof(packet.header);
+        packet.entity_handle = ep->handle;
+        packet.weapon = weapon_type;
+        packet.clip_ammo = ammo;      // rfproto field names are swapped: wire order is reserve, then clip
+        packet.ammo = clip_ammo;
+        rf::multi_io_send(pp, &packet, sizeof(packet));
+    },
+};
+
 void multi_reload_weapon_server_side(rf::Player* pp, int weapon_type)
 {
     rf::Entity* ep = rf::entity_from_handle(pp->entity_handle);
@@ -702,6 +723,9 @@ void multi_turn_weapon_on(rf::Entity* ep, rf::Player* pp, bool alt_fire)
 {
     // Note: pp is always null client-side
     auto weapon_type = ep->ai.current_primary_weapon;
+    if (weapon_type < 0) {
+        return; // weaponless entity (an unarmed vehicle hull, a stripped NPC)
+    }
     if (!rf::weapon_is_on_off_weapon(weapon_type, alt_fire)) {
         xlog::debug("Player {} attempted to turn on weapon {} which has no continous fire flag", ep->name, weapon_type);
     }
@@ -748,6 +772,9 @@ CodeInjection entity_turn_weapon_on_riot_stick_fire_wait_injection{
 void multi_turn_weapon_off(rf::Entity* ep)
 {
     auto current_primary_weapon = ep->ai.current_primary_weapon;
+    if (current_primary_weapon < 0) {
+        return;
+    }
     if (rf::weapon_is_on_off_weapon(current_primary_weapon, false)
         || rf::weapon_is_on_off_weapon(current_primary_weapon, true)) {
 
@@ -1211,6 +1238,7 @@ int multi_num_spawned_players() {
 void configure_custom_gametype_listen_server_settings() {
     // reset to defaults
     g_alpine_server_config = AlpineServerConfig{};
+    reset_base_scope_tables();
     g_alpine_server_config_active_rules = AlpineServerConfigRules{};
     set_upcoming_game_type(rf::netgame.type);
 
@@ -1391,8 +1419,11 @@ CallHook<float(int, float, int, int, int, rf::PCollisionOut*, int, bool)> obj_ap
 CallHook<void(const char* filename)> level_cmd_multi_change_level_hook{
     0x00435108,
     [](const char* filename) {
-        if (rf::is_multi)
-            set_manually_loaded_level(true); // "level" console command
+        if (rf::is_multi) {
+            // "level" console command: a previous vote's rules must not follow it here.
+            clear_manual_rules_override();
+            set_manually_loaded_level(true);
+        }
         level_cmd_multi_change_level_hook.call_target(filename);
     }
 };
@@ -1408,7 +1439,7 @@ void multi_limbo_just_joined_handle_input(const int key) {
     }
 }
 
-bool g_multi_limbo_just_joined_req_leave = false;
+bool g_gameseq_defer_new_level = false;
 
 void multi_limbo_just_joined_do_frame() {
     rf::game_poll(multi_limbo_just_joined_handle_input);
@@ -1435,7 +1466,7 @@ void multi_limbo_just_joined_do_frame() {
         rf::multi_chat_say_render();
     }
 
-    const std::string_view text = g_multi_limbo_just_joined_req_leave
+    const std::string_view text = g_gameseq_defer_new_level
         ? "LOADING..."
         : "BETWEEN LEVELS...";
     const auto [text_w, text_h] = rf::gr::get_string_size(text, rf::ui::large_font);
@@ -1459,23 +1490,15 @@ void multi_limbo_just_joined_do_frame() {
     if (rf::control_config_check_pressed(&controls, rf::CC_ACTION_MP_STATS, nullptr)) {
         rf::scoreboard_render_internal(true);
     }
-
-    if (g_multi_limbo_just_joined_req_leave) {
-        if (!multi_next_level_exists()) {
-            rf::gameseq_set_state(rf::GS_MULTI_LEVEL_DOWNLOAD, false);
-            multi_level_download_manager_start(rf::level.next_level_filename);
-        } else {
-            rf::gameseq_set_state(rf::GS_NEW_LEVEL, false);
-        }
-        g_multi_limbo_just_joined_req_leave = false;
-    }
 }
 
-CodeInjection rf_do_frame_dim_screen_patch{
+CodeInjection rf_do_frame_dim_screen_and_render_loading_text_patch{
     0x004B2E26,
     [] (auto& regs) {
-        const rf::GameState state = rf::gameseq_get_state();
-        if (state == rf::GS_MULTI_LIMBO_JUST_JOINED) {
+        // If our top state is `GS_MULTI_LIMBO_JUST_JOINED`, jump to `game_flip`,
+        // because we do not want to dim our screen, and `multi_limbo_just_joined_do_frame`
+        // draws "LOADING...".
+        if (regs.esi == rf::GS_MULTI_LIMBO_JUST_JOINED) {
             regs.eip = 0x004B2E3F;
         }
     },
@@ -1483,7 +1506,7 @@ CodeInjection rf_do_frame_dim_screen_patch{
 
 void multi_do_patch()
 {
-    rf_do_frame_dim_screen_patch.install();
+    rf_do_frame_dim_screen_and_render_loading_text_patch.install();
     multi_limbo_init.install();
     multi_start_injection.install();
 
@@ -1492,6 +1515,9 @@ void multi_do_patch()
 
     // Weapon select server-side handling
     multi_select_weapon_server_side_hook.install();
+
+    // Send the "nothing to reload" ammo resync only to the requesting player
+    entity_reload_resync_send_hook.install();
 
     // Check ammo server-side when handling weapon fire packets
     multi_process_remote_weapon_fire_hook.install();
@@ -1521,6 +1547,8 @@ void multi_do_patch()
     network_init();
     demo_do_patch();
     multi_tdm_apply_patch();
+    vehicle_apply_patches();
+    vehicle_physics_apply_patches();
 
     level_download_init();
     multi_ban_apply_patch();

@@ -851,6 +851,13 @@ bool salvage_spawn_is_known()
     return g_salvage_info.spawn_known;
 }
 
+bool salvage_reserves_item_slot(int item_type)
+{
+    return g_salvage_info.active && g_salvage_info.spawn_known
+        && g_salvage_info.flag_item_type >= 0 && item_type != g_salvage_info.flag_item_type
+        && item_from_handle_or_null(g_salvage_info.flag_item_handle) == nullptr;
+}
+
 bool salvage_get_base_positions(rf::Vector3* out_red, rf::Vector3* out_blue)
 {
     if (!g_salvage_info.bases_known && gt_is_salvage()) {
@@ -959,25 +966,6 @@ bool salvage_query_flag_outline(rf::VMesh** out_vmesh, rf::Vector3* out_pos, rf:
 bool salvage_flag_was_rendered_this_frame()
 {
     return g_flag_rendered_frame == rf::frame_count;
-}
-
-void salvage_tick_flag_spin()
-{
-    if (!gt_is_salvage()) return;
-
-    const SalFlagState state = g_salvage_info.state;
-    if (state != SalFlagState::AtSpawn && state != SalFlagState::Dropped) return;
-
-    rf::Item* item = current_flag_item();
-    if (!item || !item->info) return;
-    if (!(item->info->flags & rf::IIF_SPINS_IN_MULTI)) return;
-
-    const float spin_rate = addr_as_ref<float>(0x005897A8);
-    const float two_pi = addr_as_ref<float>(0x005894AC);
-    item->spin_angle += spin_rate * rf::frametime;
-    if (item->spin_angle > two_pi) {
-        item->spin_angle -= two_pi;
-    }
 }
 
 void salvage_move_carried_flag()
@@ -1322,6 +1310,16 @@ void salvage_on_player_disconnect(rf::Player* player)
         // render/HUD paths don't touch it before the next state packet arrives.
         set_carrier(nullptr);
     }
+}
+
+void salvage_force_drop_flag(rf::Player* player)
+{
+    if (!rf::is_server || !gt_is_salvage()) return;
+    if (g_salvage_info.state != SalFlagState::Carried) return;
+    if (g_salvage_info.carrier != player) return;
+
+    rf::Entity* ep = alive_entity_for(player);
+    drop_flag_at(player, ep ? ep->pos : g_salvage_info.last_carrier_pos);
 }
 
 void salvage_handle_drop_flag_request(rf::Player* player)

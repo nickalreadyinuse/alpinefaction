@@ -4,9 +4,11 @@
 #include <set>
 #include <algorithm>
 #include <windows.h>
+#include <patch_common/FunHook.h>
 #include <patch_common/MemUtils.h>
 #include <xlog/xlog.h>
 #include "geometry.h"
+#include "gizmo.h"
 #include "level.h"
 #include "mfc_types.h"
 #include "resources.h"
@@ -152,6 +154,12 @@ static void mirror_object(DedObject* obj, int axis)
         orient[i * 3 + axis] = -orient[i * 3 + axis];
     }
 
+    // A reflection across X or Z reverses the box yaw's sense.
+    if (obj->type == DedObjectType::DED_DIRECTIONAL_LIGHT && axis != 1) {
+        auto* light = static_cast<DedDirectionalLight*>(obj);
+        light->box_yaw = alpine_dir_light::normalize_degrees(-light->box_yaw);
+    }
+
     // For lights, sync the updated position/orient to the level_light object
     // so lightmap calculation uses the new values
     if (obj->type == DedObjectType::DED_LIGHT) {
@@ -159,19 +167,10 @@ static void mirror_object(DedObject* obj, int axis)
     }
 }
 
-// Collect selected brushes from the level's brush list.
-static std::vector<BrushNode*> collect_selected_brushes(CDedLevel* level)
+std::vector<BrushNode*> collect_selected_brushes(CDedLevel* level)
 {
-    std::vector<BrushNode*> selected;
-    BrushNode* head = level->brush_list;
-    if (!head) return selected;
-    BrushNode* b = head;
-    do {
-        if (b->state == BRUSH_STATE_SELECTED && b->geometry) {
-            selected.push_back(b);
-        }
-        b = b->next;
-    } while (b != head);
+    std::vector<BrushNode*> selected = level->selected_brushes();
+    std::erase_if(selected, [](const BrushNode* b) { return !b->geometry; });
     return selected;
 }
 
@@ -471,8 +470,37 @@ static GVertex* alloc_gvertex(const Vector3& pos)
     return gv;
 }
 
+// Until Build Geometry renumbers them, face ids key the brush's texture movers and the save-time
+// brush-to-room match, so new faces need ids that no face or texture mover uses.
+static int next_unused_face_id(const CDedLevel* level)
+{
+    int max_id = -1;
+    auto scan = [&max_id](const GSolid* solid) {
+        for (GFace* face = solid->face_list_head; face; face = face->next_solid) {
+            max_id = std::max(max_id, face->face_id);
+        }
+        for (int i = 0; i < solid->texture_movers.size; i++) {
+            max_id = std::max(max_id, solid->texture_movers.data_ptr[i]->face_id);
+        }
+    };
+    if (level->solid) {
+        scan(level->solid);
+    }
+    BrushNode* head = level->brush_list;
+    BrushNode* brush = head;
+    if (brush) {
+        do {
+            if (brush->geometry) {
+                scan(static_cast<GSolid*>(brush->geometry));
+            }
+            brush = brush->next;
+        } while (brush && brush != head);
+    }
+    return max_id + 1;
+}
+
 // Create a new GFace from a polygon of SplitVerts, copying attributes from original
-static GFace* create_split_face(GSolid* solid, GFace* original, std::vector<SplitVert>& verts)
+static GFace* create_split_face(GSolid* solid, GFace* original, std::vector<SplitVert>& verts, int face_id)
 {
     if (verts.size() < 3) return nullptr;
 
@@ -489,7 +517,7 @@ static GFace* create_split_face(GSolid* solid, GFace* original, std::vector<Spli
     face->bitmap_id = original->bitmap_id;
     face->portal_id = original->portal_id;
     face->surface_index = original->surface_index;
-    face->face_id = GFace::generate_uid();
+    face->face_id = face_id;
     face->smoothing_groups = original->smoothing_groups;
 
     // Build edge_loop as circular doubly-linked list
@@ -563,7 +591,7 @@ static GFace* create_split_face(GSolid* solid, GFace* original, std::vector<Spli
 }
 
 // Split a single face into (num_splits+1) faces along a local face axis.
-static int split_face(GSolid* solid, GFace* face, int num_splits, bool along_x)
+static int split_face(GSolid* solid, GFace* face, int num_splits, bool along_x, int& next_face_id)
 {
     // Collect edge_loop vertices
     std::vector<SplitVert> verts;
@@ -693,7 +721,7 @@ static int split_face(GSolid* solid, GFace* face, int num_splits, bool along_x)
         auto& right_proj = poly_a_is_left ? proj_b : proj_a;
 
         if (left_poly.size() >= 3) {
-            GFace* new_face = create_split_face(solid, face, left_poly);
+            GFace* new_face = create_split_face(solid, face, left_poly, next_face_id++);
             if (new_face) faces_created++;
         }
 
@@ -703,7 +731,7 @@ static int split_face(GSolid* solid, GFace* face, int num_splits, bool along_x)
 
     // Emit the final remaining polygon
     if (remaining.size() >= 3 && faces_created > 0) {
-        GFace* new_face = create_split_face(solid, face, remaining);
+        GFace* new_face = create_split_face(solid, face, remaining, next_face_id++);
         if (new_face) faces_created++;
     }
 
@@ -768,6 +796,7 @@ void handle_face_split()
     if (!brush) return;
 
     int total_created = 0;
+    int next_face_id = next_unused_face_id(level);
 
     do {
         auto* solid = static_cast<GSolid*>(brush->geometry);
@@ -777,7 +806,7 @@ void handle_face_split()
             bool modified = false;
             for (int i = sel.size - 1; i >= 0; i--) {
                 GFace* face = sel.data_ptr[i];
-                int created = split_face(solid, face, num_splits, along_x);
+                int created = split_face(solid, face, num_splits, along_x, next_face_id);
                 if (created > 0) {
                     total_created += created;
                     solid->remove_face(face);
@@ -1145,7 +1174,7 @@ void handle_vertex_bridge()
         new_face->flags = ref_face->flags;
     }
 
-    new_face->face_id = GFace::generate_uid();
+    new_face->face_id = next_unused_face_id(level);
 
     // Build edge loop from sorted vertices
     GFaceVertex* first_fv = nullptr;
@@ -1214,4 +1243,103 @@ void handle_vertex_bridge()
     level->mark_geometry_dirty();
     redraw_all_viewports();
     LogDlg_Append(GetLogDlg(), "Created bridge face with %d vertices.", static_cast<int>(verts.size()));
+}
+
+// ============================================================================
+// Brush mode: Fuse / Carve
+// ============================================================================
+
+// Fuse records a modify snapshot and then a separate delete of the absorbed brushes. The delete
+// entry carries an undo link to the snapshot so undo/redo can treat the pair as one step.
+constexpr uint32_t fuse_undo_link_magic = 0x45535546;
+
+static UndoEntry* fuse_linked_snapshot(UndoEntry* entry)
+{
+    if (!entry || entry->type != undo_delete_brushes || entry->raw_blocks.size != 1) {
+        return nullptr;
+    }
+    return reinterpret_cast<UndoEntry*>(undo_link_value(*entry, 0, fuse_undo_link_magic));
+}
+
+// The boolean hands every face taken from the second solid to this texturer. Mode 4 stamps the
+// level's geomod textures with world-projected UVs; mode 1 leaves the face as it was. The geometry
+// build switches to mode 1 around its own booleans (0x00439C00), Fuse and Carve never did.
+static auto& boolean_face_texture_mode = addr_as_ref<int>(0x0057CACC);
+
+struct BooleanFaceTexturesKept
+{
+    int saved_mode = boolean_face_texture_mode;
+
+    BooleanFaceTexturesKept() { boolean_face_texture_mode = 1; }
+    ~BooleanFaceTexturesKept() { boolean_face_texture_mode = saved_mode; }
+    BooleanFaceTexturesKept(const BooleanFaceTexturesKept&) = delete;
+    BooleanFaceTexturesKept& operator=(const BooleanFaceTexturesKept&) = delete;
+};
+
+void __fastcall brush_fuse_hooked(CDedLevel* level, void* edx_unused);
+FunHook<decltype(brush_fuse_hooked)> brush_fuse_hook{0x0043B770, brush_fuse_hooked};
+void __fastcall brush_fuse_hooked(CDedLevel* level, void* edx_unused)
+{
+    auto& undo = level->undo_stack;
+    UndoEntry* prev_top = undo_stack_top(undo);
+    {
+        BooleanFaceTexturesKept textures_kept;
+        brush_fuse_hook.call_target(level, edx_unused);
+    }
+
+    if (undo.size < 2) {
+        return;
+    }
+    UndoEntry* deletion = undo.data_ptr[undo.size - 1];
+    UndoEntry* snapshot = undo.data_ptr[undo.size - 2];
+    if (deletion == prev_top || snapshot == prev_top || deletion->type != undo_delete_brushes ||
+        snapshot->type != undo_modify_brushes || deletion->raw_blocks.size != 0) {
+        return;
+    }
+    undo_link_append(*deletion, fuse_undo_link_magic, reinterpret_cast<uintptr_t>(snapshot));
+}
+
+void __fastcall brush_carve_hooked(CDedLevel* level, void* edx_unused);
+FunHook<decltype(brush_carve_hooked)> brush_carve_hook{0x0043B9B0, brush_carve_hooked};
+void __fastcall brush_carve_hooked(CDedLevel* level, void* edx_unused)
+{
+    BooleanFaceTexturesKept textures_kept;
+    brush_carve_hook.call_target(level, edx_unused);
+}
+
+void __fastcall level_undo_hooked(CDedLevel* level, void* edx_unused);
+FunHook<decltype(level_undo_hooked)> level_undo_hook{0x0043D210, level_undo_hooked};
+void __fastcall level_undo_hooked(CDedLevel* level, void* edx_unused)
+{
+    UndoEntry* undone = undo_stack_top(level->undo_stack);
+    UndoEntry* snapshot = fuse_linked_snapshot(undone);
+    level_undo_hook.call_target(level, edx_unused);
+    if (undone && undo_stack_top(level->redo_stack) == undone) {
+        gizmo_undo_entry_applied(undone, true);
+    }
+    if (snapshot && undo_stack_top(level->undo_stack) == snapshot) {
+        level_undo_hook.call_target(level, edx_unused);
+    }
+}
+
+void __fastcall level_redo_hooked(CDedLevel* level, void* edx_unused);
+FunHook<decltype(level_redo_hooked)> level_redo_hook{0x0043D320, level_redo_hooked};
+void __fastcall level_redo_hooked(CDedLevel* level, void* edx_unused)
+{
+    UndoEntry* redone = undo_stack_top(level->redo_stack);
+    level_redo_hook.call_target(level, edx_unused);
+    if (redone && undo_stack_top(level->undo_stack) == redone) {
+        gizmo_undo_entry_applied(redone, false);
+    }
+    if (redone && fuse_linked_snapshot(undo_stack_top(level->redo_stack)) == redone) {
+        level_redo_hook.call_target(level, edx_unused);
+    }
+}
+
+void ApplyGeometryPatches()
+{
+    brush_fuse_hook.install();
+    brush_carve_hook.install();
+    level_undo_hook.install();
+    level_redo_hook.install();
 }

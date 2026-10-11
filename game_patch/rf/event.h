@@ -360,7 +360,11 @@ namespace rf
         ATX_Pause,
         ATX_Set_Frame_Time,
         Weather_Region_State,
-        Display_Projection
+        Display_Projection,
+        Climbing_Region_State,
+        When_Destroyed,
+        Rope_State,
+        Mesh_Set_Scale
     };
 
     std::vector<rf::Event*> find_all_events_by_type(rf::EventType event_type);
