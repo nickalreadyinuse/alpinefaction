@@ -700,6 +700,21 @@ bool bagman_local_player_is_carrier()
     && rf::local_player == g_bagman_info.carrier;
 }
 
+void bagman_apply_bag_mesh(rf::Item* item, int item_type)
+{
+    if (item && rf::is_multi && g_bag_mesh_exists && gt_is_bagman_any()
+        && item_type == g_bagman_info.bag_item_type) {
+        rf::item_restore_mesh(item, kBagMeshFilename);
+    }
+}
+
+bool bagman_reserves_item_slot(int item_type)
+{
+    return g_bagman_info.active && g_bagman_info.spawn_known
+        && g_bagman_info.bag_item_type >= 0 && item_type != g_bagman_info.bag_item_type
+        && item_from_handle_or_null(g_bagman_info.bag_item_handle) == nullptr;
+}
+
 bool bagman_viewer_is_carrier_first_person()
 {
     if (!gt_is_bagman_any() || !g_bagman_info.carrier) return false;
@@ -986,24 +1001,6 @@ CodeInjection bagman_suppress_amp_pickup_msg_patch{
     },
 };
 
-FunHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*, int, bool, bool)>
-    item_create_bagman_bag_mesh_swap_hook{
-    0x00459100,
-    [](int type, const char* name, int count, int parent_handle,
-       const rf::Vector3* pos, rf::Matrix3* orient, int respawn_time,
-       bool permanent, bool from_packet) -> rf::Item* {
-        rf::Item* item = item_create_bagman_bag_mesh_swap_hook.call_target(
-            type, name, count, parent_handle, pos, orient,
-            respawn_time, permanent, from_packet);
-
-        if (item && rf::is_multi && g_bag_mesh_exists && gt_is_bagman_any()
-            && type == g_bagman_info.bag_item_type) {
-            rf::item_restore_mesh(item, kBagMeshFilename);
-        }
-        return item;
-    },
-};
-
 CodeInjection bagman_carrier_amp_light_color_patch{
     0x0041EC7C,
     [](auto& regs) {
@@ -1052,7 +1049,4 @@ void bagman_do_patch()
 
     // Bagman's dynamic light is green instead of purple
     bagman_carrier_amp_light_color_patch.install();
-
-    // Amp (bag) pickup uses a new mesh in bagman mode
-    item_create_bagman_bag_mesh_swap_hook.install();
 }

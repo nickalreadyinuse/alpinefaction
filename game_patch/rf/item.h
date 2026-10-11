@@ -67,6 +67,7 @@ namespace rf
     static auto& item_list = addr_as_ref<Item>(0x00642DD8);
     static auto& item_info = addr_as_ref<ItemInfo[96]>(0x006430A0);
     static auto& num_item_types = addr_as_ref<int>(0x00644EA0);
+    static auto& item_pool_num_used = addr_as_ref<int>(0x00730D70); // in-use count of the fixed 200-entry item pool
 
     static auto& item_lookup_type = addr_as_ref<int(const char *name)>(0x00459430);
     static auto& item_restore_mesh = addr_as_ref<void(Item *item, const char *mesh_name)>(0x00459BB0);

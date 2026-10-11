@@ -229,6 +229,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix 8-bit greyscale TGA textures with mipmap files sometimes loading with garbage pixels
 - Show control characters in texture filenames as escape sequences in log warnings
 - Fix new levels in the level editor defaulting to legacy `Cyclic_Timer` and mover behaviour
+- Fix Salvage flag and Bagman bag failing to spawn when a level's item count is at the engine limit
 - Fix crash reports leaving out memory regions and backtrace frames above 2 GB when the game or level editor runs with 4 GB of address space
 
 [@is-this-c](https://github.com/is-this-c)
