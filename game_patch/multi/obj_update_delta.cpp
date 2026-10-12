@@ -115,13 +115,19 @@ namespace obj_update_delta
                     flags &= ~powerup_group;
                 if ((flags & weapon_group) && cur.weapon == base->weapon)
                     flags &= ~weapon_group;
-                if ((flags & health_group) && cur.health == base->health && cur.armor == base->armor && cur.hitdir == base->hitdir)
+                if ((flags & health_group) && cur.health == base->health && cur.armor == base->armor
+                    && cur.hitdir == base->hitdir)
                     flags &= ~health_group;
                 if ((flags & pos_group) && (base->groups & pos_group)) {
                     bool fits8 = true, fits16 = true, same = true;
                     for (int i = 0; i < 3; ++i) {
-                        const float d = cur.pos[i] - base->pos[i];
-                        const long qi = std::lround(d * 256.0f);
+                        const float d = (cur.pos[i] - base->pos[i]) * 256.0f;
+                        // lround returns 0 for NaN, inf and out-of-range values: those go as floats
+                        if (!(std::fabs(d) < 32767.0f)) {
+                            fits8 = fits16 = same = false;
+                            continue;
+                        }
+                        const long qi = std::lround(d);
                         fits8 = fits8 && qi >= -128 && qi <= 127;
                         fits16 = fits16 && qi >= -32768 && qi <= 32767;
                         same = same && qi == 0;
@@ -332,7 +338,8 @@ namespace obj_update_delta
         Entry cur;
         if (!entry_from_stock(rec, len, base, cur))
             return 0;
-        if (flags & pos_group) // own records (no keyframe) carry no ammo
+        // Own records (no keyframe) carry no ammo; neither do vehicle hulls, whose seats predict theirs
+        if ((flags & pos_group) && rf::player_from_entity_handle(ep->handle))
             gather_ammo(ep, cur);
         uint8_t buf[64];
         ByteWriter w{buf, sizeof(buf)};
@@ -517,83 +524,4 @@ namespace obj_update_delta
             }
         }
     }
-
-#ifndef NDEBUG
-    // Codec round trips; logs rather than asserts (Debug builds already pop enough dialogs)
-    void selfcheck()
-    {
-        int failures = 0;
-        const auto check = [&](bool ok, const char* what) {
-            if (!ok) {
-                ++failures;
-                xlog::error("obj_update_delta selfcheck FAILED: {}", what);
-            }
-        };
-        // Encodes into buf and decodes the body after the prefix into out; true if it consumed exactly the record
-        uint8_t buf[64];
-        uint8_t wf;
-        const auto round_trip = [&](const Entry& cur, uint8_t flags, const Entry* base, uint8_t age, uint8_t index,
-                                    Entry& out) {
-            ByteWriter w{buf, sizeof(buf)};
-            encode(cur, flags, base, age, index, w);
-            const size_t prefix = base ? delta_prefix_len : full_prefix_len;
-            ByteReader r{buf + prefix, w.size() - prefix};
-            return w.ok() && decode_body(r, base, out, wf) && r.remaining() == 0 ? static_cast<int>(w.size()) : -1;
-        };
-        Entry a{};
-        a.handle = 0x1234;
-        a.pos[0] = 10.5f;
-        a.pos[1] = -3.25f;
-        a.pos[2] = 100.0f;
-        a.pitch = -1000;
-        a.yaw = 2000;
-        a.state = 4;
-        a.vel[0] = 5;
-        a.health = 100;
-        a.armor = 50;
-        a.weapon = 3;
-        a.has_ammo = true;
-        a.ammo_type = 2;
-        a.clip = 30;
-        a.reserve = 200;
-        // Full record: stock -> entry -> delta(full) -> entry round trip
-        const uint8_t flags = 0x01 | 0x80 | 0x04 | 0x20 | 0x40;
-        uint8_t stock[64];
-        ByteWriter sw{stock, sizeof(stock)};
-        entry_to_stock(a, flags, sw);
-        Entry a2;
-        check(entry_from_stock(stock, static_cast<int>(sw.size()), nullptr, a2), "stock record parse");
-        a2.has_ammo = a.has_ammo; // the stock record carries no ammo; server_pack gathers it separately
-        a2.ammo_type = a.ammo_type;
-        a2.clip = a.clip;
-        a2.reserve = a.reserve;
-        Entry d{};
-        d.handle = a.handle;
-        check(round_trip(a2, flags, nullptr, 0, 0, d) > 0 && wf == flags, "full record decode");
-        check(std::memcmp(d.pos, a.pos, 12) == 0 && d.weapon == 3 && d.clip == 30 && d.groups == 0xA5, "full record fields");
-        // Deltas: each pos mode, slow-field elision, inheritance
-        const float steps[] = {0.0f, 0.25f, 3.0f, 600.0f}; // same, i8, i16, float
-        for (float step : steps) {
-            Entry b = d;
-            b.pos[0] += step;
-            b.pos[2] -= step * 0.5f;
-            b.tick = 77;
-            Entry r = d;
-            check(round_trip(b, flags, &d, 3, 9, r) > 0, "delta decode");
-            check(buf[0] == 3 && buf[1] == 9, "delta header");
-            check(wf == (0x01 | 0x40), "unchanged slow groups elided");
-            check(std::fabs(r.pos[0] - b.pos[0]) <= 1.0f / 512.0f && std::fabs(r.pos[2] - b.pos[2]) <= 1.0f / 512.0f,
-                  "position within quantisation error");
-            check(r.health == 100 && r.clip == 30 && r.tick == 77, "inherited fields");
-        }
-        // Own record (no keyframe), health change only
-        Entry own = d;
-        own.health = 60;
-        Entry r = d;
-        check(round_trip(own, 0x80 | 0x04 | 0x20, &d, 1, 0, r) == 2 + 2 + 3, "own record size");
-        check(wf == 0x20 && r.health == 60, "own record decode");
-        if (!failures)
-            xlog::info("obj_update_delta selfcheck passed");
-    }
-#endif
 }

@@ -145,7 +145,7 @@ static std::unordered_map<uint64_t, AFGameInfoExtra> g_server_browser_extra;
 
 std::optional<int> g_desired_multiplayer_character; // caches local mp character when forced by server
 
-using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
+using rf::MultiIoPacketHandler;
 
 class BufferOverflowPatch
 {
@@ -2011,7 +2011,9 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_accept_packet_ho
         }
         ext_data.server_netfps = static_cast<uint16_t>(g_alpine_game_config.server_netfps);
         ext_data.projectile_lag_comp_max_ms = static_cast<uint16_t>(g_alpine_server_config.projectile_lag_comp_max_ms);
-        ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::delta_obj_update;
+        if (g_alpine_server_config.delta_obj_update) {
+            ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::delta_obj_update;
+        }
         if (server_clear_stale_movement_input()) {
             ext_data.flags |= AlpineFactionJoinAcceptPacketExt::Flags::clear_stale_movement_input;
         }
@@ -2260,10 +2262,12 @@ CodeInjection process_join_accept_injection{
             server_info.skiing = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::skiing);
             server_info.dodging = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::dodging);
             server_info.pogo = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::pogo);
-            server_info.projectile_lag_comp = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::projectile_lag_comp);
+            server_info.projectile_lag_comp =
+                !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::projectile_lag_comp);
             server_info.server_netfps = ext_data.server_netfps;
             server_info.projectile_lag_comp_max_ms = ext_data.projectile_lag_comp_max_ms;
-            server_info.delta_obj_update = !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::delta_obj_update);
+            server_info.delta_obj_update =
+                !!(ext_data.flags & AlpineFactionJoinAcceptPacketExt::Flags::delta_obj_update);
             // featured_no_clip is intentionally not stored here, it's consumed inline below via mutators_set_no_clip_weapon.
 
             // parsed_full is the only state reaching this branch, so the stats flag was
@@ -2588,9 +2592,9 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
                         & AlpineFactionJoinReqPacketExt::Flags::client_d3d11)
                         != AlpineFactionJoinReqPacketExt::Flags::none,
                 };
-                valid_player->delta_obj_update =
-                    (g_joining_player_info.flags & AlpineFactionJoinReqPacketExt::Flags::client_delta_obj_update)
-                    != AlpineFactionJoinReqPacketExt::Flags::none;
+                valid_player->delta_obj_update = g_alpine_server_config.delta_obj_update
+                    && (g_joining_player_info.flags & AlpineFactionJoinReqPacketExt::Flags::client_delta_obj_update)
+                        != AlpineFactionJoinReqPacketExt::Flags::none;
 
                 const bool bot_mode_requested =
                     (g_joining_player_info.flags
@@ -2982,159 +2986,6 @@ static std::unordered_map<uint64_t, uint16_t> g_sent_obj_update_ticks;
 
 namespace
 {
-    void timed_send_cancel();
-}
-
-FunHook<void()> multi_stop_hook{
-    0x0046E2C0,
-    [] {
-        // Clear a stale demo-browser jump latch (M9) on any non-demo stop so it can't
-        // stay stuck (while set, rf_state_is_closed_hook forces every state closed). A
-        // demo teardown keeps it armed: demo_playback_active() is still true here, the
-        // playback context is only reset by demo_playback_on_multi_stop below.
-        if (!demo_playback_active()) {
-            set_jump_to_demo_browser(false);
-        }
-        demo_record_on_multi_stop();   // finalize the demo segment + remove the virtual player
-        demo_playback_on_multi_stop(); // engine-initiated stop during playback resets the session
-        g_af_server_info.reset(); // Clear server info when leaving
-        mutators_set_no_clip_weapon(-1); // restore any server weapon-table overrides
-        vote_client_reset(); // drop the cached vote options and active vote state
-        vote_panel_reset(); // drop the vote form, which describes the server being left
-        clear_pending_rotation_preserve(); // server side: no rotation carry survives a session
-        af_reset_session_overrides_snapshot();
-        g_local_player_spectators.clear();
-        g_remote_server_cfg_popup.reset();
-        set_local_pre_match_active(false); // clear pre-match state when leaving
-        multi_hud_reset_gametype_help(); // show gametype help when joining a server
-        reset_local_pending_game_type(); // clear pending game type when leaving
-        salvage_on_multi_shutdown(); // put the flag_red item class back to items.tbl
-        bagman_on_multi_shutdown();  // put the amp aura bitmap back to its stock value
-        vehicle_on_multi_shutdown(); // drop the per-level vehicle/turret records
-        vehicle_physics_on_multi_shutdown(); // tear down the Bullet world with the session
-        gungame_on_multi_shutdown(); // after the vehicle revert: weapons.tbl overrides restore LIFO
-        mutators_on_multi_shutdown(); // put the level's own gravity back
-        weather_clear_regions(); // weather regions belong to the level being left
-        minimap_level_reset();
-        projector_clear_all(); // Display_Projection feeds and their render targets are level-scoped
-        riot_shield_on_multi_level_init(); // drop any pending riot shield break suppressions
-        entity_rate_limit_clear(); // drop per-entity collision/landing-sound rate limit state
-        afstats::on_shutdown(); // best-effort final flush of the stats event stream
-        fflink::afstats_client_reset(); // a stats session key is only ever valid for the join it was minted for
-        g_sent_obj_update_ticks.clear(); // drop per-recipient obj_update keyframe-dedup state from the session being left
-        obj_update_delta::client_reset();
-        timed_send_cancel(); // an obj_update still held for its deadline must not reach the old server
-        if (rf::local_player) {
-            PlayerAdditionalData* const player_add_data =
-                static_cast<PlayerAdditionalData*>(rf::local_player);
-            *player_add_data = PlayerAdditionalData{};
-        }
-
-        multi_stop_hook.call_target();
-
-        // Re-evaluate footstep state after leaving multiplayer
-        evaluate_footsteps();
-
-        // Auto-quit for bots when disconnected from server
-        if (client_bot_launch_enabled() && g_alpine_game_config.bot_quit_when_disconnected) {
-            xlog::info("Bot disconnected from server - auto-quitting (BotQuitWhenDisconnected=1)");
-            rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
-        }
-    },
-};
-
-void multi_disconnect_from_server()
-{
-    if (!rf::is_multi) {
-        rf::console::print("Not connected to a server");
-        return;
-    }
-    xlog::info("Disconnecting from server");
-    rf::multi_stop();
-    // multi_stop_hook may have already set GS_QUIT_GAME for bot auto-quit.
-    // Only transition to main menu for non-bot clients.
-    if (!client_bot_launch_enabled() || !g_alpine_game_config.bot_quit_when_disconnected) {
-        rf::gameseq_set_state(rf::GS_MAIN_MENU, false);
-    }
-}
-
-ConsoleCommand2 disconnect_cmd{
-    "disconnect",
-    [] {
-        multi_disconnect_from_server();
-    },
-    "Disconnect from the current server",
-};
-
-const std::optional<AlpineFactionServerInfo>& get_af_server_info()
-{
-    return g_af_server_info;
-}
-
-std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable()
-{
-    return g_af_server_info;
-}
-
-void send_chat_line_packet(const std::string_view msg, rf::Player* target, rf::Player* sender, bool is_team_msg)
-{
-    if (!rf::is_server && sender == nullptr) {
-        sender = rf::local_player;
-    }
-    rf::ubyte buf[512];
-    RF_ChatLinePacket packet;
-    packet.header.type = RF_GPT_CHAT_LINE;
-    const size_t len = std::min(msg.size(), 255uz);
-    packet.header.size = static_cast<uint16_t>(sizeof(packet) - sizeof(packet.header) + len + 1);
-    packet.player_id = sender ? sender->net_data->player_id : 0xFF;
-    packet.is_team_msg = is_team_msg;
-    std::memcpy(buf, &packet, sizeof(packet));
-    char* packet_msg = reinterpret_cast<char*>(buf + sizeof(packet));
-    std::strncpy(packet_msg, msg.data(), len);
-    packet_msg[len] = '\0';
-    if (target == nullptr && rf::is_server) {
-        rf::multi_io_send_reliable_to_all(buf, packet.header.size + sizeof(packet.header), false);
-        rf::console::print("Server: {}", msg);
-    }
-    else {
-        rf::multi_io_send_reliable(target, buf, packet.header.size + sizeof(packet.header), false);
-    }
-}
-
-// Deadline-based rescheduling: the next deadline is one interval after the previous one, not after
-// the send, so the average rate is exact at any frame rate above it. The due check below can
-// fire up to one frame early (negative overshoot), and a late frame within the interval keeps
-// the anchor too. Only a frame longer than the interval re-anchors to now.
-CodeInjection client_update_rate_injection{
-    0x0047E5D8,
-    [] (auto& regs) {
-        constexpr int interval = client_send_interval_ms;
-        int overshoot = rf::send_obj_update_packet_timestamp.time_since();
-        int& send_obj_update_interval = addr_as_ref<int>(regs.esp);
-        send_obj_update_interval =
-            (overshoot > -interval && overshoot < interval) ? interval - overshoot : interval;
-    },
-};
-
-// A frame can only send on a frame boundary, so at 240 fps a 10 ms cadence lands 8.3/12.5 ms
-// apart. Instead: build the packet on the last frame before the deadline (send_obj_update_packet's
-// elapsed() check, extended by one frame of lead) and let a worker put it on the wire at the
-// deadline itself. The keyframe tick and pose are stamped at build time, so the deferral only
-// costs up to one frame of latency and the wire cadence is exact at any frame rate.
-CallHook<bool __fastcall(rf::TimestampRealtime*, int)> client_obj_update_due_hook{
-    0x0047E5CD,
-    [](rf::TimestampRealtime* ts, int edx) FASTCALL_LAMBDA {
-        if (client_obj_update_due_hook.call_target(ts, edx)) {
-            return true;
-        }
-        constexpr int interval = client_send_interval_ms;
-        const int lead = std::clamp(static_cast<int>(std::ceil(rf::frametime * 1000.0f)), 1, interval - 1);
-        return ts->time_until() <= lead; // huge for an invalid timestamp, so still false then
-    },
-};
-
-namespace
-{
     struct TimedSend
     {
         std::mutex mutex;
@@ -3287,6 +3138,154 @@ namespace
     }
 }
 
+FunHook<void()> multi_stop_hook{
+    0x0046E2C0,
+    [] {
+        // Clear a stale demo-browser jump latch (M9) on any non-demo stop so it can't
+        // stay stuck (while set, rf_state_is_closed_hook forces every state closed). A
+        // demo teardown keeps it armed: demo_playback_active() is still true here, the
+        // playback context is only reset by demo_playback_on_multi_stop below.
+        if (!demo_playback_active()) {
+            set_jump_to_demo_browser(false);
+        }
+        demo_record_on_multi_stop();   // finalize the demo segment + remove the virtual player
+        demo_playback_on_multi_stop(); // engine-initiated stop during playback resets the session
+        g_af_server_info.reset(); // Clear server info when leaving
+        mutators_set_no_clip_weapon(-1); // restore any server weapon-table overrides
+        vote_client_reset(); // drop the cached vote options and active vote state
+        vote_panel_reset(); // drop the vote form, which describes the server being left
+        clear_pending_rotation_preserve(); // server side: no rotation carry survives a session
+        af_reset_session_overrides_snapshot();
+        g_local_player_spectators.clear();
+        g_remote_server_cfg_popup.reset();
+        set_local_pre_match_active(false); // clear pre-match state when leaving
+        multi_hud_reset_gametype_help(); // show gametype help when joining a server
+        reset_local_pending_game_type(); // clear pending game type when leaving
+        salvage_on_multi_shutdown(); // put the flag_red item class back to items.tbl
+        bagman_on_multi_shutdown();  // put the amp aura bitmap back to its stock value
+        vehicle_on_multi_shutdown(); // drop the per-level vehicle/turret records
+        vehicle_physics_on_multi_shutdown(); // tear down the Bullet world with the session
+        gungame_on_multi_shutdown(); // after the vehicle revert: weapons.tbl overrides restore LIFO
+        mutators_on_multi_shutdown(); // put the level's own gravity back
+        weather_clear_regions(); // weather regions belong to the level being left
+        minimap_level_reset();
+        projector_clear_all(); // Display_Projection feeds and their render targets are level-scoped
+        riot_shield_on_multi_level_init(); // drop any pending riot shield break suppressions
+        entity_rate_limit_clear(); // drop per-entity collision/landing-sound rate limit state
+        afstats::on_shutdown(); // best-effort final flush of the stats event stream
+        fflink::afstats_client_reset(); // a stats session key is only ever valid for the join it was minted for
+        g_sent_obj_update_ticks.clear(); // per-recipient keyframe-dedup state of the session being left
+        obj_update_delta::client_reset();
+        timed_send_cancel(); // an obj_update still held for its deadline must not reach the old server
+        if (rf::local_player) {
+            PlayerAdditionalData* const player_add_data =
+                static_cast<PlayerAdditionalData*>(rf::local_player);
+            *player_add_data = PlayerAdditionalData{};
+        }
+
+        multi_stop_hook.call_target();
+
+        // Re-evaluate footstep state after leaving multiplayer
+        evaluate_footsteps();
+
+        // Auto-quit for bots when disconnected from server
+        if (client_bot_launch_enabled() && g_alpine_game_config.bot_quit_when_disconnected) {
+            xlog::info("Bot disconnected from server - auto-quitting (BotQuitWhenDisconnected=1)");
+            rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
+        }
+    },
+};
+
+void multi_disconnect_from_server()
+{
+    if (!rf::is_multi) {
+        rf::console::print("Not connected to a server");
+        return;
+    }
+    xlog::info("Disconnecting from server");
+    rf::multi_stop();
+    // multi_stop_hook may have already set GS_QUIT_GAME for bot auto-quit.
+    // Only transition to main menu for non-bot clients.
+    if (!client_bot_launch_enabled() || !g_alpine_game_config.bot_quit_when_disconnected) {
+        rf::gameseq_set_state(rf::GS_MAIN_MENU, false);
+    }
+}
+
+ConsoleCommand2 disconnect_cmd{
+    "disconnect",
+    [] {
+        multi_disconnect_from_server();
+    },
+    "Disconnect from the current server",
+};
+
+const std::optional<AlpineFactionServerInfo>& get_af_server_info()
+{
+    return g_af_server_info;
+}
+
+std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable()
+{
+    return g_af_server_info;
+}
+
+void send_chat_line_packet(const std::string_view msg, rf::Player* target, rf::Player* sender, bool is_team_msg)
+{
+    if (!rf::is_server && sender == nullptr) {
+        sender = rf::local_player;
+    }
+    rf::ubyte buf[512];
+    RF_ChatLinePacket packet;
+    packet.header.type = RF_GPT_CHAT_LINE;
+    const size_t len = std::min(msg.size(), 255uz);
+    packet.header.size = static_cast<uint16_t>(sizeof(packet) - sizeof(packet.header) + len + 1);
+    packet.player_id = sender ? sender->net_data->player_id : 0xFF;
+    packet.is_team_msg = is_team_msg;
+    std::memcpy(buf, &packet, sizeof(packet));
+    char* packet_msg = reinterpret_cast<char*>(buf + sizeof(packet));
+    std::strncpy(packet_msg, msg.data(), len);
+    packet_msg[len] = '\0';
+    if (target == nullptr && rf::is_server) {
+        rf::multi_io_send_reliable_to_all(buf, packet.header.size + sizeof(packet.header), false);
+        rf::console::print("Server: {}", msg);
+    }
+    else {
+        rf::multi_io_send_reliable(target, buf, packet.header.size + sizeof(packet.header), false);
+    }
+}
+
+// Deadline-based rescheduling: the next deadline is one interval after the previous one, not after
+// the send, so the average rate is exact at any frame rate above it. The due check below can
+// fire up to one frame early (negative overshoot), and a late frame within the interval keeps
+// the anchor too. Only a frame longer than the interval re-anchors to now.
+CodeInjection client_update_rate_injection{
+    0x0047E5D8,
+    [] (auto& regs) {
+        constexpr int interval = client_send_interval_ms;
+        int overshoot = rf::send_obj_update_packet_timestamp.time_since();
+        int& send_obj_update_interval = addr_as_ref<int>(regs.esp);
+        send_obj_update_interval =
+            (overshoot > -interval && overshoot < interval) ? interval - overshoot : interval;
+    },
+};
+
+// A frame can only send on a frame boundary, so at 240 fps a 10 ms cadence lands 8.3/12.5 ms
+// apart. Instead: build the packet on the last frame before the deadline (send_obj_update_packet's
+// elapsed() check, extended by one frame of lead) and let a worker put it on the wire at the
+// deadline itself. The keyframe tick and pose are stamped at build time, so the deferral only
+// costs up to one frame of latency and the wire cadence is exact at any frame rate.
+CallHook<bool __fastcall(rf::TimestampRealtime*, int)> client_obj_update_due_hook{
+    0x0047E5CD,
+    [](rf::TimestampRealtime* ts, int edx) FASTCALL_LAMBDA {
+        if (client_obj_update_due_hook.call_target(ts, edx)) {
+            return true;
+        }
+        constexpr int interval = client_send_interval_ms;
+        const int lead = std::clamp(static_cast<int>(std::ceil(rf::frametime * 1000.0f)), 1, interval - 1);
+        return ts->time_until() <= lead; // huge for an invalid timestamp, so still false then
+    },
+};
+
 // The multi_io_send call in send_obj_update_packet (client -> server), reached only on calls that
 // actually send. Stock appends to the per-frame unreliable buffer, flushed at the end of the frame;
 // this hands the record to the worker for the deadline instead. The delta-stream ack rides in the
@@ -3298,7 +3297,8 @@ CallHook<void(rf::Player*, const void*, int)> client_obj_update_send_hook{
         af_obj_update_ack_packet ack;
         const bool has_ack = af_build_obj_update_ack_packet(ack);
         const rf::NetAddr addr = rf::multi_server_addr;
-        if (rf::is_server || addr.port == 0 || len <= 0 || len > static_cast<int>(rf::max_packet_size) || !timed_send_start()) {
+        if (rf::is_server || addr.port == 0 || len <= 0 || len > static_cast<int>(rf::max_packet_size)
+            || !timed_send_start()) {
             client_obj_update_send_hook.call_target(pp, packet, len);
             if (has_ack) {
                 af_send_packet(pp, &ack, sizeof(ack), false); // same coalesced buffer
@@ -3449,6 +3449,8 @@ CodeInjection server_obj_update_schedule_injection{
 FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
     0x0047DB20,
     [] (rf::Player* pp, rf::Entity* ep, void* data) {
+        rf::ObjInterp* exposed = nullptr; // ring whose num is lowered to expose an older keyframe
+        uint32_t exposed_num = 0;
         if (rf::is_server && ep != rf::local_player_entity && pp->entity_handle != ep->handle
             && ep->obj_interp && ep->obj_interp->num_frames() > 0) {
             const uint16_t tick = ep->obj_interp->newest_frame_time();
@@ -3466,13 +3468,16 @@ FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
             // the older one now and the newest next window instead; the backlog is capped at one
             // keyframe so clock skew cannot let the delay creep. Only when the server sends at least as
             // often as clients: on the low tier every window holds two new keyframes, and the backlog
-            // would pin every recipient one keyframe behind.
+            // would pin every recipient one keyframe behind. Not for rings this server samples itself (per
+            // recipient window or per frame): an older sample there is a dropped extra, not a missed arrival,
+            // and the backlog would only hold watchers a keyframe behind.
             rf::ObjInterp& interp = *ep->obj_interp;
             const int n = interp.num_frames();
             int idx = n - 1;
             if (!inserted) {
                 if (static_cast<int>(g_alpine_game_config.server_netfps) >= client_net_fps && n >= 2
-                    && wrapped_diff16(interp.time_array[n - 2], it->second) > 0) {
+                    && wrapped_diff16(interp.time_array[n - 2], it->second) > 0
+                    && !vehicle_server_samples_rows(ep)) {
                     idx = n - 2;
                 }
                 if (it->second == interp.time_array[idx]) {
@@ -3482,16 +3487,15 @@ FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
             }
             if (idx != n - 1) {
                 // get_entity_data packs slot num-1; expose the older slot for this call only
+                exposed = &interp;
+                exposed_num = interp.num;
                 interp.num = static_cast<uint32_t>(idx + 1);
-                const int len = pack_obj_update_data_hook.call_target(pp, ep, data);
-                interp.num = static_cast<uint32_t>(n);
-                if (pp->delta_obj_update && len > 0) {
-                    return obj_update_delta::server_pack(pp, ep, static_cast<uint8_t*>(data), len);
-                }
-                return len;
             }
         }
         const int len = pack_obj_update_data_hook.call_target(pp, ep, data);
+        if (exposed) {
+            exposed->num = exposed_num;
+        }
         if (rf::is_server && pp->delta_obj_update && len > 0) {
             // Rewrite the stock record in place as a delta against the newest snapshot this client acked
             return obj_update_delta::server_pack(pp, ep, static_cast<uint8_t*>(data), len);
@@ -3594,26 +3598,16 @@ ConsoleCommand2 netfps_cmd{
 FunHook<void()> dcf_rate_hook{
     0x004803E0,
     []() {
-        try {
-            console_read_arg<std::optional<std::string>>();
+        if (rf::console::run) {
+            try {
+                console_read_arg<std::optional<std::string>>();
+            }
+            catch (...) {
+            }
         }
-        catch (...) {
-        }
-        rf::console::print("rate is deprecated; this client sends and receives at {} net updates per second",
-                           AlpineGameSettings::client_net_rate);
-    },
-};
-
-CodeInjection obj_interp_rotation_fix{
-    0x0048443C,
-    [](auto& regs) {
-        auto& phb_diff = addr_as_ref<rf::Vector3>(regs.ecx);
-        constexpr float pi = 3.141592f;
-        if (phb_diff.y > pi) {
-            phb_diff.y -= 2 * pi;
-        }
-        else if (phb_diff.y < -pi) {
-            phb_diff.y += 2 * pi;
+        if (rf::console::run || rf::console::help) {
+            rf::console::print("rate is deprecated; this client sends and receives at {} net updates per second",
+                               AlpineGameSettings::client_net_rate);
         }
     },
 };
@@ -4120,9 +4114,6 @@ void network_init()
     // The re-framed packet carries a 2-byte seq: lower the loop's 0x1FC flush threshold to match so
     // it never exceeds the 512-byte unreliable send buffer
     write_mem<i32>(0x0047E71E, 0x1FA);
-#ifndef NDEBUG
-    obj_update_delta::selfcheck();
-#endif
 
     // Improve simultaneous ping
     rf::simultaneous_ping = 32;
@@ -4264,7 +4255,7 @@ void network_init()
     netfps_cmd.register_cmd();
     dcf_rate_hook.install();
 
-    // cl_netmeter
+    // ui_show_netmeter
     netmeter_apply_patches();
 
     // Make average obj_update send rate framerate-independent (deadline-based rescheduling)
@@ -4274,12 +4265,9 @@ void network_init()
     entity_turn_weapon_on_hook.install();
     entity_turn_weapon_off_hook.install();
 
-    // Skip obj_update records that carry no new keyframe, so sv_netfps above the client send
-    // rate doesn't flood receivers with duplicate keyframes that degrade interpolation
+    // Skip obj_update records that carry no new keyframe, so a server sending faster than its
+    // clients doesn't flood receivers with duplicate keyframes that degrade interpolation
     pack_obj_update_data_hook.install();
-
-    // Fix rotation interpolation (Y axis) when it goes from 360 to 0 degrees
-    obj_interp_rotation_fix.install();
 
     // Send trigger_activate packets for late joiners
     send_state_info_injection.install();

@@ -1,7 +1,7 @@
 #include <patch_common/AsmWriter.h>
+#include <patch_common/CallHook.h>
 #include <patch_common/FunHook.h>
 #include <common/utils/int-utils.h>
-#include <xlog/xlog.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -47,6 +47,9 @@ float obj_interp_target_delay_ms(float interval_ms, float jitter_ms)
     return interval_ms + std::clamp(headroom, 0.0f, headroom_max * interval_ms);
 }
 
+namespace
+{
+
 struct RingStats
 {
     float interval; // keyframe arrival interval, in ticks
@@ -54,7 +57,7 @@ struct RingStats
 };
 
 // In keyframe ticks: arrival gaps are wall-clock, which demo playback scales against sender time
-static RingStats ring_stats(const rf::ObjInterp* interp)
+RingStats ring_stats(const rf::ObjInterp* interp)
 {
     // Until the ring fills after a Clear(), slot 0 is the first sample, whose gap is always 0; the engine's
     // own average includes it and reads short for the first ~20 keyframes after every spawn
@@ -84,12 +87,6 @@ static RingStats ring_stats(const rf::ObjInterp* interp)
     return {std::clamp(interval, 1.0f, 250.0f), count > 0 ? dev / static_cast<float>(count) * scale : 0.0f};
 }
 
-float obj_interp_target_delay_ms(const rf::ObjInterp* interp)
-{
-    const auto [interval, jitter] = ring_stats(interp);
-    return obj_interp_target_delay_ms(interval, jitter);
-}
-
 struct KeyFrame
 {
     rf::Vector3 pos;
@@ -103,7 +100,7 @@ struct KeyFrame
     bool crouch;
 };
 
-static rf::Vector3 lerp_phb(const rf::Vector3& a, const rf::Vector3& b, float t)
+rf::Vector3 lerp_phb(const rf::Vector3& a, const rf::Vector3& b, float t)
 {
     rf::Vector3 diff = b - a;
     // Heading wraps at +-pi
@@ -116,8 +113,8 @@ static rf::Vector3 lerp_phb(const rf::Vector3& a, const rf::Vector3& b, float t)
 }
 
 // Cubic Hermite from p0 (t = 0) to p1 (t = 1); m0/m1 are tangents already scaled to the span
-static rf::Vector3 hermite(const rf::Vector3& p0, const rf::Vector3& m0, const rf::Vector3& p1, const rf::Vector3& m1,
-                           float t)
+rf::Vector3 hermite(const rf::Vector3& p0, const rf::Vector3& m0, const rf::Vector3& p1, const rf::Vector3& m1,
+                    float t)
 {
     const float t2 = t * t;
     const float t3 = t2 * t;
@@ -128,8 +125,8 @@ static rf::Vector3 hermite(const rf::Vector3& p0, const rf::Vector3& m0, const r
 // keyframe: linear extrapolation along its velocity up to max_extrap_ms, orientation held. crouch_of is
 // only asked about the keyframe whose discrete state is used.
 template<typename FrameAt, typename CrouchOf>
-static bool eval_frames(FrameAt&& frame_at, CrouchOf&& crouch_of, int n, uint16_t tick, float frac,
-                        float max_extrap_ms, KeyFrame& out)
+bool eval_frames(FrameAt&& frame_at, CrouchOf&& crouch_of, int n, uint16_t tick, float frac,
+                 float max_extrap_ms, KeyFrame& out)
 {
     if (n < 2)
         return false;
@@ -150,8 +147,8 @@ static bool eval_frames(FrameAt&& frame_at, CrouchOf&& crouch_of, int n, uint16_
     const KeyFrame older = frame_at(i);
     const KeyFrame newer = frame_at(i + 1);
     const float span = static_cast<float>(wrapped_diff16(newer.tick, older.tick));
-    const float t =
-        span > 0.0f ? std::clamp((static_cast<float>(wrapped_diff16(tick, older.tick)) + frac) / span, 0.0f, 1.0f) : 0.0f;
+    const float into = static_cast<float>(wrapped_diff16(tick, older.tick)) + frac;
+    const float t = span > 0.0f ? std::clamp(into / span, 0.0f, 1.0f) : 0.0f;
     const float span_s = span / 1000.0f;
     out.pos = hermite(older.pos, older.vel * span_s, newer.pos, newer.vel * span_s, t);
     out.vel = older.vel + (newer.vel - older.vel) * t;
@@ -175,6 +172,13 @@ struct KeyFrameHistory
     const KeyFrame& from_newest(int i) const
     {
         return frames[(head - 1 - i + 2 * history_frames) % history_frames];
+    }
+
+    // Keeps crouch: the state byte of the record whose keyframe follows was already applied
+    void reset()
+    {
+        head = count = 0;
+        clock_frac = 0.0f;
     }
 
     void push(const KeyFrame& frame)
@@ -207,16 +211,23 @@ struct KeyFrameHistory
     }
 };
 
-static std::unordered_map<int, KeyFrameHistory> g_history; // object handle -> received keyframes
+std::unordered_map<int, KeyFrameHistory> g_history; // object handle -> received keyframes
 
 // Entities respawn with fresh handles; drop histories of entities that no longer exist
-static void sweep_dead_entities()
+void sweep_dead_entities()
 {
     static int pushes_since_sweep = 0;
     if (++pushes_since_sweep < 4096)
         return;
     pushes_since_sweep = 0;
     std::erase_if(g_history, [](const auto& kv) { return rf::entity_from_handle(kv.first) == nullptr; });
+}
+} // namespace
+
+float obj_interp_target_delay_ms(const rf::ObjInterp* interp)
+{
+    const auto [interval, jitter] = ring_stats(interp);
+    return obj_interp_target_delay_ms(interval, jitter);
 }
 
 // ObjInterp::set_next_pos_orient (__thiscall): fed every replicated keyframe on client and server
@@ -226,16 +237,22 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Entity*, rf::Vector3*, rf::Vect
         0x00483360,
         [](rf::ObjInterp* self, int edx, rf::Entity* ep, rf::Vector3* pos, rf::Vector3* phb, rf::Vector3* eye_phb,
            rf::Vector3* vel, rf::Vector3* move, uint16_t tick, float always_0) FASTCALL_LAMBDA {
-            const bool anchoring = (self->flags & 1) != 0;
             const uint32_t num_before = self->num;
+            const bool anchoring = (self->flags & 1) != 0;
+            const uint16_t interp_time_before = self->interp_time;
             obj_interp_set_next_pos_orient_hook.call_target(self, edx, ep, pos, phb, eye_phb, vel, move, tick,
                                                             always_0);
-            // Mirror only keyframes the ring took. Stock always inserts; this guards a hook added to the chain
-            // later (the vehicles branch hooks this function too and rejects bad rows).
+            // Mirror only keyframes the ring took: the vehicle hook inside this one rejects bad rows
             if (self->num == num_before && (self->num == 0 || self->newest_frame_time() != tick))
                 return;
             auto& history = g_history[ep->handle];
-            if (anchoring && (self->flags & 1) == 0) {
+            // An emptied ring (Clear(): teleport, save load, vehicle hand-off) starts a new timeline, which the
+            // deeper history must not bridge
+            if (num_before == 0)
+                history.reset();
+            // The inner vehicle hook can also force a re-anchor, invisible in the flags sampled above
+            const bool anchored = (anchoring && (self->flags & 1) == 0) || self->interp_time != interp_time_before;
+            if (anchored) {
                 // The engine anchored 2.2 x interval behind this keyframe; start at frame_advance's target
                 self->interp_time = static_cast<uint16_t>(tick - static_cast<int>(obj_interp_target_delay_ms(self)));
                 history.clock_frac = 0.0f;
@@ -319,28 +336,19 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Object*)> obj_interp_frame_adva
     },
 };
 
-static int g_frame_eval_depth = 0;
-
-ObjInterpFrameEval::ObjInterpFrameEval()
+// frame_eval: the per-frame evaluation of a remote entity (multi_obj_interp_pos/orient, 0x00484770 /
+// 0x00484650), which plays the sub-ms clock fraction and the deeper history and applies deferred anim
+// state. The other callers are the server's hitscan rewind (0x0046F7xx / 0x0046FDxx).
+static float eval_frac(const rf::Entity* ep, bool frame_eval)
 {
-    ++g_frame_eval_depth;
-}
-
-ObjInterpFrameEval::~ObjInterpFrameEval()
-{
-    --g_frame_eval_depth;
-}
-
-static float eval_frac(const rf::Entity* ep)
-{
-    if (g_frame_eval_depth == 0)
+    if (!frame_eval)
         return 0.0f;
     auto it = g_history.find(ep->handle);
     return it != g_history.end() ? it->second.clock_frac : 0.0f;
 }
 
 // Pose at tick from the engine ring when it covers the tick, else from the deeper history
-static bool pose_at_tick(const rf::Entity* ep, uint16_t tick, KeyFrame& out)
+static bool pose_at_tick(const rf::Entity* ep, uint16_t tick, bool frame_eval, KeyFrame& out)
 {
     const rf::ObjInterp* interp = ep->obj_interp;
     if (!interp || interp->num_frames() < 2)
@@ -356,27 +364,30 @@ static bool pose_at_tick(const rf::Entity* ep, uint16_t tick, KeyFrame& out)
         const auto ring_crouch = [history](const KeyFrame& frame) {
             return history && history->crouch_at(frame.tick);
         };
-        return eval_frames(ring_frame, ring_crouch, interp->num_frames(), tick, eval_frac(ep),
+        return eval_frames(ring_frame, ring_crouch, interp->num_frames(), tick, eval_frac(ep, frame_eval),
                            ring_stats(interp).interval, out);
     }
     // Server hitscan rewind (ticks reported by the shooter) keeps the ring's reach, like stock
-    if (rf::is_server && g_frame_eval_depth == 0)
+    if (rf::is_server && !frame_eval)
         return false;
-    return history && history->lookup(tick, eval_frac(ep), out);
+    return history && history->lookup(tick, eval_frac(ep, frame_eval), out);
 }
+
+static void pos_at_tick(rf::Entity* ep, uint16_t tick, rf::Vector3* out_pos, rf::Vector3* out_vel, bool frame_eval);
+static void orient_at_tick(rf::Entity* ep, uint16_t tick, rf::Matrix3* out_orient, rf::Vector3* out_phb,
+                           rf::Vector3* out_eye_phb, bool frame_eval);
 
 FunHook<void __stdcall(rf::Entity*, uint16_t, rf::Vector3*, rf::Vector3*)> entity_interp_pos_at_tick_hook{
     0x00484010,
     [](rf::Entity* ep, uint16_t tick, rf::Vector3* out_pos, rf::Vector3* out_vel) STDCALL_LAMBDA {
-        KeyFrame frame;
-        if (pose_at_tick(ep, tick, frame)) {
-            *out_pos = frame.pos;
-            *out_vel = frame.vel;
-            if (g_frame_eval_depth > 0 && defers_anim_state(ep))
-                apply_anim_state(ep, frame); // per-frame evaluation only, never the hitscan rewind
-            return;
-        }
-        entity_interp_pos_at_tick_hook.call_target(ep, tick, out_pos, out_vel);
+        pos_at_tick(ep, tick, out_pos, out_vel, false);
+    },
+};
+
+CallHook<void __stdcall(rf::Entity*, uint16_t, rf::Vector3*, rf::Vector3*)> frame_interp_pos_at_tick_hook{
+    0x004847A7,
+    [](rf::Entity* ep, uint16_t tick, rf::Vector3* out_pos, rf::Vector3* out_vel) STDCALL_LAMBDA {
+        pos_at_tick(ep, tick, out_pos, out_vel, true);
     },
 };
 
@@ -385,17 +396,45 @@ FunHook<void __stdcall(rf::Entity*, uint16_t, rf::Matrix3*, rf::Vector3*, rf::Ve
         0x004842E0,
         [](rf::Entity* ep, uint16_t tick, rf::Matrix3* out_orient, rf::Vector3* out_phb,
            rf::Vector3* out_eye_phb) STDCALL_LAMBDA {
-            KeyFrame frame;
-            if (pose_at_tick(ep, tick, frame)) {
-                // phb = (pitch, heading, bank); set_from_angles takes (pitch, bank, heading)
-                out_orient->set_from_angles(frame.phb.x, frame.phb.z, frame.phb.y);
-                *out_phb = frame.phb;
-                *out_eye_phb = frame.eye_phb;
-                return;
-            }
-            entity_interp_orient_at_tick_hook.call_target(ep, tick, out_orient, out_phb, out_eye_phb);
+            orient_at_tick(ep, tick, out_orient, out_phb, out_eye_phb, false);
         },
     };
+
+CallHook<void __stdcall(rf::Entity*, uint16_t, rf::Matrix3*, rf::Vector3*, rf::Vector3*)>
+    frame_interp_orient_at_tick_hook{
+        0x004846BC,
+        [](rf::Entity* ep, uint16_t tick, rf::Matrix3* out_orient, rf::Vector3* out_phb,
+           rf::Vector3* out_eye_phb) STDCALL_LAMBDA {
+            orient_at_tick(ep, tick, out_orient, out_phb, out_eye_phb, true);
+        },
+    };
+
+static void pos_at_tick(rf::Entity* ep, uint16_t tick, rf::Vector3* out_pos, rf::Vector3* out_vel, bool frame_eval)
+{
+    KeyFrame frame;
+    if (pose_at_tick(ep, tick, frame_eval, frame)) {
+        *out_pos = frame.pos;
+        *out_vel = frame.vel;
+        if (frame_eval && defers_anim_state(ep))
+            apply_anim_state(ep, frame); // never the hitscan rewind
+        return;
+    }
+    entity_interp_pos_at_tick_hook.call_target(ep, tick, out_pos, out_vel);
+}
+
+static void orient_at_tick(rf::Entity* ep, uint16_t tick, rf::Matrix3* out_orient, rf::Vector3* out_phb,
+                           rf::Vector3* out_eye_phb, bool frame_eval)
+{
+    KeyFrame frame;
+    if (pose_at_tick(ep, tick, frame_eval, frame)) {
+        // phb = (pitch, heading, bank); set_from_angles takes (pitch, bank, heading)
+        out_orient->set_from_angles(frame.phb.x, frame.phb.z, frame.phb.y);
+        *out_phb = frame.phb;
+        *out_eye_phb = frame.eye_phb;
+        return;
+    }
+    entity_interp_orient_at_tick_hook.call_target(ep, tick, out_orient, out_phb, out_eye_phb);
+}
 
 uint16_t obj_interp_oldest_tick(const rf::Entity* ep)
 {
@@ -420,6 +459,8 @@ void obj_interp_history_init()
     obj_interp_frame_advance_hook.install();
     entity_interp_pos_at_tick_hook.install();
     entity_interp_orient_at_tick_hook.install();
+    frame_interp_pos_at_tick_hook.install();
+    frame_interp_orient_at_tick_hook.install();
 }
 
 void obj_interp_history_clear_all()

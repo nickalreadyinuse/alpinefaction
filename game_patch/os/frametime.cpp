@@ -12,7 +12,6 @@
 #include "../rf/entity.h"
 #include "../rf/os/frametime.h"
 #include "../multi/multi.h"
-#include "../multi/network.h"
 #include "../multi/netmeter.h"
 #include "../multi/vehicles/vehicle.h"
 #include "../multi/vehicles/vehicle_physics.h"
@@ -212,7 +211,7 @@ static void frametime_render_netmeter(int y)
     draw_row(y, "Net In:", stats.in_rate);
     draw_row(y + line_gap, "Jitter:", stats.in_jitter);
     draw_row(y + 2 * line_gap, "Max Gap:", stats.in_max_gap);
-    draw_row(y + 3 * line_gap, "Loss %:", stats.in_loss);
+    draw_row(y + 3 * line_gap, "Missed %:", stats.in_missed);
     draw_row(y + 4 * line_gap, "Stale:", stats.in_stale);
     draw_row(y + 5 * line_gap, "Net Out:", stats.out_rate);
     draw_row(y + 6 * line_gap, "Jitter:", stats.out_jitter);

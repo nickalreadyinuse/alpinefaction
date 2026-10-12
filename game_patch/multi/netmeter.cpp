@@ -13,11 +13,12 @@
 #include "../os/os.h"
 #include "../rf/player/player.h"
 
-using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
-
-// cl_netmeter: client-side obj_update flow sampling. Packet timestamps are recorded by the
+// ui_show_netmeter: client-side obj_update flow sampling. Packet timestamps are recorded by the
 // hook below and by netmeter_record_out(); rate and jitter are derived on demand by
 // netmeter_get_stats() for the HUD.
+
+namespace
+{
 
 struct NetMeterChannel
 {
@@ -39,12 +40,12 @@ struct NetMeterChannel
         float rate = 0.0f;    // packets/s
         float jitter = 0.0f;  // mean abs deviation of inter-arrival time, ms
         float max_gap = 0.0f; // largest inter-arrival time, ms
-        float loss = 0.0f;    // estimated % of expected packets missing
+        float missed = 0.0f;  // % of the expected packets that never arrived (not sent or lost)
         float stale = 0.0f;   // ms since the newest packet; 0 if none seen
     };
 
     // Stats over the recent window; zeros while the flow is absent or too sparse to measure.
-    // nominal_ms is the expected packet interval for the loss estimate (0 = median gap).
+    // nominal_ms is the expected packet interval for the missed estimate (0 = median gap).
     Result measure(int now, int nominal_ms) const
     {
         Result r;
@@ -90,16 +91,18 @@ struct NetMeterChannel
         }
         if (nominal_ms > 0) {
             const float expected = static_cast<float>(span) / static_cast<float>(nominal_ms);
-            r.loss = std::max(0.0f, 100.0f * (expected - static_cast<float>(num_gaps)) / expected);
+            r.missed = std::max(0.0f, 100.0f * (expected - static_cast<float>(num_gaps)) / expected);
         }
         return r;
     }
 };
 
-static NetMeterChannel g_netmeter_in;
-static NetMeterChannel g_netmeter_out;
+NetMeterChannel g_netmeter_in;
+NetMeterChannel g_netmeter_out;
 
-FunHook<MultiIoPacketHandler> process_obj_update_packet_netmeter_hook{
+} // namespace
+
+FunHook<rf::MultiIoPacketHandler> process_obj_update_packet_netmeter_hook{
     0x0047DF90,
     [](char* data, const rf::NetAddr& addr) {
         if (!rf::is_server) {
@@ -137,7 +140,8 @@ NetMeterStats netmeter_get_stats()
     const auto& info = get_af_server_info();
     const bool known = info && info->server_netfps;
     const auto in = g_netmeter_in.measure(now, known ? 1000 / info->server_netfps : 0);
-    const auto out = g_netmeter_out.measure(now, known ? 1000 / static_cast<int>(AlpineGameSettings::client_net_rate) : 0);
+    constexpr int client_interval_ms = 1000 / static_cast<int>(AlpineGameSettings::client_net_rate);
+    const auto out = g_netmeter_out.measure(now, known ? client_interval_ms : 0);
 
     // Interp delay: how far behind the newest keyframe each remote entity is evaluated,
     // averaged over all remote players with interpolation state (16-bit server ms ticks;
@@ -163,17 +167,19 @@ NetMeterStats netmeter_get_stats()
     float in_kbps = 0.0f, out_kbps = 0.0f;
     const int slot = std::min(rf::net_stats_slot, 29) - 1;
     if (slot >= 0) {
-        in_kbps = static_cast<float>(rf::net_stats_recv_unrel[slot] + rf::net_stats_recv_rel[slot]
-                                     + rf::net_stats_recv_hdr_unrel[slot] + rf::net_stats_recv_hdr_rel[slot]) / 1024.0f;
-        out_kbps = static_cast<float>(rf::net_stats_send_unrel[slot] + rf::net_stats_send_rel[slot]
-                                      + rf::net_stats_send_hdr_unrel[slot] + rf::net_stats_send_hdr_rel[slot]) / 1024.0f;
+        const int in_bytes = rf::net_stats_recv_unrel[slot] + rf::net_stats_recv_rel[slot]
+            + rf::net_stats_recv_hdr_unrel[slot] + rf::net_stats_recv_hdr_rel[slot];
+        in_kbps = static_cast<float>(in_bytes) / 1024.0f;
+        const int out_bytes = rf::net_stats_send_unrel[slot] + rf::net_stats_send_rel[slot]
+            + rf::net_stats_send_hdr_unrel[slot] + rf::net_stats_send_hdr_rel[slot];
+        out_kbps = static_cast<float>(out_bytes) / 1024.0f;
     }
 
     stale_peak = std::max(stale_peak, in.stale);
     interp_sum += interp_delay;
     ++interp_samples;
     if (now - last_refresh >= refresh_ms || now < last_refresh) {
-        displayed = {in.rate, in.jitter, in.max_gap, in.loss, stale_peak, out.rate, out.jitter,
+        displayed = {in.rate, in.jitter, in.max_gap, in.missed, stale_peak, out.rate, out.jitter,
                      interp_sum / static_cast<float>(interp_samples), in_kbps, out_kbps};
         stale_peak = 0.0f;
         interp_sum = 0.0f;
@@ -184,13 +190,13 @@ NetMeterStats netmeter_get_stats()
 }
 
 ConsoleCommand2 netmeter_cmd{
-    "cl_netmeter",
+    "ui_show_netmeter",
     [] {
         g_alpine_game_config.netmeter_display = !g_alpine_game_config.netmeter_display;
         rf::console::print("Net meter display is {}", g_alpine_game_config.netmeter_display ? "enabled" : "disabled");
     },
     "Toggle the obj_update (netfps) rate and jitter meter",
-    "cl_netmeter",
+    "ui_show_netmeter",
 };
 
 void netmeter_apply_patches()

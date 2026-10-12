@@ -790,7 +790,8 @@ std::optional<AfRemoteAmmo> af_gather_remote_ammo(rf::Entity* entity)
     }
     const int ammo_type = rf::weapon_types[weapon].ammo_type;
     if (ammo_type < 0 || ammo_type >= std::ssize(entity->ai.ammo)) {
-        xlog::debug("obj_update packet tried to process an invalid ammo type: {}", ammo_type); // todo: figure out why this happens sometimes on specific maps???
+        // todo: figure out why this happens sometimes on specific maps???
+        xlog::debug("obj_update packet tried to process an invalid ammo type: {}", ammo_type);
         return {};
     }
     return AfRemoteAmmo{static_cast<uint8_t>(weapon), static_cast<uint8_t>(ammo_type),
@@ -824,7 +825,8 @@ static void af_process_obj_update_delta_packet(const void* data, size_t len, con
     RF_GamePacketHeader header;
     std::memcpy(&header, data, sizeof(header));
     if (len != sizeof(header) + header.size) {
-        xlog::warn("af_obj_update_delta packet has unexpected size! Expected {}, got {}", sizeof(header) + header.size, len);
+        xlog::warn("af_obj_update_delta packet has unexpected size! Expected {}, got {}", sizeof(header) + header.size,
+                   len);
         return;
     }
     obj_update_delta::client_receive(static_cast<const uint8_t*>(data) + sizeof(header), header.size, addr);

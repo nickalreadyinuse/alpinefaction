@@ -1,13 +1,13 @@
 #pragma once
 
-// Measured obj_update flow on the client, from cl_netmeter sampling in netmeter.cpp.
+// Measured obj_update flow on the client, from ui_show_netmeter sampling in netmeter.cpp.
 // Rates are packets per second; jitter is the mean deviation of inter-packet time in ms.
 struct NetMeterStats
 {
     float in_rate;
     float in_jitter;
     float in_max_gap;  // largest inter-arrival time in the window, ms
-    float in_loss;     // estimated % of expected packets missing
+    float in_missed;   // % of the expected packets that never arrived (not sent or lost)
     float in_stale;    // peak ms since the last obj_update, over the display refresh interval
     float out_rate;
     float out_jitter;

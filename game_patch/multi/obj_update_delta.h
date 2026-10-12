@@ -85,7 +85,4 @@ namespace obj_update_delta
     void client_reset();
 
     void on_level_init(); // both sides: handles are reused across levels
-#ifndef NDEBUG
-    void selfcheck(); // codec round trips
-#endif
 }

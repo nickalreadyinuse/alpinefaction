@@ -126,13 +126,11 @@ namespace
         }
     }
 
-    using MultiIoPacketHandler = void(char* data, const rf::NetAddr& addr);
-
     // The item_update bitmap is the only channel through which a spectator learns about
     // level-item pickups/respawns, so its handler is the natural edge-detection point.
     // Correct through seek fast-forward bursts too: the pump advances the demo clock
     // per-record before feeding. Pure passthrough outside demo playback.
-    FunHook<MultiIoPacketHandler> process_item_update_packet_hook{
+    FunHook<rf::MultiIoPacketHandler> process_item_update_packet_hook{
         0x0047A220,
         [](char* data, const rf::NetAddr& addr) {
             process_item_update_packet_hook.call_target(data, addr);

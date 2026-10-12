@@ -1379,6 +1379,10 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
         if (auto v = node.value<int64_t>())
             cfg.projectile_lag_comp_max_ms = std::clamp(static_cast<int>(*v), 50, 500);
     }
+    else if (key == "delta_obj_update") {
+        if (auto v = node.value<bool>())
+            cfg.delta_obj_update = *v;
+    }
 }
 
 // apply base config toml tables
@@ -2335,6 +2339,7 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     if (cfg.projectile_lag_comp) {
         std::format_to(iter, "    Max compensation:                    {}ms\n", cfg.projectile_lag_comp_max_ms);
     }
+    std::format_to(iter, "  Delta object updates:                  {}\n", cfg.delta_obj_update);
 
     // inactivity
     std::format_to(iter, "  Identify inactive players:             {}\n", cfg.inactivity_config.enabled);

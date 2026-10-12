@@ -23,10 +23,3 @@ uint16_t obj_interp_oldest_tick(const rf::Entity* ep);
 float obj_interp_target_delay_ms(float interval_ms, float jitter_ms);
 // Same, measured from the ring's own arrival gaps
 float obj_interp_target_delay_ms(const rf::ObjInterp* interp);
-
-// Marks the per-frame pose evaluation; inside it the tick evaluators add the entity's sub-ms clock fraction
-struct ObjInterpFrameEval
-{
-    ObjInterpFrameEval();
-    ~ObjInterpFrameEval();
-};

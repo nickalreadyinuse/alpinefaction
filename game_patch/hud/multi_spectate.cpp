@@ -959,9 +959,8 @@ static void spectate_delete_current_dropped_camera()
 // targets the way the shooter saw them - the same rewind the server's lag compensation
 // applied when it validated their hits. The ring holds real received history (the
 // engine's 20 keyframes plus AF's deeper obj_interp_history, ~1s+), so this stays
-// smooth. Projectiles/corpses/
-// movers are not biased: tracers must leave the (un-delayed) POV muzzle, and alignment
-// only matters against players.
+// smooth. Projectiles/corpses/movers are not biased: tracers must leave the (un-delayed)
+// POV muzzle, and alignment only matters against players.
 //
 
 static int g_povcomp_override_ms = -1; // >= 0: fixed delay instead of ping-derived
@@ -1051,9 +1050,6 @@ static int povcomp_bias_for(rf::Entity* entity)
 
 static void povcomp_interp_call(rf::Entity* entity, auto& hook)
 {
-    // Every remote entity's per-frame evaluation passes through here, spectating or not: mark it so
-    // the tick evaluators (obj_interp_history.cpp) add the playout clock's sub-ms part
-    ObjInterpFrameEval frame_eval;
     // povcomp only biases interp state during demo playback or while following a
     // player in spectate; leave every other frame's interp untouched.
     if (!demo_playback_active() && !multi_spectate_is_following_player()) {

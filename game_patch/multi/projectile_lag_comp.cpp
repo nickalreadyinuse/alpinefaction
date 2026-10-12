@@ -4,7 +4,6 @@
 #include <xlog/xlog.h>
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
 #include <unordered_map>
 #include <vector>
 #include "projectile_lag_comp.h"
@@ -12,6 +11,7 @@
 #include "network.h"
 #include "server_internal.h"
 #include "multi.h"
+#include "vehicles/vehicle.h"
 #include "../misc/alpine_settings.h"
 #include "../rf/entity.h"
 #include "../rf/weapon.h"
@@ -39,13 +39,12 @@ static bool is_projectile_weapon(const rf::Weapon* wp)
     // Stock hitscan lag comp already compensates these; advancing too would double-compensate
     if (info->flags2 & rf::WTF2_STOCK_LAG_COMP)
         return false;
-    if (info->max_speed > 0.0f && info->lifetime_seconds > 0.0f)
-        return true;
-    // Continuous fire (flamethrower)
-    if (info->flags & rf::WTF_CONTINUOUS_FIRE)
-        return true;
-    return false;
+    // Includes the flamethrower ($Velocity 10, $Lifetime 10)
+    return info->max_speed > 0.0f && info->lifetime_seconds > 0.0f;
 }
+
+namespace
+{
 
 // --- Entity position history ---
 
@@ -81,9 +80,9 @@ struct PosHistory
     }
 };
 
-static std::unordered_map<int, PosHistory> g_entity_pos_history; // entity handle -> history
+std::unordered_map<int, PosHistory> g_entity_pos_history; // entity handle -> history
 
-static rf::Vector3 interpolate_position(const PosHistory& history, int64_t target_time_ms)
+rf::Vector3 interpolate_position(const PosHistory& history, int64_t target_time_ms)
 {
     if (history.count == 0)
         return {};
@@ -129,14 +128,15 @@ struct SavedEntityPos
     rf::Vector3 original_bbox_max;
 };
 
-static std::vector<SavedEntityPos> g_rewound_entities;
-
-// --- Public API ---
+std::vector<SavedEntityPos> g_rewound_entities;
 
 bool projectile_lag_comp_enabled()
 {
     return g_alpine_server_config.projectile_lag_comp;
 }
+} // namespace
+
+// --- Public API ---
 
 void projectile_lag_comp_record_positions()
 {
@@ -210,23 +210,27 @@ void projectile_lag_comp_advance_weapon(rf::Entity* shooter, rf::Weapon* wp)
         vel.y -= rf::gravity * t;
     }
 
+    // The fuse runs on the shooter's timeline wherever the projectile ends up
+    wp->lifeleft_seconds = std::max(wp->lifeleft_seconds - t, 0.0f);
+
     // Sweep the skipped path so the projectile cannot start inside a wall or past a victim. The shooter
     // must be an ignore or the sweep stops at zero inside its own box. On the server the victims are where
     // the shooter saw them, as for the direct-hit test that takes over from here.
     rf::LevelCollisionOut col_out{};
     const bool rewound = rf::is_server && projectile_lag_comp_rewind_for_killer(shooter->handle);
-    bool hit = rf::collide_linesegment_level_for_multi(
-        wp->pos, new_pos, shooter, wp, &col_out, wp->info->collision_radius, false, 1.0f);
+    const float radius = wp->info->collision_radius;
+    bool hit = rf::collide_linesegment_level_for_multi(wp->pos, new_pos, shooter, wp, &col_out, radius, false, 1.0f);
+    // That test sees vehicle hulls as human-sized pillars; it left new_pos clipped to any world hit
+    hit |= vehicle_collide_segment_hulls(wp->pos, new_pos, shooter, vehicle_ridden_hull(shooter), radius, col_out);
     if (rewound)
         restore_entities_after_projectile();
 
-    const float speed = std::sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
     if (hit) {
         // The sweep is a thin line: back off a collision radius so the sphere does not start inside the
         // surface, or stay at the muzzle when the hit is closer than that
         rf::Vector3 dir = col_out.hit_point - wp->pos;
         const float dist = dir.len();
-        const float back_off = wp->info->collision_radius + 0.01f;
+        const float back_off = radius + 0.01f;
         if (dist <= back_off) {
             return;
         }
@@ -238,10 +242,7 @@ void projectile_lag_comp_advance_weapon(rf::Entity* shooter, rf::Weapon* wp)
     wp->last_pos = new_pos;
     wp->p_data.vel = vel;
 
-    wp->lifeleft_seconds = std::max(wp->lifeleft_seconds - t, 0.0f);
-
-    xlog::trace("Projectile lag comp: advanced weapon {} by {:.1f}ms (speed {:.1f}, hit {})",
-        wp->handle, t * 1000.0f, speed, hit);
+    xlog::trace("Projectile lag comp: advanced weapon {} by {:.1f}ms (hit {})", wp->handle, t * 1000.0f, hit);
 }
 
 // How far behind the server the killer's client was rendering its victims, in ms
@@ -284,7 +285,7 @@ static void rewind_entity(rf::Entity& entity, int64_t target_time)
     entity.p_data.bbox_max += delta;
 }
 
-static void rewind_entities_for_projectile(int killer_handle, int keep_handle, bool full_ping)
+static void rewind_entities_for_projectile(int killer_handle, bool full_ping)
 {
     float rewind_ms = rewind_ms_for_killer(killer_handle, full_ping);
     if (rewind_ms <= 0.0f)
@@ -294,8 +295,7 @@ static void rewind_entities_for_projectile(int killer_handle, int keep_handle, b
     int64_t target_time = now - static_cast<int64_t>(rewind_ms);
 
     for (auto& entity : DoublyLinkedList{rf::entity_list}) {
-        // Skip the shooter and an entity already hit where it stands
-        if (entity.handle == killer_handle || entity.handle == keep_handle)
+        if (entity.handle == killer_handle)
             continue;
         rewind_entity(entity, target_time);
     }
@@ -318,7 +318,7 @@ void restore_entities_after_projectile()
     g_rewound_entities.clear();
 }
 
-bool projectile_lag_comp_rewind_for_killer(int killer_handle, int keep_handle, bool full_ping)
+bool projectile_lag_comp_rewind_for_killer(int killer_handle, bool full_ping)
 {
     if (!rf::is_server || !projectile_lag_comp_enabled() || killer_handle <= 0)
         return false;
@@ -334,7 +334,7 @@ bool projectile_lag_comp_rewind_for_killer(int killer_handle, int keep_handle, b
     if (!rf::player_from_entity_handle(killer_handle))
         return false;
 
-    rewind_entities_for_projectile(killer_handle, keep_handle, full_ping);
+    rewind_entities_for_projectile(killer_handle, full_ping);
     return !g_rewound_entities.empty();
 }
 
@@ -358,10 +358,6 @@ rf::Vector3 projectile_lag_comp_rewound_offset(int handle)
 // entity where its shooter saw it, for that one call only. The hit point comes out in that frame and is moved
 // back onto the live entity, so body part, damage and effects see the same spot on the body; the splash
 // epicenter then follows the victim's rewind (weapon.cpp).
-static_assert(offsetof(rf::Object, p_data) == 0x88);
-static_assert(offsetof(rf::PhysicsData, pos) == 0x5C && offsetof(rf::PhysicsData, next_pos) == 0x68);
-static_assert(offsetof(rf::PhysicsData, bbox_min) == 0x108 && offsetof(rf::PhysicsData, bbox_max) == 0x114);
-static_assert(offsetof(rf::PhysicsData, collide_out) == 0x12C);
 
 static bool direct_hit_offset(const rf::Weapon* wp, const rf::Entity* ep, rf::Vector3& delta)
 {

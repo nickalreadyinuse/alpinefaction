@@ -28,11 +28,30 @@ public:
         bytes(&v, sizeof(v));
     }
 
-    void u8(uint8_t v) { put(v); }
-    void u16(uint16_t v) { put(v); }
-    void u32(uint32_t v) { put(v); }
-    void i32(int32_t v) { put(v); }
-    void f32(float v) { put(v); }
+    void u8(uint8_t v)
+    {
+        put(v);
+    }
+
+    void u16(uint16_t v)
+    {
+        put(v);
+    }
+
+    void u32(uint32_t v)
+    {
+        put(v);
+    }
+
+    void i32(int32_t v)
+    {
+        put(v);
+    }
+
+    void f32(float v)
+    {
+        put(v);
+    }
 
     // u8 length prefix; longer strings are truncated to 255 bytes
     void str(std::string_view s)
@@ -54,9 +73,20 @@ public:
         m_off += n;
     }
 
-    void fail() { m_ok = false; }
-    [[nodiscard]] bool ok() const { return m_ok; }
-    [[nodiscard]] size_t size() const { return m_off; }
+    void fail()
+    {
+        m_ok = false;
+    }
+
+    [[nodiscard]] bool ok() const
+    {
+        return m_ok;
+    }
+
+    [[nodiscard]] size_t size() const
+    {
+        return m_off;
+    }
 
 private:
     std::byte* m_buf;
@@ -104,11 +134,30 @@ public:
         return true;
     }
 
-    uint8_t u8() { return read<uint8_t>(); }
-    uint16_t u16() { return read<uint16_t>(); }
-    uint32_t u32() { return read<uint32_t>(); }
-    int32_t i32() { return read<int32_t>(); }
-    float f32() { return read<float>(); }
+    uint8_t u8()
+    {
+        return read<uint8_t>();
+    }
+
+    uint16_t u16()
+    {
+        return read<uint16_t>();
+    }
+
+    uint32_t u32()
+    {
+        return read<uint32_t>();
+    }
+
+    int32_t i32()
+    {
+        return read<int32_t>();
+    }
+
+    float f32()
+    {
+        return read<float>();
+    }
 
     // u8 length prefix
     std::string str()
@@ -132,9 +181,20 @@ public:
         m_pos += n;
     }
 
-    [[nodiscard]] bool ok() const { return m_ok; }
-    [[nodiscard]] size_t remaining() const { return m_ok ? m_len - m_pos : 0; }
-    [[nodiscard]] const uint8_t* cur() const { return m_data + m_pos; }
+    [[nodiscard]] bool ok() const
+    {
+        return m_ok;
+    }
+
+    [[nodiscard]] size_t remaining() const
+    {
+        return m_ok ? m_len - m_pos : 0;
+    }
+
+    [[nodiscard]] const uint8_t* cur() const
+    {
+        return m_data + m_pos;
+    }
 
 private:
     template<typename T>

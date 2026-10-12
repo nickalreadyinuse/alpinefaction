@@ -609,10 +609,9 @@ namespace
 
     // The interp rings run on wall-clock time, which the pause freeze cannot stop:
     // the per-frame advance (obj_interp_frame_advance_hook on 0x00483BE0) steps interp_time
-    // by the timer delta since frame_time_us (timer_get(1000000) us), and sample
-    // insertion (ObjInterp::set_next_pos_orient
-    // @ 0x00483360) records the timer_get(1000) gap since last_update_time into
-    // arrive_time_diff - whose 20-entry average is the physics-extrapolation step
+    // by the timer delta since frame_time_us (timer_get(1000000) us), and sample insertion
+    // (ObjInterp::set_next_pos_orient @ 0x00483360) records the timer_get(1000) gap since
+    // last_update_time into arrive_time_diff - whose 20-entry average is the physics-extrapolation step
     // and re-anchor headroom for every later sample. The freeze stops the sim and
     // the packet feed but not the wall clock, so after a long pause the first fed
     // obj_update would log the whole pause as one arrival gap, polluting the average
@@ -1053,7 +1052,11 @@ namespace
     // targets the way the shooter saw them - the same rewind the server's lag
     // compensation applied when it validated their hits. The ring holds real recorded
     // history (the engine's 20 keyframes plus AF's deeper obj_interp_history, ~1s+), so
-    // this stays smooth.
+    // this stays smooth, unlike the considered alternative of extrapolating the POV camera
+    // forward by ping, which predicts beyond the recorded data and jitters exactly where
+    // the viewer is looking. Projectiles/corpses/movers are not biased: tracers must leave
+    // the (un-delayed) POV muzzle, and alignment only matters against players.
+
     bool g_povcomp_enabled = true;
     int g_povcomp_override_ms = -1; // >= 0: fixed delay instead of ping-derived
 

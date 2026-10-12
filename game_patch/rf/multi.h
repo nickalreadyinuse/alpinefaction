@@ -368,8 +368,10 @@ namespace rf
     static auto& send_obj_kill_packet = addr_as_ref<void(Entity* killed_entity, Item* item, int* a3)>(0x0047E8C0);
     static auto& send_obj_update_packet = addr_as_ref<void()>(0x0047E5B0); // client -> server
     static auto& send_obj_update_packet_timestamp = addr_as_ref<TimestampRealtime>(0x006FB424);
+    // Signature of every process_*_packet handler multi_io_process_packets dispatches to
+    using MultiIoPacketHandler = void(char* data, const NetAddr& addr);
     // data points past the 3-byte header; reads records until the 0xFFFFFFFF terminator
-    static auto& process_obj_update_packet = addr_as_ref<void(char* data, const NetAddr& addr)>(0x0047DF90);
+    static auto& process_obj_update_packet = addr_as_ref<MultiIoPacketHandler>(0x0047DF90);
     static auto& multi_pack_obj_update_data = addr_as_ref<int(Player* pp, Object* obj, uint8_t* out)>(0x0047DB20);
     static auto& send_item_create_packet = addr_as_ref<void(Item* item, Player* recipient, int16_t level_item_index)>(0x00479A20);
     static auto& send_item_apply_packet = addr_as_ref<void(Player* to, int item_handle, int entity_handle, int weapon, int ammo, int clip_ammo)>(0x00479810);

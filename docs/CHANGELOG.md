@@ -35,7 +35,7 @@ Version 1.5.0 (Trillium): Not yet released
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Overhaul multiplayer netcode
-  - Delta-compress server object updates against client-acknowledged snapshots, sharply reducing server bandwidth
+  - Delta-compress server object updates against client-acknowledged snapshots, sharply reducing server bandwidth (`delta_obj_update` in the dedicated server config turns it off)
   - Replace the remote player interpolation clock with a jitter-adaptive one, and interpolate along replicated velocities
   - Keep a deeper remote player history (128 keyframes) so spectate and demo POV compensation reach further back
   - Send client object updates at an exact 40 per second at any frame rate
@@ -124,7 +124,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `ui_color_console` console command to set the console background color
 - Render animated (`.vfx`) meshes on the GPU with per-pixel lighting, and apply their materials' reflection maps (Direct3D 11 renderer only)
 - Load levels with very large face counts or many level sounds much faster
-- Add `cl_netmeter` console command to show network rate, jitter, loss, interpolation delay and bandwidth
+- Add `ui_show_netmeter` console command to show network rate, jitter, missed updates, interpolation delay and bandwidth
 
 [@is-this-c](https://github.com/is-this-c)
 - Render `LOADING...` upon level changes in multi

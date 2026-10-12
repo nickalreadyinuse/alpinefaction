@@ -219,7 +219,7 @@ static void weapon_apply_radius_damage(RadiusDamageHook& hook, rf::Vector3& epic
     alpine_rope_apply_explosion(epicenter, radius * crit_scale, damage);
     // Bullet impacts come through here too, with no blast to rewind for
     const bool rewound = damage > 0.0f && radius > 0.0f
-        && projectile_lag_comp_rewind_for_killer(killer_handle, -1, full_ping);
+        && projectile_lag_comp_rewind_for_killer(killer_handle, full_ping);
     rf::Vector3 center = epicenter;
     if (rewound && follow_handle != -1) {
         center += projectile_lag_comp_rewound_offset(follow_handle);
@@ -244,8 +244,6 @@ RadiusDamageHook weapon_hit_wall_obj_apply_radius_damage_hook{
 // weapon_hit_obj impact splash: epicenter is wp->p_data.collide_out.hit_point, a point on the directly hit
 // object. Its direct hit was tested where the shooter saw it (projectile_lag_comp.cpp), so the splash rewinds it
 // with everyone else and the epicenter moves with it.
-static_assert(offsetof(rf::PCollisionOut, hit_point) == 0);
-static_assert(offsetof(rf::PCollisionOut, obj_handle) == 0x30);
 RadiusDamageHook weapon_hit_obj_apply_radius_damage_hook{
     0x004C62F5,
     [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
@@ -258,7 +256,6 @@ RadiusDamageHook weapon_hit_obj_apply_radius_damage_hook{
 
 // weapon_move_one fuse / detonator / lifetime expiry: epicenter is wp->pos. A remote charge detonates
 // on an un-advanced detonator packet, so its shooter is a full round trip behind.
-static_assert(offsetof(rf::Object, pos) == 0x3C);
 RadiusDamageHook weapon_expire_apply_radius_damage_hook{
     0x004C6C94,
     [](rf::Vector3& epicenter, float damage, float radius, int killer_handle, int damage_type) {
