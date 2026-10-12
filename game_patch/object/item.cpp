@@ -26,8 +26,6 @@
 #include "../multi/demo/demo.h"
 #include "object.h"
 
-constexpr int item_pool_capacity = 200;
-
 int item_lookup_type(const char* name)
 {
     if (!name || rf::num_item_types <= 0)
@@ -71,7 +69,8 @@ FunHook<rf::Item*(int, const char*, int, int, const rf::Vector3*, rf::Matrix3*, 
        rf::Matrix3* orient, int respawn_time, bool permanent, bool from_packet) -> rf::Item* {
         // Keep one pool slot free for a gametype objective item that does not exist yet, so
         // weapon drops on a full map cannot starve the Salvage flag or Bagman bag.
-        if (rf::is_server && rf::item_pool_num_used >= item_pool_capacity - 1
+        const int capacity = level_allows_extra_items() ? extended_item_limit : stock_item_limit;
+        if (rf::is_server && rf::item_pool_num_used >= capacity - 1
             && (salvage_reserves_item_slot(type) || bagman_reserves_item_slot(type))) {
             return nullptr;
         }
