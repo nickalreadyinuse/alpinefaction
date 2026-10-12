@@ -35,7 +35,7 @@ Version 1.5.0 (Trillium): Not yet released
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Overhaul multiplayer netcode
-  - Delta-compress server object updates against client-acknowledged snapshots, sharply reducing server bandwidth (`delta_obj_update` in the dedicated server config turns it off)
+  - Delta-compress server object updates against client-acknowledged snapshots, sharply reducing server bandwidth, configurable with `delta_obj_update` in the dedicated server config
   - Replace the remote player interpolation clock with a jitter-adaptive one, and interpolate along replicated velocities
   - Keep a deeper remote player history (128 keyframes) so spectate and demo POV compensation reach further back
   - Send client object updates at an exact 40 per second at any frame rate

@@ -195,7 +195,7 @@ ConsoleCommand2 netmeter_cmd{
         g_alpine_game_config.netmeter_display = !g_alpine_game_config.netmeter_display;
         rf::console::print("Net meter display is {}", g_alpine_game_config.netmeter_display ? "enabled" : "disabled");
     },
-    "Toggle the obj_update (netfps) rate and jitter meter",
+    "Toggle the network meter (update rate, jitter, missed updates, interp delay, bandwidth)",
     "ui_show_netmeter",
 };
 

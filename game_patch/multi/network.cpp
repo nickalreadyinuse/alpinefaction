@@ -3009,33 +3009,32 @@ namespace
     // Waits for the deadline, or until a newer packet is handed over: a forced fire-state send must not
     // queue behind the held one, which then goes out early instead. timer is null under Wine, where (as in
     // wait_for, os.cpp) the high-resolution timer is a no-op and waits on kernel objects cost wineserver
-    // round trips: it sleeps in-process there and checks for a newer packet every millisecond.
+    // round trips: it sleeps in-process there and checks for a newer packet every millisecond. No spin: the
+    // keyframe tick is stamped at build time, and the wake granularity (~0.5 ms, 1 ms on the sleep and timeout
+    // paths) is small against the send interval.
     void timed_send_wait(TimedSend* s, const WaitableTimer* timer, int64_t deadline_qpc)
     {
         const int64_t per_ms = g_qpc_frequency.QuadPart / 1000;
         if (!timer) {
-            for (int64_t left = deadline_qpc - qpc_now(); left > 2 * per_ms; left = deadline_qpc - qpc_now()) {
+            while (qpc_now() < deadline_qpc) {
                 Sleep(1);
                 std::lock_guard lock{s->mutex};
                 if (s->pending) {
                     return;
                 }
             }
-            while (qpc_now() < deadline_qpc) {
-                YieldProcessor();
-            }
             return;
         }
-        // Block to within 1 ms (the high-resolution timer's granularity is ~0.5 ms), spin the rest
-        for (int64_t left = deadline_qpc - qpc_now(); left > per_ms; left = deadline_qpc - qpc_now()) {
-            LARGE_INTEGER due{.QuadPart = -(left - per_ms) * 10'000 / per_ms}; // relative, 100 ns units
+        for (int64_t left = deadline_qpc - qpc_now(); left > 0; left = deadline_qpc - qpc_now()) {
+            LARGE_INTEGER due{.QuadPart = -left * 10'000 / per_ms}; // relative, 100 ns units
             DWORD result;
             if (timer->handle && SetWaitableTimer(timer->handle, &due, 0, nullptr, nullptr, FALSE)) {
                 const HANDLE handles[] = {s->handed_over, timer->handle};
                 result = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
             }
             else {
-                result = WaitForSingleObject(s->handed_over, static_cast<DWORD>(left / per_ms - 1));
+                // Never 0, so a sub-ms remainder still blocks instead of spinning
+                result = WaitForSingleObject(s->handed_over, static_cast<DWORD>(std::max<int64_t>(1, left / per_ms)));
             }
             if (result == WAIT_OBJECT_0) {
                 std::lock_guard lock{s->mutex};
@@ -3043,9 +3042,6 @@ namespace
                     return; // else stale: signalled for the packet being held
                 }
             }
-        }
-        while (qpc_now() < deadline_qpc) {
-            YieldProcessor();
         }
     }
 

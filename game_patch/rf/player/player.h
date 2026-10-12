@@ -133,7 +133,7 @@ struct PlayerAdditionalData {
     // Server-side variables.
     bool in_grace_period = true;
     ClientVersionInfoProfile version_info{};
-    bool delta_obj_update = false; // client asked for af_obj_update_delta at join
+    bool delta_obj_update = false; // agreed at join: client asked and the server offered it
     obj_update_delta::Sender delta_sender{};
     std::optional<std::chrono::steady_clock::time_point> death_time{};
     std::optional<std::chrono::steady_clock::time_point> spectate_start_time{};
