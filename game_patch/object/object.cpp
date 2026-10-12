@@ -141,7 +141,9 @@ CodeInjection obj_create_find_slot_patch{
 
         int index_hint, min_index, max_index;
         bool use_low_index;
-        if (rf::is_server && (obj_type == rf::OT_ENTITY || obj_type == rf::OT_ITEM)) {
+        // Only AF clients can load v306+ levels, so their items do not need low object numbers
+        if (rf::is_server
+            && (obj_type == rf::OT_ENTITY || (obj_type == rf::OT_ITEM && !level_allows_extra_items()))) {
             // Use low object numbers server-side for entities and items for better client compatibility
             use_low_index = true;
             index_hint = low_index_hint;
@@ -209,6 +211,21 @@ CallHook<void*(size_t)> GPool_allocate_new_hook{
         }
         return result;
     },
+};
+
+// Reads the version directly because level items are created during load, before LEVEL_LOADED is set.
+bool level_allows_extra_items()
+{
+    return rf::level.version >= 306;
+}
+
+CodeInjection obj_create_item_limit_patch{
+    0x004871D9,
+    [](auto& regs) {
+        const int limit = level_allows_extra_items() ? extended_item_limit : stock_item_limit;
+        regs.eip = rf::item_pool_num_used < limit ? 0x004871E9 : 0x004872BC;
+    },
+    false
 };
 
 CodeInjection sort_clutter_patch{
@@ -1270,6 +1287,7 @@ void object_do_patch()
     write_mem<u8>(0x0048B5BB, asm_opcodes::jmp_rel_short); // weapon
     write_mem<u8>(0x0048B72B, asm_opcodes::jmp_rel_short); // debris
     write_mem<u8>(0x0048B89B, asm_opcodes::jmp_rel_short); // corpse
+    write_mem<u8>(0x0048BA0B, asm_opcodes::jmp_rel_short); // item
     write_mem<u8>(0x004D7EEB, asm_opcodes::jmp_rel_short); // decal poly
     write_mem<u8>(0x004E3C5B, asm_opcodes::jmp_rel_short); // face
     write_mem<u8>(0x004E3DEB, asm_opcodes::jmp_rel_short); // face vertex
@@ -1280,8 +1298,8 @@ void object_do_patch()
     // Remove object type-specific limits
     AsmWriter(0x0048712A, 0x00487137).nop(); // corpse
     AsmWriter(0x00487173, 0x00487180).nop(); // debris
-    AsmWriter(0x004871D9, 0x004871E9).nop(); // item
     AsmWriter(0x00487271, 0x0048727A).nop(); // weapon
+    obj_create_item_limit_patch.install();   // item: stock limit only in pre-v306 levels
 
     // Zero memory allocated from GPool dynamically
     GPool_allocate_new_hook.install();
