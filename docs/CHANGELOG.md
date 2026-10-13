@@ -234,6 +234,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix new levels in the level editor defaulting to legacy `Cyclic_Timer` and mover behaviour
 - Fix Salvage flag and Bagman bag failing to spawn when a level's item count is at the engine limit
 - Fix crash reports leaving out memory regions and backtrace frames above 2 GB when the game or level editor runs with 4 GB of address space
+- Fix the Rail Driver beam veering away from the shot's path after piercing a surface, toggleable with `cl_railbeamfix`
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
