@@ -120,6 +120,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `Select All`, `Fit UVs` and `Auto Unwrap`, and a `Color each face` option to the level editor `UV Unwrap` window
 - Add 256 x 256 and 512 x 512 thumbnail sizes and a `Format` filter to the level editor texture browser, make it resizable and scroll it with the mouse wheel
 - Draw the sky in the level editor's `Render Everything` mode when `Draw Sky` is on, as the portal render modes do
+- Add `$Looping Sound` `mapname_info.tbl` option to make custom sound files loop
+- Make the `Looping` checkbox on `Play_Sound` and `Music_Start` events work (RFL v306+)
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -140,6 +142,7 @@ Version 1.5.0 (Trillium): Not yet released
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix phantom visual flag mesh being visible after Salvage flag is picked up on rare occasions
+- Fix music not starting while the music volume is muted or very low
 - Fix scrolling textures jumping forward when the Direct3D 11 renderer rebuilds a room's render cache, most visibly after a brush-based geomod crater
 - Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
