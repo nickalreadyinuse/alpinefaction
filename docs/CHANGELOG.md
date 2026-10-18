@@ -26,6 +26,7 @@ Version 1.5.0 (Trillium): Not yet released
   - Mirror `Terrain Tools` brush strokes across the terrain's X and/or Z axis, with movable mirror lines
   - Up to 4 detail overlays (leaves, debris) and 8 mesh decoration layers per terrain (grass, rocks, bushes)
   - `Geoable` terrains are carved by RF2-style geomod craters, with their own underside and crater textures
+- Add new multiplayer game type: Scavenger (`SCAV`)
 
 [@GooberRF](https://github.com/GooberRF) & [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add multiplayer vehicles and turrets
@@ -122,6 +123,9 @@ Version 1.5.0 (Trillium): Not yet released
 - Draw the sky in the level editor's `Render Everything` mode when `Draw Sky` is on, as the portal render modes do
 - Add `$Looping Sound` `mapname_info.tbl` option to make custom sound files loop
 - Make the `Looping` checkbox on `Play_Sound` and `Music_Start` events work (RFL v306+)
+- Allow `sv_gametype` (`gt`) to start a local game on a level in a chosen game type
+- Add console tab completion of game types and level names for `sv_gametype` (`gt`)
+- Add Salvage flag placement for community level `CTF_TERROR.rfl`
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -142,7 +146,6 @@ Version 1.5.0 (Trillium): Not yet released
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix phantom visual flag mesh being visible after Salvage flag is picked up on rare occasions
-- Fix music not starting while the music volume is muted or very low
 - Fix scrolling textures jumping forward when the Direct3D 11 renderer rebuilds a room's render cache, most visibly after a brush-based geomod crater
 - Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
@@ -258,6 +261,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix the `Material` filter in the level editor texture browser not working properly
 - Fix a very long `Name` filter in the level editor texture browser corrupting the editor's memory
 - Fix the level editor `UV Unwrap` window selecting vertices when a mouse button pressed outside its view is released over it
+- Fix listen server hosts only seeing automated server messages in the console instead of in chat
+- Fix music not starting while the music volume is muted or very low
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize

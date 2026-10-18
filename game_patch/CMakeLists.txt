@@ -130,6 +130,8 @@ set(SRCS
     hud/hud.h
     hud/hud_world.cpp
     hud/hud_world.h
+    hud/scavenger_zone.h
+    hud/scavenger_zone.cpp
     hud/minimap.cpp
     hud/minimap.h
     hud/remote_server_cfg_ui.cpp
@@ -172,6 +174,8 @@ set(SRCS
     multi/gungame.cpp
     multi/salvage.h
     multi/salvage.cpp
+    multi/scavenger.h
+    multi/scavenger.cpp
     multi/vehicles/vehicle.h
     multi/vehicles/vehicle.cpp
     multi/vehicles/vehicle_internal.h
