@@ -121,6 +121,18 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `Select All`, `Fit UVs` and `Auto Unwrap`, and a `Color each face` option to the level editor `UV Unwrap` window
 - Add 256 x 256 and 512 x 512 thumbnail sizes and a `Format` filter to the level editor texture browser, make it resizable and scroll it with the mouse wheel
 - Draw the sky in the level editor's `Render Everything` mode when `Draw Sky` is on, as the portal render modes do
+- Improve particle handling and performance:
+  - Stop simulating level-placed decorative particle emitters while they are out of view (`cl_particlecull`)
+  - Step particles at a fixed rate (`cl_particlefixedstep`, `cl_particlerate`)
+  - Test distant particles for world collision less often (`cl_particlecollidelod`)
+  - Raise the particle pool size to 8192 (`cl_particlepoolsize`)
+  - Raise the particle emitter limit from 128 to 8192
+  - Render particles, plankton, rain and snow on the GPU with instancing, and simulate rain and snow motion on the GPU (Direct3D 11 renderer only), toggleable with `dbg_particlegpu`
+  - Add `dbg_particles` overlay and `dbg_particles_log` to measure particle performance, and `dbg_particlewarmup` to toggle replaying a hidden particle emitter when it comes back into view
+- Raise the pitch of hit sounds as consecutive hits land, toggleable with `cl_hitsounds_streakpitch`
+- Raise the limit of simultaneously playing sounds from 64 to 127
+- Ejected shell casings now bounce off the level and play their impact sounds instead of falling through it, toggleable with `cl_shellcollide`, and last 2 seconds by default, adjustable with `cl_shelllifetime`
+- Add `cl_shellcasings` and `cl_magazines` to toggle ejected shell casings and magazines
 - Add `$Looping Sound` `mapname_info.tbl` option to make custom sound files loop
 - Make the `Looping` checkbox on `Play_Sound` and `Music_Start` events work (RFL v306+)
 - Allow `sv_gametype` (`gt`) to start a local game on a level in a chosen game type
@@ -261,6 +273,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix the `Material` filter in the level editor texture browser not working properly
 - Fix a very long `Name` filter in the level editor texture browser corrupting the editor's memory
 - Fix the level editor `UV Unwrap` window selecting vertices when a mouse button pressed outside its view is released over it
+- Fix spectate control hints overlapping the team scores in Wipeout
+- Fix long key names in spectate control hints running off the left edge of the screen
 - Fix listen server hosts only seeing automated server messages in the console instead of in chat
 - Fix music not starting while the music volume is muted or very low
 

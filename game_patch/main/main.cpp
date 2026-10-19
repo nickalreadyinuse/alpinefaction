@@ -31,6 +31,7 @@
 #include "../hud/multi_scoreboard.h"
 #include "../hud/multi_spectate.h"
 #include "../object/object.h"
+#include "../object/particle_sim.h"
 #include "../multi/multi.h"
 #include "../multi/demo/demo.h"
 #include "../multi/gametype.h"
@@ -249,6 +250,7 @@ CodeInjection after_frame_render_hook{
                 experimental_render();
 #endif
                 debug_render_ui();
+                particle_sim_render_ui();
             }
 
             // To dim our screen, and display "LOADING...", exit limbo here instead.
@@ -267,6 +269,7 @@ FunHook<int(rf::String&, rf::String&, char*)> level_load_hook{
         waypoints_level_reset();
         projector_clear_all();
         atx_level_reset();
+        particle_sim_level_reset();
         alpine_camera_clear_static_mode();
         if (!save_filename.empty())
             xlog::info("Restoring game from save file: {}", save_filename);
@@ -375,6 +378,7 @@ FunHook<void(bool)> level_init_post_hook{
         // After gametype init so the demo snapshot includes koth/bagman/salvage/pit state
         demo_server_on_level_init_post();
         gib_flames_level_init();
+        shell_casings_level_init();
         // Multiplayer resets the jetpack from its own level-init injection.
         if (!rf::is_multi) {
             jetpack_level_init();
