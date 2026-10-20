@@ -1634,7 +1634,9 @@ struct CDedLevel
     // --- compiled geometry ---
     GSolid* solid;                                // +0x4C (compiled geometry, 0x378-byte object)
     char _pad_50[0x54 - 0x50];                   // +0x50
-    int uid_counters[8];                          // +0x54 (all init -1, 32 bytes)
+    // The Cutscene and Brush Clip dialogs' placement (-1 for none): seeded from the preferences, set on close
+    RECT cutscene_dialog_rect;                    // +0x54
+    RECT brush_clip_dialog_rect;                  // +0x64
     char unk_74;                                  // +0x74 (init 0)
     char _pad_75[0x78 - 0x75];                   // +0x75
     float default_angles[32];                     // +0x78 (all init 89.9f, 128 bytes to +0xF8)
@@ -2004,6 +2006,8 @@ static_assert(offsetof(CDedLevel, fog_color) == 0x38);
 static_assert(offsetof(CDedLevel, fog_near_clip) == 0x3C);
 static_assert(offsetof(CDedLevel, fog_far_clip) == 0x40);
 static_assert(offsetof(CDedLevel, build_running) == 0x232);
+static_assert(offsetof(CDedLevel, cutscene_dialog_rect) == 0x54);
+static_assert(offsetof(CDedLevel, brush_clip_dialog_rect) == 0x64);
 static_assert(offsetof(CDedLevel, edit_mode) == 0xF8);
 static_assert(offsetof(CDedLevel, coords_local) == 0x100);
 static_assert(offsetof(CDedLevel, transform_mode) == 0x104);

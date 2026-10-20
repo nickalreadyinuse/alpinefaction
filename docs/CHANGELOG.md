@@ -119,7 +119,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Make texture paste in the level editor also apply the copied face's texture (toggleable with `Paste texture`), and align the copied texture onto faces with a different number of corners instead of skipping them
 - Add undo for texture paste and `Face Properties` in the level editor
 - Add `Select All`, `Fit UVs` and `Auto Unwrap`, and a `Color each face` option to the level editor `UV Unwrap` window
-- Add 256 x 256 and 512 x 512 thumbnail sizes and a `Format` filter to the level editor texture browser, make it resizable and scroll it with the mouse wheel
+- Add 256 x 256 and 512 x 512 thumbnail sizes and a `Format` filter to the level editor texture browser, make it resizable and scroll it with the mouse wheel, and remember its size, position and thumbnail size
 - Draw the sky in the level editor's `Render Everything` mode when `Draw Sky` is on, as the portal render modes do
 - Improve particle handling and performance:
   - Stop simulating level-placed decorative particle emitters while they are out of view (`cl_particlecull`)
@@ -138,6 +138,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Allow `sv_gametype` (`gt`) to start a local game on a level in a chosen game type
 - Add console tab completion of game types and level names for `sv_gametype` (`gt`)
 - Add Salvage flag placement for community level `CTF_TERROR.rfl`
+- Store level editor preferences in `alpine_editor.ini` instead of `red\red.cfg`, importing `red.cfg` on first launch
+- Add an `Alpine` page to the level editor `Preferences` window with options for the texture mode face outline and its color, the background frame rate limit, and always drawing meshes at full detail
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -161,6 +163,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix scrolling textures jumping forward when the Direct3D 11 renderer rebuilds a room's render cache, most visibly after a brush-based geomod crater
 - Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename
+- Fix a level editor crash when texture mode opens on a texture category with no textures
 - Fix level editor crashing without an error message when drawing a room or mesh containing more than 8000 vertices
 - Fix level editor crashing while calculating lighting for a level containing a smoothed face with more than 32 vertices
 - Lightmap baking fixes in the level editor, based on the `Glacier` level editor

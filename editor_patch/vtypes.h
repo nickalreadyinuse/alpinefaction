@@ -597,21 +597,53 @@ static_assert(sizeof(RedCacheBatch) == 0x50);
 static_assert(offsetof(RedCacheBatch, texture) == 0x40);
 static_assert(offsetof(RedCacheBatch, lightmap) == 0x44);
 
-// The Preferences page holding the editor's user configurable colours; the viewport painter
-// (0x0047DAE0) feeds the background one to set_draw_color before its clear.
+// A Visual page colour and the copy Cancel restores (taken at 0x00478F90, put back at 0x00479070)
+struct EditorColorPref
+{
+    Color color;
+    Color saved;
+};
+static_assert(sizeof(EditorColorPref) == 8);
+
+enum class EditorColorPrefIndex
+{
+    background,
+    grid,
+    cookie_cutter,
+    brush,
+    locked_brush,
+    detail_brush,
+    portal_brush,
+    mover_brush,
+    link,
+    keyframe_link,
+    node,
+    bounding_box,
+    trigger,
+    geo_region,
+    climb_region,
+    push_region,
+    count,
+};
+
+// The Visual page (template 0xE5) of the Preferences dialog; the viewport painter (0x0047DAE0) feeds the
+// background colour to set_draw_color before its clear.
 struct EditorColorPrefs
 {
-    uint8_t pad_00[0x424];
-    COLORREF background;
-    uint8_t pad_428[0x464 - 0x428];
-    uint8_t link_r;
-    uint8_t link_g;
-    uint8_t link_b;
+    uint8_t pad_00[0x41C];
+    DedFloatSpinner* far_clip; // 0x41C
+    float saved_far_clip;      // 0x420 — Cancel's copy
+    EditorColorPref colors[static_cast<int>(EditorColorPrefIndex::count)]; // 0x424
+
+    const Color& color(EditorColorPrefIndex index) const
+    {
+        return colors[static_cast<int>(index)].color;
+    }
 };
-static_assert(offsetof(EditorColorPrefs, background) == 0x424);
-static_assert(offsetof(EditorColorPrefs, link_r) == 0x464);
-static_assert(offsetof(EditorColorPrefs, link_g) == 0x465);
-static_assert(offsetof(EditorColorPrefs, link_b) == 0x466);
+static_assert(sizeof(EditorColorPrefs) == 0x4A4);
+static_assert(offsetof(EditorColorPrefs, far_clip) == 0x41C);
+static_assert(offsetof(EditorColorPrefs, saved_far_clip) == 0x420);
+static_assert(offsetof(EditorColorPrefs, colors) == 0x424);
 static auto& editor_color_prefs = addr_as_ref<EditorColorPrefs* __cdecl()>(0x00483E10);
 
 // character_mesh_load_action: __thiscall on mesh_data, loads .rfa file, returns action index

@@ -1076,6 +1076,26 @@ static_assert(offsetof(DedFloatSpinner, max_value) == 0xF0);
 static_assert(offsetof(DedFloatSpinner, on_change) == 0xFC);
 static_assert(offsetof(DedFloatSpinner, value) == 0x110);
 
+// The int counterpart of DedFloatSpinner (constructor 0x0044BB30).
+struct DedIntSpinner
+{
+    char _pad_00[0xEC];
+    int min_value; // +0xEC
+    int max_value; // +0xF0
+    char _pad_F4[0x108 - 0xF4];
+    int value;     // +0x108
+
+    // FUN_0044bf40: clamps v to the range, stores it and shows it in the edit when there is one
+    void set(int v)
+    {
+        AddrCaller{0x0044BF40}.this_call(this, v);
+    }
+};
+static_assert(sizeof(DedIntSpinner) == 0x10C);
+static_assert(offsetof(DedIntSpinner, min_value) == 0xEC);
+static_assert(offsetof(DedIntSpinner, max_value) == 0xF0);
+static_assert(offsetof(DedIntSpinner, value) == 0x108);
+
 // Level Properties (FUN_00402300 runs it modally; OnInitDialog 0x00467540 builds the fog spinners)
 struct CLevelDialog : CDialog
 {

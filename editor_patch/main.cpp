@@ -32,6 +32,7 @@
 #include "../game_patch/rf/os/array.h"
 #include "alpine_color_picker.h"
 #include "exports.h"
+#include "editor_settings.h"
 #include "file_dialogs.h"
 #include "resources.h"
 #include "mfc_types.h"
@@ -2385,6 +2386,7 @@ extern "C" DWORD AF_DLL_EXPORT Init([[maybe_unused]] void* unused)
     ApplyEventsPatches();
     ApplyAlpineObjectPatches();
     ApplyTexturesPatches();
+    ApplyEditorSettingsPatches();
     ApplyLightmapPatches();
     ApplyGeometryPatches();
     ApplyAlpineLightmapPatches();

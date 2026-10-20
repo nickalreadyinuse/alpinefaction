@@ -10,6 +10,8 @@ set(SRCS
     brush_import.h
     dialog_tooltips.cpp
     dialog_tooltips.h
+    editor_settings.cpp
+    editor_settings.h
     event.cpp
     file_dialogs.cpp
     file_dialogs.h

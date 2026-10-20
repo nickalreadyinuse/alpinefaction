@@ -19,6 +19,7 @@
 #include "alpine_obj.h"
 #include "alpine_spinner.h"
 #include "dialog_tooltips.h"
+#include "editor_settings.h"
 #include "level.h"
 #include "mfc_types.h"
 #include "resources.h"
@@ -1307,7 +1308,8 @@ constexpr uint8_t outline_occluded_alpha = 70;
 
 void draw_face_outline(const SelectedFace& f, uint8_t alpha, uint32_t mode)
 {
-    set_draw_color(255, 220, 0, alpha);
+    const COLORREF color = g_editor_settings.texture_hover_outline_color;
+    set_draw_color(GetRValue(color), GetGValue(color), GetBValue(color), alpha);
     for_each_corner(f.face, [&](GFaceVertex& fv) {
         const Vector3 a = corner_world(f, fv);
         const Vector3 b = corner_world(f, *fv.next);
@@ -1836,7 +1838,10 @@ void texture_mode_render_view()
     CDedLevel* level = CDedLevel::Get();
     const auto* view = static_cast<EditorViewport*>(editor_view_at(painting_view_index));
     const int face_id = g_texture_hover.face_id;
-    if (!level || !view || level->edit_mode != DedEditMode::Texture || !level->solid || face_id < 0) return;
+    if (!g_editor_settings.texture_hover_outline || !level || !view || level->edit_mode != DedEditMode::Texture
+        || !level->solid || face_id < 0) {
+        return;
+    }
     if (gr_batch_open) {
         gr_flush_batch();
     }

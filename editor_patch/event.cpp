@@ -1393,7 +1393,8 @@ struct LinkColor { int r, g, b; };
 static LinkColor get_link_color()
 {
     if (const EditorColorPrefs* prefs = editor_color_prefs()) {
-        return {prefs->link_r, prefs->link_g, prefs->link_b};
+        const Color& link = prefs->color(EditorColorPrefIndex::link);
+        return {link.r, link.g, link.b};
     }
     return {0, 0, 255};
 }

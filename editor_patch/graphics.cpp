@@ -14,10 +14,9 @@
 #include "level.h"
 #include "alpine_obj.h"
 #include "terrain_preview.h"
+#include "editor_settings.h"
 
 HWND GetMainFrameHandle();
-
-bool g_editor_force_lod0 = true;
 
 // After geometry rebuild, rooms allocated from recycled heap memory may have stale
 // non-NULL geo_cache pointers left over from the previous cycle. The D3D8 renderer
@@ -120,18 +119,21 @@ static u8** frame_slot(uintptr_t esp, unsigned offset)
 CallHook<void()> frametime_calculate_hook{
     0x00483047,
     []() {
-        HWND hwnd = GetMainFrameHandle();
-        if (!IsWindowVisible(hwnd)) {
-            // when minimized limit to 1 FPS
-            Sleep(1000);
-        }
-        else {
-            // Check if editor is the foreground window
-            HWND foreground_wnd = GetForegroundWindow();
-            bool editor_is_in_foreground = GetWindowThreadProcessId(foreground_wnd, nullptr) == GetCurrentThreadId();
-            // when editor is in background limit to 4 FPS
-            if (!editor_is_in_foreground) {
-                Sleep(250);
+        if (g_editor_settings.background_throttle) {
+            HWND hwnd = GetMainFrameHandle();
+            if (!IsWindowVisible(hwnd)) {
+                // when minimized limit to 1 FPS
+                Sleep(1000);
+            }
+            else {
+                // Check if editor is the foreground window
+                HWND foreground_wnd = GetForegroundWindow();
+                bool editor_is_in_foreground =
+                    GetWindowThreadProcessId(foreground_wnd, nullptr) == GetCurrentThreadId();
+                // when editor is in background limit to 4 FPS
+                if (!editor_is_in_foreground) {
+                    Sleep(250);
+                }
             }
         }
         frametime_calculate_hook.call_target();
@@ -583,6 +585,13 @@ CallHook<void __fastcall(GSolid*, int, char, int, char, const Vector3*, const Ma
     },
 };
 
+// Both LOD distance branches made unconditional (JZ, JNZ to JMP) always draw a mesh's first LOD.
+void editor_apply_force_lod0()
+{
+    const bool force = g_editor_settings.force_lod0;
+    write_mem<u8>(0x00507907, force ? 0xEB : 0x74);
+    write_mem<u8>(0x00507915, force ? 0xEB : 0x75);
+}
 
 void ApplyGraphicsPatches()
 {
@@ -798,11 +807,6 @@ void ApplyGraphicsPatches()
     repoint_array_refs({0x00505f4f, 0x00505f63, 0x00505ffc, 0x00506444, 0x00506bd1, 0x00506cc3,
                         0x005074b1},
                        0x01ab6294, mesh_vert_rgb);
-
-    if (g_editor_force_lod0) {
-        write_mem<u8>(0x00507907, 0xEB);
-        write_mem<u8>(0x00507915, 0xEB);
-    }
 
     // Restore render state after D3D device Reset()
     gr_d3d_device_reset_state_recovery.install();
