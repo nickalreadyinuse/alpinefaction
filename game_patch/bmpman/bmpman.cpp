@@ -657,6 +657,12 @@ void bm_apply_patch()
     tga_greyscale_fix.install();
     tga_greyscale_fix_mipmap.install();
 
+    // Fix TGA files with an image ID field loading with shifted pixels and a wrong colormap
+    // The loader skips the ID field by seeking to offset id_length from the start of the file
+    // instead of the end of the 18-byte header; seek from the current position instead
+    write_mem<i8>(0x0055A96A + 1, rf::File::seek_cur); // targa_read_bitmap
+    write_mem<i8>(0x0055AEBA + 1, rf::File::seek_cur); // targa_read_bitmap (mipmap levels)
+
     // Improve TGA pixel data validation
     tga_decode_fix.install();
     tga_decode_fix_mipmap.install();

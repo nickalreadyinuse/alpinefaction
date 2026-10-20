@@ -291,6 +291,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix reload animation playing in third person for other players when client tries to reload with a full clip/magazine
 - Fix lighting for pistol silencer and remote charge detonator
 - Fix third-person crouch animations on remote players flickering and snapping
+- Fix TGA textures with an image ID field loading with shifted pixels and wrong palette colors
 
 ### Imported libraries
 - [Bullet Physics 3.25](https://github.com/bulletphysics/bullet3) by Erwin Coumans
