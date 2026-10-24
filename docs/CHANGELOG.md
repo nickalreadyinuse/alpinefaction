@@ -186,6 +186,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix level editor packfile creation to include `Mesh` object texture overrides, `Mesh_Set_Texture` and `World_HUD_Sprite` event textures, snow `Weather Region` bitmaps, and `Set_Debris` event meshes and their textures
 - Fix level editor packfile creation reporting textures that ship with the game as missing files
 - Fix crash when a bone, tag, or prop point is queried on a character whose mesh file contains no submeshes, or when such a character's weapon or textures are preloaded for rendering
+- Fix crash after switching spectate targets
 - Fix items not rotating correctly when out of view or when viewed through a Projection Camera
 - Fix Alpine Mesh objects using skeletal meshes receiving no light from the level in the `Ambient` and `Vertex` mesh lighting modes
 - Fix meshes keeping stale vertex lighting after the mesh lighting mode is changed until the level is reloaded
