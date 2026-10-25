@@ -1,5 +1,4 @@
 #include <windows.h>
-#include <shellapi.h>
 #include <cctype>
 #include <cstddef>
 #include <cstdio>
@@ -9,6 +8,7 @@
 #include <format>
 #include <patch_common/MemUtils.h>
 #include <xlog/xlog.h>
+#include "command_line.h"
 #include "headless_bake.h"
 #include "level.h"
 #include "terrain_build.h"
@@ -46,17 +46,6 @@ std::string g_init_error;
 DWORD g_start_ticks = 0;
 DWORD g_first_idle_ticks = 0;
 int g_dialogs_suppressed = 0;
-
-std::string narrow(const wchar_t* wide)
-{
-    int len = WideCharToMultiByte(CP_ACP, 0, wide, -1, nullptr, 0, nullptr, nullptr);
-    if (len <= 1) {
-        return {};
-    }
-    std::string result(static_cast<size_t>(len - 1), '\0');
-    WideCharToMultiByte(CP_ACP, 0, wide, -1, result.data(), len, nullptr, nullptr);
-    return result;
-}
 
 // The file first: formatting the xlog line allocates, and memory_guard_fatal's line must reach the file.
 void bake_log(std::string_view line)
@@ -257,24 +246,9 @@ bool path_is_bake_input(const char* path)
 
 void parse_args()
 {
-    int argc = 0;
-    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (!argv) {
-        return;
-    }
-    for (int i = 1; i < argc; ++i) {
-        std::wstring_view arg = argv[i];
-        if (arg == L"-bake" && i + 1 < argc) {
-            g_input_path = narrow(argv[++i]);
-        }
-        else if (arg == L"-bakeout" && i + 1 < argc) {
-            g_output_path = narrow(argv[++i]);
-        }
-        else if (arg == L"-buildonly") {
-            g_build_only = true;
-        }
-    }
-    LocalFree(argv);
+    g_input_path = editor_command_line_path(L"-bake").value_or("");
+    g_output_path = editor_command_line_path(L"-bakeout").value_or("");
+    g_build_only = editor_command_line_has(L"-buildonly");
     g_active = !g_input_path.empty();
 }
 

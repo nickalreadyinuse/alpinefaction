@@ -147,6 +147,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Speed up selecting and deselecting large numbers of brushes, faces, vertices and objects in the level editor, and drawing the viewports while many objects or vertices are selected
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
 - Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
+- Implement shared Direct3D 11 renderer for game and level editor
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -177,6 +178,7 @@ Version 1.5.0 (Trillium): Not yet released
   - Fix grey speckling on smoothed faces and the dark edges around lightmap fragments
   - Fix several accuracy issues on face edges that resulted in dark bands and splotches along polygon boundaries
   - Blend coplanar surfaces across room boundaries
+  - Smooth faces only with faces sharing a smoothing group, stop darkening smoothed faces between their vertices, and fix over-bright streaks on smoothed faces
 - Fix object collision pairs silently running out on levels with many collidable clutter objects, triggers, and items when many players are connected
 - Fix FactionFiles stats event reporting stalling permanently when a send attempt hangs inside WinINet
 - Fix level editor crashing when a mesh is played with an animation that does not fit its skeleton

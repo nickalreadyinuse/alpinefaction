@@ -20,6 +20,7 @@
 #include "alpine_spinner.h"
 #include "dialog_tooltips.h"
 #include "editor_settings.h"
+#include "graphics/editor_gr.h"
 #include "level.h"
 #include "mfc_types.h"
 #include "resources.h"
@@ -1129,9 +1130,9 @@ std::optional<std::vector<FacePair>> texture_only_pairs(const BrushNode& live, c
     return pairs;
 }
 
-// The level geometry faces given (those with the brush face's id) lie on the brush face, so none was built from
-// another face since, as a Build numbering faces again could have
-bool built_from(const SelectedFace& f, std::span<GFace* const> built)
+// The points for_each_point visits lie on the brush face: on its plane, within its bounds
+template<typename ForEachPoint>
+bool points_lie_on(const SelectedFace& f, ForEachPoint&& for_each_point)
 {
     const std::vector<Vector3> corners = face_corners_world(f);
     const Vector3 n = normalized(newell_normal(corners));
@@ -1146,15 +1147,26 @@ bool built_from(const SelectedFace& f, std::span<GFace* const> built)
     }
     const float d = dot(n, corners.front());
     bool on_face = true;
-    for (const GFace* face : built) {
-        for_each_face_corner(*face, [&](GFaceVertex& fv) {
-            if (!fv.vertex) return;
-            const Vector3& p = fv.vertex->pos;
-            on_face = on_face && std::abs(dot(n, p) - d) <= eps && p.x >= low.x - eps && p.y >= low.y - eps &&
-                      p.z >= low.z - eps && p.x <= high.x + eps && p.y <= high.y + eps && p.z <= high.z + eps;
-        });
-    }
+    for_each_point([&](const Vector3& p) {
+        on_face = on_face && std::abs(dot(n, p) - d) <= eps && p.x >= low.x - eps && p.y >= low.y - eps &&
+                  p.z >= low.z - eps && p.x <= high.x + eps && p.y <= high.y + eps && p.z <= high.z + eps;
+    });
     return on_face;
+}
+
+// The level geometry faces given (those with the brush face's id) lie on the brush face, so none was built from
+// another face since, as a Build numbering faces again could have
+bool built_from(const SelectedFace& f, std::span<GFace* const> built)
+{
+    return points_lie_on(f, [&](auto&& visit) {
+        for (const GFace* face : built) {
+            for_each_face_corner(*face, [&](GFaceVertex& fv) {
+                if (fv.vertex) {
+                    visit(fv.vertex->pos);
+                }
+            });
+        }
+    });
 }
 
 // ─── Hover readout ──────────────────────────────────────────────────────────
@@ -1300,9 +1312,7 @@ void draw_face_outline(const SelectedFace& f, uint8_t alpha, uint32_t mode)
         const Vector3 b = corner_world(f, *fv.next);
         gr_line_3d(&a, &b, mode);
     });
-    if (gr_batch_open) {
-        gr_flush_batch();
-    }
+    editor_gr_flush();
 }
 
 constexpr DialogTooltip texture_panel_tips[] = {
@@ -1827,9 +1837,7 @@ void texture_mode_render_view()
         || !level->solid || face_id < 0) {
         return;
     }
-    if (gr_batch_open) {
-        gr_flush_batch();
-    }
+    editor_gr_flush();
     // In the 3D view the parts behind other geometry show dimmed
     auto draw = [&](const SelectedFace& f) {
         if (view->view_type == editor_view_type_perspective) {
@@ -1888,6 +1896,15 @@ void uv_unwrap_dialog_opening()
 bool level_faces_lie_on_brush_face(BrushNode& brush, GFace& face, std::span<GFace* const> built)
 {
     return built_from({&brush, &face}, built);
+}
+
+bool level_faces_lie_on_brush_face(BrushNode& brush, GFace& face, std::span<const Vector3> built_corners)
+{
+    return points_lie_on({&brush, &face}, [&](auto&& visit) {
+        for (const Vector3& p : built_corners) {
+            visit(p);
+        }
+    });
 }
 
 void texture_mode_level_reset()
