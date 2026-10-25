@@ -68,6 +68,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Make a mesh exported from a brush in the level editor immediately usable as a `Mesh` object
 - Add `To Brush` to the `Select Objects` window in the level editor, converting `Mesh` objects into detail brushes
 - Add a mesh browser to the level editor for picking meshes and animations for `Mesh` objects
+- Add a sound browser to the level editor for picking sounds
 - Add a new and modern color picker to the level editor
 - Add click and drag spinner arrows to the numeric fields on the `Corona` and `Weather Region` object dialogs in the level editor
 - Show a live viewport preview while editing `Corona` and `Rope Emitter` properties in the level editor, so the fields being typed are what the viewport draws
