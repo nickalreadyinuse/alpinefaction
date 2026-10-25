@@ -286,6 +286,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix long key names in spectate control hints running off the left edge of the screen
 - Fix listen server hosts only seeing automated server messages in the console instead of in chat
 - Fix music not starting while the music volume is muted or very low
+- Fix first person firing animation getting stuck for automatic weapons when fired on on a ladder
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
