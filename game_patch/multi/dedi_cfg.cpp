@@ -791,6 +791,8 @@ static void apply_rules_keys_from_toml(const toml::table& t, AlpineServerConfigR
     }
     if (auto v = t["gg_final_weapon"].value<std::string>())
         o.gungame_final_weapon = *v;
+    if (auto v = t["gg_end_with_fusion"].value<bool>())
+        o.gungame_end_with_fusion = *v;
 }
 
 // Applies one rules table: mutators (Full mode only) then explicit keys, so manual
@@ -1309,7 +1311,11 @@ static void apply_known_key_in_order(AlpineServerConfig& cfg, const std::string&
         }
     }
     else if (key == "fflink_gsk") {
-        if (auto v = node.value<std::string>()) {
+        // A LAN-only server never registers with FactionFiles
+        if (rf::lan_only_cmd_line_param.found()) {
+            rf::console::print("Ignoring fflink_gsk because -lanonly switch was used.\n");
+        }
+        else if (auto v = node.value<std::string>()) {
             cfg.set_fflink_gsk(*v);
         }
     }
@@ -2203,6 +2209,8 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
     }
     if (base || rules.gungame_final_weapon != b.gungame_final_weapon)
         std::format_to(iter, "  GunGame final weapon:                  {}\n", rules.gungame_final_weapon);
+    if (base || rules.gungame_end_with_fusion != b.gungame_end_with_fusion)
+        std::format_to(iter, "  GunGame end with fusion:               {}\n", rules.gungame_end_with_fusion);
 }
 
 std::string format_mutator_option_value(const MutatorOptionValue& value)
