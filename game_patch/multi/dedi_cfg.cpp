@@ -248,6 +248,19 @@ static WelcomeMessageConfig parse_welcome_message_config(const toml::table& t, W
     return c;
 }
 
+static LevelMessageConfig parse_level_message_config(const toml::table& t, LevelMessageConfig c)
+{
+    if (auto x = t["enabled"].value<bool>())
+        c.enabled = *x;
+
+    if (c.enabled) {
+        if (auto v = t["text"].value<std::string>())
+            c.set_text(*v);
+    }
+
+    return c;
+}
+
 static SpawnProtectionConfig parse_spawn_protection_config(const toml::table& t, SpawnProtectionConfig c)
 {
     if (auto x = t["enabled"].value<bool>())
@@ -717,6 +730,8 @@ static void apply_rules_keys_from_toml(const toml::table& t, AlpineServerConfigR
         o.kill_rewards = parse_kill_reward_config(*sub, o.kill_rewards);
     if (auto sub = t["welcome_message"].as_table())
         o.welcome_message = parse_welcome_message_config(*sub, o.welcome_message);
+    if (auto sub = t["level_message"].as_table())
+        o.level_message = parse_level_message_config(*sub, o.level_message);
 
     //o.weapon_stay_exemptions.exemptions.clear();
     o.weapon_stay_exemptions.add("shoulder_cannon", true); // stock default
@@ -1909,6 +1924,14 @@ void print_rules(std::string& output, const AlpineServerConfigRules& rules, bool
         std::format_to(iter, "  Welcome message:                       {}\n", rules.welcome_message.enabled);
         if (rules.welcome_message.enabled) {
             std::format_to(iter, "    Text:                                {}\n", rules.welcome_message.welcome_message);
+        }
+    }
+
+    if (base || rules.level_message.enabled != b.level_message.enabled ||
+        (rules.level_message.enabled && rules.level_message.text != b.level_message.text)) {
+        std::format_to(iter, "  Level message:                         {}\n", rules.level_message.enabled);
+        if (rules.level_message.enabled) {
+            std::format_to(iter, "    Text:                                {}\n", rules.level_message.text);
         }
     }
 
