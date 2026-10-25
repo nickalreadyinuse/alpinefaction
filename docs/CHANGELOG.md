@@ -144,6 +144,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Repair holes left by portals and by brushes placed flush against each other during `Build Geometry` in the level editor
 - Add `Level > Find out-of-level areas` to the level editor
 - Turn on `Level > Rebuild with hole lines` by default in the level editor and remember the setting
+- Speed up selecting and deselecting large numbers of brushes, faces, vertices and objects in the level editor, and drawing the viewports while many objects or vertices are selected
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
 - Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
 
@@ -287,6 +288,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix long key names in spectate control hints running off the left edge of the screen
 - Fix listen server hosts only seeing automated server messages in the console instead of in chat
 - Fix music not starting while the music volume is muted or very low
+- Fix box deselecting vertices in the level editor testing the vertices of moved or rotated brushes at the wrong positions
 - Fix first person firing animation getting stuck for automatic weapons when fired on on a ladder
 
 [@is-this-c](https://github.com/is-this-c)
