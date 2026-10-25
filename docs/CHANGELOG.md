@@ -296,6 +296,9 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix lighting for pistol silencer and remote charge detonator
 - Fix third-person crouch animations on remote players flickering and snapping
 
+[@GooberRF](https://github.com/GooberRF) & [@nickalreadyinuse](https://github.com/nickalreadyinuse)
+- Fix severe frame rate drops when looking over heavily geomodded areas
+
 ### Imported libraries
 - [Bullet Physics 3.25](https://github.com/bulletphysics/bullet3) by Erwin Coumans
 - [bc7enc_rdo](https://github.com/richgel999/bc7enc_rdo) by Richard Geldreich, Jr.
