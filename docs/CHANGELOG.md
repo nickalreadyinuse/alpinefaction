@@ -56,7 +56,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `Mesh_Set_Scale` event to change an Alpine Mesh object's scale at runtime
 - Raise level editor per-room and per-mesh render vertex limit from 8000 to 32768
 - Add `Limit vehicle flight ceiling` and `Ceiling height (Y)` options to level editor `Level Properties` to cap how high flying vehicles can climb
-- Add `-bake in.rfl -bakeout out.rfl` launcher command line switches to build a level's geometry and calculate its lighting without user interaction, writing the result to a new level file and progress to a log beside it
+- Add `-bake in.rfl -bakeout out.rfl` launcher command line switches to build a level's geometry and calculate its lighting without user interaction, writing the result to a new level file and progress to a log beside it (add `-buildonly` to skip the lighting)
 - Add `High-resolution lightmaps` level property, used in lightmap bake in level editor
 - Deprecate and remove `-smoothlights` level editor switch
 - Add `dbg_collision_pairs` console command to print object collision pair pool statistics
@@ -143,6 +143,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Repair holes left by portals and by brushes placed flush against each other during `Build Geometry` in the level editor
 - Add `Level > Find out-of-level areas` to the level editor
 - Turn on `Level > Rebuild with hole lines` by default in the level editor and remember the setting
+- End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
+- Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
