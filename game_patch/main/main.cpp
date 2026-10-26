@@ -25,7 +25,8 @@
 #include "../graphics/detail_texture.h"
 #include "../graphics/weather.h"
 #include "../graphics/scene_capture.h"
-#include "../graphics/d3d11/gr_d3d11_mesh.h"
+#include <common/gr_d3d11/gr_d3d11_mesh.h>
+#include "../graphics/d3d11/gr_d3d11_hooks.h"
 #include "../hud/hud.h"
 #include "../hud/hud_world.h"
 #include "../hud/minimap.h"

@@ -19,67 +19,9 @@
 #include "stb_image_loader.h"
 #include "bmpman.h"
 
-int bm_calculate_pitch(int w, rf::bm::Format format)
-{
-    switch (format) {
-        case rf::bm::FORMAT_8888_ARGB:
-            return w * 4;
-        case rf::bm::FORMAT_888_RGB:
-            return w * 3;
-        case rf::bm::FORMAT_565_RGB:
-        case rf::bm::FORMAT_1555_ARGB:
-        case rf::bm::FORMAT_4444_ARGB:
-            return w * 2;
-        case rf::bm::FORMAT_8_ALPHA:
-        case rf::bm::FORMAT_8_PALETTED:
-            return w;
-        case rf::bm::FORMAT_DXT1:
-            // 4x4 pixels per block, 64 bits per block
-            return (w + 3) / 4 * 64 / 8;
-        case rf::bm::FORMAT_DXT2:
-        case rf::bm::FORMAT_DXT3:
-        case rf::bm::FORMAT_DXT4:
-        case rf::bm::FORMAT_DXT5:
-            // 4x4 pixels per block, 128 bits per block
-            return (w + 3) / 4 * 128 / 8;
-        default:
-            xlog::warn("Unknown format {} in bm_calculate_pitch", static_cast<int>(format));
-            return -1;
-    }
-}
-
-int bm_calculate_rows(int h, rf::bm::Format format)
-{
-    switch (format) {
-        case rf::bm::FORMAT_DXT1:
-        case rf::bm::FORMAT_DXT2:
-        case rf::bm::FORMAT_DXT3:
-        case rf::bm::FORMAT_DXT4:
-        case rf::bm::FORMAT_DXT5:
-            // 4x4 pixels per block
-            return (h + 3) / 4;
-        default:
-            return h;
-    }
-}
-
 size_t bm_calculate_total_bytes(int w, int h, rf::bm::Format format)
 {
     return bm_calculate_pitch(w, format) * bm_calculate_rows(h, format);
-}
-
-bool bm_is_compressed_format(rf::bm::Format format)
-{
-    switch (format) {
-        case rf::bm::FORMAT_DXT1:
-        case rf::bm::FORMAT_DXT2:
-        case rf::bm::FORMAT_DXT3:
-        case rf::bm::FORMAT_DXT4:
-        case rf::bm::FORMAT_DXT5:
-            return true;
-        default:
-            return false;
-    }
 }
 
 // Everything bm_read_header_hook can resolve a texture from, in its own precedence order.
@@ -642,38 +584,6 @@ int bm_create_procedural(int w, int h, const std::function<uint32_t(int x, int y
     }
     rf::bm::texture_add_ref(bm);
     return bm;
-}
-
-bool bm_read_8888(int bm_handle, int w, int h, std::vector<uint8_t>& out)
-{
-    rf::ubyte* bits = nullptr;
-    rf::ubyte* pal = nullptr;
-    const rf::bm::Format fmt = rf::bm::lock(bm_handle, &bits, &pal);
-    if (fmt == rf::bm::FORMAT_NONE || !bits) {
-        return false;
-    }
-    ScopeGuard unlock{[bm_handle] { rf::bm::unlock(bm_handle); }};
-
-    out.resize(static_cast<size_t>(w) * h * 4);
-    const int pitch = bm_calculate_pitch(w, fmt);
-    if (pitch <= 0) {
-        return false;
-    }
-    if (fmt == rf::bm::FORMAT_DXT1 || fmt == rf::bm::FORMAT_DXT3 || fmt == rf::bm::FORMAT_DXT5) {
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                const rf::gr::Color c = bm_get_pixel(bits, fmt, pitch, x, y);
-                uint8_t* p = &out[(static_cast<size_t>(y) * w + x) * 4];
-                p[0] = c.blue;
-                p[1] = c.green;
-                p[2] = c.red;
-                p[3] = c.alpha;
-            }
-        }
-        return true;
-    }
-    return !bm_is_compressed_format(fmt)
-        && bm_convert_format(out.data(), rf::bm::FORMAT_8888_ARGB, bits, fmt, w, h, w * 4, pitch, pal);
 }
 
 void bm_apply_patch()
