@@ -146,6 +146,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `Level > Find out-of-level areas` to the level editor
 - Turn on `Level > Rebuild with hole lines` by default in the level editor and remember the setting
 - Speed up selecting and deselecting large numbers of brushes, faces, vertices and objects in the level editor, and drawing the viewports while many objects or vertices are selected
+- Speed up loading and duplicating groups with complex brushes in the level editor
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
 - Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
 - Implement shared Direct3D 11 renderer for game and level editor
