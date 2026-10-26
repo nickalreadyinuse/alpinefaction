@@ -22,6 +22,7 @@
 #include "../../misc/alpine_terrain_decorations.h"
 #include "../../os/os.h"
 #include "../af_lightmap.h"
+#include "../detail_texture.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_af_lightmap.h"
 #include "gr_d3d11_solid.h"
@@ -179,8 +180,10 @@ namespace gr::d3d11
 
     struct SolidBatch
     {
-        SolidBatch(int start_index, int num_indices, int base_vertex, std::array<int, 2> textures, rf::gr::Mode mode) :
-            start_index{start_index}, num_indices{num_indices}, base_vertex{base_vertex}, textures{textures}, mode{mode}
+        SolidBatch(int start_index, int num_indices, int base_vertex, std::array<int, 2> textures, rf::gr::Mode mode,
+                   bool detail) :
+            start_index{start_index}, num_indices{num_indices}, base_vertex{base_vertex}, textures{textures},
+            mode{mode}, detail{detail}
         {}
 
         int start_index;
@@ -188,6 +191,7 @@ namespace gr::d3d11
         int base_vertex = 0;
         std::array<int, 2> textures;
         rf::gr::Mode mode;
+        bool detail; // false for level decals
     };
 
     class SolidBatches
@@ -277,7 +281,10 @@ namespace gr::d3d11
             bool lightmap_only = rf::gr::show_lightmaps && what != FaceRenderType::alpha;
             render_context.set_mode(b.mode, {255, 255, 255, 255}, lightmap_only);
             const int lightmap_bm = synth_page_bm != -1 && b.textures[1] == synth_page_bm ? -1 : b.textures[1];
-            render_context.set_textures(b.textures[0], lightmap_bm);
+            const int detail_material = what == FaceRenderType::liquid
+                ? detail_no_auto
+                : detail_texture_draw_material(b.mode.get_alpha_blend(), rf::MATERIAL_DEFAULT);
+            render_context.set_textures(b.textures[0], lightmap_bm, b.detail, detail_material);
             render_context.draw_indexed(b.num_indices, b.start_index, b.base_vertex);
         }
         render_context.set_suppress_texture_uv_scale(false);
@@ -641,7 +648,7 @@ namespace gr::d3d11
                 std::array<int, 2> textures = {texture_1, texture_2};
                 rf::gr::Mode mode = determine_face_mode(render_type, texture_2 != -1, is_sky_);
                 batches.get_batches(render_type).emplace_back(
-                    start_index, num_indices, base_vertex, textures, mode
+                    start_index, num_indices, base_vertex, textures, mode, true
                 );
             }
         }
@@ -681,7 +688,7 @@ namespace gr::d3d11
             if (num_indices > 0) {
                 std::array<int, 2> textures = {texture_1, texture_2};
                 batches.get_batches(render_type).emplace_back(
-                    start_index, num_indices, base_vertex, textures, mode
+                    start_index, num_indices, base_vertex, textures, mode, false
                 );
             }
         }
@@ -1017,6 +1024,10 @@ namespace gr::d3d11
             if (b.crater_texture != no_crater_texture && b.crater_texture != bound_crater_texture_) {
                 terrain_renderer_.bind_crater(context_, render_context_, b.crater_texture);
                 bound_crater_texture_ = b.crater_texture;
+            }
+            // Face batches drawn between terrain chunks rebind the detail texture, so it is not cached with t19
+            if (b.crater_texture != no_crater_texture) {
+                render_context_.bind_detail_texture(b.crater_texture);
             }
             return true;
         });

@@ -12,6 +12,7 @@
 #include "../../rf/gr/gr_light.h"
 #include "../../rf/v3d.h"
 #include "../../rf/vmesh.h"
+#include "../detail_texture.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_context.h"
 #include "gr_d3d11_decoration.h"
@@ -267,7 +268,8 @@ namespace gr::d3d11
                             if (alpha_pass == AlphaPass::hard_coverage) {
                                 render_context_.set_alpha_to_coverage();
                             }
-                            render_context_.set_textures(texture, -1);
+                            render_context_.set_textures(texture, -1, true,
+                                detail_texture_draw_material(b.mode.get_alpha_blend(), rf::MATERIAL_ROCK));
                             render_context_.draw_indexed_instanced(b.num_indices, static_cast<int>(chunk.count[d]),
                                                                    b.start_index, b.base_vertex,
                                                                    static_cast<int>(chunk.first[d]));

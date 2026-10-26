@@ -19,6 +19,7 @@
 #include "../../misc/alpine_settings.h"
 #include "../../misc/alpine_options.h"
 #include "../../rf/level.h"
+#include "../detail_texture.h"
 #include "../gr.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_mesh.h"
@@ -1102,7 +1103,9 @@ namespace gr::d3d11
             // Static-mesh light scale is skipped for first person meshes too: fpguns are character meshes, and
             // static fpgun attachments (silencer) must match them
             render_context_.set_mode(batch_mode, color, false, gpu_dynamic_lighting, self_illum, !is_character_mesh && !is_fp_weapon, emissive);
-            render_context_.set_textures(texture, -1);
+            const int detail_material = detail_texture_draw_material(b.mode.get_alpha_blend(),
+                is_fp_weapon ? detail_texture_first_person_material(texture) : ScopedMeshObjectMaterial::current());
+            render_context_.set_textures(texture, -1, !emissive, detail_material);
             // Per batch, not per mesh: the rest of the hull draws from the atlas and must not scroll.
             if (uv_scroll.active) {
                 const bool is_tread = vehicle_is_tread_bitmap(texture, uv_scroll.config);

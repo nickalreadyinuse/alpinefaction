@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <string_view>
+#include <vector>
 #include <xlog/xlog.h>
 #include "../rf/bmpman.h"
 
@@ -46,6 +47,8 @@ bool bm_fill(int bm_handle, uint32_t argb);
 // An 8888 bitmap with every pixel from argb_at, referenced for the session (texture_add_ref).
 // -1 on failure.
 int bm_create_procedural(int w, int h, const std::function<uint32_t(int x, int y)>& argb_at);
+// Top mip (w x h from get_mipmap_info) as B8G8R8A8; false for DXT2/4
+bool bm_read_8888(int bm_handle, int w, int h, std::vector<uint8_t>& out);
 
 inline int bm_bytes_per_pixel(rf::bm::Format format)
 {

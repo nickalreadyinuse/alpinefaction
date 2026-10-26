@@ -644,6 +644,38 @@ int bm_create_procedural(int w, int h, const std::function<uint32_t(int x, int y
     return bm;
 }
 
+bool bm_read_8888(int bm_handle, int w, int h, std::vector<uint8_t>& out)
+{
+    rf::ubyte* bits = nullptr;
+    rf::ubyte* pal = nullptr;
+    const rf::bm::Format fmt = rf::bm::lock(bm_handle, &bits, &pal);
+    if (fmt == rf::bm::FORMAT_NONE || !bits) {
+        return false;
+    }
+    ScopeGuard unlock{[bm_handle] { rf::bm::unlock(bm_handle); }};
+
+    out.resize(static_cast<size_t>(w) * h * 4);
+    const int pitch = bm_calculate_pitch(w, fmt);
+    if (pitch <= 0) {
+        return false;
+    }
+    if (fmt == rf::bm::FORMAT_DXT1 || fmt == rf::bm::FORMAT_DXT3 || fmt == rf::bm::FORMAT_DXT5) {
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                const rf::gr::Color c = bm_get_pixel(bits, fmt, pitch, x, y);
+                uint8_t* p = &out[(static_cast<size_t>(y) * w + x) * 4];
+                p[0] = c.blue;
+                p[1] = c.green;
+                p[2] = c.red;
+                p[3] = c.alpha;
+            }
+        }
+        return true;
+    }
+    return !bm_is_compressed_format(fmt)
+        && bm_convert_format(out.data(), rf::bm::FORMAT_8888_ARGB, bits, fmt, w, h, w * 4, pitch, pal);
+}
+
 void bm_apply_patch()
 {
     bm_read_header_hook.install();

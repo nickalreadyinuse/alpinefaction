@@ -10,6 +10,7 @@
 #include "../../rf/vfx.h"
 #include "../../rf/vmesh.h"
 #include "../../rf/gr/gr.h"
+#include "../detail_texture.h"
 #include "../gr.h"
 #include "gr_d3d11.h"
 #include "gr_d3d11_context.h"
@@ -472,7 +473,8 @@ namespace gr::d3d11
             auto draw_pass = [&](int bm, rf::gr::Mode mode, float weight) {
                 const rf::ubyte w = to_byte(weight);
                 const rf::Color color{w, w, w, to_byte(weight * sl.opacity)};
-                render_context_.set_textures(bm, -1);
+                render_context_.set_textures(bm, -1, true,
+                    detail_texture_draw_material(mode.get_alpha_blend(), ScopedMeshObjectMaterial::current()));
                 render_context_.set_mode(mode, color, false, gpu_lit, gpu_lit ? sl.self_illum : 0.0f, gpu_lit, false,
                     vfx_light_scale);
                 render_context_.draw_indexed(sl.count, ib_start + sl.offset, vb_start);
