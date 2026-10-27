@@ -1026,9 +1026,7 @@ static void povcomp_do_frame()
 // shifts the arrays down when full). Returns 0 when biasing is unsafe this frame.
 static uint16_t povcomp_safe_bias(rf::ObjInterp* interp, int desired_ms)
 {
-    // flags bit 0 = ring empty/unanchored: set by Clear(), cleared once a sample
-    // anchors interp_time (frame_start skips processing while it is set)
-    if ((interp->flags & 1) != 0 || interp->num < 2)
+    if ((interp->flags & rf::OIF_REANCHOR) != 0 || interp->num < 2)
         return 0; // ring unusable; the stock path holds the current pos anyway
     const auto avail = static_cast<uint16_t>(interp->interp_time - interp->time_array[0]);
     if (avail > 0x1388)
@@ -1396,6 +1394,10 @@ void multi_spectate_on_destroy_player(rf::Player* player)
         }
     }
 
+    if (g_local_player_spectators.erase(player)) {
+        build_local_player_spectators_strings();
+    }
+
     if (player != rf::local_player) {
         // Drop any numpad binds pointing at the leaving player so they can't dangle.
         for (int i = 0; i < k_spectate_numpad_count; ++i) {
@@ -1441,7 +1443,8 @@ FunHook<void(rf::Player*)> hud_weapons_render_hook{
         if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO)
             return;
         // only show ammo counters in AF 1.1+ servers because ammo is not synced in legacy servers
-        if (g_spectate_mode_enabled && is_server_minimum_af_version(1, 1) && !rf::player_is_dead(g_spectate_mode_target))
+        if (g_spectate_mode_enabled && (rf::is_server || is_server_minimum_af_version(1, 1))
+            && !rf::player_is_dead(g_spectate_mode_target))
             hud_weapons_render_hook.call_target(g_spectate_mode_target);
         else
             hud_weapons_render_hook.call_target(player);
@@ -1934,7 +1937,7 @@ FunHook<void(rf::Entity*, bool)> entity_play_attack_anim_spectate_hook{
     0x0042C3C0,
     [](rf::Entity* entity, bool alt_fire) {
         entity_play_attack_anim_spectate_hook.call_target(entity, alt_fire);
-        if (!g_spectate_mode_enabled || !g_spectate_mode_target || !entity || rf::is_server)
+        if (!g_spectate_mode_enabled || !g_spectate_mode_target || !entity || rf::is_dedicated_server)
             return;
         rf::Entity* target = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
         if (entity != target || g_spectate_mode_target == rf::local_player)

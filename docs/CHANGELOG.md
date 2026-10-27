@@ -26,6 +26,9 @@ Version 1.5.0 (Trillium): Not yet released
   - Mirror `Terrain Tools` brush strokes across the terrain's X and/or Z axis, with movable mirror lines
   - Up to 4 detail overlays (leaves, debris) and 8 mesh decoration layers per terrain (grass, rocks, bushes)
   - `Geoable` terrains are carved by RF2-style geomod craters, with their own underside and crater textures
+- Add server-side bots, which run inside the dedicated or listen server process in addition to (or instead of) bot clients
+  - `server_bots` ADS option (0-31) sets how many server bots join; they use the `bot_profiles` profiles and follow `ideal_player_count` like bot clients
+  - Add `sv_bot_add [profile_index] [red|blue]`, `sv_bot_remove <name|all>` and `sv_bot_list` server console commands, which also work through rcon
 - Add new multiplayer game type: Scavenger (`SCAV`)
 
 [@GooberRF](https://github.com/GooberRF) & [@nickalreadyinuse](https://github.com/nickalreadyinuse)
@@ -113,6 +116,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Show `Your team has the bag` in Team Bagman
 - Add team-relative bag carrier icons and outline colors
 - Raise the limit on items per level from 200 to 2000 for v306+ levels
+- Give a bot a default name when its profile's `player_name` is already used by a connected player, and cut profile names to the 31-character player name limit
 - Add `Fit`, `Fit Aspect`, `Justify`, and `Wrap` buttons to texture mode in the level editor
 - Show the texture, size and texel density of the face under the cursor (or the selected face) in the level editor status bar in texture mode, and outline it in the viewports
 - Add a `Texture lock` toggle (hotkey 6, off by default) to the level editor top bar
@@ -150,6 +154,17 @@ Version 1.5.0 (Trillium): Not yet released
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
 - Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
 - Implement shared Direct3D 11 renderer for game and level editor
+- Reduce the CPU time bots spend choosing goals and planning routes, and stop bots from repeatedly searching for routes to destinations they cannot reach
+- Tweak `hard`, `expert` and `nightmare` bot skill presets
+- Add `reaction_time_ms`, `aim_error_min`, `aim_error_max`, `yaw_speed_cap`, `pitch_speed_cap`, `fire_alignment_threshold` and `semi_auto_click_interval_scale` bot skill fields for `skill_overrides` in bot profiles
+- Allow the `opportunism_bias`, `seek_weapon_bias`, `replenish_bias`, `weapon_switch_bias`, `path_smoothing_bias`, `dodge_combat_bias`, `crouch_combat_bias`, `jump_combat_bias` and `ctf_hold_enemy_flag_safety_bias` bot personality fields, which were raised to at least 0.25, to be set to 0 to switch off what they scale, and `decision_aggression_bias` and `decision_risk_tolerance` to go below 0.25 for bots that retreat and restock earlier and avoid hazardous routes
+- Make bots choose weapons by their expected damage at the current distance (from the weapons' `weapons.tbl` stats, with personality preferences as a weight), switch on pickups and new targets, fire only within a weapon's effective range, and keep one remote charge out at a time, setting it off when an enemy is in the blast
+- Make bots use explosives safely, top up their clip once the enemy is out of sight, and stop leaving fights for pickups that are not on the way
+- Make bots break off to top up armor at a lower armor level, and switch goals less often
+- Make bots walk straight to objectives, items and enemies only when nothing  is in the way and there is no ledge to drop off, and look ahead round corners or toward where a threat was last noticed
+- Ignore connected human players who have not spawned yet this level when picking a joining bot's team
+- Add `[detail]` section to ATX textures to tile a greyscale detail texture finely over the texture when seen up close, on level geometry, meshes and terrain (Direct3D 11 renderer only)
+- Add `r_detailtextures` to turn detail textures off (0), show only ATX ones (1, default), or also give other textures a stock one by their material (2), replacing the stock toggle (Direct3D 11 renderer only)
 - Speed up per-pixel mesh lighting and entity shadows (Direct3D 11 renderer only)
 - Fade outlines, teammate and spectator player labels, and demo player health/armor bars out over the last quarter of the distance to the fog far clip
 - Add `Surrender` vote, which a team can call during a match to concede it if all of its players agree
@@ -301,6 +316,14 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix music not starting while the music volume is muted or very low
 - Fix box deselecting vertices in the level editor testing the vertices of moved or rotated brushes at the wrong positions
 - Fix first person firing animation getting stuck for automatic weapons when fired on on a ladder
+- Fix a listen server host's respawn countdown restarting, and their queued spawn being dropped, whenever another player died while spawn delays were enabled
+- Fix a listen server host being respawned while still alive after another player died with spawn delays and forced respawns enabled
+- Fix a listen server host getting no damage numbers or hit sounds when damaging other players
+- Fix a listen server host's "spectating you" list never filling
+- Fix chat commands from a listen server host being sent as chat instead of running
+- Fix "You are on team" showing on every spawn of a listen server host in team modes
+- Fix a spectating listen server host not seeing the spectated player's ammo, weapon fire animations, damage numbers, awards or critical hit flashes
+- Fix bot clients losing the `personality_overrides` and `skill_overrides` of their bot profile (such as `taunt_on_kill_chance`) when the server sent their skill preset
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize

@@ -22,6 +22,7 @@
 #include "../bmpman/bmpman.h"
 #include "../debug/debug.h"
 #include "../graphics/gr.h"
+#include "../graphics/detail_texture.h"
 #include "../graphics/weather.h"
 #include "../graphics/scene_capture.h"
 #include <common/gr_d3d11/gr_d3d11_mesh.h>
@@ -47,6 +48,7 @@
 #include "../multi/server.h"
 #include "../multi/server_internal.h"
 #include "../multi/alpine_packets.h"
+#include "../multi/bots/server_bots.h"
 #include "../multi/awards.h"
 #include "../fflink/fflink.h"
 #include "../misc/misc.h"
@@ -270,6 +272,7 @@ FunHook<int(rf::String&, rf::String&, char*)> level_load_hook{
         waypoints_level_reset();
         projector_clear_all();
         atx_level_reset();
+        detail_texture_level_reset();
         particle_sim_level_reset();
         alpine_camera_clear_static_mode();
         if (!save_filename.empty())
@@ -344,22 +347,11 @@ FunHook<void(bool)> level_init_post_hook{
         level_init_post_hook.call_target(transition);
         xlog::info("Level loaded: {}{}", rf::level.filename, transition ? " (transition)" : "");
 
-        // Cancel any in-flight AWP download from a previous map
-        cancel_awp_download();
-
-        // Flow 2A: Bot clients — start async AWP download before waypoints_level_init
-        // so it sees the pending flag and defers load_waypoints until download resolves
-        if (rf::is_multi && client_bot_launch_enabled()) {
-            waypoints_set_awp_download_pending(true);
-            if (!start_awp_download_for_installed_map(std::string{rf::level.filename.c_str()}, 3)) {
-                waypoints_set_awp_download_pending(false);
-            }
-        }
-
-        waypoints_level_init();
+        // Flow 2A: bots start their AWP download before the waypoints load
+        waypoints_level_init_with_awp_download();
 
         // Flow 2B: Normal clients with autodl_download_awps — fire-and-forget AWP download
-        if (rf::is_multi && !client_bot_launch_enabled() && !rf::is_dedicated_server
+        if (rf::is_multi && !is_waypoint_bot_mode_active() && !rf::is_dedicated_server
             && g_alpine_game_config.autodl_download_awps) {
             start_awp_download_for_installed_map(std::string{rf::level.filename.c_str()}, 1);
         }
@@ -379,6 +371,7 @@ FunHook<void(bool)> level_init_post_hook{
         // After gametype init so the demo snapshot includes koth/bagman/salvage/pit state
         demo_server_on_level_init_post();
         gib_flames_level_init();
+        server_bots_on_level_init();
         shell_casings_level_init();
         // Multiplayer resets the jetpack from its own level-init injection.
         if (!rf::is_multi) {
