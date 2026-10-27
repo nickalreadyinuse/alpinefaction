@@ -1056,6 +1056,12 @@ bool player_is_idle(const rf::Player* const player) {
         if (player->is_observer()) {
             return false;
         }
+        // Nobody is idle in a live match (players outside it are spawn-blocked anyway, below), nor once readied
+        // up for one; the roster fills before match_active is set
+        rf::Player* const p = const_cast<rf::Player*>(player);
+        if (g_match_info.match_active || g_match_info.active_match_players.contains(p) || is_player_ready(p)) {
+            return false;
+        }
         // Check if the player's idle timer has elapsed
         const bool is_idle = player->idle.check_timer.valid()
             && player->idle.check_timer.elapsed();

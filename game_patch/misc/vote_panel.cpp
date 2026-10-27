@@ -248,6 +248,7 @@ const VoteTypeInfo vote_type_infos[] = {
     {AfVoteType::Extend, "Extend", "Extend the time limit of the round in progress."},
     {AfVoteType::Match, "Match", "Set up a match on the chosen level with the chosen team size."},
     {AfVoteType::CancelMatch, "Cancel Match", "Cancel the match that is currently set up."},
+    {AfVoteType::Surrender, "Surrender", "Concede the match. Passes only if every player on your team agrees."},
     {AfVoteType::Kick, "Kick", "Kick the selected player from the server."},
 };
 
@@ -3057,7 +3058,8 @@ void do_form(PanelUi& ui, const Layout& lo, const VoteOptionsData& options,
     }
 
     if (tabs.empty()) {
-        do_message_block(ui, lo, {"This server has no votes enabled."});
+        do_message_block(ui, lo, {vote_client_spectating_match() ? "Only players in the current match can call votes."
+                                                                 : "This server has no votes enabled."});
         return;
     }
 

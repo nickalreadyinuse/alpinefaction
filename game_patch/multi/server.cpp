@@ -2630,12 +2630,10 @@ void start_match()
     rf::multi_time_limit = g_match_info.time_limit_on_pre_match_start.value_or(10.0f);
 }
 
-void cancel_match()
+// Callers report the match end: the reset below clears match_active before the limbo that load_next_level
+// queues runs, so the limbo never reports this match itself.
+static void end_match_early()
 {
-    rf::console::print("Canceling match");
-    // Before load_next_level: the limbo it drives reaches the match-completed path
-    // with match_active still set, and the stream must report this as a cancel.
-    afstats::on_match_end(afstats::MatchResult::canceled, afstats::team_none, nullptr);
     if (g_match_info.match_active) {
         load_next_level(); // end the round if active match is canceled
     }
@@ -2650,6 +2648,49 @@ void cancel_match()
     for (rf::Player* player : get_clients(false, false)) {
         update_pre_match_powerups(player);
         af_send_ready_prompt(player, 0); // match canceled — pre-match no longer active
+    }
+}
+
+void cancel_match()
+{
+    rf::console::print("Canceling match");
+    afstats::on_match_end(afstats::MatchResult::canceled, afstats::team_none, nullptr);
+    end_match_early();
+}
+
+static const char* team_name(rf::ubyte team);
+
+void surrender_match(int losing_team)
+{
+    const bool red_lost = losing_team == rf::TEAM_RED;
+    const rf::ubyte winning_team = red_lost ? rf::TEAM_BLUE : rf::TEAM_RED;
+    af_broadcast_automated_chat_msg(std::format("{} team surrendered. {} team wins the match!",
+                                                team_name(static_cast<rf::ubyte>(losing_team)),
+                                                team_name(winning_team)));
+    afstats::on_match_end(afstats::MatchResult::completed, red_lost ? afstats::team_blue : afstats::team_red,
+                          nullptr);
+    end_match_early();
+}
+
+// The vote panel offers only what a live match allows, and only to its players
+static void sync_match_state_to_clients()
+{
+    for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+        // A reliable packet sent before the joiner's reliable socket connects is dropped
+        if (!player.net_data || static_cast<int>(player.net_data->reliable_socket) < 0) {
+            continue;
+        }
+        uint8_t flags = 0;
+        if (g_match_info.match_active) {
+            flags |= AF_MATCH_STATE_LIVE;
+            if (is_player_in_match(&player)) {
+                flags |= AF_MATCH_STATE_PARTICIPANT;
+            }
+        }
+        if (player.match_state_sent != flags) {
+            player.match_state_sent = flags;
+            af_send_match_state(&player, flags);
+        }
     }
 }
 
@@ -2742,6 +2783,8 @@ void add_ready_player(rf::Player* player)
     }
 
     team_ready_list.insert(player);
+    // Ready players are never idle, so a warning given before readying up must not kick
+    player->idle.kick_timer.invalidate();
     update_pre_match_powerups(player);
     af_send_ready_prompt(player, 2); // readied — hide prompt but keep pre-match flag set
 
@@ -5541,6 +5584,7 @@ void server_do_frame()
     server_vote_do_frame();
     fire_ticks_do_frame();
     match_do_frame();
+    sync_match_state_to_clients();
     process_delayed_kicks();
     pit_do_frame();
     wipeout_do_frame();

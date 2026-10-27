@@ -150,6 +150,11 @@ Version 1.5.0 (Trillium): Not yet released
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
 - Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
 - Implement shared Direct3D 11 renderer for game and level editor
+- Speed up per-pixel mesh lighting and entity shadows (Direct3D 11 renderer only)
+- Fade outlines, teammate and spectator player labels, and demo player health/armor bars out over the last quarter of the distance to the fog far clip
+- Add `Surrender` vote, which a team can call during a match to concede it if all of its players agree
+- During a match, only `Surrender`, `Cancel Match` and `Extend` votes can be called, only players in the match can call or vote in them, and players who don't vote count as no
+- Never treat players as idle during a match, or during the ready-up phase once they have readied up
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
@@ -170,6 +175,8 @@ Version 1.5.0 (Trillium): Not yet released
 ### Bug fixes
 [@GooberRF](https://github.com/GooberRF)
 - Fix phantom visual flag mesh being visible after Salvage flag is picked up on rare occasions
+- Fix a fatal error in fullscreen when Windows takes the game out of exclusive fullscreen while it keeps focus (Direct3D 11 renderer only)
+- Fix a fatal error or broken rendering when switching away from or back to the game in fullscreen if the anti-aliasing level in the settings file isn't supported (Direct3D 11 renderer only)
 - Fix scrolling textures jumping forward when the Direct3D 11 renderer rebuilds a room's render cache, most visibly after a brush-based geomod crater
 - Fix deleting an Alpine object in the level editor leaving a stale reference to it in any moving group it belonged to
 - Fix filter box in the level editor texture browser not filtering the texture list by partial filename

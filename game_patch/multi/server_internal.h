@@ -1305,6 +1305,8 @@ bool player_spawn_blocked_by_game(const rf::Player* player);
 void update_pre_match_powerups(rf::Player* player);
 void start_match();
 void cancel_match();
+// Ends the live match as a win for the other team
+void surrender_match(int losing_team);
 void start_pre_match();
 // The afstats::MatchState value describing the ready-up match system right now,
 // as a raw uint8 so this header stays free of the stats API. Read at round_start.
