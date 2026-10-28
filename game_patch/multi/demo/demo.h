@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 // Alpine Demos ("Alpine Demos" / .afd): server-side demo recording via a virtual
 // spectator player + client-side playback through the engine's own join flow.
@@ -159,6 +160,11 @@ void demo_powerup_timers_on_item_update();
 // Full-screen "SEEKING..." overlay with progress; called from after_frame_render_hook
 // (the world render - including the HUD - is skipped while seeking).
 void demo_playback_render_seek_overlay();
+// Demo-clock times (ms) of every kill the player with this net id scores in the whole
+// stream, past and future, limited to their current stay in the server (a later joiner
+// reusing the id is someone else). Taken from the recorded kill_info, so recordings from
+// servers older than Alpine 1.4 have none. Empty unless playback is active.
+std::vector<uint32_t> demo_playback_player_kill_times(int player_id);
 // Records a player as recently active (killer/attacker) for auto-follow target
 // selection. No-op unless playback is active.
 void demo_playback_note_player_activity(rf::Player* player);

@@ -6,6 +6,7 @@
 #include "../../misc/vote_panel.h"
 #include "../../hud/hud.h"
 #include "../../hud/hud_internal.h"
+#include "../../hud/multi_spectate.h"
 #include "../../hud/remote_server_cfg_ui.h"
 #include "../../input/control_input_filter.h"
 #include "../../input/input.h"
@@ -14,6 +15,7 @@
 #include "../../rf/gr/gr.h"
 #include "../../rf/gr/gr_font.h"
 #include "../../rf/input.h"
+#include "../../rf/multi.h"
 #include "../../rf/player/player.h"
 #include "../../rf/sound/sound.h"
 
@@ -233,6 +235,28 @@ struct ButtonStyle
     bool enabled;
 };
 
+// A tick on the track at each kill of the player spectated in first person, so the
+// viewer can jump straight to their frags.
+void draw_kill_markers(const Rect& track)
+{
+    if (!multi_spectate_is_first_person()) {
+        return;
+    }
+    const rf::Player* target = multi_spectate_get_target_player();
+    if (!target || target == rf::local_player || !target->net_data) {
+        return;
+    }
+    const double duration_ms = effective_duration_ms();
+    const int tick_w = std::max(1, track.h / 5);
+    rf::gr::set_color(255, 170, 0, 255);
+    for (const uint32_t t_ms : demo_playback_player_kill_times(target->net_data->player_id)) {
+        const double pos = std::clamp(t_ms / duration_ms, 0.0, 1.0);
+        const int x = std::clamp(track.x + static_cast<int>(pos * track.w) - tick_w / 2, track.x,
+                                 track.x + track.w - tick_w);
+        rf::gr::rect(x, track.y - 2, tick_w, track.h + 4);
+    }
+}
+
 void draw_button(const Rect& rect, const char* text, const ButtonStyle& style)
 {
     const int fill = style.hovered ? 70 : 45;
@@ -401,7 +425,7 @@ void demo_controls_ui_render()
     rf::gr::set_color(170, 170, 170, 255);
     hud_rect_border(lay.strip.x, lay.strip.y, lay.strip.w, lay.strip.h, 1);
 
-    // Track: frame, unplayed remainder, played fill, handle (colors match the
+    // Track: frame, unplayed remainder, played fill, kill markers, handle (colors match the
     // fast-forward progress bar in demo_playback.cpp)
     const double shown_ms = g_dragging ? g_preview_ms : demo_playback_clock_ms();
     const double progress = std::clamp(shown_ms / effective_duration_ms(), 0.0, 1.0);
@@ -412,6 +436,7 @@ void demo_controls_ui_render()
     rf::gr::rect(lay.track.x, lay.track.y, lay.track.w, lay.track.h);
     rf::gr::set_color(0, 0x80, 0, 255);
     rf::gr::rect(lay.track.x, lay.track.y, fill_w, lay.track.h);
+    draw_kill_markers(lay.track);
     const int handle_w = std::max(4, lay.track.h - 2);
     const int handle_h = lay.track.h + 8;
     const int handle_x = std::clamp(lay.track.x + fill_w - handle_w / 2, lay.track.x,

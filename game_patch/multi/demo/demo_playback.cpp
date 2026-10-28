@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <common/rfproto.h>
 #include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
@@ -75,6 +76,28 @@ namespace
         feeding_state_info,   // pump until state_info_done is processed
         playing,
         finished,
+    };
+
+    // Seek bar kill markers. seq is the record's index in the stream, so a kill and a
+    // leave sharing a timestamp still order the way playback feeds them.
+    struct KillMark
+    {
+        uint32_t seq;
+        uint32_t t_ms;
+        uint8_t killer_id;
+    };
+
+    struct LeaveMark
+    {
+        uint32_t seq;
+        uint8_t player_id;
+    };
+
+    struct StreamMarks
+    {
+        std::vector<KillMark> kills;
+        std::vector<LeaveMark> leaves; // a player id freed here may be reused by a later joiner
+        uint32_t records = 0;          // records indexed so far
     };
 
     struct PlaybackCtx
@@ -153,6 +176,8 @@ namespace
         // on this level (or not captured yet).
         double igt_base_left_s = -1.0;
         double igt_last_written_s = -1.0; // re-seed detection (see sync_level_timer)
+        StreamMarks marks;
+        uint32_t records_read = 0; // records pulled from the reader this session
     };
 
     PlaybackCtx g_ctx;
@@ -162,6 +187,7 @@ namespace
     {
         uint32_t duration_ms;
         std::optional<DemoFooterInfo> footer;
+        StreamMarks marks;
     };
 
     // Backward seek restarts the session, but doing that synchronously from the console
@@ -189,12 +215,37 @@ namespace
     };
     std::optional<PendingRestart> g_pending_restart;
 
+    // Kills come from the recorded kill_info (Alpine 1.4+ servers): the stock obj_kill names
+    // entities, not players. Suicides and world deaths are not kills.
+    void index_stream_record(StreamMarks& marks, const DemoRecord& rec)
+    {
+        const uint32_t seq = marks.records++;
+        if (!rec.is_packet())
+            return;
+        const uint8_t* data = rec.packet_data();
+        const size_t len = rec.packet_len();
+        if (rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_server_req)
+            && len >= 4 + sizeof(KillInfoPayload)
+            && data[3] == static_cast<uint8_t>(af_server_req_type::af_sreq_kill_info)) {
+            KillInfoPayload payload;
+            std::memcpy(&payload, data + 4, sizeof(payload));
+            if (payload.killer_player_id != 0xFF && payload.killer_player_id != payload.killed_player_id)
+                marks.kills.push_back({seq, rec.t_ms, payload.killer_player_id});
+        }
+        else if (rec.packet_type() == RF_GPT_LEFT_GAME && len >= 4) {
+            marks.leaves.push_back({seq, data[3]});
+        }
+    }
+
     bool ensure_pending_record()
     {
         if (g_ctx.has_pending)
             return true;
         if (g_ctx.reader.next_record(g_ctx.pending)) {
             g_ctx.has_pending = true;
+            // A still-recording file outgrows the pre-scan: index what it adds
+            if (g_ctx.records_read++ == g_ctx.marks.records)
+                index_stream_record(g_ctx.marks, g_ctx.pending);
             return true;
         }
         return false;
@@ -648,6 +699,8 @@ namespace
         g_ctx.povcomp_applied_ms = 0.0f;
         g_ctx.igt_base_left_s = -1.0;
         g_ctx.igt_last_written_s = -1.0;
+        g_ctx.marks = {};
+        g_ctx.records_read = 0;
     }
 
     void playback_teardown()
@@ -1220,17 +1273,20 @@ namespace
         playback_teardown();
     }
 
-    // Harvests the footer (duration) and counts skippable packet types, then rewinds the
-    // reader to the first record. Closes the reader and returns false when it can't play.
+    // Harvests the footer (duration), indexes the seek bar markers and counts skippable packet
+    // types, then rewinds the reader to the first record. Closes the reader and returns false
+    // when it can't play.
     bool demo_pre_scan(const std::string& path)
     {
         uint32_t records = 0;
         uint32_t non_whitelisted = 0;
         uint32_t last_t_ms = 0;
+        g_ctx.marks = {};
         DemoRecord rec;
         while (g_ctx.reader.next_record(rec)) {
             ++records;
             last_t_ms = rec.t_ms;
+            index_stream_record(g_ctx.marks, rec);
             if (rec.is_packet() && !packet_check_whitelist(rec.packet_type()))
                 ++non_whitelisted;
         }
@@ -1314,6 +1370,7 @@ namespace
             // Backward-seek restart of the same file: the first session's pre-scan (and its
             // feed, for a footerless file that kept growing) already established the extent
             g_ctx.duration_ms = known_extent->duration_ms;
+            g_ctx.marks = known_extent->marks;
             if (known_extent->footer) {
                 g_ctx.reader.assume_footer(*known_extent->footer);
             }
@@ -1749,13 +1806,40 @@ void demo_playback_request_seek(double target_ms)
             footer = g_ctx.reader.footer();
         }
         g_pending_restart = PendingRestart{
-            g_ctx.reader.path(), target_ms, {g_ctx.duration_ms, footer}, g_ctx.timescale, g_ctx.paused,
-            g_ctx.cam_want_attached, g_ctx.cam_third_person, g_ctx.cam_target_id,
+            g_ctx.reader.path(), target_ms, {g_ctx.duration_ms, footer, g_ctx.marks}, g_ctx.timescale,
+            g_ctx.paused, g_ctx.cam_want_attached, g_ctx.cam_third_person, g_ctx.cam_target_id,
             g_ctx.cam_last_active_id, g_ctx.cam_free_valid, g_ctx.cam_free_pos,
             g_ctx.cam_free_orient, g_ctx.cam_free_phb, g_ctx.cam_free_eye_phb};
         g_ctx.teardown_queued = true;
         rf::console::print("Seeking backward - reloading the level...");
     }
+}
+
+std::vector<uint32_t> demo_playback_player_kill_times(int player_id)
+{
+    std::vector<uint32_t> times;
+    if (g_ctx.state == PlaybackState::inactive)
+        return times;
+    // The player's current stay spans the records between their id's last fed leave
+    // and its next one. A pending record has been read but not fed yet.
+    const uint32_t fed = g_ctx.records_read - (g_ctx.has_pending ? 1 : 0);
+    uint32_t stay_begin = 0;
+    uint32_t stay_end = UINT32_MAX;
+    for (const auto& leave : g_ctx.marks.leaves) {
+        if (leave.player_id != player_id)
+            continue;
+        if (leave.seq < fed)
+            stay_begin = leave.seq + 1;
+        else {
+            stay_end = leave.seq;
+            break;
+        }
+    }
+    for (const auto& kill : g_ctx.marks.kills) {
+        if (kill.killer_id == player_id && kill.seq >= stay_begin && kill.seq < stay_end)
+            times.push_back(kill.t_ms);
+    }
+    return times;
 }
 
 void demo_playback_note_player_activity(rf::Player* player)
