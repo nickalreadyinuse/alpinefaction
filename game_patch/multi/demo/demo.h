@@ -181,6 +181,8 @@ enum class DemoMarkerKind : uint8_t
     invulnerability,
     fusion,
     award,
+    flag_taken,    // the enemy flag, from its base or off the ground
+    flag_captured,
 };
 struct DemoPlayerMarker
 {
@@ -189,8 +191,8 @@ struct DemoPlayerMarker
 };
 // Every marker of the player with this net id in the whole stream, past and future, in
 // stream order, limited to their current stay in the server (a later joiner reusing the
-// id is someone else). Kills and awards are recorded by Alpine 1.4+ servers, pickups by
-// 1.5+. Empty unless playback is active.
+// id is someone else). Flag events are in every demo, kills and awards are recorded by
+// Alpine 1.4+ servers, pickups by 1.5+. Empty unless playback is active.
 std::vector<DemoPlayerMarker> demo_playback_player_markers(int player_id);
 // Records a player as recently active (killer/attacker) for auto-follow target
 // selection. No-op unless playback is active.

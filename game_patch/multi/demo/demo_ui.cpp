@@ -247,12 +247,14 @@ struct ButtonStyle
 };
 
 // Markers for the player spectated in first person: a tick on the track at each kill,
-// powerup pickup dots above it and award dots below. Clicking one seeks to just before it.
+// powerup pickup dots and flag squares (hollow when taken, filled when captured) above it,
+// and award dots below. Clicking one seeks to just before it.
 struct Marker
 {
     int x; // center
     uint32_t t_ms;
     DemoMarkerKind kind;
+    int flag_team; // flag markers: team whose flag it is (0 red, 1 blue)
 };
 
 // Rewind ahead of the moment so the lead-up plays instead of landing on it.
@@ -269,9 +271,11 @@ std::vector<Marker> player_markers(const Rect& track)
         return markers;
     }
     const double duration_ms = effective_duration_ms();
+    // A player only ever takes or captures the other team's flag
+    const int flag_team = target->team == 0 ? 1 : 0;
     for (const auto& marker : demo_playback_player_markers(target->net_data->player_id)) {
         const double pos = std::clamp(marker.t_ms / duration_ms, 0.0, 1.0);
-        markers.push_back({track.x + static_cast<int>(pos * track.w), marker.t_ms, marker.kind});
+        markers.push_back({track.x + static_cast<int>(pos * track.w), marker.t_ms, marker.kind, flag_team});
     }
     return markers;
 }
@@ -314,9 +318,14 @@ void fill_dot(int cx, int cy, int r)
     }
 }
 
-void set_marker_color(DemoMarkerKind kind)
+bool marker_is_flag(const Marker& marker)
 {
-    switch (kind) {
+    return marker.kind == DemoMarkerKind::flag_taken || marker.kind == DemoMarkerKind::flag_captured;
+}
+
+void set_marker_color(const Marker& marker)
+{
+    switch (marker.kind) {
     case DemoMarkerKind::kill:
         rf::gr::set_color(255, 170, 0, 255);
         break;
@@ -331,6 +340,15 @@ void set_marker_color(DemoMarkerKind kind)
         break;
     case DemoMarkerKind::award:
         rf::gr::set_color(255, 215, 0, 255);
+        break;
+    case DemoMarkerKind::flag_taken:
+    case DemoMarkerKind::flag_captured:
+        if (marker.flag_team == 0) {
+            rf::gr::set_color(255, 70, 70, 255);
+        }
+        else {
+            rf::gr::set_color(80, 140, 255, 255);
+        }
         break;
     }
 }
@@ -348,6 +366,10 @@ const char* marker_label(DemoMarkerKind kind)
         return "Fusion";
     case DemoMarkerKind::award:
         return "Award";
+    case DemoMarkerKind::flag_taken:
+        return "Flag Taken";
+    case DemoMarkerKind::flag_captured:
+        return "Flag Capture";
     }
     return "";
 }
@@ -361,9 +383,20 @@ void draw_markers(const std::vector<Marker>& markers, const Marker* hovered, con
             rf::gr::set_color(255, 255, 255, 255);
         }
         else {
-            set_marker_color(marker.kind);
+            set_marker_color(marker);
         }
-        if (marker_is_dot(marker)) {
+        if (marker_is_flag(marker)) {
+            const int size = 2 * lay.dot_r + 1;
+            const int x = marker.x - lay.dot_r;
+            const int y = lay.pickup_dot_y - lay.dot_r;
+            if (marker.kind == DemoMarkerKind::flag_captured) {
+                rf::gr::rect(x, y, size, size);
+            }
+            else {
+                hud_rect_border(x, y, size, size, std::max(1, lay.dot_r / 2));
+            }
+        }
+        else if (marker_is_dot(marker)) {
             fill_dot(marker.x, marker_dot_y(marker, lay), lay.dot_r);
         }
         else {

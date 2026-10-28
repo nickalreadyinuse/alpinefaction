@@ -5,10 +5,10 @@
 // In-gameplay "demo controls" popup for demo playback: scrubber with
 // preview-on-drag (the seek fires on mouse release - seeking is expensive),
 // -10s/+10s jump buttons and play/pause. While following a player in first person
-// the scrubber carries clickable markers at their kills, powerup pickups and awards.
-// Toggled with the player's USE key, which is swallowed for the whole playback
-// session. Mutually exclusive with the other gameplay overlays (vote panel, remote
-// server config).
+// the scrubber carries clickable markers at their kills, powerup pickups, flag events
+// and awards. Toggled with the player's USE key, which is swallowed for the whole
+// playback session. Mutually exclusive with the other gameplay overlays (vote panel,
+// remote server config).
 
 bool demo_controls_ui_is_open();
 // Closes the popup if open (restores mouse mode, arms the attack swallow).

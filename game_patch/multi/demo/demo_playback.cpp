@@ -219,7 +219,7 @@ namespace
 
     // Kills come from the recorded kill_info: the stock obj_kill names entities, not players.
     // Suicides and world deaths are not kills. Awards come from their earner-tagged demo form,
-    // pickups from the demo-only item pickup record.
+    // pickups from the demo-only item pickup record, flag events from the stock CTF packets.
     void index_stream_record(StreamMarks& marks, const DemoRecord& rec)
     {
         const uint32_t seq = marks.records++;
@@ -255,6 +255,13 @@ namespace
                 if (kind)
                     marks.events.push_back({seq, rec.t_ms, data[4], *kind});
             }
+        }
+        // ctf_flag_picked_up: {u8 player_id, ...}; ctf_flag_captured: {u8 team, u8 player_id, ...}
+        else if (rec.packet_type() == RF_GPT_CTF_FLAG_PICKED_UP && len >= 4) {
+            marks.events.push_back({seq, rec.t_ms, data[3], DemoMarkerKind::flag_taken});
+        }
+        else if (rec.packet_type() == RF_GPT_CTF_FLAG_CAPTURED && len >= 5) {
+            marks.events.push_back({seq, rec.t_ms, data[4], DemoMarkerKind::flag_captured});
         }
         else if (rec.packet_type() == RF_GPT_LEFT_GAME && len >= 4) {
             marks.leaves.push_back({seq, data[3]});
