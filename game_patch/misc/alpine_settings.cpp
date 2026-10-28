@@ -679,6 +679,10 @@ bool alpine_player_settings_load(rf::Player* player)
         g_alpine_game_config.outlines_spectator = std::stoi(settings["OutlinesSpectator"]);
         processed_keys.insert("OutlinesSpectator");
     }
+    if (settings.count("OutlinesSpectatorXray")) {
+        g_alpine_game_config.outlines_spectator_xray = std::stoi(settings["OutlinesSpectatorXray"]);
+        processed_keys.insert("OutlinesSpectatorXray");
+    }
     if (settings.count("OutlinesTeamXray")) {
         g_alpine_game_config.try_outlines_team_xray = std::stoi(settings["OutlinesTeamXray"]);
         processed_keys.insert("OutlinesTeamXray");
@@ -1682,6 +1686,7 @@ void alpine_player_settings_save(rf::Player* player)
     file << "ShadowFrameLag=" << g_alpine_game_config.shadow_frame_lag << "\n";
     file << "Outlines=" << g_alpine_game_config.try_outlines << "\n";
     file << "OutlinesSpectator=" << g_alpine_game_config.outlines_spectator << "\n";
+    file << "OutlinesSpectatorXray=" << g_alpine_game_config.outlines_spectator_xray << "\n";
     file << "OutlinesTeamXray=" << g_alpine_game_config.try_outlines_team_xray << "\n";
     file << "OutlinesColor=" << format_hex_color_string(g_alpine_game_config.outlines_color) << "\n";
     file << "OutlinesColorTeamR=" << format_hex_color_string(g_alpine_game_config.outlines_color_team_r) << "\n";

@@ -176,6 +176,10 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `ui_color_console` console command to set the console background color
 - Render animated (`.vfx`) meshes on the GPU with per-pixel lighting, and apply their materials' reflection maps (Direct3D 11 renderer only)
 - Load levels with very large face counts or many level sounds much faster
+- Add chat, HUD, cinema mode, player outline, and outline x-ray toggles to the spectate options menu, and group its demo playback overlays into a submenu
+- Add `cl_cinema` console command to toggle cinema mode, which hides the HUD except for the reticle and kill feed
+- Keep chat menus and the chat input box visible while the HUD is hidden
+- Add `r_outlines_spectator_xray` console command to toggle showing player outlines through walls while spectating
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`

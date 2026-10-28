@@ -8,6 +8,7 @@
 #include "../misc/vote_panel.h"
 #include "../multi/demo/demo.h"
 #include "../multi/jetpack.h"
+#include "../multi/mutators.h"
 #include "../multi/vehicles/vehicle_view.h"
 #include "minimap.h"
 #include "multi_scoreboard.h"
@@ -26,6 +27,7 @@
 #include "../rf/gameseq.h"
 
 int g_target_player_name_font = -1;
+static bool g_cinema_mode = false;
 
 int hud_transform_value(int val, int old_max, int new_max)
 {
@@ -60,6 +62,7 @@ rf::HudPoint hud_scale_coords(rf::HudPoint pt, float scale)
 bool is_hud_effectively_hidden()
 {
     return rf::hud_disabled
+        || g_cinema_mode
         || (g_alpine_game_config.spectate_cinematic_mode && multi_spectate_is_freelook());
 }
 
@@ -68,6 +71,20 @@ FunHook<void()> hud_render_for_multi_hook{
     []() {
         if (!is_hud_effectively_hidden()) {
             hud_render_for_multi_hook.call_target();
+        }
+        else {
+            // Chat input and the chat menu stay usable with the HUD hidden, so the menu's toggles can
+            // bring the HUD back.
+            if (rf::multi_chat_is_say_visible()) {
+                rf::multi_chat_say_render();
+            }
+            if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
+                multi_hud_render_chat_menu();
+                // Cinema mode keeps the reticle, and the critical hit flash is drawn over it.
+                if (g_cinema_mode && !rf::hud_disabled) {
+                    crits_client_render_reticle_flash();
+                }
+            }
         }
     },
 };
@@ -81,6 +98,15 @@ ConsoleCommand2 hud_cmd{
         rf::hud_disabled = !hud_visible;
     },
     "Show and hide HUD",
+};
+
+ConsoleCommand2 cinema_mode_cmd{
+    "cl_cinema",
+    []() {
+        g_cinema_mode = !g_cinema_mode;
+        rf::console::print("Cinema mode is {}", g_cinema_mode ? "enabled" : "disabled");
+    },
+    "Toggle cinema mode, hiding the HUD except for the reticle and kill feed",
 };
 
 ConsoleCommand2 spectate_cinematic_mode_cmd{
@@ -454,6 +480,18 @@ CallHook hud_msg_render_gr_get_font_height_hook{
     },
 };
 
+static void hud_render_multi_scoreboard()
+{
+    auto& cc = rf::local_player->settings.controls;
+    bool scoreboard_control_pressed = rf::control_config_check_pressed(&cc, rf::CC_ACTION_MP_STATS, nullptr);
+    bool is_player_dead = rf::player_is_dead(rf::local_player) || rf::player_is_dying(rf::local_player);
+    bool limbo = rf::gameseq_get_state() == rf::GS_MULTI_LIMBO;
+    bool show_scoreboard = scoreboard_control_pressed || (!multi_spectate_is_spectating() && is_player_dead) || limbo;
+
+    scoreboard_maybe_render(show_scoreboard && !g_remote_server_cfg_popup.is_active()
+        && !vote_panel_is_gameplay_overlay_active());
+}
+
 void hud_render_00437BC0()
 {
     // Single player jetpack HUD. Multiplayer draws it from multi_hud_render.
@@ -479,17 +517,29 @@ void hud_render_00437BC0()
     // Powerup respawn timers during demo playback
     demo_powerup_timers_render();
 
-    auto& cc = rf::local_player->settings.controls;
-    bool scoreboard_control_pressed = rf::control_config_check_pressed(&cc, rf::CC_ACTION_MP_STATS, nullptr);
-    bool is_player_dead = rf::player_is_dead(rf::local_player) || rf::player_is_dying(rf::local_player);
-    bool limbo = rf::gameseq_get_state() == rf::GS_MULTI_LIMBO;
-    bool show_scoreboard = scoreboard_control_pressed || (!multi_spectate_is_spectating() && is_player_dead) || limbo;
-
-    scoreboard_maybe_render(show_scoreboard && !g_remote_server_cfg_popup.is_active()
-        && !vote_panel_is_gameplay_overlay_active());
+    hud_render_multi_scoreboard();
 
     minimap_render();
 }
+
+FunHook<void(rf::Player*)> hud_render_hook{
+    0x00437BA0,
+    [](rf::Player* player) {
+        if (!g_cinema_mode) {
+            hud_render_hook.call_target(player);
+            return;
+        }
+        // Cinema mode: of hud_render's items only the kill feed and the scoreboard remain (the reticle
+        // is drawn outside hud_render).
+        if (rf::hud_disabled || !player->settings.show_hud || !rf::is_multi || !rf::local_player) {
+            return;
+        }
+        if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
+            multi_hud_render_killfeed();
+        }
+        hud_render_multi_scoreboard();
+    },
+};
 
 void hud_apply_patches()
 {
@@ -500,6 +550,8 @@ void hud_apply_patches()
     hud_render_for_multi_hook.install();
     hud_cmd.register_cmd();
     spectate_cinematic_mode_cmd.register_cmd();
+    hud_render_hook.install();
+    cinema_mode_cmd.register_cmd();
 
     // Add some init code
     hud_init_hook.install();

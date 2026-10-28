@@ -33,7 +33,9 @@ enum class ChatMenuListName : int
     Bravado,
     Derision,
     Casual,
-    RandomFunny
+    RandomFunny,
+    SpectateOutlines,
+    SpectateDemoOverlays
 };
 
 enum class ChatMenuListType : int

@@ -87,6 +87,7 @@ void multi_hud_update_timer_color();
 void toggle_chat_menu(ChatMenuType state);
 bool get_chat_menu_is_active();
 void hud_render_draw_chat_menu();
+void multi_hud_render_chat_menu();
 void chat_menu_action_handler(rf::Key key);
 void build_local_player_spectators_strings();
 std::string_view multi_hud_get_random_taunt_message();

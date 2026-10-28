@@ -540,6 +540,7 @@ struct AlpineGameSettings
     // outline rendering (d3d11 multiplayer)
     bool try_outlines = false;
     bool outlines_spectator = false;
+    bool outlines_spectator_xray = true;
     bool try_outlines_team_xray = true;
 
     uint32_t outlines_color = 0xFF3232FF;         // red, opaque (RRGGBBAA)

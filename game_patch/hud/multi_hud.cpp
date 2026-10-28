@@ -493,6 +493,29 @@ static const ChatMenuList spectate_menu{
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Follow killer", "spectate_followkiller"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Minimal UI", "spectate_minui"},
         {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Player labels", "spectate_playerlabels"},
+        {true, ChatMenuListName::SpectateOutlines, ChatMenuListType::Basic, "Outlines"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Chat", "cl_chat"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "HUD", "cl_hud"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Cinema mode", "cl_cinema"},
+        {true, ChatMenuListName::SpectateDemoOverlays, ChatMenuListType::DemoPlayback, "Demo overlays"},
+    }
+};
+
+// Spectate outlines
+static const ChatMenuList spectate_outlines_menu{
+    .display_string = "OUTLINES",
+    .type = ChatMenuListType::Basic,
+    .elements = {
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Player outlines", "r_outlines_spectator"},
+        {false, ChatMenuListName::Null, ChatMenuListType::Basic, "Outline x-ray", "r_outlines_spectator_xray"},
+    }
+};
+
+// Spectate demo overlays
+static const ChatMenuList spectate_demo_overlays_menu{
+    .display_string = "DEMO OVERLAYS",
+    .type = ChatMenuListType::DemoPlayback,
+    .elements = {
         {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Player healthbars", "spectate_playerinfo"},
         {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Powerup timers", "spectate_powerups"},
         {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Spawn points", "spectate_spawns"},
@@ -2161,13 +2184,7 @@ CodeInjection multi_hud_render_patch{
             hud_render_respawn_timer_notification();
         }
 
-        if (g_chat_menu_active != ChatMenuType::None) {
-            hud_render_draw_chat_menu();
-
-            if (!g_chat_menu_timer.valid() || g_chat_menu_timer.elapsed()) {
-                toggle_chat_menu(ChatMenuType::None);
-            }
-        }
+        multi_hud_render_chat_menu();
 
         jetpack_render_hud();
         crits_client_render_reticle_flash();
@@ -2297,6 +2314,16 @@ void hud_render_draw_chat_menu() {
     draw_chat_menu_text(x, y, w);
 }
 
+void multi_hud_render_chat_menu() {
+    if (g_chat_menu_active != ChatMenuType::None) {
+        hud_render_draw_chat_menu();
+
+        if (!g_chat_menu_timer.valid() || g_chat_menu_timer.elapsed()) {
+            toggle_chat_menu(ChatMenuType::None);
+        }
+    }
+}
+
 void set_chat_menu_state(ChatMenuType state) {
     g_chat_menu_active = state;
 
@@ -2408,6 +2435,10 @@ void chat_menu_action_handler(rf::Key key) {
             case ChatMenuListName::Derision: g_active_menu = &derision_menu; break;
             case ChatMenuListName::Casual: g_active_menu = &casual_menu; break;
             case ChatMenuListName::RandomFunny: g_active_menu = &random_funny_menu; break;
+
+            // Spectate menu
+            case ChatMenuListName::SpectateOutlines: g_active_menu = &spectate_outlines_menu; break;
+            case ChatMenuListName::SpectateDemoOverlays: g_active_menu = &spectate_demo_overlays_menu; break;
 
             default: break;
         }
