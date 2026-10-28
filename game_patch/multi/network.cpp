@@ -50,6 +50,7 @@
 #include "bots/bot_context_fwd.h"
 #include "bots/server_bots.h"
 #include "../main/main.h"
+#include "../misc/discord_presence.h"
 #include "../os/os.h"
 #include "../hud/hud.h"
 #include "../hud/multi_spectate.h"
@@ -1852,6 +1853,12 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
                 return 0;
             }
             fflink::afstats_client_on_join_req(*addr, extra && (extra->af_flags & AF_GI_FLAG_STATS_ENABLED));
+
+            // Stock layout: header (3), version (1), name\0, u32, password\0
+            const auto* const name = reinterpret_cast<const char*>(data) + 4;
+            const auto* const name_end = static_cast<const char*>(std::memchr(name, '\0', len > 4 ? len - 4 : 0));
+            const size_t password_offset = name_end ? (name_end - reinterpret_cast<const char*>(data)) + 5 : len;
+            discord_presence_on_join_request(*addr, password_offset >= len || data[password_offset] != std::byte{0});
         }
 
         const bool session_client_bot_mode = client_bot_launch_enabled();
