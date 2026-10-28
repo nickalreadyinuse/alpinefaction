@@ -1,6 +1,9 @@
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <format>
 #include <string>
+#include <vector>
 #include "demo.h"
 #include "demo_ui.h"
 #include "../../misc/vote_panel.h"
@@ -57,6 +60,9 @@ struct Layout
     Rect btn_back;  // -10s
     Rect btn_pause; // play/pause
     Rect btn_fwd;   // +10s
+    int dot_r;        // marker dot radius
+    int pickup_dot_y; // pickup dot row (above the track), center
+    int award_dot_y;  // award dot row (below the track), center
 };
 
 // Reference-resolution scaling, like the other Alpine overlays.
@@ -73,12 +79,12 @@ Layout compute_layout()
 
     Layout lay{};
     lay.strip.w = std::min(scaled(700.0f), rf::gr::clip_width() - scaled(120.0f));
-    lay.strip.h = scaled(70.0f);
+    lay.strip.h = scaled(80.0f);
     lay.strip.x = (rf::gr::clip_width() - lay.strip.w) / 2;
-    lay.strip.y = rf::gr::clip_height() - scaled(110.0f);
+    lay.strip.y = rf::gr::clip_height() - scaled(120.0f);
 
     lay.track.x = lay.strip.x + scaled(16.0f);
-    lay.track.y = lay.strip.y + scaled(12.0f);
+    lay.track.y = lay.strip.y + scaled(18.0f);
     lay.track.w = lay.strip.w - 2 * scaled(16.0f);
     lay.track.h = scaled(10.0f);
     const int pad = scaled(6.0f);
@@ -89,10 +95,15 @@ Layout compute_layout()
     const int gap = scaled(10.0f);
     const int row_w = 3 * btn_w + 2 * gap;
     const int row_x = lay.strip.x + (lay.strip.w - row_w) / 2;
-    const int row_y = lay.strip.y + scaled(34.0f);
+    const int row_y = lay.strip.y + scaled(46.0f);
     lay.btn_back = {row_x, row_y, btn_w, btn_h};
     lay.btn_pause = {row_x + btn_w + gap, row_y, btn_w, btn_h};
     lay.btn_fwd = {row_x + 2 * (btn_w + gap), row_y, btn_w, btn_h};
+
+    // Dot rows clear the handle, which overhangs the track by 4px each side
+    lay.dot_r = std::max(2, scaled(3.0f));
+    lay.pickup_dot_y = lay.track.y - 4 - scaled(2.0f) - lay.dot_r;
+    lay.award_dot_y = lay.track.y + lay.track.h + 4 + scaled(2.0f) + lay.dot_r;
     return lay;
 }
 
@@ -235,26 +246,143 @@ struct ButtonStyle
     bool enabled;
 };
 
-// A tick on the track at each kill of the player spectated in first person, so the
-// viewer can jump straight to their frags.
-void draw_kill_markers(const Rect& track)
+// Markers for the player spectated in first person: a tick on the track at each kill,
+// powerup pickup dots above it and award dots below. Clicking one seeks to just before it.
+struct Marker
 {
+    int x; // center
+    uint32_t t_ms;
+    DemoMarkerKind kind;
+};
+
+// Rewind ahead of the moment so the lead-up plays instead of landing on it.
+constexpr double marker_seek_lead_ms = 2000.0;
+
+std::vector<Marker> player_markers(const Rect& track)
+{
+    std::vector<Marker> markers;
     if (!multi_spectate_is_first_person()) {
-        return;
+        return markers;
     }
     const rf::Player* target = multi_spectate_get_target_player();
     if (!target || target == rf::local_player || !target->net_data) {
-        return;
+        return markers;
     }
     const double duration_ms = effective_duration_ms();
-    const int tick_w = std::max(1, track.h / 5);
-    rf::gr::set_color(255, 170, 0, 255);
-    for (const uint32_t t_ms : demo_playback_player_kill_times(target->net_data->player_id)) {
-        const double pos = std::clamp(t_ms / duration_ms, 0.0, 1.0);
-        const int x = std::clamp(track.x + static_cast<int>(pos * track.w) - tick_w / 2, track.x,
-                                 track.x + track.w - tick_w);
-        rf::gr::rect(x, track.y - 2, tick_w, track.h + 4);
+    for (const auto& marker : demo_playback_player_markers(target->net_data->player_id)) {
+        const double pos = std::clamp(marker.t_ms / duration_ms, 0.0, 1.0);
+        markers.push_back({track.x + static_cast<int>(pos * track.w), marker.t_ms, marker.kind});
     }
+    return markers;
+}
+
+bool marker_is_dot(const Marker& marker)
+{
+    return marker.kind != DemoMarkerKind::kill;
+}
+
+int marker_dot_y(const Marker& marker, const Layout& lay)
+{
+    return marker.kind == DemoMarkerKind::award ? lay.award_dot_y : lay.pickup_dot_y;
+}
+
+// Marker nearest the cursor, within a few pixels of reach so the small markers stay
+// clickable; null when no marker is close.
+const Marker* hovered_marker(const std::vector<Marker>& markers, int mx, int my, const Layout& lay)
+{
+    const int tick_reach = std::max(3, lay.track.h / 2);
+    const int dot_reach = lay.dot_r + 2;
+    const Marker* best = nullptr;
+    for (const auto& marker : markers) {
+        const int dist = std::abs(marker.x - mx);
+        const bool in_reach = marker_is_dot(marker)
+            ? dist <= dot_reach && std::abs(marker_dot_y(marker, lay) - my) <= dot_reach
+            : dist <= tick_reach && point_in(mx, my, lay.track_hit);
+        if (in_reach && (!best || dist < std::abs(best->x - mx))) {
+            best = &marker;
+        }
+    }
+    return best;
+}
+
+// Filled disc as one rect per scanline
+void fill_dot(int cx, int cy, int r)
+{
+    for (int dy = -r; dy <= r; ++dy) {
+        const int half = static_cast<int>(std::sqrt(static_cast<float>(r * r - dy * dy)) + 0.5f);
+        rf::gr::rect(cx - half, cy + dy, 2 * half + 1, 1);
+    }
+}
+
+void set_marker_color(DemoMarkerKind kind)
+{
+    switch (kind) {
+    case DemoMarkerKind::kill:
+        rf::gr::set_color(255, 170, 0, 255);
+        break;
+    case DemoMarkerKind::damage_amp:
+        rf::gr::set_color(180, 70, 255, 255);
+        break;
+    case DemoMarkerKind::invulnerability:
+        rf::gr::set_color(0, 230, 255, 255);
+        break;
+    case DemoMarkerKind::fusion:
+        rf::gr::set_color(70, 255, 70, 255);
+        break;
+    case DemoMarkerKind::award:
+        rf::gr::set_color(255, 215, 0, 255);
+        break;
+    }
+}
+
+const char* marker_label(DemoMarkerKind kind)
+{
+    switch (kind) {
+    case DemoMarkerKind::kill:
+        return "Kill";
+    case DemoMarkerKind::damage_amp:
+        return "Damage Amp";
+    case DemoMarkerKind::invulnerability:
+        return "Invulnerability";
+    case DemoMarkerKind::fusion:
+        return "Fusion";
+    case DemoMarkerKind::award:
+        return "Award";
+    }
+    return "";
+}
+
+void draw_markers(const std::vector<Marker>& markers, const Marker* hovered, const Layout& lay)
+{
+    const Rect& track = lay.track;
+    const int tick_w = std::max(1, track.h / 5);
+    for (const auto& marker : markers) {
+        if (&marker == hovered) {
+            rf::gr::set_color(255, 255, 255, 255);
+        }
+        else {
+            set_marker_color(marker.kind);
+        }
+        if (marker_is_dot(marker)) {
+            fill_dot(marker.x, marker_dot_y(marker, lay), lay.dot_r);
+        }
+        else {
+            const int x = std::clamp(marker.x - tick_w / 2, track.x, track.x + track.w - tick_w);
+            rf::gr::rect(x, track.y - 2, tick_w, track.h + 4);
+        }
+    }
+}
+
+// Label above the strip, centered on cx
+void draw_tooltip(const Rect& strip, int cx, const std::string& text, int font)
+{
+    const auto [text_w, text_h] = rf::gr::get_string_size(text, font);
+    cx = std::clamp(cx, strip.x + text_w / 2 + 4, strip.x + strip.w - text_w / 2 - 4);
+    const int ty = strip.y - text_h - 6;
+    rf::gr::set_color(0, 0, 0, 200);
+    rf::gr::rect(cx - text_w / 2 - 4, ty - 2, text_w + 8, text_h + 4);
+    rf::gr::set_color(255, 255, 255, 255);
+    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, cx, ty, text.c_str(), font);
 }
 
 void draw_button(const Rect& rect, const char* text, const ButtonStyle& style)
@@ -378,7 +506,11 @@ void demo_controls_ui_input()
     if (!rf::mouse_was_button_pressed(0)) {
         return;
     }
-    if (point_in(mx, my, lay.track_hit)) {
+    if (const Marker* marker = hovered_marker(player_markers(lay.track), mx, my, lay)) {
+        play_click_sound();
+        demo_playback_request_seek(marker->t_ms - marker_seek_lead_ms);
+    }
+    else if (point_in(mx, my, lay.track_hit)) {
         g_dragging = true;
         g_preview_ms = ms_from_x(mx, lay.track);
     }
@@ -425,7 +557,7 @@ void demo_controls_ui_render()
     rf::gr::set_color(170, 170, 170, 255);
     hud_rect_border(lay.strip.x, lay.strip.y, lay.strip.w, lay.strip.h, 1);
 
-    // Track: frame, unplayed remainder, played fill, kill markers, handle (colors match the
+    // Track: frame, unplayed remainder, played fill, markers, handle (colors match the
     // fast-forward progress bar in demo_playback.cpp)
     const double shown_ms = g_dragging ? g_preview_ms : demo_playback_clock_ms();
     const double progress = std::clamp(shown_ms / effective_duration_ms(), 0.0, 1.0);
@@ -436,7 +568,9 @@ void demo_controls_ui_render()
     rf::gr::rect(lay.track.x, lay.track.y, lay.track.w, lay.track.h);
     rf::gr::set_color(0, 0x80, 0, 255);
     rf::gr::rect(lay.track.x, lay.track.y, fill_w, lay.track.h);
-    draw_kill_markers(lay.track);
+    const auto markers = player_markers(lay.track);
+    const Marker* hovered = g_dragging ? nullptr : hovered_marker(markers, mx, my, lay);
+    draw_markers(markers, hovered, lay);
     const int handle_w = std::max(4, lay.track.h - 2);
     const int handle_h = lay.track.h + 8;
     const int handle_x = std::clamp(lay.track.x + fill_w - handle_w / 2, lay.track.x,
@@ -462,17 +596,13 @@ void demo_controls_ui_render()
                 {pause_enabled && point_in(mx, my, lay.btn_pause), pause_enabled});
     draw_button(lay.btn_fwd, "+10s", {point_in(mx, my, lay.btn_fwd), true});
 
-    // Drag preview timestamp above the handle
+    // Drag preview timestamp above the handle, or what the hovered marker is and when
     if (g_dragging) {
-        const std::string preview = format_time_ms(g_preview_ms);
-        const auto [text_w, text_h] = rf::gr::get_string_size(preview, font);
-        const int cx = std::clamp(handle_x + handle_w / 2, lay.strip.x + text_w / 2 + 4,
-                                  lay.strip.x + lay.strip.w - text_w / 2 - 4);
-        const int ty = lay.strip.y - text_h - 6;
-        rf::gr::set_color(0, 0, 0, 200);
-        rf::gr::rect(cx - text_w / 2 - 4, ty - 2, text_w + 8, text_h + 4);
-        rf::gr::set_color(255, 255, 255, 255);
-        rf::gr::string_aligned(rf::gr::ALIGN_CENTER, cx, ty, preview.c_str(), font);
+        draw_tooltip(lay.strip, handle_x + handle_w / 2, format_time_ms(g_preview_ms), font);
+    }
+    else if (hovered) {
+        draw_tooltip(lay.strip, hovered->x,
+                     std::format("{} {}", marker_label(hovered->kind), format_time_ms(hovered->t_ms)), font);
     }
 
     // gameseq_process re-hides the cursor every gameplay frame; re-asserting here

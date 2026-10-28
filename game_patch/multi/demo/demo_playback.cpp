@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <common/rfproto.h>
 #include <common/utils/list-utils.h>
@@ -78,13 +79,14 @@ namespace
         finished,
     };
 
-    // Seek bar kill markers. seq is the record's index in the stream, so a kill and a
-    // leave sharing a timestamp still order the way playback feeds them.
-    struct KillMark
+    // Seek bar markers. seq is the record's index in the stream, so an event and a leave
+    // sharing a timestamp still order the way playback feeds them.
+    struct EventMark
     {
         uint32_t seq;
         uint32_t t_ms;
-        uint8_t killer_id;
+        uint8_t player_id;
+        DemoMarkerKind kind;
     };
 
     struct LeaveMark
@@ -95,7 +97,7 @@ namespace
 
     struct StreamMarks
     {
-        std::vector<KillMark> kills;
+        std::vector<EventMark> events;
         std::vector<LeaveMark> leaves; // a player id freed here may be reused by a later joiner
         uint32_t records = 0;          // records indexed so far
     };
@@ -215,8 +217,9 @@ namespace
     };
     std::optional<PendingRestart> g_pending_restart;
 
-    // Kills come from the recorded kill_info (Alpine 1.4+ servers): the stock obj_kill names
-    // entities, not players. Suicides and world deaths are not kills.
+    // Kills come from the recorded kill_info: the stock obj_kill names entities, not players.
+    // Suicides and world deaths are not kills. Awards come from their earner-tagged demo form,
+    // pickups from the demo-only item pickup record.
     void index_stream_record(StreamMarks& marks, const DemoRecord& rec)
     {
         const uint32_t seq = marks.records++;
@@ -224,13 +227,34 @@ namespace
             return;
         const uint8_t* data = rec.packet_data();
         const size_t len = rec.packet_len();
-        if (rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_server_req)
-            && len >= 4 + sizeof(KillInfoPayload)
-            && data[3] == static_cast<uint8_t>(af_server_req_type::af_sreq_kill_info)) {
-            KillInfoPayload payload;
-            std::memcpy(&payload, data + 4, sizeof(payload));
-            if (payload.killer_player_id != 0xFF && payload.killer_player_id != payload.killed_player_id)
-                marks.kills.push_back({seq, rec.t_ms, payload.killer_player_id});
+        if (rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_server_req) && len >= 4) {
+            const auto req_type = static_cast<af_server_req_type>(data[3]);
+            if (req_type == af_server_req_type::af_sreq_kill_info && len >= 4 + sizeof(KillInfoPayload)) {
+                KillInfoPayload payload;
+                std::memcpy(&payload, data + 4, sizeof(payload));
+                if (payload.killer_player_id != 0xFF && payload.killer_player_id != payload.killed_player_id)
+                    marks.events.push_back({seq, rec.t_ms, payload.killer_player_id, DemoMarkerKind::kill});
+            }
+            else if (req_type == af_server_req_type::af_sreq_award && len >= 4 + sizeof(AwardPayload) + 1) {
+                const uint8_t earner_id = data[4 + sizeof(AwardPayload)];
+                marks.events.push_back({seq, rec.t_ms, earner_id, DemoMarkerKind::award});
+            }
+            else if (req_type == af_server_req_type::af_sreq_demo_item_pickup && len >= 6) {
+                std::optional<DemoMarkerKind> kind;
+                switch (static_cast<DemoPickupKind>(data[5])) {
+                case DemoPickupKind::damage_amp:
+                    kind = DemoMarkerKind::damage_amp;
+                    break;
+                case DemoPickupKind::invulnerability:
+                    kind = DemoMarkerKind::invulnerability;
+                    break;
+                case DemoPickupKind::fusion:
+                    kind = DemoMarkerKind::fusion;
+                    break;
+                }
+                if (kind)
+                    marks.events.push_back({seq, rec.t_ms, data[4], *kind});
+            }
         }
         else if (rec.packet_type() == RF_GPT_LEFT_GAME && len >= 4) {
             marks.leaves.push_back({seq, data[3]});
@@ -1815,31 +1839,40 @@ void demo_playback_request_seek(double target_ms)
     }
 }
 
-std::vector<uint32_t> demo_playback_player_kill_times(int player_id)
+namespace
 {
-    std::vector<uint32_t> times;
-    if (g_ctx.state == PlaybackState::inactive)
-        return times;
-    // The player's current stay spans the records between their id's last fed leave
-    // and its next one. A pending record has been read but not fed yet.
-    const uint32_t fed = g_ctx.records_read - (g_ctx.has_pending ? 1 : 0);
-    uint32_t stay_begin = 0;
-    uint32_t stay_end = UINT32_MAX;
-    for (const auto& leave : g_ctx.marks.leaves) {
-        if (leave.player_id != player_id)
-            continue;
-        if (leave.seq < fed)
-            stay_begin = leave.seq + 1;
-        else {
-            stay_end = leave.seq;
-            break;
+    // Record range [begin, end) of the player's current stay: between their id's last fed
+    // leave and its next one. A pending record has been read but not fed yet.
+    std::pair<uint32_t, uint32_t> player_current_stay(int player_id)
+    {
+        const uint32_t fed = g_ctx.records_read - (g_ctx.has_pending ? 1 : 0);
+        uint32_t begin = 0;
+        uint32_t end = UINT32_MAX;
+        for (const auto& leave : g_ctx.marks.leaves) {
+            if (leave.player_id != player_id)
+                continue;
+            if (leave.seq < fed)
+                begin = leave.seq + 1;
+            else {
+                end = leave.seq;
+                break;
+            }
         }
+        return {begin, end};
     }
-    for (const auto& kill : g_ctx.marks.kills) {
-        if (kill.killer_id == player_id && kill.seq >= stay_begin && kill.seq < stay_end)
-            times.push_back(kill.t_ms);
+}
+
+std::vector<DemoPlayerMarker> demo_playback_player_markers(int player_id)
+{
+    std::vector<DemoPlayerMarker> markers;
+    if (g_ctx.state == PlaybackState::inactive)
+        return markers;
+    const auto [stay_begin, stay_end] = player_current_stay(player_id);
+    for (const auto& event : g_ctx.marks.events) {
+        if (event.player_id == player_id && event.seq >= stay_begin && event.seq < stay_end)
+            markers.push_back({event.t_ms, event.kind});
     }
-    return times;
+    return markers;
 }
 
 void demo_playback_note_player_activity(rf::Player* player)

@@ -10,6 +10,7 @@
 
 namespace rf
 {
+    struct Item;
     struct Player;
     struct NetAddr;
     struct Entity;
@@ -71,6 +72,18 @@ void demo_record_crit_shot(unsigned char shooter_id, unsigned char weapon_type);
 // the spectated player. Called from grant_award next to the live award sends; no-op unless
 // recording.
 void demo_record_award(unsigned char award_id, unsigned char victim_player_id, unsigned char earner_id);
+// Powerup pickups the playback seek bar marks. Wire values of the demo-only item pickup
+// record: append only.
+enum class DemoPickupKind : uint8_t
+{
+    damage_amp = 0,
+    invulnerability = 1,
+    fusion = 2,
+};
+// Mirrors a pickup of one of the DemoPickupKind items into the demo, tagged with the
+// player who took it (the stock item_apply only reaches the picker). Called from the
+// server's item pickup path; no-op unless recording or the item is not one of those.
+void demo_record_item_pickup(rf::Player* player, const rf::Item* item);
 // Reliable-socket slot of the recorder's virtual player, or -1. Used to keep the
 // deferred reliable queue (send_queues_rel_add_packet) away from the fabricated slot -
 // its drain path sends via net_rel_send for real, bypassing the capture taps.
@@ -160,11 +173,25 @@ void demo_powerup_timers_on_item_update();
 // Full-screen "SEEKING..." overlay with progress; called from after_frame_render_hook
 // (the world render - including the HUD - is skipped while seeking).
 void demo_playback_render_seek_overlay();
-// Demo-clock times (ms) of every kill the player with this net id scores in the whole
-// stream, past and future, limited to their current stay in the server (a later joiner
-// reusing the id is someone else). Taken from the recorded kill_info, so recordings from
-// servers older than Alpine 1.4 have none. Empty unless playback is active.
-std::vector<uint32_t> demo_playback_player_kill_times(int player_id);
+// Seek bar markers for a player's moments.
+enum class DemoMarkerKind : uint8_t
+{
+    kill,
+    damage_amp,
+    invulnerability,
+    fusion,
+    award,
+};
+struct DemoPlayerMarker
+{
+    uint32_t t_ms;
+    DemoMarkerKind kind;
+};
+// Every marker of the player with this net id in the whole stream, past and future, in
+// stream order, limited to their current stay in the server (a later joiner reusing the
+// id is someone else). Kills and awards are recorded by Alpine 1.4+ servers, pickups by
+// 1.5+. Empty unless playback is active.
+std::vector<DemoPlayerMarker> demo_playback_player_markers(int player_id);
 // Records a player as recently active (killer/attacker) for auto-follow target
 // selection. No-op unless playback is active.
 void demo_playback_note_player_activity(rf::Player* player);
