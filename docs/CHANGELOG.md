@@ -180,6 +180,9 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `cl_cinema` console command to toggle cinema mode, which hides the HUD except for the reticle and kill feed
 - Keep chat menus and the chat input box visible while the HUD is hidden
 - Add `r_outlines_spectator_xray` console command to toggle showing player outlines through walls while spectating
+- Mark the followed player's kills, awards, and Damage Amplifier, Invulnerability, and Fusion pickups on the demo playback scrubber while spectating in first person; click a marker to jump to just before it
+  - Pickup markers require demos recorded by an Alpine Faction 1.5 server
+- Seek within demos faster
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`
