@@ -3357,6 +3357,10 @@ void enforce_alpine_hard_reject_for_all_players_on_current_level()
 }
 
 AlpineRestrictVerdict check_player_alpine_restrict_status(const rf::Player* const player) {
+    // Server bots run the server's own build, which a release-only rule (e.g. match mode) would refuse on a dev build.
+    if (server_bot_from_player(player)) {
+        return AlpineRestrictVerdict::ok;
+    }
     const auto [verdict, verdict_string, hard_reject] =
         evaluate_alpine_restrict_status(player->version_info, false);
     return verdict;
