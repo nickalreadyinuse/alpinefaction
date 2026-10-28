@@ -157,6 +157,13 @@ namespace
 
     PlaybackCtx g_ctx;
 
+    // Stream facts a full scan of the file established, so a restart can skip the pre-scan
+    struct KnownStreamExtent
+    {
+        uint32_t duration_ms;
+        std::optional<DemoFooterInfo> footer;
+    };
+
     // Backward seek restarts the session, but doing that synchronously from the console
     // handler (teardown + immediate rejoin mid-frame) re-enters gameplay rendering after
     // multi_stop released the character data - the same crash demo_stop had. Instead the
@@ -166,6 +173,7 @@ namespace
     {
         std::string path;
         double seek_ms;
+        KnownStreamExtent extent;
         float timescale;
         bool paused;
         // Camera memory carried across the session restart (see cam_* in PlaybackCtx)
@@ -275,13 +283,19 @@ namespace
     bool feed_one_packet(const uint8_t* data, size_t len)
     {
         static std::array<uint8_t, 0x4000> scratch;
+        // Everything past this is still zero - only the previous packet's tail needs clearing
+        // (a full 16KB clear per packet adds up over a seek's tens of thousands of records)
+        static size_t scratch_dirty_len = 0;
         if (len < 3 || len > scratch.size())
             return false;
         const size_t declared = static_cast<size_t>(data[1]) | (static_cast<size_t>(data[2]) << 8);
         if (declared != len - 3)
             return false;
-        std::memset(scratch.data(), 0, scratch.size());
+        if (scratch_dirty_len > len) {
+            std::memset(scratch.data() + len, 0, scratch_dirty_len - len);
+        }
         std::memcpy(scratch.data(), data, len);
+        scratch_dirty_len = len;
         rf::multi_io_process_packets(scratch.data(), len, demo_playback_addr, nullptr);
         return true;
     }
@@ -365,6 +379,215 @@ namespace
         return fed;
     }
 
+    // Seek-burst coalescing of object state. obj_update and af_obj_update are ~70% of a demo's
+    // records and nearly all of its bytes, and both carry absolute per-object state where only
+    // the newest value matters. Until seek_coalesce_tail_ms before the target the burst folds
+    // them into one entry per object handle instead of running each through the engine, and
+    // feeds the result as synthesized packets once it reaches that tail (or the seek ends). The
+    // tail itself is fed normally, so whatever is still in flight at the target - reloads keyed
+    // on the current weapon, fire edges, the interp rings - sees the real per-tick sequence.
+    constexpr double seek_coalesce_tail_ms = 5000.0;
+
+    // One obj_update row, merged field by field: a field a later row omits keeps its last value.
+    // Field order and sizes are what process_obj_update_packet (0x0047DF90) reads on a client
+    // (size table at 0x0059EEC8): pos/rot/anim, armor state, weapon lag comp, connection counter,
+    // weapon type, health/armor. Fire bits carry no bytes.
+    struct CoalescedObjRow
+    {
+        uint8_t flags = 0;
+        std::array<uint8_t, 22> pos_rot_anim{};
+        uint8_t armor_state = 0;
+        std::array<uint8_t, 2> connection_counter{};
+        uint8_t weapon_type = 0;
+        std::array<uint8_t, 3> health_armor{};
+    };
+
+    struct SeekCoalesceState
+    {
+        std::unordered_map<uint32_t, CoalescedObjRow> obj_rows;
+        std::unordered_map<uint32_t, af_obj_update> af_rows;
+    };
+    SeekCoalesceState g_seek_coalesce;
+
+    // Row size for flags without OUF_WEAPON_LAG_COMP (the only variable-length field)
+    size_t obj_update_row_len(uint8_t flags)
+    {
+        return 5 + ((flags & rf::OUF_POS_ROT_ANIM) ? 22 : 0) + ((flags & rf::OUF_ARMOR_STATE) ? 1 : 0)
+            + ((flags & rf::OUF_CONNECTION_COUNTER) ? 2 : 0) + ((flags & rf::OUF_WEAPON_TYPE) ? 1 : 0)
+            + ((flags & rf::OUF_HEALTH_ARMOR) ? 3 : 0);
+    }
+
+    void merge_obj_update_row(CoalescedObjRow& row, uint8_t flags, const uint8_t* fields)
+    {
+        // Fire bits are the row's state, not a field - the newest row's win
+        constexpr uint8_t fire_bits = rf::OUF_FIRE | rf::OUF_ALT_FIRE;
+        row.flags = static_cast<uint8_t>((row.flags & ~fire_bits) | flags);
+        auto take = [&](uint8_t bit, auto& field) {
+            if (flags & bit) {
+                std::memcpy(&field, fields, sizeof(field));
+                fields += sizeof(field);
+            }
+        };
+        take(rf::OUF_POS_ROT_ANIM, row.pos_rot_anim);
+        take(rf::OUF_ARMOR_STATE, row.armor_state);
+        take(rf::OUF_CONNECTION_COUNTER, row.connection_counter);
+        take(rf::OUF_WEAPON_TYPE, row.weapon_type);
+        take(rf::OUF_HEALTH_ARMOR, row.health_armor);
+    }
+
+    void append_obj_update_row(std::vector<uint8_t>& buf, uint32_t handle, const CoalescedObjRow& row)
+    {
+        auto put = [&](uint8_t bit, const auto& field) {
+            if (row.flags & bit) {
+                const auto* bytes = reinterpret_cast<const uint8_t*>(&field);
+                buf.insert(buf.end(), bytes, bytes + sizeof(field));
+            }
+        };
+        const auto* handle_bytes = reinterpret_cast<const uint8_t*>(&handle);
+        buf.insert(buf.end(), handle_bytes, handle_bytes + sizeof(handle));
+        buf.push_back(row.flags);
+        put(rf::OUF_POS_ROT_ANIM, row.pos_rot_anim);
+        put(rf::OUF_ARMOR_STATE, row.armor_state);
+        put(rf::OUF_CONNECTION_COUNTER, row.connection_counter);
+        put(rf::OUF_WEAPON_TYPE, row.weapon_type);
+        put(rf::OUF_HEALTH_ARMOR, row.health_armor);
+    }
+
+    // Walks an obj_update body's rows, merging each into rows when given. False when a row
+    // can't be sized (the lag comp block only rides client uplinks) or the 0xFFFFFFFF
+    // terminator is not exactly at the end - validate with rows = nullptr before merging.
+    bool walk_obj_update_rows(const uint8_t* body, size_t len, std::unordered_map<uint32_t, CoalescedObjRow>* rows)
+    {
+        size_t pos = 0;
+        while (len - pos >= 4) {
+            uint32_t handle = 0;
+            std::memcpy(&handle, body + pos, 4);
+            if (handle == 0xFFFFFFFF) {
+                return pos + 4 == len;
+            }
+            if (len - pos < 5) {
+                return false;
+            }
+            const uint8_t flags = body[pos + 4];
+            if (flags & rf::OUF_WEAPON_LAG_COMP) {
+                return false;
+            }
+            const size_t row_len = obj_update_row_len(flags);
+            if (row_len > len - pos) {
+                return false;
+            }
+            if (rows) {
+                merge_obj_update_row((*rows)[handle], flags, body + pos + 5);
+            }
+            pos += row_len;
+        }
+        return false;
+    }
+
+    void seek_coalesce_reset()
+    {
+        g_seek_coalesce.obj_rows.clear();
+        g_seek_coalesce.af_rows.clear();
+    }
+
+    // Feeds the coalesced state as wire-shaped packets, split at the wire packet size like the
+    // server's own sends. obj_update goes first: it sets the current weapon af_obj_update's ammo
+    // is matched against. Rows of objects destroyed since are dropped (the handlers skip them).
+    void seek_coalesce_flush()
+    {
+        if (g_seek_coalesce.obj_rows.empty() && g_seek_coalesce.af_rows.empty()) {
+            return;
+        }
+        std::vector<uint8_t> packet;
+        auto begin_packet = [&](uint8_t type) {
+            packet.assign({type, 0, 0});
+        };
+        auto send_packet = [&] {
+            const size_t size = packet.size() - 3;
+            packet[1] = static_cast<uint8_t>(size & 0xFF);
+            packet[2] = static_cast<uint8_t>(size >> 8);
+            feed_one_packet(packet.data(), packet.size());
+        };
+
+        constexpr uint32_t terminator = 0xFFFFFFFF;
+        auto end_obj_update = [&] {
+            const auto* bytes = reinterpret_cast<const uint8_t*>(&terminator);
+            packet.insert(packet.end(), bytes, bytes + sizeof(terminator));
+            send_packet();
+        };
+        begin_packet(RF_GPT_OBJECT_UPDATE);
+        for (const auto& [handle, row] : g_seek_coalesce.obj_rows) {
+            if (!rf::obj_from_remote_handle(static_cast<int>(handle))) {
+                continue;
+            }
+            if (packet.size() > 3 && packet.size() + obj_update_row_len(row.flags) + sizeof(terminator)
+                > rf::max_packet_size) {
+                end_obj_update();
+                begin_packet(RF_GPT_OBJECT_UPDATE);
+            }
+            append_obj_update_row(packet, handle, row);
+        }
+        if (packet.size() > 3) {
+            end_obj_update();
+        }
+
+        begin_packet(static_cast<uint8_t>(af_packet_type::af_obj_update));
+        for (const auto& [handle, row] : g_seek_coalesce.af_rows) {
+            if (!rf::obj_from_remote_handle(static_cast<int>(handle))) {
+                continue;
+            }
+            if (packet.size() + sizeof(row) > rf::max_packet_size) {
+                send_packet();
+                begin_packet(static_cast<uint8_t>(af_packet_type::af_obj_update));
+            }
+            const auto* bytes = reinterpret_cast<const uint8_t*>(&row);
+            packet.insert(packet.end(), bytes, bytes + sizeof(row));
+        }
+        if (packet.size() > 3) {
+            send_packet();
+        }
+        seek_coalesce_reset();
+    }
+
+    // Folds a burst record into the coalesced state instead of feeding it. False when the
+    // caller should feed it normally; an obj_update that can't be parsed flushes first so it
+    // still lands after the older state it supersedes.
+    bool seek_coalesce_record(const DemoRecord& rec)
+    {
+        if (!rec.is_packet() || (rec.flags() & DEMO_PKT_TEAM_SCOPED) || !packet_check_whitelist(rec.packet_type())) {
+            return false;
+        }
+        const uint8_t* data = rec.packet_data();
+        const size_t len = rec.packet_len();
+        const size_t declared = static_cast<size_t>(data[1]) | (static_cast<size_t>(data[2]) << 8);
+        if (declared != len - 3) {
+            return false; // mis-framed - the normal feed rejects it
+        }
+        const uint8_t* body = data + 3;
+        const size_t body_len = len - 3;
+        switch (rec.packet_type()) {
+        case RF_GPT_OBJECT_UPDATE:
+            if (!walk_obj_update_rows(body, body_len, nullptr)) {
+                seek_coalesce_flush();
+                return false;
+            }
+            walk_obj_update_rows(body, body_len, &g_seek_coalesce.obj_rows);
+            return true;
+        case static_cast<uint8_t>(af_packet_type::af_obj_update):
+            if (body_len % sizeof(af_obj_update) != 0) {
+                return false; // its handler rejects it
+            }
+            for (size_t pos = 0; pos < body_len; pos += sizeof(af_obj_update)) {
+                af_obj_update row;
+                std::memcpy(&row, body + pos, sizeof(row));
+                g_seek_coalesce.af_rows[row.obj_handle] = row;
+            }
+            return true;
+        default:
+            return false;
+        }
+    }
+
     void clear_all_object_interpolation()
     {
         // All object types - items, movers, clutter and corpses keep interp rings too,
@@ -394,6 +617,7 @@ namespace
             rf::snd_pause(false);
         }
         seek_restore_audio(); // teardown can arrive mid-seek
+        seek_coalesce_reset();
         demo_powerup_timers_reset();
         g_ctx.reader.close();
         g_ctx.state = PlaybackState::inactive;
@@ -891,6 +1115,7 @@ namespace
 
     void seek_finish()
     {
+        seek_coalesce_flush(); // the burst can end (EOF) before reaching the uncoalesced tail
         g_ctx.clock_ms = g_ctx.seek_target_ms;
         if (g_ctx.duration_ms > 0) {
             g_ctx.clock_ms = std::min(g_ctx.clock_ms, static_cast<double>(g_ctx.duration_ms));
@@ -995,7 +1220,44 @@ namespace
         playback_teardown();
     }
 
-    bool demo_play_start(const std::string& path, double seek_ms, bool already_in_server_list = false)
+    // Harvests the footer (duration) and counts skippable packet types, then rewinds the
+    // reader to the first record. Closes the reader and returns false when it can't play.
+    bool demo_pre_scan(const std::string& path)
+    {
+        uint32_t records = 0;
+        uint32_t non_whitelisted = 0;
+        uint32_t last_t_ms = 0;
+        DemoRecord rec;
+        while (g_ctx.reader.next_record(rec)) {
+            ++records;
+            last_t_ms = rec.t_ms;
+            if (rec.is_packet() && !packet_check_whitelist(rec.packet_type()))
+                ++non_whitelisted;
+        }
+        if (records == 0) {
+            rf::console::print("Demo file contains no records: {}", path);
+            g_ctx.reader.close();
+            return false;
+        }
+        if (non_whitelisted > 0) {
+            rf::console::print("Demo contains {} packets of unsupported types - they will be skipped",
+                               non_whitelisted);
+        }
+        g_ctx.duration_ms = g_ctx.reader.has_footer() ? g_ctx.reader.footer().duration_ms : last_t_ms;
+        if (!g_ctx.reader.has_footer()) {
+            rf::console::print(
+                "Demo file has no end marker (still recording, or the server was stopped mid-recording) - "
+                "playing anyway; the duration shown may grow");
+        }
+        if (!g_ctx.reader.rewind_to_records()) {
+            rf::console::print("Failed to re-open demo file: {}", path);
+            return false;
+        }
+        return true;
+    }
+
+    bool demo_play_start(const std::string& path, double seek_ms, bool already_in_server_list = false,
+                         const std::optional<KnownStreamExtent>& known_extent = std::nullopt)
     {
         auto result = g_ctx.reader.open(path);
         using OpenResult = DemoFileReader::OpenResult;
@@ -1048,34 +1310,15 @@ namespace
                                header.level_filename);
         }
 
-        // Pre-scan: harvest the footer (duration) and count skippable packet types.
-        uint32_t records = 0;
-        uint32_t non_whitelisted = 0;
-        uint32_t last_t_ms = 0;
-        DemoRecord rec;
-        while (g_ctx.reader.next_record(rec)) {
-            ++records;
-            last_t_ms = rec.t_ms;
-            if (rec.is_packet() && !packet_check_whitelist(rec.packet_type()))
-                ++non_whitelisted;
+        if (known_extent) {
+            // Backward-seek restart of the same file: the first session's pre-scan (and its
+            // feed, for a footerless file that kept growing) already established the extent
+            g_ctx.duration_ms = known_extent->duration_ms;
+            if (known_extent->footer) {
+                g_ctx.reader.assume_footer(*known_extent->footer);
+            }
         }
-        if (records == 0) {
-            rf::console::print("Demo file contains no records: {}", path);
-            g_ctx.reader.close();
-            return false;
-        }
-        if (non_whitelisted > 0) {
-            rf::console::print("Demo contains {} packets of unsupported types - they will be skipped",
-                               non_whitelisted);
-        }
-        g_ctx.duration_ms = g_ctx.reader.has_footer() ? g_ctx.reader.footer().duration_ms : last_t_ms;
-        if (!g_ctx.reader.has_footer()) {
-            rf::console::print(
-                "Demo file has no end marker (still recording, or the server was stopped mid-recording) - "
-                "playing anyway; the duration shown may grow");
-        }
-        if (!g_ctx.reader.rewind_to_records()) {
-            rf::console::print("Failed to re-open demo file: {}", path);
+        else if (!demo_pre_scan(path)) {
             return false;
         }
 
@@ -1501,8 +1744,12 @@ void demo_playback_request_seek(double target_ms)
         // Backward seek (or seek after EOF): reload the level by restarting the
         // session from the file start, then fast-forward to the target. Teardown
         // is deferred to the pump; the restart to demo_playback_on_state_init.
+        std::optional<DemoFooterInfo> footer;
+        if (g_ctx.reader.has_footer()) {
+            footer = g_ctx.reader.footer();
+        }
         g_pending_restart = PendingRestart{
-            g_ctx.reader.path(), target_ms, g_ctx.timescale, g_ctx.paused,
+            g_ctx.reader.path(), target_ms, {g_ctx.duration_ms, footer}, g_ctx.timescale, g_ctx.paused,
             g_ctx.cam_want_attached, g_ctx.cam_third_person, g_ctx.cam_target_id,
             g_ctx.cam_last_active_id, g_ctx.cam_free_valid, g_ctx.cam_free_pos,
             g_ctx.cam_free_orient, g_ctx.cam_free_phb, g_ctx.cam_free_eye_phb};
@@ -1643,15 +1890,25 @@ void demo_playback_do_frame()
         }
         if (g_ctx.seek_target_ms >= 0.0) {
             // Budgeted fast-forward: feed records for a slice of wall clock, then yield
-            // so the frame presents (seek overlay) and input stays responsive
-            const int64_t budget_end = timer::get_i64(1000) + 10;
+            // so the frame presents (seek overlay) and input stays responsive. ~30 fps for the
+            // overlay: rendering is skipped while seeking, so a shorter slice mostly spends
+            // the frame waiting on present/vsync instead of feeding
+            const int64_t budget_end = timer::get_i64(1000) + 30;
             while (g_ctx.state == PlaybackState::playing && ensure_pending_record()
                    && static_cast<double>(g_ctx.pending.t_ms) <= g_ctx.seek_target_ms) {
                 g_ctx.clock_ms = static_cast<double>(g_ctx.pending.t_ms); // progress display
                 if (!g_ctx.reader.has_footer() && g_ctx.pending.t_ms > g_ctx.duration_ms) {
                     g_ctx.duration_ms = g_ctx.pending.t_ms; // see paced feed below
                 }
-                feed_packet_record(g_ctx.pending, true);
+                // Object state is coalesced up to the tail before the target, then fed as it comes
+                const bool in_tail =
+                    static_cast<double>(g_ctx.pending.t_ms) > g_ctx.seek_target_ms - seek_coalesce_tail_ms;
+                if (in_tail) {
+                    seek_coalesce_flush();
+                }
+                if (in_tail || !seek_coalesce_record(g_ctx.pending)) {
+                    feed_packet_record(g_ctx.pending, true);
+                }
                 consume_pending_record();
                 if (timer::get_i64(1000) >= budget_end) {
                     break;
@@ -1803,7 +2060,7 @@ void demo_playback_on_state_init(int state)
     // Take the request first - demo_play_start re-enters playback state
     const PendingRestart restart = *g_pending_restart;
     g_pending_restart.reset();
-    if (demo_play_start(restart.path, restart.seek_ms, true)) {
+    if (demo_play_start(restart.path, restart.seek_ms, true, restart.extent)) {
         g_ctx.timescale = restart.timescale;
         g_ctx.paused = restart.paused;
         g_ctx.cam_want_attached = restart.cam_want_attached;
