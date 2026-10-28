@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 #include <common/utils/list-utils.h>
+#include <common/utils/string-utils.h>
 #include "../rf/collide.h"
 #include "../rf/entity.h"
 #include "../rf/geometry.h"
@@ -358,7 +359,7 @@ void grant_award(rf::Player* recipient, AwardId id, rf::Player* victim)
         if (!player.net_data || &player == recipient) {
             continue;
         }
-        if (player.spectatee.value_or(nullptr) == recipient) {
+        if (player_is_spectating(player, recipient)) {
             notify(&player);
         }
     }
@@ -784,8 +785,8 @@ void check_x_ray(rf::Player* attacker, rf::Player* victim, int weapon_type)
     if (state->last_scanner_ms != 0 && now - state->last_scanner_ms <= x_ray_scanner_lockout_ms) {
         return;
     }
-    // Only the Salvage and Bagman carriers are outlined through walls, so exclude them.
-    if ((gt_is_salvage() && salvage_get_carrier() == victim) || g_bagman_info.carrier == victim) {
+    // Only the Salvage, Scavenger and Bagman carriers are outlined through walls, so exclude them.
+    if ((salvage_framework_active() && salvage_get_carrier() == victim) || g_bagman_info.carrier == victim) {
         return;
     }
     rf::Entity* attacker_ep = rf::entity_from_handle(attacker->entity_handle);
@@ -946,6 +947,17 @@ ConsoleCommand2 awards_display_cmd{
     },
     "Toggle whether to display awards you earn in multiplayer",
     "cl_awards",
+};
+
+ConsoleCommand2 domination_msgs_display_cmd{
+    "cl_dominationmsgs",
+    []() {
+        g_alpine_game_config.show_domination_msgs = !g_alpine_game_config.show_domination_msgs;
+        rf::console::print("Display of dominating and revenge chat messages is {}",
+                           g_alpine_game_config.show_domination_msgs ? "enabled" : "disabled");
+    },
+    "Toggle whether to display dominating and revenge server messages in chat",
+    "cl_dominationmsgs",
 };
 
 } // namespace
@@ -1216,7 +1228,8 @@ void awards_on_ctf_capture(rf::Player* player)
 
 void awards_on_sal_flag_taken(rf::Player* player, bool from_spawn)
 {
-    if (!awards_tracking_active()) {
+    // The shared objective engine also runs Scavenger, which has no awards of its own yet.
+    if (!gt_is_salvage() || !awards_tracking_active()) {
         return;
     }
     if (AwardPlayerState* state = state_for(player)) {
@@ -1226,6 +1239,9 @@ void awards_on_sal_flag_taken(rf::Player* player, bool from_spawn)
 
 void awards_on_sal_flag_dropped(rf::Player* player)
 {
+    if (!gt_is_salvage()) {
+        return;
+    }
     if (AwardPlayerState* state = state_for(player)) {
         state->clean_steal = false;
     }
@@ -1233,7 +1249,7 @@ void awards_on_sal_flag_dropped(rf::Player* player)
 
 void awards_on_sal_capture(rf::Player* player)
 {
-    if (!awards_tracking_active()) {
+    if (!gt_is_salvage() || !awards_tracking_active()) {
         return;
     }
     AwardPlayerState* state = state_for(player);
@@ -1390,6 +1406,13 @@ void awards_client_reset()
     hud_notification_remove(HudNotificationType::Award, true);
 }
 
+// Matches the chat lines update_nemesis broadcasts.
+bool awards_is_domination_chat_msg(std::string_view msg)
+{
+    return string_ends_with(msg, "!")
+        && (string_contains(msg, " is dominating ") || string_contains(msg, " got revenge on "));
+}
+
 void awards_client_do_frame()
 {
     if (!rf::is_multi) {
@@ -1438,4 +1461,5 @@ void awards_client_do_frame()
 void awards_do_patch()
 {
     awards_display_cmd.register_cmd();
+    domination_msgs_display_cmd.register_cmd();
 }

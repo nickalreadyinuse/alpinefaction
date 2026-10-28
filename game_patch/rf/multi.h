@@ -155,6 +155,7 @@ namespace rf
         NG_TYPE_WO = 11,    // Wipeout, as of AF v1.4
         NG_TYPE_GG = 12, // Gun Game, as of AF v1.4
         NG_TYPE_SAL = 13,   // Salvage, as of AF v1.4
+        NG_TYPE_SCAV = 14,  // Scavenger, as of AF v1.5
         // Sentinel: UNK must always be the last entry.
         NG_TYPE_UNK
     };
@@ -185,6 +186,12 @@ namespace rf
         NPF_LIMBO = 0x20,
         NPF_BLUE_TEAM = 0x80,
         NPF_RCON_HOLDER = 0x100
+    };
+
+    enum NetPlayerState : int {
+        NETPLAYER_STATE_WAITING = 0x0,
+        NETPLAYER_STATE_SYNC = 0x1,
+        NETPLAYER_STATE_IN_GAME = 0x2,
     };
 
     struct NetGameInfo
@@ -234,6 +241,19 @@ namespace rf
     };
     static_assert(sizeof(NetReliableSocketStatus) == 4);
 
+    // obj_update row flags byte.
+    enum ObjUpdateFlags
+    {
+        OUF_POS_ROT_ANIM = 0x01,
+        OUF_CONNECTION_COUNTER = 0x02,
+        OUF_WEAPON_TYPE = 0x04,
+        OUF_WEAPON_LAG_COMP = 0x08,
+        OUF_ALT_FIRE = 0x10,
+        OUF_HEALTH_ARMOR = 0x20,
+        OUF_FIRE = 0x40,
+        OUF_ARMOR_STATE = 0x80,
+    };
+
     #pragma pack(push, 1)
     struct NetReliableSocket {
         void* sbuffers[75];
@@ -261,11 +281,14 @@ namespace rf
     constexpr size_t max_packet_size = 512;
 
     static auto& multi_get_game_type = addr_as_ref<NetGameType()>(0x00470770);
+    // What the stock friendly-fire gate in obj_damage consults (call at 0x004893A8): netgame.flags
+    // bit 9 alone, never the 0x240 pair the config writes.
+    static auto& multi_is_team_damage_on = addr_as_ref<bool()>(0x004826B0);
     static auto& multi_io_send = addr_as_ref<void(Player *player, const void *packet, int len)>(0x00479370);
     static auto& multi_io_send_reliable =
-        addr_as_ref<void(Player *player, const void *data, int len, int not_limbo)>(0x00479480);
+        addr_as_ref<void(Player *player, const void *data, int len, bool require_in_game)>(0x00479480);
     static auto& multi_io_send_reliable_to_all =
-        addr_as_ref<void(const void *data, int len, int a4)>(0x004795A0);
+        addr_as_ref<void(const void *data, int len, bool require_in_game)>(0x004795A0);
     static auto& multi_io_send_buffered_reliable_packets = addr_as_ref<void(Player *pp)>(0x004796C0);
     static auto& multi_find_player_by_addr = addr_as_ref<Player*(const NetAddr& addr)>(0x00484850);
     static auto& multi_find_player_by_id = addr_as_ref<Player*(uint8_t id)>(0x00484890);
@@ -333,6 +356,7 @@ namespace rf
     static auto& send_obj_kill_packet = addr_as_ref<void(Entity* killed_entity, Item* item, int* a3)>(0x0047E8C0);
     static auto& send_obj_update_packet = addr_as_ref<void()>(0x0047E5B0); // client -> server
     static auto& send_obj_update_packet_timestamp = addr_as_ref<TimestampRealtime>(0x006FB424);
+    static auto& multi_pack_obj_update_data = addr_as_ref<int(Player* pp, Object* obj, uint8_t* out)>(0x0047DB20);
     static auto& send_item_create_packet = addr_as_ref<void(Item* item, Player* recipient, int16_t level_item_index)>(0x00479A20);
     static auto& send_item_apply_packet = addr_as_ref<void(Player* to, int item_handle, int entity_handle, int weapon, int ammo, int clip_ammo)>(0x00479810);
     static auto& send_respawn_req_packet = addr_as_ref<void(uint32_t multi_character, uint8_t player_id)>(0x004809D0); // client -> server
@@ -349,6 +373,15 @@ namespace rf
     static auto& multi_alloc_player_id = addr_as_ref<uint8_t()>(0x0046EF00);
     static auto& multi_player_left_game = addr_as_ref<void(Player* player)>(0x0046E9D0);
     static auto& update_player_rate = addr_as_ref<void(Player* player)>(0x0047E7D0);
+    // Announces p to every other connected player (packet 0x05, carries net_data->flags).
+    static auto& send_new_player_packet = addr_as_ref<void __cdecl(Player* p)>(0x0047A460);
+    static auto& send_left_game_packet = addr_as_ref<void __cdecl(uint8_t player_id, uint8_t reason)>(0x0047BAE0);
+
+    // Server-side handlers of client requests (AF validates both in their FunHooks)
+    static auto& multi_select_weapon_server_side =
+        addr_as_ref<void __cdecl(Player* pp, Entity* ep, int weapon_type)>(0x004858D0);
+    static auto& multi_process_remote_weapon_fire =
+        addr_as_ref<void __cdecl(Entity* ep, int weapon_type, Vector3& pos, Matrix3& orient, bool alt_fire)>(0x0047D220);
     // Client-side: reset by process_obj_update_packet; drives the broken-connection icon,
     // the 20s timeout popup and the sim pause.
     static auto& multi_connection_broken_timestamp = addr_as_ref<Timestamp>(0x0064ECA8);
@@ -404,6 +437,8 @@ namespace rf
     static auto& send_glass_kill_packet = addr_as_ref<void(int room_uid, Vector3* break_pos, Vector3* explosion_pos, bool explosion)>(0x00472250);
 
     constexpr int multi_max_player_id = 256;
+    // Players the engine handles at once: the client scoreboard's player array (0x00470880) overflows beyond it.
+    constexpr int multi_max_player_slots = 32;
 }
 
 template <>

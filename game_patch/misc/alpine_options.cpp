@@ -263,7 +263,12 @@ std::optional<std::pair<std::string, std::string>> parse_mesh_replacement(const 
 
     if (std::regex_match(trimmed_value, matches, mesh_replacement_pattern)) {
         if (matches.size() == 3) { // Full match and 2 filename captures
-            return std::make_pair(trim(matches[1].str(), true), trim(matches[2].str(), true));
+            constexpr size_t mesh_replacement_max_len = 31; // obj_create_mesh copies into char[32]
+            std::string replacement = trim(matches[2].str(), true);
+            if (replacement.size() > mesh_replacement_max_len) {
+                return std::nullopt;
+            }
+            return std::make_pair(trim(matches[1].str(), true), std::move(replacement));
         }
     }
     return std::nullopt;
@@ -379,6 +384,21 @@ void load_level_info_config(const std::string& level_filename)
             }
             else {
                 xlog::warn("Invalid mesh replacement format in {}", info_filename);
+            }
+
+            continue;
+        }
+
+        // handle looping sounds
+        if (option_name == "$Looping Sound") {
+            std::string filename = trim(trim(option_value, true), false);
+            // Sound entries are bare file names, so a path or a stray quote could never match one
+            if (!filename.empty() && filename.find_first_of("/\\\"") == std::string::npos) {
+                g_alpine_level_info_config.looping_sounds.insert(string_to_lower(filename));
+                xlog::debug("Looping Sound Added: {} in {}", filename, level_filename);
+            }
+            else {
+                xlog::warn("Invalid looping sound format in {}", info_filename);
             }
 
             continue;

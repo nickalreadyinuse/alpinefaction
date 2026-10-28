@@ -335,14 +335,20 @@ namespace
         },
     };
 
-    FunHook<void(rf::Player*, const void*, int, int)> multi_io_send_reliable_hook{
+    FunHook<void(rf::Player*, const void*, int, bool)> multi_io_send_reliable_hook{
         0x00479480,
-        [](rf::Player* player, const void* data, int len, int not_limbo) {
+        [] (
+            rf::Player* const player,
+            const void* const data,
+            const int len,
+            const bool require_in_game
+        ) {
             if (player && player->is_observer()) {
                 capture_packet(data, len, DEMO_PKT_RELIABLE);
-                return;
+            } else {
+                multi_io_send_reliable_hook
+                    .call_target(player, data, len, require_in_game);
             }
-            multi_io_send_reliable_hook.call_target(player, data, len, not_limbo);
         },
     };
 
@@ -465,12 +471,14 @@ void demo_record_capture_team_scoped(const void* data, size_t len, unsigned char
     capture_packet(data, len, flags);
 }
 
-void demo_record_pvp_damage_notify(unsigned char victim_id, float damage, bool died, bool crit, unsigned char attacker_id)
+void demo_record_pvp_damage_notify(unsigned char victim_id, float damage, bool died, bool crit,
+                                   unsigned char attacker_id, const AfDamageNotifyHull* hull)
 {
     if (!g_state.recorder || !g_state.writer.is_open())
         return;
     // Goes through the multi_io_send tap into the file like every other recorder packet
-    af_send_damage_notify_packet_for_demo(victim_id, damage, died, crit, attacker_id, g_state.recorder);
+    af_send_damage_notify_packet_for_demo(victim_id, damage, died, crit, attacker_id, g_state.recorder,
+                                          hull);
 }
 
 void demo_record_crit_shot(unsigned char shooter_id, unsigned char weapon_type)

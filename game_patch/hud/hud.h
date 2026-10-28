@@ -57,6 +57,8 @@ int hud_get_small_font();
 int hud_get_default_font();
 int hud_get_large_font();
 bool hud_weapons_is_double_ammo();
+int hud_ammo_counter_bottom_y();
+int hud_ammo_counter_right_x();
 void draw_hud_vote_notification(std::string vote_type);
 void remove_hud_vote_notification();
 void stop_draw_respawn_timer_notification();
@@ -88,6 +90,7 @@ void hud_render_draw_chat_menu();
 void chat_menu_action_handler(rf::Key key);
 void build_local_player_spectators_strings();
 std::string_view multi_hud_get_random_taunt_message();
+std::string multi_hud_format_taunt_chat_message(std::string_view taunt_text);
 bool multi_hud_send_taunt_chat_message(std::string_view taunt_text);
 
 extern int g_multi_hud_cp_strip_y;

@@ -5,6 +5,7 @@
 #include <patch_common/AsmOpcodes.h>
 #include <stb_vorbis.h>
 #include <algorithm>
+#include <cstring>
 #include "../rf/sound/sound.h"
 #include "../rf/sound/sound_ds.h"
 #include "../rf/crt.h"
@@ -167,6 +168,22 @@ static CodeInjection snd_ds_play_get_free_channel_injection{
     },
 };
 
+// Music streams through a 2 s looping buffer refilled every 250 ms (0x0054EE30). When a looping stream reaches the end
+// of its file mid-refill, stock rewinds but pads the rest of that refill with silence and counts it toward the 2 s of
+// silence that ends a stream, so a looping track gaps at every wrap and stops after a few loops. Leave the rest
+// unwritten instead: the next refill continues from the start of the file.
+static CodeInjection snd_ds_stream_loop_injection{
+    0x0054EEA4,
+    [](auto& regs) {
+        const int index = static_cast<int>(regs.ebx);
+        auto& stream = rf::ds_streams[index];
+        if ((stream.flags & rf::DSSF_LOOPING) && rf::snd_ds_stream_rewind(index) == 0) {
+            stream.flags &= ~rf::DSSF_END_OF_FILE;
+            regs.eip = 0x0054EEEC;
+        }
+    },
+};
+
 CodeInjection snd_ds_init_device_leave_injection{
     0x005215E0,
     []() {
@@ -218,7 +235,7 @@ static FunHook<int(int)> snd_ds_get_channel_hook{
             return -1;
         }
         int index = static_cast<rf::ubyte>(sig);
-        if (rf::ds_channels[index].sig != sig) {
+        if (index >= static_cast<int>(std::size(rf::ds_channels)) || rf::ds_channels[index].sig != sig) {
             return -1;
         }
         return index;
@@ -331,6 +348,23 @@ FunHook<int(HMMIO*, LPMMCKINFO, const MMCKINFO*)> snd_mmio_find_data_chunk_hook{
     },
 };
 
+// Bulk replacement for the stock chunk reader at 0x00563620: the original copies the wav data
+// into the destination buffer one byte at a time through the mmio buffered-IO window, which
+// costs several ms per sound during level load. One mmioRead call is semantically identical
+// (same clamp to mmcki->cksize, same error path) but memcpy-chunked internally.
+static int snd_mmio_read_chunk_bulk(HMMIO hmmio, unsigned buf_size, BYTE* buf, MMCKINFO* mmcki, int* bytes_read)
+{
+    unsigned len = std::min<unsigned>(buf_size, mmcki->cksize);
+    mmcki->cksize -= len;
+    LONG read = len ? mmioRead(hmmio, reinterpret_cast<HPSTR>(buf), len) : 0;
+    if (read < 0 || static_cast<unsigned>(read) != len) {
+        *bytes_read = 0;
+        return -1;
+    }
+    *bytes_read = read;
+    return 0;
+}
+
 FunHook<int(HMMIO, unsigned, BYTE*, MMCKINFO*, int*)> snd_mmio_read_chunk_hook{
     0x00563620,
     [](HMMIO hmmio, unsigned buf_size, BYTE *buf, MMCKINFO *mmcki, int *bytes_read) {
@@ -351,11 +385,11 @@ FunHook<int(HMMIO, unsigned, BYTE*, MMCKINFO*, int*)> snd_mmio_read_chunk_hook{
                 xlog::info("Ogg Vorbis: read {} samples", samples_read);
                 return 0;
             }
-            return snd_mmio_read_chunk_hook.call_target(wrapper->hmmio, buf_size, buf, mmcki, bytes_read);
+            return snd_mmio_read_chunk_bulk(wrapper->hmmio, buf_size, buf, mmcki, bytes_read);
         }
         else {
             // fallback: not a wrapper, treat as native
-            return snd_mmio_read_chunk_hook.call_target(hmmio, buf_size, buf, mmcki, bytes_read);
+            return snd_mmio_read_chunk_bulk(hmmio, buf_size, buf, mmcki, bytes_read);
         }
     },
 };
@@ -409,6 +443,9 @@ void snd_ds_apply_patch()
 
     // Do not use DSPROPSETID_VoiceManager because it is not implemented by dsoal
     write_mem<i8>(0x00521597 + 4, 0);
+
+    // Loop streamed music without gaps or stopping
+    snd_ds_stream_loop_injection.install();
 
     // Log information about used sound API
     snd_ds_init_device_leave_injection.install();

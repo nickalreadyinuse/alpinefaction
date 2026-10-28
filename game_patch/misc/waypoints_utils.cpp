@@ -196,7 +196,7 @@ void push_waypoint_editor_log(std::string message)
 
 bool waypoint_editor_runtime_mode_active()
 {
-    if (is_waypoint_bot_mode_active() || !g_alpine_game_config.waypoints_edit_mode) {
+    if (is_waypoint_local_bot_mode_active() || !g_alpine_game_config.waypoints_edit_mode) {
         return false;
     }
 
@@ -1217,20 +1217,6 @@ rf::Vector3 gizmo_axis_dir(const WaypointGizmoAxis axis)
     }
 }
 
-bool project_world_to_screen(const rf::Vector3& world_pos, float& out_sx, float& out_sy)
-{
-    rf::gr::Vertex v{};
-    if (!rf::gr::rotate_vertex(&v, &world_pos)) {
-        rf::gr::project_vertex(&v);
-        if (v.flags & rf::gr::VF_PROJECTED) {
-            out_sx = v.sx;
-            out_sy = v.sy;
-            return true;
-        }
-    }
-    return false;
-}
-
 float distance_sq_point_to_segment_2d(
     const float px,
     const float py,
@@ -1271,7 +1257,7 @@ std::optional<GizmoAxisHover> determine_hovered_gizmo_axis(
 {
     float center_sx = 0.0f;
     float center_sy = 0.0f;
-    if (!project_world_to_screen(gizmo_center, center_sx, center_sy)) {
+    if (!gr_project_world_to_screen(gizmo_center, center_sx, center_sy)) {
         return std::nullopt;
     }
 
@@ -1289,7 +1275,7 @@ std::optional<GizmoAxisHover> determine_hovered_gizmo_axis(
         const rf::Vector3 axis_end = gizmo_center + gizmo_axis_dir(axis) * axis_length;
         float end_sx = 0.0f;
         float end_sy = 0.0f;
-        if (!project_world_to_screen(axis_end, end_sx, end_sy)) {
+        if (!gr_project_world_to_screen(axis_end, end_sx, end_sy)) {
             continue;
         }
 
@@ -1586,13 +1572,17 @@ void close_waypoint_link_editor_dialog(const bool save_changes)
 
     if (g_waypoint_link_editor_dialog.edit_inbound_links) {
         remove_waypoint_links_to_from_all(waypoint_uid);
+        int applied_links = 0;
         for (const int from_uid : edited_waypoints) {
             link_waypoint(from_uid, waypoint_uid);
+            if (waypoint_has_link_to(from_uid, waypoint_uid)) {
+                ++applied_links;
+            }
         }
         push_waypoint_editor_log(std::format(
             "Saved inbound links for waypoint {} ({} link(s))",
             waypoint_uid,
-            static_cast<int>(edited_waypoints.size())));
+            applied_links));
     }
     else {
         remove_waypoint_links_from_all(waypoint_uid);
@@ -2311,6 +2301,7 @@ void close_zone_bridge_editor_dialog(const bool save_changes)
             }
             normalize_zone_bridge_waypoint_refs(new_uids);
             zone.bridge_waypoint_uids = std::move(new_uids);
+            refresh_all_waypoint_zone_refs();
             push_waypoint_editor_log(std::format(
                 "Saved zone {} gated waypoints ({} refs)",
                 zone_uid,
@@ -3065,7 +3056,7 @@ void draw_waypoint_editor_gizmo()
 
             float sx = 0.0f;
             float sy = 0.0f;
-            if (project_world_to_screen(axis_end, sx, sy)) {
+            if (gr_project_world_to_screen(axis_end, sx, sy)) {
                 const char axis_label[2]{
                     axis == WaypointGizmoAxis::x ? 'X' : axis == WaypointGizmoAxis::y ? 'Y' : 'Z',
                     '\0'
@@ -4158,6 +4149,33 @@ void reset_waypoint_editor_runtime_state(const bool clear_log)
         g_waypoint_editor_log.clear();
     }
 }
+
+// Returns false when the selected waypoint was removed.
+bool remap_editor_selection(const std::vector<int>& remap, WaypointEditorSelectionState& selection)
+{
+    if (selection.kind != WaypointEditorSelectionKind::waypoint) {
+        return true;
+    }
+    selection.uid = remap_waypoint_uid(remap, selection.uid);
+    if (selection.uid > 0) {
+        return true;
+    }
+    selection = {};
+    return false;
+}
+
+template<size_t N>
+void remap_editor_waypoint_fields(const std::vector<int>& remap, std::array<std::string, N>& fields)
+{
+    for (auto& field : fields) {
+        const auto waypoint_uid = parse_link_field_waypoint_uid(field);
+        // -1 leaves an out-of-range uid as typed.
+        const int remapped_uid = waypoint_uid ? remap_waypoint_uid(remap, waypoint_uid.value(), -1) : -1;
+        if (remapped_uid >= 0) {
+            field = remapped_uid > 0 ? std::to_string(remapped_uid) : std::string{};
+        }
+    }
+}
 } // namespace
 
 void waypoints_utils_level_init()
@@ -4175,6 +4193,46 @@ void waypoints_utils_level_reset()
 void waypoints_utils_on_level_unloaded()
 {
     reset_waypoint_editor_runtime_state(false);
+}
+
+void waypoints_utils_on_waypoints_remapped(const std::vector<int>& remap)
+{
+    remap_editor_selection(remap, g_waypoint_editor_selection);
+    if (g_waypoint_gizmo_drag.active && !remap_editor_selection(remap, g_waypoint_gizmo_drag.selection)) {
+        end_waypoint_gizmo_drag(false);
+    }
+    if (g_waypoint_type_change_dialog.open
+        && g_waypoint_type_change_dialog.subject == WaypointTypeChangeDialogSubject::waypoint) {
+        g_waypoint_type_change_dialog.uid = remap_waypoint_uid(remap, g_waypoint_type_change_dialog.uid);
+        if (g_waypoint_type_change_dialog.uid <= 0) {
+            close_waypoint_type_change_dialog();
+        }
+    }
+    if (g_waypoint_link_editor_dialog.open) {
+        g_waypoint_link_editor_dialog.waypoint_uid =
+            remap_waypoint_uid(remap, g_waypoint_link_editor_dialog.waypoint_uid);
+        if (g_waypoint_link_editor_dialog.waypoint_uid <= 0) {
+            close_waypoint_link_editor_dialog(false);
+        }
+        else {
+            remap_editor_waypoint_fields(remap, g_waypoint_link_editor_dialog.fields);
+        }
+    }
+    remap_editor_waypoint_fields(remap, g_waypoint_target_link_editor_dialog.fields);
+    remap_editor_waypoint_fields(remap, g_waypoint_zone_bridge_editor_dialog.fields);
+    remap_editor_waypoint_fields(remap, g_waypoint_zone_create_dialog.bridge_waypoint_fields);
+}
+
+// The graph, zones and targets were replaced: every editor index refers to the old ones.
+void waypoints_utils_on_waypoints_cleared()
+{
+    end_waypoint_gizmo_drag(false);
+    clear_waypoint_editor_selection();
+    close_waypoint_link_editor_dialog(false);
+    close_waypoint_type_change_dialog();
+    close_target_link_editor_dialog(false);
+    close_zone_bridge_editor_dialog(false);
+    close_waypoint_zone_create_dialog();
 }
 
 void waypoints_utils_do_frame()

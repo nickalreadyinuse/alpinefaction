@@ -12,7 +12,10 @@ namespace rf
     struct Player;
     struct NetAddr;
     struct Entity;
+    struct Vector3;
 }
+
+struct AfDamageNotifyHull;
 
 // Installs all demo hooks and console commands. Called from multi_do_patch().
 void demo_do_patch();
@@ -56,7 +59,9 @@ void demo_record_capture_team_scoped(const void* data, size_t len, unsigned char
 // Mirrors a PvP damage notification into the demo, tagged with the attacker so playback
 // can filter to the spectated player. Called from the server damage path next to the
 // live attacker/spectator sends; no-op unless recording.
-void demo_record_pvp_damage_notify(unsigned char victim_id, float damage, bool died, bool crit, unsigned char attacker_id);
+// hull non-null anchors the notification on a non-player victim instead of a victim player
+void demo_record_pvp_damage_notify(unsigned char victim_id, float damage, bool died, bool crit,
+                                   unsigned char attacker_id, const AfDamageNotifyHull* hull = nullptr);
 // Mirrors a crit-shot telegraph into the demo, tagged with the shooter so playback can
 // filter to the spectated player. Called from crits_broadcast_shot for every weapon class;
 // no-op unless recording.
@@ -148,6 +153,9 @@ void demo_playback_render();
 // Powerup respawn timers (demo_powerup_timers.cpp); called from hud render right
 // after demo_playback_render. Gated on the DemoPowerupTimers setting.
 void demo_powerup_timers_render();
+// Called after every processed item_update packet, the only channel through which a
+// spectator learns about level-item pickups/respawns.
+void demo_powerup_timers_on_item_update();
 // Full-screen "SEEKING..." overlay with progress; called from after_frame_render_hook
 // (the world render - including the HUD - is skipped while seeking).
 void demo_playback_render_seek_overlay();

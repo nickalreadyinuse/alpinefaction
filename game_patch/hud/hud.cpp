@@ -8,6 +8,8 @@
 #include "../misc/vote_panel.h"
 #include "../multi/demo/demo.h"
 #include "../multi/jetpack.h"
+#include "../multi/vehicles/vehicle_view.h"
+#include "minimap.h"
 #include "multi_scoreboard.h"
 #include "multi_spectate.h"
 #include "remote_server_cfg_ui.h"
@@ -156,7 +158,7 @@ static bool is_screen_resolution_too_low_for_big_hud()
 
 void set_big_hud(bool is_big)
 {
-    hud_status_set_big(is_big);
+    hud_status_set_big(is_big && g_alpine_game_config.big_hud_health);
     multi_hud_chat_set_big(is_big);
     hud_personas_set_big(is_big);
     weapon_select_set_big(is_big);
@@ -166,7 +168,7 @@ void set_big_hud(bool is_big)
     g_target_player_name_font = hud_get_default_font();
 
     hud_setup_positions(rf::gr::screen_width());
-    hud_weapons_set_big(is_big);
+    hud_weapons_set_big(is_big && g_alpine_game_config.big_hud_ammo);
     set_big_countdown_counter(is_big);
 
     // TODO: Message Log - Note: it remembers text height in save files so method of recalculation is needed
@@ -186,6 +188,48 @@ ConsoleCommand2 bighud_cmd{
     },
     "Toggle big HUD",
     "bighud",
+};
+
+ConsoleCommand2 bighud_health_cmd{
+    "bighud_health",
+    [] (const std::optional<bool> enabled) {
+        g_alpine_game_config.big_hud_health =
+            enabled.value_or(!g_alpine_game_config.big_hud_health);
+        set_big_hud(g_alpine_game_config.big_hud);
+        if (!g_alpine_game_config.big_hud && g_alpine_game_config.big_hud_health) {
+            rf::console::print(
+                "Big HUD health is enabled but ignored, because big HUD is disabled"
+            );
+        } else {
+            rf::console::print(
+                "Big HUD health is {}",
+                g_alpine_game_config.big_hud_health ? "enabled" : "disabled"
+            );
+        }
+    },
+    "Toggle big HUD for health",
+    "bighud_health",
+};
+
+ConsoleCommand2 bighud_ammo_cmd{
+    "bighud_ammo",
+    [] (const std::optional<bool> enabled) {
+        g_alpine_game_config.big_hud_ammo =
+            enabled.value_or(!g_alpine_game_config.big_hud_ammo);
+        set_big_hud(g_alpine_game_config.big_hud);
+        if (!g_alpine_game_config.big_hud && g_alpine_game_config.big_hud_ammo) {
+            rf::console::print(
+                "Big HUD ammo is enabled but ignored, because big HUD is disabled"
+            );
+        } else {
+            rf::console::print(
+                "Big HUD ammo is {}",
+                g_alpine_game_config.big_hud_ammo ? "enabled" : "disabled"
+            );
+        }
+    },
+    "Toggle big HUD for ammo",
+    "bighud_ammo",
 };
 
 ConsoleCommand2 ui_realarmor_cmd{
@@ -423,6 +467,7 @@ void hud_render_00437BC0()
 
     // Render spectate mode UI under scoreboard
     multi_spectate_render();
+    vehicle_render_control_hints();
 
     if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
         multi_hud_render_killfeed();
@@ -442,6 +487,8 @@ void hud_render_00437BC0()
 
     scoreboard_maybe_render(show_scoreboard && !g_remote_server_cfg_popup.is_active()
         && !vote_panel_is_gameplay_overlay_active());
+
+    minimap_render();
 }
 
 void hud_apply_patches()
@@ -459,6 +506,8 @@ void hud_apply_patches()
 
     // Other commands
     bighud_cmd.register_cmd();
+    bighud_health_cmd.register_cmd();
+    bighud_ammo_cmd.register_cmd();
     ui_realarmor_cmd.register_cmd();
 #ifndef NDEBUG
     hud_coords_cmd.register_cmd();
@@ -485,4 +534,5 @@ void hud_apply_patches()
     hud_world_apply_patch();
     hud_colors_apply_patch();
     hud_scale_apply_patch();
+    minimap_apply_patches();
 }

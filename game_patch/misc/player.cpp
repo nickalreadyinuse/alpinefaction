@@ -12,6 +12,8 @@
 #include "../rf/input.h"
 #include "../rf/collide.h"
 #include "../rf/gr/gr_light.h"
+#include "../graphics/d3d11/gr_d3d11_hooks.h"
+#include "../graphics/detail_texture.h"
 #include "../rf/os/os.h"
 #include "../rf/os/frametime.h"
 #include "../rf/gameseq.h"
@@ -34,6 +36,8 @@
 #include "../multi/gungame.h"
 #include "../multi/awards.h"
 #include "../multi/mutators.h"
+#include "../multi/bots/server_bots.h"
+#include "../multi/vehicles/vehicle.h"
 #include "../hud/multi_spectate.h"
 #include "../hud/hud_internal.h"
 #include "../hud/hud.h"
@@ -282,6 +286,7 @@ FunHook<void(rf::Player*)> player_destroy_hook{
         sprays_on_player_destroyed(player);
         pit_on_player_disconnect(player);
         gungame_on_player_disconnect(player);
+        vehicle_on_player_disconnect(player);
         accuracy_stats_on_player_destroy(player);
         awards_on_player_destroy(player);
         mutators_on_player_destroy(player);
@@ -293,6 +298,7 @@ FunHook<void(rf::Player*)> player_destroy_hook{
             server_vote_on_player_leave(player);
             if (player->is_bot) {
                 g_bot_profile_slots.release_slot(player);
+                server_bots_on_player_destroyed(player);
             }
             if (player->net_data) {
                 g_select_weapon_done_timestamp[player->net_data->player_id].invalidate();
@@ -341,6 +347,10 @@ FunHook<rf::Entity*(rf::Player*, int, const rf::Vector3*, const rf::Matrix3*, in
                 ep->ai.danger_weapon_handle = -1;
                 rf::ai_set_mode(&ep->ai, rf::AI_MODE_CHASE, -1, -1);
                 rf::ai_set_submode(&ep->ai, rf::AI_SUBMODE_NONE);
+            }
+            if (server_bot_from_player(pp)) {
+                // Simulated from its own ai.ci and control_data like the local player, not from interp.
+                ep->p_data.flags &= ~rf::PF_NET_PLAYER;
             }
         }
         if (pp == rf::local_player) {
@@ -396,8 +406,30 @@ bool is_player_weapon_on(rf::Player* player, bool alt_fire) {
 FunHook<void(rf::Player*, bool, bool)> player_fire_primary_weapon_hook{
     0x004A4E80,
     [](rf::Player* player, bool alt_fire, bool was_pressed) {
+        // A listen host would otherwise fire twice: here and from the vehicle module's server pass.
+        if (vehicle_suppress_local_fire(player)) {
+            return;
+        }
         if (should_swap_weapon_alt_fire(player)) {
             alt_fire = !alt_fire;
+        }
+        // The stock path writes its post-shot fire-wait onto ai.next_fire_primary whichever trigger
+        // fired, so restore the untouched trigger's timestamp across the predicted shot.
+        rf::Entity* vehicle = nullptr;
+        if (rf::is_multi && !rf::is_server) {
+            vehicle = vehicle_ridden_hull(rf::entity_from_handle(player->entity_handle));
+        }
+        if (vehicle) {
+            const rf::Timestamp saved_primary = vehicle->ai.next_fire_primary;
+            const rf::Timestamp saved_secondary = vehicle->ai.next_fire_secondary;
+            player_fire_primary_weapon_hook.call_target(player, alt_fire, was_pressed);
+            if (alt_fire) {
+                vehicle->ai.next_fire_primary = saved_primary;
+            }
+            else {
+                vehicle->ai.next_fire_secondary = saved_secondary;
+            }
+            return;
         }
         player_fire_primary_weapon_hook.call_target(player, alt_fire, was_pressed);
     },
@@ -542,9 +574,20 @@ FunHook<void(rf::Player*, rf::ControlConfigAction, bool)> player_execute_action_
         if (demo_controls_ui_execute_action(action, was_pressed)) {
             return; // demo playback controls (USE popup toggle, seek/pause keys)
         }
-        if (!multi_spectate_execute_action(action, was_pressed)) {
-            player_execute_action_hook.call_target(player, action, was_pressed);
+        if (multi_spectate_execute_action(action, was_pressed)) {
+            return;
         }
+        // A turret operator's or jeep gunner's alt is his zoom, read from the raw control state. Stock
+        // would run his hand weapon's alt route, which can fire the gun locally where the server never
+        // hears it. A dying gunner still needs alt: it is his respawn request.
+        if (action == rf::CC_ACTION_SECONDARY_ATTACK && rf::is_multi) {
+            rf::Entity* ep = rf::entity_from_handle(player->entity_handle);
+            rf::Entity* hull = ep && !rf::entity_is_dying(ep) ? vehicle_ridden_hull(ep) : nullptr;
+            if (hull && vehicle_alt_fire_zooms(hull) && vehicle_firing_seat_occupant(hull) == ep) {
+                return;
+            }
+        }
+        player_execute_action_hook.call_target(player, action, was_pressed);
     },
 };
 
@@ -618,22 +661,52 @@ FunHook<void()> players_do_frame_hook{
     },
 };
 
+// Stock 0x004A7520 is exactly local_screen_flash(local_player, 255, 0, 0, 128), so the fallback
+// here is what every caller drew before.
+void player_damage_feedback()
+{
+    if (g_alpine_game_config.damage_flash == 0) {
+        return;
+    }
+    // Mask 0 arms a radial hit. The directional indicator call that follows on both the SP and
+    // MP damage paths converts it to screen edges when it lands in the same frame. Falls back to
+    // the flash when the vignette has no D3D11 renderer to draw on.
+    if (g_alpine_game_config.damage_flash == 2 && gr::d3d11::trigger_damage_vignette(0)) {
+        return;
+    }
+    rf::local_screen_flash(rf::local_player, 255, 0, 0, 128);
+}
+
 FunHook<void()> player_do_damage_screen_flash_hook{
     0x004A7520,
     []() {
-        if (g_alpine_game_config.damage_screen_flash) {
-            player_do_damage_screen_flash_hook.call_target();
+        player_damage_feedback();
+    },
+};
+
+// Sets Player::flags bits 13-16 from a 4-way front/left/back/right mask. Only fires for the
+// local player with a non-zero mask, so it is the directional feed for the vignette.
+FunHook<void(rf::Player*, unsigned)> player_start_hud_damage_indicators_hook{
+    0x004A5AF0,
+    [](rf::Player* pp, unsigned dir_mask) {
+        player_start_hud_damage_indicators_hook.call_target(pp, dir_mask);
+        // Stock is a no-op for mask 0; only player_damage_feedback's explicit 0 means "radial".
+        if (pp == rf::local_player && g_alpine_game_config.damage_flash == 2 && (dir_mask & 0xF) != 0) {
+            gr::d3d11::trigger_damage_vignette(dir_mask);
         }
     },
 };
 
 ConsoleCommand2 damage_screen_flash_cmd{
     "cl_damageflash",
-    []() {
-        g_alpine_game_config.damage_screen_flash = !g_alpine_game_config.damage_screen_flash;
-        rf::console::print("Damage screen flash effect is {}", g_alpine_game_config.damage_screen_flash ? "enabled" : "disabled");
+    [](std::optional<int> level_opt) {
+        if (level_opt) {
+            g_alpine_game_config.set_damage_flash(level_opt.value());
+        }
+        rf::console::print("Damage feedback level is {}", g_alpine_game_config.damage_flash);
     },
-    "Toggle damage screen flash effect",
+    "Damage feedback: 0 off, 1 screen flash, 2 edge vignette (D3D11 only)",
+    "cl_damageflash <0-2>",
 };
 
 ConsoleCommand2 spectate_damage_screen_flash_cmd{
@@ -679,8 +752,8 @@ void play_local_sound_3d(uint16_t sound_id, rf::Vector3 pos, int group, float vo
     rf::snd_play_3d(sound_id, pos, volume, rf::Vector3{}, group);
 }
 
-void play_local_sound_2d(uint16_t sound_id, int group, float volume) {
-    rf::snd_play(sound_id, group, 0.0f, volume);
+int play_local_sound_2d(uint16_t sound_id, int group, float volume) {
+    return rf::snd_play(sound_id, group, 0.0f, volume);
 }
 
 void play_local_hit_sound(bool died) {
@@ -702,7 +775,22 @@ void play_local_hit_sound(bool died) {
         hit_sound_timestamp.invalidate();
     }
 
-    play_local_sound_2d(get_custom_sound_id(died ? 3 : 2), 0, 1.0f);
+    // Each hit within the damage number merge window of the last climbs a step in pitch; a kill ends the streak and
+    // always plays at its own pitch.
+    constexpr float streak_pitch_step = 0.06f;
+    constexpr int streak_max_steps = 6;
+    static rf::TimestampRealtime streak_timestamp;
+    static int streak = 0;
+    streak = streak_timestamp.valid() && !streak_timestamp.elapsed() ? std::min(streak + 1, streak_max_steps) : 0;
+    streak_timestamp.set(damage_number_merge_ms);
+    if (died) {
+        streak_timestamp.invalidate();
+    }
+
+    const int instance = play_local_sound_2d(get_custom_sound_id(died ? 3 : 2), 0, 1.0f);
+    if (g_alpine_game_config.hit_sound_streak_pitch && !died && streak > 0) {
+        snd_instance_set_pitch(instance, 1.0f + streak_pitch_step * streak);
+    }
     last_hit_sound_was_died = died;
 }
 
@@ -735,6 +823,17 @@ ConsoleCommand2 hit_sound_interval_cmd{
         rf::console::print("Hit sound minimum interval is {} ms.", g_alpine_game_config.hit_sound_min_interval_ms);
     },
     "Set a minimum interval between damage notification hit sounds in milliseconds",
+};
+
+ConsoleCommand2 hit_sound_streak_pitch_cmd{
+    "cl_hitsounds_streakpitch",
+    []() {
+        g_alpine_game_config.hit_sound_streak_pitch = !g_alpine_game_config.hit_sound_streak_pitch;
+        rf::console::print("Hit sound pitch rising with consecutive hits is {}",
+                           g_alpine_game_config.hit_sound_streak_pitch ? "enabled" : "disabled");
+    },
+    "Toggle whether hit sounds rise in pitch as consecutive hits land",
+    "cl_hitsounds_streakpitch",
 };
 
 ConsoleCommand2 location_ping_display_cmd{
@@ -823,6 +922,14 @@ ConsoleCommand2 death_bars_cmd{
 CallHook<void(rf::VMesh*, rf::Vector3*, rf::Matrix3*, void*)> player_cockpit_vmesh_render_hook{
     0x004A7907,
     [](rf::VMesh *vmesh, rf::Vector3 *pos, rf::Matrix3 *orient, void *params) {
+        // Must land ahead of the driller stretch below, which has to be the last correction applied.
+        rf::Vector3 view_pos;
+        rf::Matrix3 view_orient;
+        if (vehicle_cockpit_view_pose(&view_pos, &view_orient)) {
+            pos = &view_pos;
+            orient = &view_orient;
+        }
+
         rf::Matrix3 new_orient = *orient;
 
         if (string_iequals(rf::vmesh_get_name(vmesh), "driller01.vfx")) {
@@ -830,6 +937,8 @@ CallHook<void(rf::VMesh*, rf::Vector3*, rf::Matrix3*, void*)> player_cockpit_vme
             new_orient.rvec *= m;
         }
 
+        // Drawn outside obj_render
+        ScopedMeshObjectMaterial material{rf::MATERIAL_METAL};
         player_cockpit_vmesh_render_hook.call_target(vmesh, pos, &new_orient, params);
     }
 };
@@ -956,6 +1065,12 @@ bool player_is_idle(const rf::Player* const player) {
         if (player->is_observer()) {
             return false;
         }
+        // Nobody is idle in a live match (players outside it are spawn-blocked anyway, below), nor once readied
+        // up for one; the roster fills before match_active is set
+        rf::Player* const p = const_cast<rf::Player*>(player);
+        if (g_match_info.match_active || g_match_info.active_match_players.contains(p) || is_player_ready(p)) {
+            return false;
+        }
         // Check if the player's idle timer has elapsed
         const bool is_idle = player->idle.check_timer.valid()
             && player->idle.check_timer.elapsed();
@@ -1057,6 +1172,9 @@ void player_do_patch()
     // Support disabling of damage screen flash effect
     player_do_damage_screen_flash_hook.install();
 
+    // Directional feed for the damage vignette
+    player_start_hud_damage_indicators_hook.install();
+
     // Stretch driller cockpit when using a wide-screen
     player_cockpit_vmesh_render_hook.install();
 
@@ -1082,6 +1200,7 @@ void player_do_patch()
     mp_set_character_cmd.register_cmd();
     localhitsound_cmd.register_cmd();
     hit_sound_interval_cmd.register_cmd();
+    hit_sound_streak_pitch_cmd.register_cmd();
     tauntsound_cmd.register_cmd();
     set_autoswitch_fire_wait_cmd.register_cmd();
     location_ping_display_cmd.register_cmd();

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
+#include <common/utils/color-utils.h>
 #include "../rf/os/timestamp.h"
 #include "../hud/hud.h"
 #include "../hud/remote_server_cfg_ui.h"
@@ -84,6 +86,8 @@ struct AlpineGameSettings
     bool mouse_linear_pitch = true;
     int mouse_scale = 0; // 0=Classic (RF native), 1=Raw (pure degrees), 2=Modern (id Tech/Source 0.022 deg/pixel)
     bool big_hud = false;
+    bool big_hud_health = true;
+    bool big_hud_ammo = true;
     int skip_cutscene_bind_alias = -1;
     bool try_disable_weapon_shake = false;
     bool try_fullbright_characters = false;
@@ -101,7 +105,123 @@ struct AlpineGameSettings
     bool world_hud_team_player_labels = false;
     bool show_location_pings = true;
     bool play_hit_sounds = true;
+    bool hit_sound_streak_pitch = true;
     bool show_awards = true;
+    bool vehicle_respawn_markers = true;
+    bool vehicle_health_bars = true;
+    bool vehicle_driver_third_person = false;
+    bool vehicle_gunner_third_person = false;
+    bool vehicle_control_hints = true;
+
+    // Third-person vehicle camera. Times are smoothing times in seconds (0 = rigid).
+    bool vehicle_cam_recenter = true; // idle drift back behind the vehicle
+    static constexpr float default_vehicle_cam_follow = 0.3f;
+    static constexpr float max_vehicle_cam_follow = 2.0f;
+    float vehicle_cam_follow = default_vehicle_cam_follow;
+    void set_vehicle_cam_follow(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_follow = std::clamp(value, 0.0f, max_vehicle_cam_follow);
+        }
+    }
+    static constexpr float default_vehicle_cam_velocity = 1.0f;
+    float vehicle_cam_velocity = default_vehicle_cam_velocity; // share of the travel heading at speed
+    void set_vehicle_cam_velocity(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_velocity = std::clamp(value, 0.0f, 1.0f);
+        }
+    }
+    static constexpr float default_vehicle_cam_min_speed = 1.5f;
+    static constexpr float max_vehicle_cam_min_speed = 10.0f;
+    float vehicle_cam_min_speed = default_vehicle_cam_min_speed; // m/s
+    void set_vehicle_cam_min_speed(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_min_speed = std::clamp(value, 0.0f, max_vehicle_cam_min_speed);
+        }
+    }
+    static constexpr float default_vehicle_cam_lookahead = 0.2f;
+    static constexpr float max_vehicle_cam_lookahead = 1.0f;
+    float vehicle_cam_lookahead = default_vehicle_cam_lookahead; // s of yaw rate
+    void set_vehicle_cam_lookahead(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_lookahead = std::clamp(value, 0.0f, max_vehicle_cam_lookahead);
+        }
+    }
+    static constexpr float default_vehicle_cam_lookahead_max = 12.0f;
+    static constexpr float max_vehicle_cam_lookahead_max = 30.0f;
+    float vehicle_cam_lookahead_max = default_vehicle_cam_lookahead_max; // degrees
+    void set_vehicle_cam_lookahead_max(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_lookahead_max = std::clamp(value, 0.0f, max_vehicle_cam_lookahead_max);
+        }
+    }
+    static constexpr float default_vehicle_cam_pitch_follow = 0.35f;
+    float vehicle_cam_pitch_follow = default_vehicle_cam_pitch_follow; // share of the hull pitch
+    void set_vehicle_cam_pitch_follow(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_pitch_follow = std::clamp(value, 0.0f, 1.0f);
+        }
+    }
+    static constexpr float default_vehicle_cam_pitch_smooth = 0.9f;
+    static constexpr float max_vehicle_cam_pitch_smooth = 3.0f;
+    float vehicle_cam_pitch_smooth = default_vehicle_cam_pitch_smooth;
+    void set_vehicle_cam_pitch_smooth(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_pitch_smooth = std::clamp(value, 0.0f, max_vehicle_cam_pitch_smooth);
+        }
+    }
+    static constexpr float default_vehicle_cam_bounce = 0.15f;
+    static constexpr float max_vehicle_cam_bounce = 1.0f;
+    float vehicle_cam_bounce = default_vehicle_cam_bounce; // vertical
+    void set_vehicle_cam_bounce(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_bounce = std::clamp(value, 0.0f, max_vehicle_cam_bounce);
+        }
+    }
+    static constexpr float default_vehicle_cam_lag = 0.04f;
+    static constexpr float max_vehicle_cam_lag = 0.5f;
+    float vehicle_cam_lag = default_vehicle_cam_lag; // horizontal
+    void set_vehicle_cam_lag(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_cam_lag = std::clamp(value, 0.0f, max_vehicle_cam_lag);
+        }
+    }
+
+    bool vehicle_tracers = true;
+    bool vehicle_effects = true;
+    static constexpr int default_vehicle_tracer_frequency = 1;
+    static constexpr int min_vehicle_tracer_frequency = 1;
+    static constexpr int max_vehicle_tracer_frequency = 10;
+    int vehicle_tracer_frequency = default_vehicle_tracer_frequency; // every Nth round
+    void set_vehicle_tracer_frequency(int value)
+    {
+        vehicle_tracer_frequency =
+            std::clamp(value, min_vehicle_tracer_frequency, max_vehicle_tracer_frequency);
+    }
+    static constexpr uint32_t default_vehicle_tracer_color = 0xFFB43CFF; // RRGGBBAA
+    uint32_t vehicle_tracer_color = default_vehicle_tracer_color;
+    static constexpr float default_vehicle_tracer_length = 3.0f;
+    static constexpr float min_vehicle_tracer_length = 0.5f;
+    static constexpr float max_vehicle_tracer_length = 10.0f;
+    float vehicle_tracer_length = default_vehicle_tracer_length; // m
+    void set_vehicle_tracer_length(float value)
+    {
+        if (!std::isnan(value)) {
+            vehicle_tracer_length =
+                std::clamp(value, min_vehicle_tracer_length, max_vehicle_tracer_length);
+        }
+    }
+    bool vehicle_horns = true; // other players' jeep horns; your own always plays
+
+    bool show_domination_msgs = true;
 
     bool spray_display = true;
     int selected_spray_index = 0;
@@ -130,7 +250,12 @@ struct AlpineGameSettings
     bool show_mini_scoreboard_dm = true;
     bool multi_ricochet = false;
     bool crit_reticle_flash = true;
-    bool damage_screen_flash = true;
+    // 0=off, 1=stock red screen flash, 2=screen-edge vignette (d3d11 only)
+    int damage_flash = 1;
+    void set_damage_flash(int value)
+    {
+        damage_flash = std::clamp(value, 0, 2);
+    }
     bool spectate_damage_screen_flash = true;
     bool explosion_weapon_flash_lights = true;
     bool explosion_env_flash_lights = true;
@@ -152,6 +277,35 @@ struct AlpineGameSettings
     }
     bool show_glares = true;
     bool weather = true;
+    // 0=stock, 1=caustics, 2=+fog/waterline/tint/vignette, 3=+screen distortion (d3d11 only)
+    int underwater_fx = 3;
+    void set_underwater_fx(int value)
+    {
+        underwater_fx = std::clamp(value, 0, 3);
+    }
+    // 0=off, 1=light, 2=heavy scope lens (d3d11 only)
+    int scope_glass = 2;
+    void set_scope_glass(int value)
+    {
+        scope_glass = std::clamp(value, 0, 2);
+    }
+    bool particle_sim_cull = true; // skip simulating level particle emitters that are not being rendered
+    bool particle_sim_fixed_step = true; // step cosmetic particle lists at a fixed rate instead of once per frame
+    bool particle_sim_collide_lod = true; // test cosmetic particle world collision less often with distance
+    static constexpr int min_particle_pool_size = 1100;
+    static constexpr int max_particle_pool_size = 16384;
+    int particle_pool_size = 8192; // 0 keeps the stock capacities (500 and 1100)
+    void set_particle_pool_size(int size)
+    {
+        particle_pool_size = size <= 0 ? 0 : std::clamp(size, min_particle_pool_size, max_particle_pool_size);
+    }
+    static constexpr int min_particle_sim_rate = 30;
+    static constexpr int max_particle_sim_rate = 240;
+    int particle_sim_rate = 60;
+    void set_particle_sim_rate(int hz)
+    {
+        particle_sim_rate = std::clamp(hz, min_particle_sim_rate, max_particle_sim_rate);
+    }
     bool show_enemy_bullets = true;
     bool fps_counter = true;
     static constexpr int min_fps_counter_average_ms = 0;
@@ -162,6 +316,29 @@ struct AlpineGameSettings
         fps_counter_average_ms = std::clamp(window_ms, min_fps_counter_average_ms, max_fps_counter_average_ms);
     }
     bool speed_display = false;
+    bool minimap = true;
+    bool minimap_rotate = false;
+    bool minimap_labels = true;
+    static constexpr float min_minimap_size = 80.0f;
+    static constexpr float max_minimap_size = 240.0f;
+    float minimap_size = 140.0f; // small-HUD pixels
+    void set_minimap_size(float value)
+    {
+        if (std::isnan(value)) {
+            return;
+        }
+        minimap_size = std::clamp(value, min_minimap_size, max_minimap_size);
+    }
+    static constexpr float min_minimap_zoom = 0.1f;
+    static constexpr float max_minimap_zoom = 1.0f;
+    float minimap_zoom = 0.35f; // share of the level's larger extent shown across the panel
+    void set_minimap_zoom(float value)
+    {
+        if (std::isnan(value)) {
+            return;
+        }
+        minimap_zoom = std::clamp(value, min_minimap_zoom, max_minimap_zoom);
+    }
     bool ping_display = true;
     bool spectate_mode_minimal_ui = false;
     bool spectate_show_camera_meshes = true; // draw camera meshes in free look
@@ -177,6 +354,7 @@ struct AlpineGameSettings
     bool scoreboard_anim = true;
     bool legacy_bob = false;
     bool weapon_sway = false;
+    bool rail_beam_fix = true;
     bool scoreboard_split_simple = true;
     bool scoreboard_split_spectators = true;
     bool scoreboard_split_bots = false;
@@ -216,6 +394,27 @@ struct AlpineGameSettings
     {
         gib_lifetime_ms = std::clamp(lifetime_ms, min_gib_lifetime_ms, max_gib_lifetime_ms);
     }
+    static constexpr float min_freelook_cam_slide = 0.0f;
+    static constexpr float max_freelook_cam_slide = 1.0f;
+    float freelook_cam_slide = 1.0f;
+    void set_freelook_cam_slide(float value)
+    {
+        if (std::isnan(value)) {
+            return;
+        }
+        freelook_cam_slide = std::clamp(value, min_freelook_cam_slide, max_freelook_cam_slide);
+    }
+    bool gib_flames = true;
+    bool shell_casings = true;
+    bool shell_casings_collide = true;
+    static constexpr int min_shell_casing_lifetime_ms = 1000;
+    static constexpr int max_shell_casing_lifetime_ms = 10000;
+    int shell_casing_lifetime_ms = 2000;
+    void set_shell_casing_lifetime_ms(int lifetime_ms)
+    {
+        shell_casing_lifetime_ms = std::clamp(lifetime_ms, min_shell_casing_lifetime_ms, max_shell_casing_lifetime_ms);
+    }
+    bool ejected_magazines = true;
     bool real_armor_values = false;
     bool always_show_spectators = false;
     RemoteServerCfgPopup::DisplayMode remote_server_cfg_display_mode =
@@ -319,6 +518,15 @@ struct AlpineGameSettings
     void set_picmip(int value)
     {
         picmip = std::clamp(value, 1, 256);
+    }
+
+    static constexpr int detail_textures_off = 0;
+    static constexpr int detail_textures_atx = 1;
+    static constexpr int detail_textures_auto = 2;
+    int detail_textures = detail_textures_atx; // d3d11 only
+    void set_detail_textures(int value)
+    {
+        detail_textures = std::clamp(value, detail_textures_off, detail_textures_auto);
     }
 
     int colorblind_mode = 0;    // 0=off,1=protanopia,2=deuteranopia,3=tritanopia (d3d11 only)
@@ -449,7 +657,6 @@ struct FpsCounterState
 extern AlpineGameSettings g_alpine_game_config;
 std::optional<uint32_t> parse_hex_color_string(const std::string& value);
 std::string format_hex_color_string(uint32_t color);
-std::tuple<int, int, int, int> extract_color_components(uint32_t color);
 std::tuple<float, float, float, float> extract_normalized_color_components(uint32_t color);
 void initialize_alpine_core_config();
 void alpine_core_config_save();

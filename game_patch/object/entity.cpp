@@ -2,14 +2,23 @@
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
+#include <patch_common/MemUtils.h>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <cstring>
+#include <deque>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 #include <xlog/xlog.h>
 #include "../misc/achievements.h"
 #include "../misc/alpine_settings.h"
 #include "../misc/player.h"
 #include "../os/console.h"
+#include "../os/os.h"
 #include "../rf/gr/gr_light.h"
 #include "../rf/entity.h"
 #include "../rf/event.h"
@@ -28,36 +37,61 @@
 #include "../rf/gameseq.h"
 #include "../multi/multi.h"
 #include "../multi/server.h"
+#include "../multi/bots/server_bots.h"
 
 rf::Timestamp g_player_jump_timestamp;
+// Server bots are simulated at this machine's frame rate.
+static std::unordered_map<int, rf::Timestamp> g_server_bot_jump_timestamps;
+
+static void skip_land_handling_after_jump(rf::Entity* entity)
+{
+    if (entity->local_player) {
+        g_player_jump_timestamp.set(64);
+    }
+    else if (server_bot_from_entity(entity)) {
+        g_server_bot_jump_timestamps[entity->handle].set(64);
+    }
+}
+
+static bool entity_skips_land_handling(rf::Entity* entity)
+{
+    if (entity->local_player) {
+        return g_player_jump_timestamp.valid() && !g_player_jump_timestamp.elapsed();
+    }
+    if (g_server_bot_jump_timestamps.empty()) {
+        return false;
+    }
+    const auto it = g_server_bot_jump_timestamps.find(entity->handle);
+    if (it == g_server_bot_jump_timestamps.end()) {
+        return false;
+    }
+    if (it->second.elapsed()) {
+        g_server_bot_jump_timestamps.erase(it);
+        return false;
+    }
+    return true;
+}
 
 CodeInjection stuck_to_ground_when_jumping_fix{
     0x0042891E,
     [](auto& regs) {
-        rf::Entity* entity = regs.esi;
-        if (entity->local_player) {
-            // Skip land handling code for next 64 ms (like in PF)
-            g_player_jump_timestamp.set(64);
-        }
+        // Skip land handling code for next 64 ms (like in PF)
+        skip_land_handling_after_jump(regs.esi);
     },
 };
 
 CodeInjection stuck_to_ground_when_using_jump_pad_fix{
     0x00486B60,
     [](auto& regs) {
-        rf::Entity* entity = regs.esi;
-        if (entity->local_player) {
-            // Skip land handling code for next 64 ms
-            g_player_jump_timestamp.set(64);
-        }
+        // Skip land handling code for next 64 ms
+        skip_land_handling_after_jump(regs.esi);
     },
 };
 
 CodeInjection stuck_to_ground_fix{
     0x00487F82,
     [](auto& regs) {
-        rf::Entity* entity = regs.esi;
-        if (entity->local_player && g_player_jump_timestamp.valid() && !g_player_jump_timestamp.elapsed()) {
+        if (entity_skips_land_handling(regs.esi)) {
             // Jump to jump handling code that sets entity to falling movement mode
             regs.eip = 0x00487F7B;
         }
@@ -209,6 +243,69 @@ CodeInjection multi_obj_interp_add_restore_orient{
     },
 };
 
+static constexpr int entity_collision_push_interval_ms = 1000 / 60;
+static std::unordered_map<int, int64_t> g_entity_collision_push_last_ms;
+
+// Stock kick on entity-vs-object contact is n * 1.05 * (max(0, (other_vel - local_vel).n) - min(0, vel.n)).
+// The closing term cancels the velocity that caused the contact, so it cannot repeat; the other-object
+// term is re-applied in full on every contact sub-step during contact, so its total scales with FPS.
+// Rate-limit only that term to 60 Hz by zeroing its dot product before max(0, x).
+CodeInjection entity_collision_push_rate_limit{
+    0x0049DDBB,
+    [](auto& regs) {
+        rf::Entity* ep = regs.esi;
+        if (!rf::is_multi || !rf::entity_from_handle(ep->p_data.collide_out.obj_handle)) {
+            return;
+        }
+        const int64_t now = timer::get_i64(1000);
+        auto [it, inserted] = g_entity_collision_push_last_ms.try_emplace(ep->handle, now);
+        if (inserted) {
+            return;
+        }
+        if (now - it->second < entity_collision_push_interval_ms) {
+            addr_as_ref<float>(regs.esp + 4) = 0.0f;
+            return;
+        }
+        it->second = (now - it->second >= 2 * entity_collision_push_interval_ms)
+                         ? now
+                         : it->second + entity_collision_push_interval_ms;
+    },
+};
+
+// At high FPS entities flap between falling and grounded on ramps and jump pads, which
+// spams the landing sound. Only the sound call itself is suppressed.
+static constexpr int entity_land_sound_interval_ms = 250;
+static std::unordered_map<int, int64_t> g_entity_land_sound_last_ms;
+
+CallHook<int(rf::Object*, rf::Vector3, int, float, float)> entity_land_emit_sound_hook{
+    0x004198E2,
+    [](rf::Object* objp, rf::Vector3 pos, int sound_handle, float vol_scale, float pan) -> int {
+        const int64_t now = timer::get_i64(1000);
+        auto [it, inserted] = g_entity_land_sound_last_ms.try_emplace(objp->handle, now);
+        if (!inserted) {
+            if (now - it->second < entity_land_sound_interval_ms) {
+                return -1;
+            }
+            it->second = now;
+        }
+        return entity_land_emit_sound_hook.call_target(objp, pos, sound_handle, vol_scale, pan);
+    },
+};
+
+void entity_rate_limit_on_entity_delete(int handle)
+{
+    g_entity_collision_push_last_ms.erase(handle);
+    g_entity_land_sound_last_ms.erase(handle);
+    g_server_bot_jump_timestamps.erase(handle);
+}
+
+void entity_rate_limit_clear()
+{
+    g_entity_collision_push_last_ms.clear();
+    g_entity_land_sound_last_ms.clear();
+    g_server_bot_jump_timestamps.clear();
+}
+
 CodeInjection entity_process_post_hidden_injection{
     0x0041E4C8,
     [](auto& regs) {
@@ -345,6 +442,125 @@ void entity_set_gib_flag(rf::Entity* ep) {
     ep->entity_flags |= rf::EntityFlags::EF_GIB_ON_DEATH;
 }
 
+// Client-side flame on gib chunks. particle_emitter_create never links an emitter into an
+// engine-ticked list, so - like the engine's own on-fire effect - these are ours to update
+// and destroy by hand.
+constexpr const char* GIB_FLAME_EMITTER_TYPE_NAME = "humanoid fire 1";
+constexpr int GIB_FLAME_ON_MS = 500;
+// After the emitter stops spawning it is kept alive long enough for the last particles
+// (max_life 0.85 s) to fade out on their own.
+constexpr int GIB_FLAME_LINGER_MS = 1000;
+constexpr float GIB_FLAME_PARTICLE_RADIUS_SCALE = 0.5f;
+constexpr int GIB_FLAME_MAX_PER_DEATH = 10; // max flaming gibs from a single death
+constexpr int GIB_FLAME_MAX_TOTAL = 40; // max flaming gibs at once
+
+struct GibFlame
+{
+    int debris_handle;
+    rf::ParticleEmitter* emitter;
+    rf::Timestamp off_at;
+    rf::Timestamp destroy_at;
+};
+
+static std::vector<GibFlame> g_gib_flames;
+// -2 = not looked up yet, -1 = the engine has no such emitter type.
+static int g_gib_flame_emitter_type_idx = -2;
+
+static bool gib_flame_emitter_type(rf::ParticleEmitterType* out)
+{
+    if (g_gib_flame_emitter_type_idx == -2) {
+        g_gib_flame_emitter_type_idx = rf::particle_emitter_type_lookup(GIB_FLAME_EMITTER_TYPE_NAME);
+        if (g_gib_flame_emitter_type_idx < 0) {
+            xlog::warn("gib flames: particle emitter type '{}' not found", GIB_FLAME_EMITTER_TYPE_NAME);
+        }
+    }
+    if (g_gib_flame_emitter_type_idx < 0) {
+        return false;
+    }
+    *out = *rf::g_particle_emitter_types[g_gib_flame_emitter_type_idx];
+
+    // The humanoid fire template burns whatever walks through it; a decorative chunk
+    // flame must not.
+    out->particle_flags2 &= ~rf::PTF2_DAMAGES;
+
+    // "humanoid fire 1" is a continuous emitter (one particle per emitter per frame, fps-coupled);
+    // at gib counts that overwhelms the fixed particle pools. Let the template's own
+    // 0.05-0.075 s spawn delay govern instead.
+    out->flags &= ~rf::PEF_CONTINOUS;
+    out->min_pradius *= GIB_FLAME_PARTICLE_RADIUS_SCALE;
+    out->max_pradius *= GIB_FLAME_PARTICLE_RADIUS_SCALE;
+    return true;
+}
+
+static void gib_flame_attach(rf::Debris* gib)
+{
+    if (g_gib_flames.size() >= static_cast<size_t>(GIB_FLAME_MAX_TOTAL)) {
+        return;
+    }
+
+    rf::ParticleEmitterType type{};
+    if (!gib_flame_emitter_type(&type)) {
+        return;
+    }
+
+    // Parented at a zero local offset, so get_pos_and_dir carries the flame with the
+    // chunk and nothing has to be repositioned per frame.
+    rf::Vector3 zero{};
+    rf::ParticleEmitter* em = rf::particle_emitter_create(gib->handle, type, gib->room, zero, false);
+    if (!em) {
+        return;
+    }
+    em->pos = zero;
+    em->dir = rf::Vector3{0.0f, 1.0f, 0.0f};
+    em->room = gib->room;
+    em->activate();
+
+    GibFlame flame;
+    flame.debris_handle = gib->handle;
+    flame.emitter = em;
+    flame.off_at.set(GIB_FLAME_ON_MS);
+    flame.destroy_at.set(GIB_FLAME_ON_MS + GIB_FLAME_LINGER_MS);
+    g_gib_flames.push_back(flame);
+}
+
+static void gib_flames_do_frame()
+{
+    for (auto it = g_gib_flames.begin(); it != g_gib_flames.end();) {
+        rf::Object* objp = rf::obj_from_handle(it->debris_handle);
+        if (!objp || objp->type != rf::OT_DEBRIS || it->destroy_at.elapsed()) {
+            it->emitter->destroy();
+            it = g_gib_flames.erase(it);
+            continue;
+        }
+        if (it->emitter->active && it->off_at.elapsed()) {
+            it->emitter->active = false;
+        }
+        it->emitter->update();
+        ++it;
+    }
+}
+
+// Emitter records survive a level unload, so anything still tracked has to be handed back
+// explicitly.
+void gib_flames_level_init()
+{
+    for (auto& flame : g_gib_flames) {
+        flame.emitter->destroy();
+    }
+    g_gib_flames.clear();
+    g_gib_flame_emitter_type_idx = -2;
+}
+
+// The engine's only call to entity_fire_update_all, inside the level sim frame - so the
+// gib flames inherit its pause and menu behaviour.
+CallHook<void()> entity_fire_update_all_call_hook{
+    0x00433417,
+    []() {
+        entity_fire_update_all_call_hook.call_target();
+        gib_flames_do_frame();
+    },
+};
+
 FunHook<void(int)> entity_blood_throw_gibs_hook{
     0x0042E3C0,
     [](int handle) {
@@ -439,6 +655,9 @@ FunHook<void(int)> entity_blood_throw_gibs_hook{
             rf::Debris* gib = rf::debris_create(objp->handle, gib_filename, 0.3f, &debris_info, 0, -1.0f);
             if (gib) {
                 gib->obj_flags |= rf::OF_INVULNERABLE;
+                if (g_alpine_game_config.gib_flames && i < GIB_FLAME_MAX_PER_DEATH) {
+                    gib_flame_attach(gib);
+                }
             }
         }
     }
@@ -501,6 +720,140 @@ ConsoleCommand2 cl_giblifetimems_cmd{
     },
     "Set gib lifetime in milliseconds.",
     "cl_giblifetimems [milliseconds]"
+};
+
+ConsoleCommand2 cl_gibflames_cmd{
+    "cl_gibflames",
+    []() {
+        g_alpine_game_config.gib_flames = !g_alpine_game_config.gib_flames;
+        rf::console::print("Flaming gib chunks are {}",
+            g_alpine_game_config.gib_flames ? "enabled" : "disabled");
+    },
+    "Toggle flames on gib chunks",
+};
+
+namespace
+{
+    // The live shell casings, oldest first: past the cap the oldest still alive goes.
+    struct ShellCasingRecord
+    {
+        int handle;
+        rf::Timestamp expired; // game time, as the casing's own lifetime
+    };
+    std::deque<ShellCasingRecord> g_shell_casings;
+    constexpr std::size_t max_live_shell_casings = 500;
+}
+
+void shell_casings_level_init()
+{
+    g_shell_casings.clear();
+}
+
+// Spawns one ejected shell casing as cosmetic local debris.
+FunHook<void(rf::Entity*)> entity_eject_shell_hook{
+    0x0042A1D0,
+    [](rf::Entity* ep) {
+        if (rf::is_dedicated_server || !g_alpine_game_config.shell_casings) {
+            return;
+        }
+        // debris_create appends to the debris list, so a casing made here is its new tail.
+        const rf::Debris* const tail_before = rf::debris_list.prev;
+        entity_eject_shell_hook.call_target(ep);
+        const rf::Debris* const tail = rf::debris_list.prev;
+        if (tail == tail_before || tail == &rf::debris_list) {
+            return;
+        }
+        ShellCasingRecord& record = g_shell_casings.emplace_back();
+        record.handle = tail->handle;
+        record.expired.set(AlpineGameSettings::max_shell_casing_lifetime_ms);
+        while (g_shell_casings.size() > max_live_shell_casings) {
+            const ShellCasingRecord oldest = g_shell_casings.front();
+            g_shell_casings.pop_front();
+            // Older than any casing lives: already gone, and its handle may since name another object.
+            if (oldest.expired.elapsed()) {
+                continue;
+            }
+            rf::Object* casing = rf::obj_from_handle(oldest.handle);
+            if (casing && casing->type == rf::OT_DEBRIS) {
+                rf::obj_flag_dead(casing);
+            }
+        }
+    },
+};
+
+// Just past the stock lifetime (0.8 s, 1.2 s for a player's) going into the casing's DebrisCreateStruct.
+CodeInjection entity_eject_shell_lifetime_injection{
+    0x0042A4F0,
+    [](auto& regs) {
+        addr_as_ref<int>(regs.esp + 0x64) = g_alpine_game_config.shell_casing_lifetime_ms;
+    },
+};
+
+// Keep the PF_COLLIDE_WORLD flag instead of removing it like the stock function does.
+CodeInjection entity_eject_shell_collide_injection{
+    0x0042A565,
+    [](auto& regs) {
+        if (g_alpine_game_config.shell_casings_collide) {
+            regs.edx = static_cast<int32_t>(regs.edx) | rf::PF_COLLIDE_WORLD;
+        }
+    },
+};
+
+// Spawns the local player's ejected magazine as debris, from the reload's eject timer.
+FunHook<void(rf::Entity*, rf::WeaponInfo*)> entity_eject_magazine_hook{
+    0x00419DF0,
+    [](rf::Entity* ep, rf::WeaponInfo* info) {
+        if (g_alpine_game_config.ejected_magazines) {
+            entity_eject_magazine_hook.call_target(ep, info);
+        }
+    },
+};
+
+ConsoleCommand2 cl_shellcasings_cmd{
+    "cl_shellcasings",
+    [](std::optional<bool> enabled) {
+        g_alpine_game_config.shell_casings = enabled.value_or(!g_alpine_game_config.shell_casings);
+        rf::console::print("Ejected shell casings are {}",
+            g_alpine_game_config.shell_casings ? "enabled" : "disabled");
+    },
+    "Toggle shell casings ejected by firing weapons",
+    "cl_shellcasings [bool]",
+};
+
+ConsoleCommand2 cl_shellcollide_cmd{
+    "cl_shellcollide",
+    [](std::optional<bool> enabled) {
+        g_alpine_game_config.shell_casings_collide = enabled.value_or(!g_alpine_game_config.shell_casings_collide);
+        rf::console::print("Shell casings colliding with the level is {}",
+            g_alpine_game_config.shell_casings_collide ? "enabled" : "disabled");
+    },
+    "Toggle ejected shell casings bouncing off the level instead of falling through it",
+    "cl_shellcollide [bool]",
+};
+
+ConsoleCommand2 cl_shelllifetime_cmd{
+    "cl_shelllifetime",
+    [](std::optional<float> lifetime_s) {
+        if (lifetime_s && std::isfinite(*lifetime_s)) {
+            const float clamped_s = std::clamp(*lifetime_s, AlpineGameSettings::min_shell_casing_lifetime_ms / 1000.0f,
+                                               AlpineGameSettings::max_shell_casing_lifetime_ms / 1000.0f);
+            g_alpine_game_config.set_shell_casing_lifetime_ms(static_cast<int>(std::lround(clamped_s * 1000.0f)));
+        }
+        rf::console::print("Shell casing lifetime is {:.1f} s",
+            g_alpine_game_config.shell_casing_lifetime_ms / 1000.0f);
+    },
+    "Set ejected shell casing lifetime in seconds (1-10)",
+    "cl_shelllifetime [seconds]",
+};
+
+ConsoleCommand2 cl_magazines_cmd{
+    "cl_magazines",
+    [](std::optional<bool> enabled) {
+        g_alpine_game_config.ejected_magazines = enabled.value_or(!g_alpine_game_config.ejected_magazines);
+        rf::console::print("Ejected magazines are {}", g_alpine_game_config.ejected_magazines ? "enabled" : "disabled");
+    },
+    "Toggle magazines ejected when you reload",
+    "cl_magazines [bool]",
 };
 
 // makes some entities red - unfinished
@@ -749,6 +1102,26 @@ CallHook<void(rf::Entity*)> lag_comp_shooter_eye_pos_legacy_client_hook{
     },
 };
 
+CodeInjection entity_set_next_state_anim_guard{
+    0x0042A5BC,
+    [](auto& regs) {
+        rf::Entity* ep = regs.ecx;
+        const int state = regs.edx;
+        const bool blending = ep->total_transition_time != 0.0f;
+        if (state == (blending ? ep->next_state_anim : ep->current_state_anim)) {
+            regs.eip = 0x0042A64E; // already there, or already heading there
+        }
+        else if (blending && state == ep->current_state_anim) {
+            const float transition_time = *reinterpret_cast<float*>(regs.esp + 0xC);
+            const float frac = ep->elapsed_transition_time / ep->total_transition_time;
+            std::swap(ep->current_state_anim, ep->next_state_anim);
+            ep->total_transition_time = transition_time;
+            ep->elapsed_transition_time = (1.0f - frac) * transition_time;
+            regs.eip = 0x0042A64E;
+        }
+    },
+};
+
 void entity_do_patch()
 {
     //player_create_entity_patch.install(); // force team skin experiment
@@ -760,6 +1133,9 @@ void entity_do_patch()
     stuck_to_ground_when_jumping_fix.install();
     stuck_to_ground_when_using_jump_pad_fix.install();
     stuck_to_ground_fix.install();
+
+    // Ignore redundant state anim requests and reverse in-flight crossfades instead of restarting them
+    entity_set_next_state_anim_guard.install();
 
     // Fix water deceleration on high FPS
     AsmWriter(0x0049D816).nop(5);
@@ -793,6 +1169,17 @@ void entity_do_patch()
     // which has correct data and is already used by entity_crouch.
     AsmWriter(0x00428A7A).mov(asm_regs::ecx, *(asm_regs::edi + 0x29C));
 
+    // Fix aim bend sticking at full weight: the pose pass clears the aim bones named by entity->info,
+    // but entity_apply_aim_bend sets the ones named by info2, which differ for some MP characters.
+    AsmWriter(0x0041DE56).mov(asm_regs::ecx, *(asm_regs::esi + 0x29C));
+    AsmWriter(0x0041DED5).mov(asm_regs::eax, *(asm_regs::esi + 0x29C));
+
+    // Regulate FPS-dependent head-jump launch velocity in multiplayer
+    entity_collision_push_rate_limit.install();
+
+    // Stop landing-sound spam from falling/grounded flapping on ramps at high FPS
+    entity_land_emit_sound_hook.install();
+
     // Fix RF bug: multi_obj_interp_add corrupts pd->orient
     multi_obj_interp_add_save_orient.install();
     multi_obj_interp_add_restore_orient.install();
@@ -800,6 +1187,12 @@ void entity_do_patch()
     // Use local_player variable for weapon shell distance calculation instead of local_player_entity
     // in entity_eject_shell. Fixed debris pool being exhausted when local player is dead.
     AsmWriter(0x0042A223, 0x0042A232).mov(asm_regs::ecx, {&rf::local_player});
+
+    // Toggle ejected shell casings and magazines, and let casings bounce off the level
+    entity_eject_shell_hook.install();
+    entity_eject_shell_lifetime_injection.install();
+    entity_eject_shell_collide_injection.install();
+    entity_eject_magazine_hook.install();
 
     // Fix move sound not being muted if entity is created hidden (example: jeep in L18S3)
     entity_process_post_hidden_injection.install();
@@ -822,6 +1215,7 @@ void entity_do_patch()
 
 	// Restore cut stock game feature for entities and corpses exploding into chunks
 	entity_blood_throw_gibs_hook.install();
+    entity_fire_update_all_call_hook.install();
 
     // Footstep fix: inject trigger frames for attack_run animations and mute dying entities
     evaluate_footsteps();
@@ -840,6 +1234,11 @@ void entity_do_patch()
     cl_gibchunks_cmd.register_cmd();
     cl_gibvelocityscale_cmd.register_cmd();
     cl_giblifetimems_cmd.register_cmd();
+    cl_gibflames_cmd.register_cmd();
+    cl_shellcasings_cmd.register_cmd();
+    cl_shellcollide_cmd.register_cmd();
+    cl_shelllifetime_cmd.register_cmd();
+    cl_magazines_cmd.register_cmd();
     cl_painsounds_cmd.register_cmd();
     cl_footsteps_cmd.register_cmd();
 }

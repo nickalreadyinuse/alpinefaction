@@ -7,6 +7,7 @@
 #include <functional>
 #include <thread>
 #include <utility>
+#include <vector>
 #include <deque>
 #include <unordered_map>
 #include <winsock2.h>
@@ -27,6 +28,7 @@
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <patch_common/ShortTypes.h>
+#include <patch_common/StaticBufferResizePatch.h>
 #include "network.h"
 #include "tracker.h"
 #include "multi.h"
@@ -36,15 +38,22 @@
 #include "server.h"
 #include "server_internal.h"
 #include "salvage.h"
+#include "scavenger.h"
+#include "vehicles/vehicle.h"
+#include "vehicles/vehicle_physics.h"
 #include "bagman.h"
 #include "gungame.h"
+#include "gametype.h"
 #include "sprays.h"
 #include "vote_client.h"
 #include "bots/bot_chat_manager.h"
+#include "bots/bot_context_fwd.h"
+#include "bots/server_bots.h"
 #include "../main/main.h"
 #include "../os/os.h"
 #include "../hud/hud.h"
 #include "../hud/multi_spectate.h"
+#include "../hud/minimap.h"
 #include "../rf/multi.h"
 #include "../rf/gameseq.h"
 #include "../rf/misc.h"
@@ -65,6 +74,7 @@
 #include "../misc/waypoints.h"
 #include "../object/object.h"
 #include "../graphics/weather.h"
+#include "../graphics/scene_capture.h"
 #include "../os/console.h"
 #include "../purefaction/pf.h"
 #include "../sound/sound.h"
@@ -288,7 +298,13 @@ enum packet_type : uint8_t {
     af_pit_roster          = 0x61,
     af_gungame_order       = 0x62,
     af_salvage_state       = 0x63,
-    af_crit_shot           = 0x64
+    af_crit_shot           = 0x64,
+    af_vehicle_state       = 0x65,
+    af_vehicle_fire        = 0x66,
+    af_vehicle_health      = 0x67,
+    af_vehicle_orient      = 0x68,
+    af_vehicle_factory_state = 0x69,
+    af_scavenger_state     = 0x6A
 };
 
 // client -> server
@@ -315,7 +331,9 @@ std::array g_server_side_packet_whitelist{
     rcon,
     af_ping_location_req,
     af_client_req,
-    af_spectate_start
+    af_spectate_start,
+    af_vehicle_fire,
+    af_vehicle_orient
 };
 
 // server -> client
@@ -378,7 +396,13 @@ std::array g_client_side_packet_whitelist{
     af_pit_roster,
     af_gungame_order,
     af_salvage_state,
-    af_crit_shot
+    af_crit_shot,
+    af_vehicle_state,
+    af_vehicle_fire,
+    af_vehicle_health,
+    af_vehicle_orient,
+    af_vehicle_factory_state,
+    af_scavenger_state
 };
 // clang-format on
 
@@ -557,25 +581,22 @@ static void handle_rcon_request_packet(const uint8_t* pkt, size_t len, const rf:
 
     const auto lookup = lookup_rcon_password(password);
     if (!lookup.profile_index) {
-        // A wrong password from an address that already holds an authenticated rcon session is not
-        // a legitimate re-auth. Do not revoke the live session or count it toward the lockout.
-        if (g_rcon_access_by_addr.find(attempt_key) != g_rcon_access_by_addr.end()) {
-            rf::console::print("{} sent an incorrect rcon password while already holding rcon access; ignoring.", rcon_player_name(addr));
-            return;
-        }
         const int failures = ++g_rcon_failed_attempts_by_addr[attempt_key];
-        g_rcon_access_by_addr.erase(addr_key(addr));
-        set_rcon_holder_flag(addr, false);
-        rf::console::print("{} requested rcon with password '{}', DENIED because the password is not correct for any profile.", rcon_player_name(addr), password);
+        // A wrong password from a current holder counts toward the lockout but doesn't revoke the live session.
+        if (g_rcon_access_by_addr.find(attempt_key) != g_rcon_access_by_addr.end()) {
+            rf::console::print("{} sent an incorrect rcon password while already holding rcon access; counted toward lockout, session kept.", rcon_player_name(addr));
+            send_rcon_feedback(addr, "Rcon access denied: wrong password (current session kept).");
+        }
+        else {
+            set_rcon_holder_flag(addr, false);
+            rf::console::print("{} requested rcon with password '{}', DENIED because the password is not correct for any profile.", rcon_player_name(addr), password);
+            send_rcon_feedback(addr, "Rcon access denied: wrong password.");
+        }
         if (failures == kRconMaxFailedAttempts) {
             rf::console::print("{} reached {} failed rcon password attempts and is now locked out of rcon until they reconnect.", rcon_player_name(addr), kRconMaxFailedAttempts);
         }
-        send_rcon_feedback(addr, "Rcon access denied: wrong password.");
         return;
     }
-
-    // Successful authentication: reset the brute-force throttle for this connection.
-    g_rcon_failed_attempts_by_addr.erase(attempt_key);
 
     const uint64_t key = addr_key(addr);
     // ensure a client can only hold a single rcon profile at a time
@@ -808,7 +829,7 @@ FunHook<MultiIoPacketHandler> process_join_deny_packet_hook{
             // Auto-quit for bots when join is denied (server full, wrong password, level changing, etc.)
             if (client_bot_launch_enabled() && g_alpine_game_config.bot_quit_when_disconnected) {
                 xlog::info("Bot join denied by server - auto-quitting (BotQuitWhenDisconnected=1)");
-                rf::gameseq_set_state(rf::GS_QUITING, false);
+                rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
             }
         }
     },
@@ -1002,21 +1023,16 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             if (check_server_chat_command(msg, src_player)) {
                 return;
             }
+            // The engine relays only team byte 1 as team chat.
+            const bool is_team_chat = team_msg == 1;
+            server_bots_on_chat_message(*src_player, msg, is_team_chat);
 
-            if (team_msg && demo_record_active()) {
+            if (is_team_chat && demo_record_active()) {
                 // The stock relay loop team-filters recipients, so the teamless demo
                 // recorder never gets team chat; mirror the wire packet (the handler
                 // only receives the body) tagged with the sender's team.
-                const size_t body_len = 2 + strnlen(msg, rf::max_packet_size - 3) + 1;
-                std::byte packet_buf[rf::max_packet_size];
-                if (sizeof(RF_GamePacketHeader) + body_len <= sizeof(packet_buf)) {
-                    RF_GamePacketHeader header{};
-                    header.type = chat_line;
-                    header.size = static_cast<uint16_t>(body_len);
-                    std::memcpy(packet_buf, &header, sizeof(header));
-                    std::memcpy(packet_buf + sizeof(header), data, body_len);
-                    demo_record_capture_team_scoped(packet_buf, sizeof(header) + body_len, src_player->team);
-                }
+                const auto packet = build_chat_line_packet(static_cast<uint8_t>(data[0]), true, msg);
+                demo_record_capture_team_scoped(packet.data(), packet.size(), src_player->team);
             }
         }
 
@@ -1028,7 +1044,7 @@ FunHook<MultiIoPacketHandler> process_chat_line_packet_hook{
             else {
                 handle_sound_msg(msg);
                 if (rf::Player* sender = rf::multi_find_player_by_id(static_cast<uint8_t>(data[0]))) {
-                    bot_chat_manager_on_remote_chat_message(*sender, msg);
+                    bot_chat_manager_on_remote_chat_message(client_bot_context(), *sender, msg);
                 }
             }
         }
@@ -1070,6 +1086,10 @@ FunHook<MultiIoPacketHandler> process_team_change_packet_hook{
     0x004825B0,
     [](char* data, const rf::NetAddr& addr) {
         // server-side and client-side
+        size_t remaining;
+        if (multi_io_subpacket_remaining(data, remaining) && remaining < 2) {
+            return;
+        }
         if (rf::is_server) {
             verify_player_id_in_packet(&data[0], addr, "team_change");
             data[1] = std::clamp(data[1], '\0', '\1'); // team validation (fixes "green team")
@@ -1106,6 +1126,21 @@ FunHook<MultiIoPacketHandler> process_team_change_packet_hook{
             afstats::on_status(changing, changing->team == rf::TEAM_BLUE
                 ? afstats::StatusKind::team_blue
                 : afstats::StatusKind::team_red);
+        }
+    },
+};
+
+// A listen host gets no team-change packet of his own, so his "You are on team" line is shown here.
+FunHook<void(rf::Player*, uint8_t, uint8_t)> send_team_change_packet_hook{
+    0x00482520,
+    [](rf::Player* target, uint8_t player_id, uint8_t team) {
+        send_team_change_packet_hook.call_target(target, player_id, team);
+        if (rf::is_server && !rf::is_dedicated_server && multi_is_team_game_type() && rf::local_player
+            && rf::local_player->net_data && rf::local_player->net_data->player_id == player_id) {
+            const bool red = team == rf::TEAM_RED;
+            rf::multi_chat_print(
+                rf::String::concat(rf::strings::you_are_on_team, red ? rf::strings::red_caps : rf::strings::blue_caps),
+                red ? rf::ChatMsgColor::red_red : rf::ChatMsgColor::blue_blue, {});
         }
     },
 };
@@ -1327,9 +1362,21 @@ CodeInjection process_rcon_packet_injection{
 
                     if (check_result == RconCommandCheckResult::Allowed) {
                         std::string payload_str{payload.value()};
-                        // special handling for "info" command, so rcon holder gets server output
+                        // special handling for status commands, so rcon holder gets server output
                         if (cmd_lower == "info") {
                             send_rcon_feedback(*addr, build_info_command_output());
+                        }
+                        else if (cmd_lower == "sv_afstats_events_status") {
+                            send_rcon_feedback(*addr, afstats::build_afstats_events_status_output());
+                        }
+                        else if (cmd_lower == "sv_fflink_status") {
+                            send_rcon_feedback(*addr, fflink::build_fflink_status_output());
+                        }
+                        else if (cmd_lower == "sv_bot_list") {
+                            send_rcon_feedback(*addr, server_bots_build_list_output());
+                        }
+                        else if (cmd_lower == "sv_bot_add" || cmd_lower == "sv_bot_remove") {
+                            send_rcon_feedback(*addr, run_server_bot_rcon_command(cmd_lower, remainder));
                         }
                         // otherwise just execute it on the server
                         else {
@@ -1362,7 +1409,9 @@ CodeInjection process_obj_update_check_flags_injection{
         [](auto& regs) {
             auto stack_frame = regs.esp + 0x9C;
             rf::Player* pp = addr_as_ref<rf::Player*>(stack_frame - 0x6C);
-            int flags = regs.ebx;
+            // Only BL carries this row's flags byte; the rest of EBX is stale from the previous row.
+            const int ebx = regs.ebx;
+            int flags = ebx & 0xFF;
             rf::Entity* ep = regs.edi;
             bool valid = true;
             if (rf::is_server) {
@@ -1372,9 +1421,11 @@ CodeInjection process_obj_update_check_flags_injection{
                     valid = false;
                 }
                 else if (ep && ep->handle != pp->entity_handle) {
-                    xlog::trace("Invalid obj_update entity {:x} {:x} {}", ep->handle, pp->entity_handle,
-                        pp->name.c_str());
-                    valid = false;
+                    if (!vehicle_is_driver_obj_update_row(pp, ep, flags)) {
+                        xlog::trace("Invalid obj_update entity {:x} {:x} {}", ep->handle, pp->entity_handle,
+                            pp->name.c_str());
+                        valid = false;
+                    }
                 }
                 else if (flags & (0x4 | 0x20 | 0x80)) { // OUF_WEAPON_TYPE | OUF_HEALTH_ARMOR | OUF_ARMOR_STATE
                     xlog::info("Invalid obj_update flags {:x}", flags);
@@ -1423,7 +1474,7 @@ CodeInjection process_obj_update_health_armor_injection{
         if (!spectated || spectated == rf::local_player || multi_spectate_is_freelook())
             return;
         if (entity == rf::entity_from_handle(spectated->entity_handle))
-            rf::local_screen_flash(rf::local_player, 255, 0, 0, 128);
+            player_damage_feedback();
     },
 };
 
@@ -1440,13 +1491,15 @@ CodeInjection process_obj_update_weapon_fire_injection{
 
         bool is_on = flags & ouf_fire;
         bool alt_fire = flags & ouf_alt_fire;
-        void multi_turn_weapon_on(rf::Entity* ep, rf::Player* pp, bool alt_fire);
-        void multi_turn_weapon_off(rf::Entity* ep);
-        if (is_on) {
-            multi_turn_weapon_on(entity, pp, alt_fire);
-        }
-        else {
-            multi_turn_weapon_off(entity);
+        // Vehicle weapon state comes from af_vehicle_fire edges both ways; a sampled bit misses a
+        // one-frame burst and a late row could re-arm a stopped gun.
+        if (!vehicle_is_synced_entity_type(entity)) {
+            if (is_on) {
+                multi_turn_weapon_on(entity, pp, alt_fire);
+            }
+            else {
+                multi_turn_weapon_off(entity);
+            }
         }
         regs.eip = 0x0047E346;
     },
@@ -2591,10 +2644,6 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
                     == ClientSoftware::Browser;
                 valid_player->is_human_player = !valid_player->is_bot
                     && !valid_player->is_browser;
-
-                // Reset for safety.
-                g_joining_player_info = {};
-                g_joining_client_version = ClientSoftware::Unknown;
             }
 
             if (g_dedicated_launched_from_ads) {
@@ -2609,6 +2658,10 @@ FunHook<void(int, rf::NetAddr*)> process_join_req_packet_hook{
                 demo_record_on_human_join();
             }
         }
+
+        // Reset for safety: the parsed tail describes only this join request.
+        g_joining_player_info = {};
+        g_joining_client_version = ClientSoftware::Unknown;
     },
 };
 
@@ -2677,8 +2730,9 @@ static std::tuple<AlpineRestrictVerdict, std::string, bool> check_join_request_r
     return {verdict, verdict_string, hard_reject};
 }
 
-CodeInjection process_join_req_injection{
-    0x0047ADAB,
+// Before the access check (call at 0x0047ADA6), so it and its hooks see this joiner's parsed tail.
+CodeInjection process_join_req_parse_injection{
+    0x0047AD99,
     [](auto& regs) {
         // RFSB 5.1.6 looks like normal RF 1.2 client except rate is 12345
         int conn_rate = regs.edi;
@@ -2686,10 +2740,15 @@ CodeInjection process_join_req_injection{
             g_conn_rate_stashed = conn_rate;
         }
 
-        bool found_tail = parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len, g_join_request_stashed.rx_len);
+        parse_af_join_req_any_tail(g_join_request_stashed.pkt, g_join_request_stashed.len, g_join_request_stashed.rx_len);
         g_join_request_stashed = {};
         g_conn_rate_stashed.reset();
+    },
+};
 
+CodeInjection process_join_req_injection{
+    0x0047ADAB,
+    [](auto& regs) {
         const auto [verdict, reason, hard_reject] = check_join_request_restrict_status(g_joining_client_version, g_joining_player_info);
 
         if (verdict != AlpineRestrictVerdict::ok && hard_reject) {
@@ -2885,6 +2944,22 @@ static std::array<
     rf::NET_MAX_REL_SOCKETS
 > g_send_queues_rel{};
 
+// Deferred reliable sends keep RESERVE_SEND_SLOTS free and spend at most QUEUE_FACTOR of
+// the free slots above that per frame.
+static constexpr int RESERVE_SEND_SLOTS = 32;
+static constexpr float QUEUE_FACTOR = .3f;
+
+static int net_rel_free_send_slots(const int socket_id)
+{
+    int empty_send_slots = 0;
+    for (const void* const sbuffers : rf::net_rel_sockets[socket_id].sbuffers) {
+        if (!sbuffers) {
+            ++empty_send_slots;
+        }
+    }
+    return empty_send_slots;
+}
+
 void send_queues_rel_clear_packets(const int socket_id) {
     if (socket_id >= 0 && socket_id < std::size(g_send_queues_rel)) {
         g_send_queues_rel[socket_id].clear();
@@ -2944,14 +3019,21 @@ FunHook<void()> multi_stop_hook{
         multi_hud_reset_gametype_help(); // show gametype help when joining a server
         reset_local_pending_game_type(); // clear pending game type when leaving
         salvage_on_multi_shutdown(); // put the flag_red item class back to items.tbl
+        scavenger_on_multi_shutdown(); // forget the zone and its light handle
         bagman_on_multi_shutdown();  // put the amp aura bitmap back to its stock value
-        gungame_on_multi_shutdown(); // put the Jeep Gun mesh + damage back to weapons.tbl
+        vehicle_on_multi_shutdown(); // drop the per-level vehicle/turret records
+        vehicle_physics_on_multi_shutdown(); // tear down the Bullet world with the session
+        gungame_on_multi_shutdown(); // after the vehicle revert: weapons.tbl overrides restore LIFO
         mutators_on_multi_shutdown(); // put the level's own gravity back
         weather_clear_regions(); // weather regions belong to the level being left
+        minimap_level_reset();
+        projector_clear_all(); // Display_Projection feeds and their render targets are level-scoped
         riot_shield_on_multi_level_init(); // drop any pending riot shield break suppressions
+        entity_rate_limit_clear(); // drop per-entity rate limit and jump state
         afstats::on_shutdown(); // best-effort final flush of the stats event stream
         fflink::afstats_client_reset(); // a stats session key is only ever valid for the join it was minted for
         g_sent_obj_update_ticks.clear(); // drop per-recipient obj_update keyframe-dedup state from the session being left
+        server_bots_on_multi_stop();
         if (rf::local_player) {
             PlayerAdditionalData* const player_add_data =
                 static_cast<PlayerAdditionalData*>(rf::local_player);
@@ -2966,7 +3048,7 @@ FunHook<void()> multi_stop_hook{
         // Auto-quit for bots when disconnected from server
         if (client_bot_launch_enabled() && g_alpine_game_config.bot_quit_when_disconnected) {
             xlog::info("Bot disconnected from server - auto-quitting (BotQuitWhenDisconnected=1)");
-            rf::gameseq_set_state(rf::GS_QUITING, false);
+            rf::gameseq_set_state(rf::GS_QUIT_GAME, false);
         }
     },
 };
@@ -2979,7 +3061,7 @@ void multi_disconnect_from_server()
     }
     xlog::info("Disconnecting from server");
     rf::multi_stop();
-    // multi_stop_hook may have already set GS_QUITING for bot auto-quit.
+    // multi_stop_hook may have already set GS_QUIT_GAME for bot auto-quit.
     // Only transition to main menu for non-bot clients.
     if (!client_bot_launch_enabled() || !g_alpine_game_config.bot_quit_when_disconnected) {
         rf::gameseq_set_state(rf::GS_MAIN_MENU, false);
@@ -3004,28 +3086,33 @@ std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable()
     return g_af_server_info;
 }
 
+std::vector<std::byte> build_chat_line_packet(const uint8_t player_id, const bool is_team_msg, const std::string_view msg)
+{
+    const size_t len = std::min(msg.size(), 255uz);
+    RF_ChatLinePacket packet;
+    packet.header.type = RF_GPT_CHAT_LINE;
+    packet.header.size = static_cast<uint16_t>(sizeof(packet) - sizeof(packet.header) + len + 1);
+    packet.player_id = player_id;
+    packet.is_team_msg = is_team_msg;
+    std::vector<std::byte> buf(sizeof(packet) + len + 1);
+    std::memcpy(buf.data(), &packet, sizeof(packet));
+    std::memcpy(buf.data() + sizeof(packet), msg.data(), len);
+    buf.back() = std::byte{0};
+    return buf;
+}
+
 void send_chat_line_packet(const std::string_view msg, rf::Player* target, rf::Player* sender, bool is_team_msg)
 {
     if (!rf::is_server && sender == nullptr) {
         sender = rf::local_player;
     }
-    rf::ubyte buf[512];
-    RF_ChatLinePacket packet;
-    packet.header.type = RF_GPT_CHAT_LINE;
-    const size_t len = std::min(msg.size(), 255uz);
-    packet.header.size = static_cast<uint16_t>(sizeof(packet) - sizeof(packet.header) + len + 1);
-    packet.player_id = sender ? sender->net_data->player_id : 0xFF;
-    packet.is_team_msg = is_team_msg;
-    std::memcpy(buf, &packet, sizeof(packet));
-    char* packet_msg = reinterpret_cast<char*>(buf + sizeof(packet));
-    std::strncpy(packet_msg, msg.data(), len);
-    packet_msg[len] = '\0';
+    const auto packet = build_chat_line_packet(sender ? sender->net_data->player_id : 0xFF, is_team_msg, msg);
     if (target == nullptr && rf::is_server) {
-        rf::multi_io_send_reliable_to_all(buf, packet.header.size + sizeof(packet.header), 0);
+        rf::multi_io_send_reliable_to_all(packet.data(), static_cast<int>(packet.size()), false);
         rf::console::print("Server: {}", msg);
     }
     else {
-        rf::multi_io_send_reliable(target, buf, packet.header.size + sizeof(packet.header), 0);
+        rf::multi_io_send_reliable(target, packet.data(), static_cast<int>(packet.size()), false);
     }
 }
 
@@ -3070,10 +3157,11 @@ FunHook<void __cdecl(int, int, bool)> entity_turn_weapon_on_hook{
         // called every frame while the trigger is held; only the off->on edge matters
         bool was_on = rf::entity_weapon_is_on(entity_handle, weapon_type);
         entity_turn_weapon_on_hook.call_target(entity_handle, weapon_type, alt_fire);
-        if (!was_on && is_local_entity(entity_handle)
-            && rf::weapon_is_on_off_weapon(weapon_type, alt_fire)
-            && rf::entity_weapon_is_on(entity_handle, weapon_type)) {
-            multi_force_fire_state_send();
+        if (!was_on && rf::entity_weapon_is_on(entity_handle, weapon_type)) {
+            if (is_local_entity(entity_handle) && rf::weapon_is_on_off_weapon(weapon_type, alt_fire)) {
+                multi_force_fire_state_send();
+            }
+            vehicle_server_announce_weapon_edge(entity_handle, weapon_type, true, alt_fire);
         }
     },
 };
@@ -3083,9 +3171,11 @@ FunHook<void __cdecl(int, int)> entity_turn_weapon_off_hook{
     [](int entity_handle, int weapon_type) {
         bool was_on = rf::entity_weapon_is_on(entity_handle, weapon_type);
         entity_turn_weapon_off_hook.call_target(entity_handle, weapon_type);
-        if (was_on && is_local_entity(entity_handle)
-            && !rf::entity_weapon_is_on(entity_handle, weapon_type)) {
-            multi_force_fire_state_send();
+        if (was_on && !rf::entity_weapon_is_on(entity_handle, weapon_type)) {
+            if (is_local_entity(entity_handle)) {
+                multi_force_fire_state_send();
+            }
+            vehicle_server_announce_weapon_edge(entity_handle, weapon_type, false, false);
         }
     },
 };
@@ -3121,6 +3211,10 @@ CodeInjection server_obj_update_schedule_injection{
 FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
     0x0047DB20,
     [] (rf::Player* pp, rf::Entity* ep, void* data) {
+        // multi_io_send drops everything for a player without a reliable socket (a server bot).
+        if (rf::is_server && pp->net_data && pp->net_data->reliable_socket == static_cast<rf::uint>(-1)) {
+            return 0;
+        }
         if (rf::is_server && ep != rf::local_player_entity && pp->entity_handle != ep->handle
             && ep->obj_interp && ep->obj_interp->num_frames() > 0) {
             const uint16_t tick = ep->obj_interp->newest_frame_time();
@@ -3177,7 +3271,7 @@ CodeInjection obj_interp_too_fast_fix{
     0x00483C3B,
     [] (auto& regs) {
         // Make all calculations on milliseconds instead of using microseconds and rounding them up
-        const int now = rf::timer::get(1000);
+        const int now = static_cast<int>(timer::get_i64(1000));
         const int frame_time_us = regs.ebp;
         regs.eax = now - frame_time_us;
         regs.edi = now;
@@ -3191,6 +3285,29 @@ CodeInjection send_state_info_injection{
         trigger_send_state_info(player);
         sprays_force_state_sync_to(player);
     },
+};
+
+CodeInjection process_state_info_req_between_levels_patch{
+    0x00481C03,
+    [] (auto& regs) {
+        rf::Player* const player = regs.ebx;
+        rf::send_state_info(player);
+
+        // Set `NETPLAYER_STATE_WAITING` like `mp_change_level`.
+        player->net_data->state = rf::NETPLAYER_STATE_WAITING;
+
+        const RF_GamePacketHeader enter_limbo_packet =
+            {.type = RF_GPT_ENTER_LIMBO, .size = 0};
+        rf::multi_io_send_reliable(
+            player,
+            &enter_limbo_packet,
+            enter_limbo_packet.size + sizeof(RF_GamePacketHeader),
+            false
+        );
+
+        regs.eip = 0x00481C4B;
+    },
+    false
 };
 
 FunHook<void(rf::Player*)> send_players_packet_hook{
@@ -3230,6 +3347,229 @@ FunHook<void(rf::Item*, rf::Player*, int16_t)> send_item_create_packet_hook{
         send_item_create_packet_hook.call_target(item, recipient, level_item_index);
     },
 };
+
+// The broadcast skips the in-game check item_apply and obj_kill use, so a loading player got the
+// create, then again from its join snapshot (send_state_info, which first sets state 2), and kept
+// both. Send it only to players in game.
+CallHook<void(const void*, int, bool)> send_item_create_packet_broadcast_hook{
+    0x00479F0E,
+    [](const void* data, int len, [[maybe_unused]] bool require_in_game) {
+        send_item_create_packet_broadcast_hook.call_target(data, len, true);
+    },
+};
+
+static_assert(sizeof(RF_ItemCreatePacketRest) == 68);
+static_assert(offsetof(RF_ItemCreatePacketRest, item_handle) == 13);
+
+// Older servers and demos still deliver those duplicate creates. Replace the existing copy of
+// the same server object instead of keeping both.
+FunHook<MultiIoPacketHandler> process_item_create_packet_hook{
+    0x00479F70,
+    [](char* data, const rf::NetAddr& addr) {
+        size_t remaining;
+        const bool have_remaining = multi_io_subpacket_remaining(data, remaining);
+        const size_t name_len = have_remaining ? strnlen(data, remaining) : std::strlen(data);
+        const size_t name_size = name_len + 1;
+        rf::Object* old_obj = nullptr;
+        int32_t server_handle = -1;
+        if (!have_remaining || name_size + sizeof(RF_ItemCreatePacketRest) <= remaining) {
+            RF_ItemCreatePacketRest rest;
+            std::memcpy(&rest, data + name_size, sizeof(rest));
+            server_handle = static_cast<int32_t>(rest.item_handle);
+            old_obj = rf::obj_from_remote_handle(server_handle);
+            // The remote handle table is indexed by slot only
+            if (old_obj && (old_obj->type != rf::OT_ITEM || old_obj->server_handle != server_handle)) {
+                old_obj = nullptr;
+            }
+        }
+        process_item_create_packet_hook.call_target(data, addr);
+        if (old_obj) {
+            rf::Object* new_obj = rf::obj_from_remote_handle(server_handle);
+            if (new_obj && new_obj != old_obj) {
+                rf::obj_flag_dead(old_obj);
+            }
+        }
+    },
+};
+
+// item_update replicates the level item table as a bitmap, which must fit in one packet.
+static constexpr int MAX_ITEM_UPDATE_BITMAP_LEN = (extended_item_limit + 7) / 8;
+static_assert(sizeof(RF_GamePacketHeader) + MAX_ITEM_UPDATE_BITMAP_LEN <= rf::max_packet_size);
+
+StaticBufferResizePatch<int> level_item_handles_resize_patch{
+    0x006D5DC0,
+    stock_item_limit,
+    extended_item_limit,
+    {
+        {0x0045C64B},
+        {0x0047A0D5},
+        {0x004797F5},
+        {0x004817BB},
+    },
+};
+
+// Replaces the stock append, which stops at 200 and crashes on a failed item_create.
+CodeInjection level_load_item_append_injection{
+    0x00465191,
+    [](auto& regs) {
+        const rf::Item* const item = regs.eax;
+        if (item && rf::num_level_items < extended_item_limit) {
+            level_item_handles_resize_patch[rf::num_level_items++] = item->handle;
+        }
+        regs.eip = 0x004651C6;
+    },
+    false
+};
+
+static rf::Item* level_item_from_index(const int index)
+{
+    const int handle = level_item_handles_resize_patch[index];
+    return handle >= 0 ? rf::item_from_handle(handle) : nullptr;
+}
+
+// Pre-v306 levels are limited to 200 items, so they still get the stock 25-byte bitmap.
+FunHook<void()> send_item_update_packet_hook{
+    0x0047A0F0,
+    [] {
+        const int num_items = rf::num_level_items;
+        const int bitmap_len = std::max(stock_item_limit, num_items + 7) / 8;
+
+        std::array<uint8_t, sizeof(RF_GamePacketHeader) + MAX_ITEM_UPDATE_BITMAP_LEN> packet{};
+        const RF_GamePacketHeader header{
+            .type = RF_GPT_ITEM_UPDATE,
+            .size = static_cast<uint16_t>(bitmap_len),
+        };
+        std::memcpy(packet.data(), &header, sizeof(header));
+        uint8_t* const bitmap = packet.data() + sizeof(header);
+        for (int i = 0; i < num_items; ++i) {
+            const rf::Item* const item = level_item_from_index(i);
+            if (item && !(item->obj_flags & rf::OF_HIDDEN)) {
+                bitmap[i / 8] |= 1 << (i % 8);
+            }
+        }
+
+        const int packet_len = static_cast<int>(sizeof(header)) + bitmap_len;
+        for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+            if (&player != rf::local_player
+                && (!player.net_data || player.net_data->state == rf::NETPLAYER_STATE_IN_GAME)) {
+                rf::multi_io_send(&player, packet.data(), packet_len);
+            }
+        }
+    },
+};
+
+FunHook<MultiIoPacketHandler> process_item_update_packet_hook{
+    0x0047A220,
+    [](char* data, [[maybe_unused]] const rf::NetAddr& addr) {
+        size_t bitmap_len = stock_item_limit / 8;
+        multi_io_subpacket_remaining(data, bitmap_len);
+        const int num_bits = std::min(
+            static_cast<int>(std::min<size_t>(bitmap_len, MAX_ITEM_UPDATE_BITMAP_LEN)) * 8, extended_item_limit);
+
+        const auto* const bitmap = reinterpret_cast<const uint8_t*>(data);
+        for (int i = 0; i < num_bits; ++i) {
+            rf::Item* const item = level_item_from_index(i);
+            if (!item) {
+                continue;
+            }
+            if (bitmap[i / 8] & (1 << (i % 8))) {
+                rf::item_unhide(item);
+            }
+            else {
+                if (!(item->obj_flags & rf::OF_HIDDEN)) {
+                    rf::item_play_pickup_sound(item);
+                }
+                rf::obj_hide(item);
+            }
+        }
+        demo_powerup_timers_on_item_update();
+    },
+};
+
+// Leaves room in the reliable socket for everything send_state_info sends after the items.
+static constexpr int JOIN_RESERVE_SEND_SLOTS = 40;
+
+static constexpr int CTF_ITEM_FLAGS =
+    rf::IF_RED_FLAG | rf::IF_BLUE_FLAG | rf::IF_RED_BASE | rf::IF_BLUE_BASE | rf::IF_CTF_FLAG;
+
+static bool is_ctf_item(const rf::Item& item)
+{
+    return (item.item_flags & CTF_ITEM_FLAGS) != 0;
+}
+
+// CTF flags and bases go first and are never deferred: the CTF state follows the items.
+static void send_level_items_on_join(rf::Player* const player)
+{
+    const auto socket_id = static_cast<int>(player->net_data->reliable_socket);
+    const bool can_defer = socket_id >= 0 && socket_id < rf::NET_MAX_REL_SOCKETS;
+
+    for (const bool ctf_pass : {true, false}) {
+        for (int i = 0; i < rf::num_level_items; ++i) {
+            rf::Item* const item = level_item_from_index(i);
+            if (!item || is_ctf_item(*item) != ctf_pass) {
+                continue;
+            }
+            if (!ctf_pass && can_defer && net_rel_free_send_slots(socket_id) <= JOIN_RESERVE_SEND_SLOTS) {
+                player->next_pending_level_item = i;
+                return;
+            }
+            rf::send_item_create_packet(item, player, static_cast<int16_t>(i));
+        }
+    }
+}
+
+CodeInjection send_state_info_level_items_injection{
+    0x004817AF,
+    [](auto& regs) {
+        rf::Player* const player = regs.edi;
+        player->next_pending_level_item = -1;
+        if (level_allows_extra_items()) {
+            send_level_items_on_join(player);
+            regs.eip = 0x004817E9;
+        }
+    },
+};
+
+// A level change sets every player WAITING, and send_state_info resets the index before
+// making them IN_GAME again, so a pending index never outlives its level.
+static void send_pending_level_items()
+{
+    for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+        if (player.next_pending_level_item < 0 || !player.net_data
+            || player.net_data->state != rf::NETPLAYER_STATE_IN_GAME) {
+            continue;
+        }
+        const auto socket_id = static_cast<int>(player.net_data->reliable_socket);
+        if (socket_id < 0 || socket_id >= rf::NET_MAX_REL_SOCKETS
+            || rf::net_rel_sockets[socket_id].status != rf::NetReliableSocketStatus::CONNECTED) {
+            continue;
+        }
+        const int empty_send_slots = net_rel_free_send_slots(socket_id);
+        if (empty_send_slots <= RESERVE_SEND_SLOTS) {
+            continue;
+        }
+        // Budgeted in free send slots rather than packets: item_create packets share the
+        // player's reliable buffer, which only takes a slot when it flushes.
+        const int min_empty_send_slots = empty_send_slots - static_cast<int>(
+            static_cast<float>(empty_send_slots - RESERVE_SEND_SLOTS) * QUEUE_FACTOR);
+
+        int& index = player.next_pending_level_item;
+        bool sent = false;
+        while (index >= 0 && net_rel_free_send_slots(socket_id) > min_empty_send_slots) {
+            rf::Item* const item = index < rf::num_level_items ? level_item_from_index(index) : nullptr;
+            if (item && !is_ctf_item(*item)) {
+                rf::send_item_create_packet(item, &player, static_cast<int16_t>(index));
+                sent = true;
+            }
+            if (++index >= rf::num_level_items) {
+                index = -1;
+            }
+        }
+        if (sent) {
+            rf::multi_io_send_buffered_reliable_packets(&player);
+        }
+    }
+}
 
 extern FunHook<void __fastcall(void*, int, int, bool, int)> multi_io_stats_add_hook;
 
@@ -3445,13 +3785,38 @@ CallHook<int()> game_info_num_players_hook{
 // As-is would present scoreboard problems, possibly crashing legacy clients.
 // Potential solution could involve not reporting browser clients to legacy clients,
 // and properly handling their display in Alpine. Leaving alone for now.
+int multi_num_players_occupying_slots()
+{
+    int player_count = 0;
+    for (const auto& current_player : SinglyLinkedList{rf::player_list}) {
+        if (current_player.is_observer()) continue;
+        player_count++;
+    }
+    return player_count;
+}
+
+// A joiner holds the flag until his reliable socket attaches or his join times out.
+int multi_num_players_waiting_for_reliable_socket()
+{
+    int count = 0;
+    for (const auto& player : SinglyLinkedList{rf::player_list}) {
+        if (player.net_data && (player.net_data->flags & rf::NPF_WAITING_FOR_RELIABLE_SOCKET)
+            && !player.is_observer()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 CallHook<int()> server_full_num_players_hook{
     0x0047AE47,
     []() {
-        int player_count = 0;
-        for (const auto& current_player : SinglyLinkedList{rf::player_list}) {
-            if (current_player.is_observer()) continue;
-            player_count++;
+        const int num_occupying = multi_num_players_occupying_slots();
+        const int player_count = num_occupying + server_bots_num_reserved_slots();
+        // A human may take a server bot's slot while the player list is below the engine's limit.
+        if (get_joining_client_kind() == JoiningClientKind::Human && player_count >= rf::netgame.max_players
+            && num_occupying < rf::multi_max_player_slots) {
+            return player_count - server_bots_num_evictable();
         }
         return player_count;
     },
@@ -3531,19 +3896,11 @@ FunHook<void()> multi_io_do_frame_hook{
                 continue;
             }
 
-            int empty_send_slots = 0;
-            for (const void* const sbuffers : rf::net_rel_sockets[i].sbuffers) {
-                if (!sbuffers) {
-                    ++empty_send_slots;
-                }
-            }
-
-            constexpr int RESERVE_SEND_SLOTS = 32;
+            const int empty_send_slots = net_rel_free_send_slots(i);
             if (empty_send_slots <= RESERVE_SEND_SLOTS) {
                 continue;
             }
 
-            constexpr float QUEUE_FACTOR = .3f;
             int send_limit = static_cast<int>(
                 static_cast<float>(empty_send_slots - RESERVE_SEND_SLOTS)
                     * QUEUE_FACTOR
@@ -3564,6 +3921,8 @@ FunHook<void()> multi_io_do_frame_hook{
                 }
             }
         }
+
+        send_pending_level_items();
     },
 };
 
@@ -3694,6 +4053,9 @@ void network_init()
     process_chat_line_packet_hook.install();
     process_name_change_packet_hook.install();
     process_team_change_packet_hook.install();
+    send_team_change_packet_hook.install();
+    // multi_spawn_player_server_side: skip the stock per-spawn "You are on team" print for the listen host
+    AsmWriter(0x004808EF).jmp(0x004809A9);
     process_rate_change_packet_hook.install();
     process_ctf_flag_picked_up_packet_hook.install();
     process_ctf_flag_captured_packet_hook.install();
@@ -3768,6 +4130,7 @@ void network_init()
     send_game_info_req_packet_hook.install();
     send_join_req_packet_hook.install();
     process_join_req_packet_hook.install();
+    process_join_req_parse_injection.install();
     process_join_req_injection.install();
     send_join_accept_packet_hook.install();
     process_join_accept_unsupported_gt_guard.install();
@@ -3778,8 +4141,10 @@ void network_init()
     bot_shared_secret_cmd.register_cmd();
     disconnect_cmd.register_cmd();
 
-    // print join_req denial reasons
+    // Print join denials.
     check_access_for_new_player_hook.install();
+    // Do not kick a player, if they join right before limbo.
+    process_state_info_req_between_levels_patch.install();
     // Move our limbo check to `check_join_request_restrict_status`.
     AsmWriter{0x0047AE64}.nop(6);
 
@@ -3819,6 +4184,19 @@ void network_init()
 
     // Never replicate items that are already flagged dead
     send_item_create_packet_hook.install();
+
+    // Fix clients that load slowly keeping a duplicate of each item created during their load
+    send_item_create_packet_broadcast_hook.install();
+    process_item_create_packet_hook.install();
+
+    // Raise the 200 level item limit for v306+ levels
+    level_item_handles_resize_patch.install();
+    write_mem<i32>(0x0045C643 + 1, extended_item_limit); // level init clear
+    write_mem<i16>(0x0047A0C9 + 2, extended_item_limit); // process_item_create_packet
+    level_load_item_append_injection.install();
+    send_item_update_packet_hook.install();
+    process_item_update_packet_hook.install();
+    send_state_info_level_items_injection.install();
 
     // Use spawnpoint team property in TeamDM game (PF compatible)
     write_mem<u8>(0x00470395 + 4, 0); // change cmp argument: CTF -> DM

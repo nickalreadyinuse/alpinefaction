@@ -62,10 +62,6 @@ constexpr int JETPACK_STATE_SYNC_INTERVAL_MS = 100;
 // a keybind hint offers itself under the reticle until the pack is first used.
 constexpr int JETPACK_REVEAL_MS = 2500;
 constexpr const char* JETPACK_GAUGE_LABEL = "JETPACK";
-constexpr int JETPACK_LABEL_GAP_PX = 4;             // between label and bar top
-constexpr int JETPACK_TEXT_ALPHA = 200;
-constexpr int JETPACK_TEXT_SHADOW_ALPHA = 160;
-constexpr int JETPACK_TEXT_SHADOW_OFFSET_PX = 1;
 constexpr int JETPACK_HINT_FADE_MS = 150;
 constexpr int JETPACK_HINT_OFFSET_PX = 48;          // below screen center
 constexpr int JETPACK_HINT_OFFSET_PX_BIG = 72;
@@ -80,10 +76,6 @@ constexpr const char* JETPACK_SOUND_NAME = "steam";
 constexpr float JETPACK_EXHAUST_OFFSET_X = 0.0f;
 constexpr float JETPACK_EXHAUST_OFFSET_Y = 0.4f;
 constexpr float JETPACK_EXHAUST_OFFSET_Z = -0.35f;
-
-// $particle flags "damages" in emitters.tbl. "pipesteam" sets it, which would
-// make the exhaust hurt whoever walks through it.
-constexpr int PARTICLE_FLAG2_DAMAGES = 0x1;
 
 namespace
 {
@@ -199,7 +191,7 @@ bool jetpack_exhaust_emitter_type(rf::ParticleEmitterType* out)
 
     // The steam is decoration only; it must never damage an entity that flies
     // through it. Everything else the table asks for is kept.
-    out->particle_flags2 &= ~PARTICLE_FLAG2_DAMAGES;
+    out->particle_flags2 &= ~rf::PTF2_DAMAGES;
     return true;
 }
 
@@ -790,45 +782,9 @@ int jetpack_remote_gauge_alpha(JetpackRemoteFuel& state)
     return 255 - (255 * elapsed) / JETPACK_GAUGE_FADE_MS;
 }
 
-// Shadow pass then main pass, so HUD text keeps its edges over bright geometry
-// (the technique multi_hud's big notification uses). `x` is the text center.
-void jetpack_draw_shadowed_string(int x, int y, const char* text, int font, int alpha_scale)
-{
-    rf::gr::set_color(0, 0, 0, static_cast<rf::ubyte>((JETPACK_TEXT_SHADOW_ALPHA * alpha_scale) / 255));
-    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x + JETPACK_TEXT_SHADOW_OFFSET_PX,
-        y + JETPACK_TEXT_SHADOW_OFFSET_PX, text, font);
-    rf::gr::set_color(255, 255, 255, static_cast<rf::ubyte>((JETPACK_TEXT_ALPHA * alpha_scale) / 255));
-    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, x, y, text, font);
-}
-
 void jetpack_draw_fuel_gauge(float fuel, int alpha_scale)
 {
-    const bool big = g_alpine_game_config.big_hud;
-    const int bar_w = big ? 16 : 10;
-    const int bar_h = big ? 180 : 120;
-    const int margin = big ? 60 : 40;
-    const int border = big ? 2 : 1;
-
-    const int x = rf::gr::clip_width() - margin - bar_w;
-    const int y = (rf::gr::clip_height() - bar_h) / 2;
-
-    rf::gr::set_color(0, 0, 0, static_cast<rf::ubyte>((128 * alpha_scale) / 255));
-    rf::gr::rect(x, y, bar_w, bar_h);
-
-    rf::gr::set_color(255, 255, 255, static_cast<rf::ubyte>((170 * alpha_scale) / 255));
-    hud_rect_border(x, y, bar_w, bar_h, border);
-
-    const int inner_h = bar_h - 2 * border;
-    const int fill_h = static_cast<int>(inner_h * std::clamp(fuel, 0.0f, 1.0f));
-    if (fill_h > 0) {
-        rf::gr::set_color(255, 165, 0, static_cast<rf::ubyte>((220 * alpha_scale) / 255));
-        rf::gr::rect(x + border, y + border + (inner_h - fill_h), bar_w - 2 * border, fill_h);
-    }
-
-    // Names the bar, sitting directly above it and centered on it.
-    const int font = hud_get_small_font();
-    const int label_y = y - rf::gr::get_font_height(font) - JETPACK_LABEL_GAP_PX;
-    jetpack_draw_shadowed_string(x + bar_w / 2, label_y, JETPACK_GAUGE_LABEL, font, alpha_scale);
+    hud_draw_side_gauge(false, fuel, {255, 165, 0}, JETPACK_GAUGE_LABEL, nullptr, alpha_scale / 255.0f);
 }
 
 void jetpack_draw_thrust_hint(int alpha_scale)
@@ -844,10 +800,18 @@ void jetpack_draw_thrust_hint(int alpha_scale)
     const int offset = big ? JETPACK_HINT_OFFSET_PX_BIG : JETPACK_HINT_OFFSET_PX;
     const int x = rf::gr::clip_width() / 2;
     const int y = rf::gr::clip_height() / 2 + offset;
-    jetpack_draw_shadowed_string(x, y, g_jetpack_hint_text.c_str(), hud_get_default_font(), alpha_scale);
+    const rf::Color color{255, 255, 255, static_cast<rf::ubyte>((hud_shadowed_text_alpha * alpha_scale) / 255)};
+    hud_draw_shadowed_text(x, y, g_jetpack_hint_text.c_str(), hud_get_default_font(), color,
+                           static_cast<rf::ubyte>((hud_shadowed_text_shadow_alpha * alpha_scale) / 255),
+                           hud_shadowed_text_shadow_offset_px);
 }
 
 } // namespace
+
+int jetpack_fuel_gauge_label_top_y()
+{
+    return hud_side_gauge_label_y(hud_side_gauge_rect(false));
+}
 
 bool jetpacks_are_active()
 {
@@ -1008,12 +972,12 @@ void jetpack_render_hud()
         return;
     }
 
-    // First-person spectate and demo playback both follow through multi_spectate:
-    // the gauge tracks the viewed player's estimated fuel, the local-only overlays
-    // (spawn reveal, keybind hint) stay hidden.
+    // Attached spectate (first or third person) and demo playback both follow through
+    // multi_spectate: the gauge tracks the viewed player's estimated fuel, the local-only
+    // overlays (spawn reveal, keybind hint) stay hidden.
     if (multi_spectate_is_spectating()) {
         g_jetpack_hint_fade = 0.0f;
-        if (!multi_spectate_is_first_person() || g_alpine_game_config.spectate_mode_minimal_ui) {
+        if (!multi_spectate_is_following_player()) {
             return;
         }
         rf::Player* target = multi_spectate_get_target_player();

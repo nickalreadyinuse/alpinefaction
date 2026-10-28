@@ -15,9 +15,15 @@
 #include "wipeout.h"
 #include "gungame.h"
 #include "salvage.h"
+#include "scavenger.h"
+#include "vehicles/vehicle.h"
+#include "vehicles/vehicle_render.h"
+#include "vehicles/vehicle_markers.h"
+#include "vehicles/vehicle_physics.h"
 #include "multi.h"
 #include "mutators.h"
 #include "alpine_packets.h"
+#include "server_internal.h"
 #include "../fflink/afstats_events.h"
 #include "../hud/hud_internal.h"
 #include "../hud/multi_spectate.h"
@@ -55,6 +61,8 @@ static char gg_name[] = "GG";
 static char* gg_slot = gg_name;
 static char sal_name[] = "SAL";
 static char* sal_slot = sal_name;
+static char scav_name[] = "SCAV";
+static char* scav_slot = scav_name;
 // UNK is the sentinel; new game types must be added above
 static char unk_name[] = "UNK";
 static char* unk_slot = unk_name;
@@ -100,6 +108,7 @@ void populate_gametype_table() {
     g_af_gametype_names[rf::NG_TYPE_WO]     = &wo_slot;
     g_af_gametype_names[rf::NG_TYPE_GG]     = &gg_slot;
     g_af_gametype_names[rf::NG_TYPE_SAL]    = &sal_slot;
+    g_af_gametype_names[rf::NG_TYPE_SCAV]   = &scav_slot;
     g_af_gametype_names[rf::NG_TYPE_UNK]    = &unk_slot;
 
     for (int i = 0; i < 5; ++i) {
@@ -150,6 +159,7 @@ bool multi_game_type_is_team_type(rf::NetGameType game_type)
         case rf::NG_TYPE_TBAG:
         case rf::NG_TYPE_WO:
         case rf::NG_TYPE_SAL:
+        case rf::NG_TYPE_SCAV:
             return true;
         default:
             return false;
@@ -278,6 +288,11 @@ bool gt_is_salvage()
     return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_SAL;
 }
 
+bool gt_is_scavenger()
+{
+    return rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_SCAV;
+}
+
 const char* multi_gametype_help_text(rf::NetGameType game_type)
 {
     switch (game_type) {
@@ -309,6 +324,8 @@ const char* multi_gametype_help_text(rf::NetGameType game_type)
             return "Gun Game: Get frags to advance to a new weapon";
         case rf::NG_TYPE_SAL:
             return "Salvage: Steal the flag and take it to your base";
+        case rf::NG_TYPE_SCAV:
+            return "Scavenger: Find the cartridge and take it to the target";
         default:
             return nullptr;
     }
@@ -1213,6 +1230,12 @@ static void koth_maybe_grant_lockdown(const HillInfo& captured, HillOwner new_ow
     }
 }
 
+// HO_Neutral 0 / HO_Red 1 / HO_Blue 2 maps onto a Vehicle Factory's -1 none / 0 red / 1 blue.
+static int hill_owner_factory_team(HillOwner owner)
+{
+    return static_cast<int>(owner) - 1;
+}
+
 static void koth_apply_ownership(HillInfo& h, HillOwner new_owner, bool announce = true, HillOwner scoring_team = HillOwner::HO_Neutral)
 {
     if (gt_is_rev() && new_owner == HillOwner::HO_Blue)
@@ -1251,6 +1274,11 @@ static void koth_apply_ownership(HillInfo& h, HillOwner new_owner, bool announce
         else {
             // KOTH / DC: per-hill is fine
             koth_update_respawn_points(&h);
+        }
+
+        // Linked Vehicle Factories follow the point's owner.
+        for (int factory_index : h.vehicle_factories) {
+            vehicle_factory_set_team(factory_index, hill_owner_factory_team(new_owner));
         }
 
         if (new_owner == HillOwner::HO_Red || new_owner == HillOwner::HO_Blue) {
@@ -2027,10 +2055,16 @@ static int build_hills_from_capture_point_events()
         h.hold_ms_accum = 0;
 
         // build vector of respawn points associated with hill
+        // Alpine respawn points and vehicle factories are not engine objects, so level_load leaves
+        // their links as raw RFL uids while engine-object links become handles.
         if (!e->links.empty()) {
             for (int linked_uid : e->links) {
                 if (auto* rp = get_alpine_respawn_point_by_uid(linked_uid)) {
                     h.mp_spawn_uids.push_back(rp->uid);
+                }
+                const int factory_index = vehicle_factory_index_by_uid(linked_uid);
+                if (factory_index >= 0) {
+                    h.vehicle_factories.push_back(factory_index);
                 }
             }
         }
@@ -2106,14 +2140,35 @@ void hill_mode_level_init_post()
     //xlog::warn("KOTH: {} capture points found in this map, gt {}", n, static_cast<int>(rf::netgame.type));
 }
 
+// Hills are built before the factory slots exist, so an initial ownership (ESC bases, or any hill
+// a gametype starts owned) is pushed to its linked factories here instead of from the hill build.
+static void hill_mode_apply_linked_factory_teams()
+{
+    for (const auto& hill : g_koth_info.hills) {
+        if (hill.ownership == HillOwner::HO_Neutral)
+            continue; // a neutral hill leaves the factory's authored team alone
+
+        for (int factory_index : hill.vehicle_factories) {
+            vehicle_factory_set_team(factory_index, hill_owner_factory_team(hill.ownership), false);
+        }
+    }
+}
+
 void multi_level_init_post_gametypes()
 {
     hill_mode_level_init_post();
     bagman_level_init_post();
     salvage_level_init_post();
+    scavenger_level_init_post();
     pit_level_init_post();
     wipeout_level_init_post();
     gungame_level_init_post();
+    // Before the factory spawns below: entity_create seeds each hull's life from EntityInfo.
+    vehicle_tbl_overrides_level_init_post();
+    vehicle_level_init_post();
+    vehicle_markers_level_init_post(); // after the mesh overrides and the factory mirror
+    vehicle_physics_level_init_post(); // after the factory records exist
+    hill_mode_apply_linked_factory_teams(); // after vehicle_level_init_post: needs the slots
     // Rounds must initialise AFTER per-gametype level-init so the gametype
     // has registered its callbacks before round 1 begins.
     rounds_level_init_post();
@@ -2124,7 +2179,13 @@ void multi_level_init_post_gametypes()
     // After everything above, so the round_start snapshot sees the level, the
     // game type, the active rules and every gametype's own state as final.
     if (rf::is_multi && rf::is_server) {
+        // Not from multi_level_init: that runs before level_load, so the factory-driven client
+        // requirement in server_features_require_alpine_client would read one level late.
+        initialize_game_info_server_flags();
+        af_send_server_info_packet_to_all();
+        enforce_alpine_hard_reject_for_all_players_on_current_level();
         afstats::on_game_start();
+        server_broadcast_level_message();
     }
 }
 
@@ -2132,19 +2193,24 @@ void multi_level_init_post_gametypes()
 CodeInjection multi_level_init_gametypes_injection{
     0x0046E466,
     [] {
+        // Before gungame_level_init: weapons.tbl overrides restore LIFO.
+        vehicle_tbl_overrides_revert();
         rounds_level_init();
         hill_mode_level_init();
         bagman_level_init();
         jetpack_level_init();
         salvage_level_init();
+        scavenger_level_init();
         pit_level_init();
         wipeout_level_init();
         gungame_level_init();
+        vehicle_level_init();
+        vehicle_physics_level_reset();
         riot_shield_on_multi_level_init();
     },
 };
 
-// sync scores every 5ms during gameplay to account for clientside prediction errors
+// sync scores every 5 s during gameplay to account for clientside prediction errors
 CodeInjection send_team_score_server_do_frame_patch{
     0x0046E5B4,
     [](auto& regs) {
@@ -2181,11 +2247,16 @@ CodeInjection send_team_score_state_info_patch{
             }
         }
 
-        // send salvage flag state packet on join
-        if (gt_is_salvage()) {
+        // send salvage/scavenger flag state packet on join
+        if (salvage_framework_active()) {
             if (rf::Player* pp = regs.edi) {
                 salvage_force_state_sync_to(pp);
             }
+        }
+
+        // replay occupied vehicle and turret seats on join
+        if (rf::Player* pp = regs.edi) {
+            vehicle_send_seat_states_to(pp);
         }
 
         // send Pit queue state and roster on join.
@@ -2247,7 +2318,7 @@ CodeInjection send_team_score_patch{
             regs.ax = blue_score;
             regs.eip = 0x00472176; // use stock game packet send
         }
-        else if (gt_is_salvage()) {
+        else if (salvage_framework_active()) {
             const uint16_t red_score = (uint16_t)std::clamp(salvage_get_red_team_score(), 0, 0xFFFF);
             const uint16_t blue_score = (uint16_t)std::clamp(salvage_get_blue_team_score(), 0, 0xFFFF);
             regs.si = red_score;
@@ -2279,7 +2350,7 @@ CodeInjection process_team_score_patch{
             wipeout_set_red_team_score(red_score);
             wipeout_set_blue_team_score(blue_score);
         }
-        else if (gt_is_salvage()) {
+        else if (salvage_framework_active()) {
             int red_score = static_cast<uint16_t>(regs.si.value);
             int blue_score = static_cast<uint16_t>(regs.di.value);
             salvage_set_red_team_score(red_score);
@@ -2300,6 +2371,9 @@ CodeInjection carrier_attachment_render_patch{
         // command uses this same hook. jetpack_render_attachment() does its own
         // active/first-person checks and yields to the bag on the carrier.
         jetpack_render_attachment(ep);
+
+        // Same attachment point: AF's jeep hull carries no tires, so they are drawn right after it.
+        vehicle_render_jeep_tires(ep);
 
         if (!rf::is_multi || !gt_is_bagman_any()) return;
 
@@ -2353,7 +2427,6 @@ CodeInjection multi_hud_render_target_name_color_patch{
 CallHook<int()> multi_get_game_type_non_team_mode_hook{
     {
         0x004A4234, // player_create_entity for team coloured player models
-        0x004808EF, // multi_spawn_player_server_side for "You are on team X" for listen server host
         0x00443FC9, // chat_add_msg for [Team] prefix on team chat
         0x00444A93, // multi_chat_say_show
         0x00476CA8, // multi_hud_level_init for "You are on team X" for client

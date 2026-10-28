@@ -56,6 +56,8 @@ void player_idle_check(rf::Player* player);
 void auto_team_balance_on_player_death(rf::Player* killed_player);
 bool auto_team_balance_blocks_team_change(rf::Player* player, int requested_team);
 bool humans_vs_bots_active();
+// Whether spectator follows target; a listen host spectates client-side, without the spectatee bookkeeping.
+bool player_is_spectating(const rf::Player& spectator, const rf::Player* target);
 void send_sound_packet_throwaway(rf::Player* target, int sound_id);
 // World-space sound broadcast to every connected player, via the stock sound packet.
 void broadcast_sound_packet_3d(const rf::Vector3& pos, int sound_id);
@@ -65,3 +67,7 @@ void shuffle_level_array();
 void process_queued_spawn_points_from_items();
 bool is_player_idle(const rf::Player* player);
 void entity_drop_powerup(rf::Entity* ep, int powerup_type, int count);
+// Server: force whichever flag this player carries (CTF or Salvage) to the ground at his feet.
+// A cause-driven drop like death, so no flag_dropping rule gate; a no-op if he carries nothing.
+// Drops at the carrier ENTITY's current position, so call it before anything moves him.
+void multi_force_drop_carried_flag(rf::Player* player);
