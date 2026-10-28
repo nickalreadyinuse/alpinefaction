@@ -214,6 +214,8 @@ const MutatorDescription mutator_descriptions[] = {
      "Sets the score limit for the game type being voted, instead of the server's."},
     {"idealplayers",
      "Sets the player count the server advertises as its target size."},
+    {"joinbots",
+     "Bots join for the level, or fill a match's open slots once the other players are ready."},
 };
 
 const char* mutator_description_for(std::string_view name)

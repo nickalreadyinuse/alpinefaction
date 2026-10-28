@@ -30,6 +30,7 @@
 #include "server.h"
 #include "alpine_packets.h"
 #include "../misc/vpackfile.h"
+#include "bots/server_bots.h"
 
 MatchInfo g_match_info;
 
@@ -787,6 +788,39 @@ static std::optional<rf::NetGameType> title_gametype(std::optional<rf::NetGameTy
     return std::nullopt;
 }
 
+// A match's Join Bots leave at least one slot to a human and must all fit on the server
+static bool join_bots_match_vote_allowed(const AlpineServerConfigRules& rules, int team_size, rf::Player* source)
+{
+    const int bots = rules.mutators.join_bots;
+    if (bots <= 0) {
+        return true;
+    }
+    if (bots > 2 * team_size - 1) {
+        send_vote_reject_msg(std::format("Cannot start vote: a {0}v{0} match has room for at most {1} Join Bots.",
+                                         team_size, 2 * team_size - 1), source);
+        return false;
+    }
+    if (2 * team_size > rf::netgame.max_players) {
+        send_vote_reject_msg(std::format("Cannot start vote: a {0}v{0} match doesn't fit in this server's {1} slots.",
+                                         team_size, rf::netgame.max_players), source);
+        return false;
+    }
+    // Configured bots make way for these, players don't
+    int players = 0;
+    for (rf::Player& player : SinglyLinkedList{rf::player_list}) {
+        players += (server_bot_from_player(&player) || player.is_observer()) ? 0 : 1;
+    }
+    if (players + bots > rf::netgame.max_players) {
+        send_vote_reject_msg(std::format("Cannot start vote: the server has no room for {} Join Bots.", bots), source);
+        return false;
+    }
+    if (rules.mutators.humans_vs_bots_enabled) {
+        send_vote_reject_msg("Cannot start vote: Join Bots can't fill a Humans vs. Bots match.", source);
+        return false;
+    }
+    return true;
+}
+
 // An explicit voted set replaces the baseline; a chat vote names none and gets the level's own.
 static std::vector<MutatorDeclaration> effective_vote_mutators(const std::vector<MutatorDeclaration>& voted,
     bool voted_set_is_explicit, std::string_view level_name, rf::NetGameType game_type)
@@ -863,7 +897,11 @@ struct VoteMatch : public Vote
         // Built like a level vote: the level's rotation slot settings with the voted game type and mutators.
         m_manual_rules_override =
             load_vote_rules_override(m_level_name, effective_mutators, effective_game_type);
+        if (!join_bots_match_vote_allowed(m_manual_rules_override.rules, m_team_size, source)) {
+            return false;
+        }
         m_manual_rules_override.explicit_session = m_gametype.has_value() || m_mutators_explicit;
+        m_manual_rules_override.match = true;
         m_mutator_labels = mutators_join_labels(effective_mutators, effective_game_type);
         m_title_gametype = title_gametype(m_gametype, effective_game_type);
 

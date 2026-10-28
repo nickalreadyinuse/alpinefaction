@@ -3811,10 +3811,11 @@ int multi_num_players_waiting_for_reliable_socket()
 CallHook<int()> server_full_num_players_hook{
     0x0047AE47,
     []() {
-        const int player_count = multi_num_players_occupying_slots();
+        const int num_occupying = multi_num_players_occupying_slots();
+        const int player_count = num_occupying + server_bots_num_reserved_slots();
         // A human may take a server bot's slot while the player list is below the engine's limit.
         if (get_joining_client_kind() == JoiningClientKind::Human && player_count >= rf::netgame.max_players
-            && player_count < rf::multi_max_player_slots) {
+            && num_occupying < rf::multi_max_player_slots) {
             return player_count - server_bots_num_evictable();
         }
         return player_count;

@@ -783,6 +783,10 @@ struct MutatorConfig
     // Pogo: hold jump to auto-jump on every landing. Client-side physics.
     bool pogo_enabled = false;
 
+    // Join Bots: this many server bots join for the level, or fill a match's empty slots, all at one skill preset.
+    int join_bots = 0;
+    std::string join_bots_skill;
+
     // Display only: human-readable names of the mutators applied to these rules.
     std::vector<std::string> active_labels;
 
@@ -1177,6 +1181,8 @@ struct ManualRulesOverride
     // set. A plain vote installs derived rules too, but arms no session set, so a
     // rotation preserve vote after one carries nothing.
     bool explicit_session = false;
+    // Installed by a match vote: its Join Bots exist only while the match is queued, forming or live.
+    bool match = false;
 };
 
 struct MatchInfo
