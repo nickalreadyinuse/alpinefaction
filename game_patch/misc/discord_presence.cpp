@@ -40,7 +40,7 @@ using json = nlohmann::json;
 
 // Application ID of the "Alpine Faction" app in the Discord developer portal. Its rich presence art
 // assets must include one named by large_image_key.
-constexpr const char* discord_client_id = "0000000000000000000";
+constexpr const char* discord_client_id = "1565119498611068988";
 constexpr const char* large_image_key = "logo";
 constexpr std::string_view join_url_base = "https://join.alpinefaction.com/";
 
