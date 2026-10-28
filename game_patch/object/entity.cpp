@@ -4,6 +4,7 @@
 #include <patch_common/AsmWriter.h>
 #include <patch_common/MemUtils.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -1036,69 +1037,73 @@ CodeInjection clear_stale_movement_input_injection{
     },
 };
 
-// Stock samples EntityInfo::local_eye_offset from the "stand" pose, but armed entities idle in "attack_stand",
-// which sits ~9cm lower on the miner1/merc skeletons. Resample after stock init so hitboxes stay stock.
-static auto& entity_can_crouch = addr_as_ref<bool(rf::Entity*)>(0x00428010);
-static auto& entity_is_humanoid = addr_as_ref<bool(rf::Entity*)>(0x0040A150);
-constexpr int EIF_MESH_DATA_INITIALIZED = 0x40000000;
-// stock eye Y minus corrected eye Y, per entity type (for pre-1.5 clients on the server rewind path)
-static std::unordered_map<rf::EntityInfo*, float> g_legacy_eye_offset_delta_y;
+// Stock's eye height comes from "stand", but other players see an armed idle in "attack_stand". Kept out of
+// EntityInfo, which single player shares.
+static std::array<float, rf::MAX_ENTITY_TYPES> g_attack_stand_eye_delta_y{};
 
-FunHook<void(rf::Entity*)> entity_info_setup_bone_damage_modifiers_hook{
-    0x00423B90,
+FunHook<void(rf::Entity*)> entity_info_setup_bone_damage_modifiers2_hook{
+    0x00423BD0,
     [](rf::Entity* ep) {
+        entity_info_setup_bone_damage_modifiers2_hook.call_target(ep);
         rf::EntityInfo* info = ep->info2;
-        bool was_initialized = info->flags & EIF_MESH_DATA_INITIALIZED;
-        entity_info_setup_bone_damage_modifiers_hook.call_target(ep);
-        if (was_initialized || !ep->vmesh || info->eye_tag < 0 || !entity_can_crouch(ep)) {
-            return;
-        }
-        int idx = rf::ENTITY_STATE_ATTACK_STAND;
-        if (ep->state_anims[idx].vmesh_anim_index < 0) {
-            idx = rf::ENTITY_STATE_STAND;
-        }
-        int anim = ep->state_anims[idx].vmesh_anim_index;
-        if (anim < 0) {
+        const int stand_anim = ep->default_state_anims[rf::ENTITY_STATE_STAND].vmesh_anim_index;
+        const int attack_stand_anim = ep->default_state_anims[rf::ENTITY_STATE_ATTACK_STAND].vmesh_anim_index;
+        // Stock init ends in a processed stand pose only for types that can crouch, so only those are restored.
+        // A zero frametime keeps the anim phase stock left, so single player is unchanged.
+        if (!ep->vmesh || info->eye_tag < 0 || !rf::entity_can_crouch(ep) || stand_anim < 0 || attack_stand_anim < 0
+            || attack_stand_anim == stand_anim) {
             return;
         }
         rf::vmesh_reset_actions(ep->vmesh);
-        rf::vmesh_set_action_weight(ep->vmesh, anim, 1.0f);
-        rf::vmesh_process(ep->vmesh, 1.0f, 0, nullptr, nullptr, 1);
-        rf::Matrix3 identity;
-        identity.make_identity();
-        rf::Vector3 zero{};
-        rf::Matrix3 out_orient;
-        rf::Vector3 eye;
-        rf::vmesh_get_prop_point_transform(ep->vmesh, info->eye_tag, &identity, &zero, &out_orient, &eye);
-        // restore stock pose
+        rf::vmesh_set_action_weight(ep->vmesh, attack_stand_anim, 1.0f);
+        rf::vmesh_process(ep->vmesh, 0.0f, 0, nullptr, nullptr, 1);
+        rf::Matrix3 eye_orient;
+        rf::Vector3 eye_pos;
+        rf::vmesh_get_prop_point_transform(ep->vmesh, info->eye_tag, &rf::identity_matrix, &rf::zero_vector,
+                                           &eye_orient, &eye_pos);
         rf::vmesh_reset_actions(ep->vmesh);
-        if (ep->state_anims[0].vmesh_anim_index >= 0) {
-            rf::vmesh_set_action_weight(ep->vmesh, ep->state_anims[0].vmesh_anim_index, 1.0f);
-        }
-        rf::vmesh_process(ep->vmesh, 0.2f, 0, nullptr, nullptr, 1);
-        if (entity_is_humanoid(ep)) {
-            eye.x = 0.0f;
-            eye.z = 0.0f;
-        }
-        g_legacy_eye_offset_delta_y[info] = info->local_eye_offset.y - eye.y;
-        xlog::info("eye offset resample: type {} state={} stock y={} resampled y={}", info->name, idx,
-                   info->local_eye_offset.y, eye.y);
-        info->local_eye_offset = eye;
+        rf::vmesh_set_action_weight(ep->vmesh, stand_anim, 1.0f);
+        rf::vmesh_process(ep->vmesh, 0.0f, 0, nullptr, nullptr, 1);
+        g_attack_stand_eye_delta_y[info - rf::entity_types] = eye_pos.y - info->local_eye_offset.y;
     },
 };
 
-// Server: burst follow-up rounds have no packet pos, so the shooter's eye_pos is rebuilt from local_eye_offset.
-// Pre-1.5 clients still fire from the stock eye height; reproduce it for them. Orient is yaw-only, so y-only.
-CallHook<void(rf::Entity*)> lag_comp_shooter_eye_pos_legacy_client_hook{
-    0x004264C3,
+static bool entity_uses_attack_stand_eye(rf::Entity* ep)
+{
+    if (!rf::is_multi || ep->host_handle != -1 || g_attack_stand_eye_delta_y[ep->info2 - rf::entity_types] == 0.0f) {
+        return false;
+    }
+    // The measurement may come from a single player anim set; a character whose multiplayer set idles armed
+    // in its stand anim needs no correction.
+    const int stand_anim = ep->default_state_anims[rf::ENTITY_STATE_STAND].vmesh_anim_index;
+    const int attack_stand_anim = ep->default_state_anims[rf::ENTITY_STATE_ATTACK_STAND].vmesh_anim_index;
+    if (attack_stand_anim < 0 || attack_stand_anim == stand_anim) {
+        return false;
+    }
+    rf::Player* player = rf::player_from_entity_handle(ep->handle);
+    if (!player) {
+        return false;
+    }
+    // Both ends must agree on the height, or rounds the server fires for a shooter leave from the wrong eye
+    if (rf::is_server) {
+        return player == rf::local_player || is_player_minimum_af_client_version(player, 1, 5, 0);
+    }
+    return is_server_minimum_af_version(1, 5);
+}
+
+// Applied where the eye is built, not at the camera, so the server's lag-comp rewind uses the same height
+FunHook<void(rf::Entity*)> entity_calc_eye_pos_attack_stand_hook{
+    0x004194E0,
     [](rf::Entity* ep) {
-        lag_comp_shooter_eye_pos_legacy_client_hook.call_target(ep);
-        if (ep->local_player && !is_player_minimum_af_client_version(ep->local_player, 1, 5, 0)) {
-            auto it = g_legacy_eye_offset_delta_y.find(ep->info2);
-            if (it != g_legacy_eye_offset_delta_y.end()) {
-                ep->eye_pos.y += it->second;
-            }
+        if (!entity_uses_attack_stand_eye(ep)) {
+            entity_calc_eye_pos_attack_stand_hook.call_target(ep);
+            return;
         }
+        float& eye_y = ep->info2->local_eye_offset.y;
+        const float stock_eye_y = eye_y;
+        eye_y += g_attack_stand_eye_delta_y[ep->info2 - rf::entity_types];
+        entity_calc_eye_pos_attack_stand_hook.call_target(ep);
+        eye_y = stock_eye_y;
     },
 };
 
@@ -1224,9 +1229,9 @@ void entity_do_patch()
     // Cancel movement input when escape menu is open in multiplayer
     clear_stale_movement_input_injection.install();
 
-    // Fix MP camera height on miner1/merc skeletons (eye offset sampled from wrong idle pose)
-    entity_info_setup_bone_damage_modifiers_hook.install();
-    lag_comp_shooter_eye_pos_legacy_client_hook.install();
+    // Put the MP camera at the eye height of the armed idle pose other players see
+    entity_info_setup_bone_damage_modifiers2_hook.install();
+    entity_calc_eye_pos_attack_stand_hook.install();
 
     // Commands
     sp_exposuredamage_cmd.register_cmd();

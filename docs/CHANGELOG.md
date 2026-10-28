@@ -336,6 +336,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix reload animation playing in third person for other players when client tries to reload with a full clip/magazine
 - Fix lighting for pistol silencer and remote charge detonator
 - Fix third-person crouch animations on remote players flickering and snapping
+- Fix the multiplayer camera sitting above the eyes other players see on Parker and Ultor guard characters, which made other players look shorter than you
 
 [@GooberRF](https://github.com/GooberRF) & [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Fix severe frame rate drops when looking over heavily geomodded areas
@@ -343,10 +344,6 @@ Version 1.5.0 (Trillium): Not yet released
 ### Imported libraries
 - [Bullet Physics 3.25](https://github.com/bulletphysics/bullet3) by Erwin Coumans
 - [bc7enc_rdo](https://github.com/richgel999/bc7enc_rdo) by Richard Geldreich, Jr.
-
-[@nickalreadyinuse](https://github.com/nickalreadyinuse)
-- Fix first person camera height on miner1 and merc based skeletons, which caused other players to appear shorter than you in multiplayer (stock bug since 1.2)
-  - Servers keep firing origins consistent for clients on older Alpine Faction versions
 
 Version 1.4.0 (Lupin): Released Aug-25-2026
 --------------------------------
