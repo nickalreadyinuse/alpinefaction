@@ -27,9 +27,11 @@
 #include "../multi/server_internal.h"
 #include "../multi/vote_client.h"
 #include "../os/console.h"
+#include "../rf/cutscene.h"
 #include "../rf/gameseq.h"
 #include "../rf/level.h"
 #include "../rf/multi.h"
+#include "../rf/os/os.h"
 #include "../rf/player/player.h"
 
 namespace
@@ -385,6 +387,20 @@ void update_session(const std::string& key, std::optional<int64_t> remaining_ms)
     }
 }
 
+std::string_view difficulty_name(rf::GameDifficultyLevel level)
+{
+    switch (level) {
+        case rf::GameDifficultyLevel::DIFFICULTY_EASY:
+            return "Easy";
+        case rf::GameDifficultyLevel::DIFFICULTY_MEDIUM:
+            return "Medium";
+        case rf::GameDifficultyLevel::DIFFICULTY_HARD:
+            return "Hard";
+        default:
+            return "Impossible";
+    }
+}
+
 std::string_view activity_mode_prefix()
 {
     // The listen-server host runs the match itself and gets no match state packets.
@@ -486,9 +502,15 @@ json build_activity()
     json activity{{"assets", {{"large_image", large_image_key}, {"large_text", PRODUCT_NAME}}}};
     const rf::GameState state = rf::gameseq_get_state();
     if ((rf::level.flags & rf::LEVEL_LOADED) && state != rf::GS_MAIN_MENU) {
+        // One timer for the whole play session, across level transitions and save loads.
         update_session("single", std::nullopt);
-        activity["details"] = activity_str("Single player");
-        activity["state"] = activity_str(current_level_name());
+        const char* const mod = rf::mod_param.found() ? rf::mod_param.get_arg() : nullptr;
+        activity["details"] = activity_str(std::format("{} \xB7 {}", mod && mod[0] ? mod : "Single player",
+            difficulty_name(rf::game_get_skill_level())));
+        activity["state"] = activity_str(rf::cutscene_is_playing()
+            ? std::format("Cutscene: {}", current_level_name())
+            : std::string{current_level_name()});
+        activity["assets"]["large_text"] = activity_str(rf::level.filename.c_str());
     }
     else {
         update_session("menu", std::nullopt);
