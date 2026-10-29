@@ -176,6 +176,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `ui_color_console` console command to set the console background color
 - Render animated (`.vfx`) meshes on the GPU with per-pixel lighting, and apply their materials' reflection maps (Direct3D 11 renderer only)
 - Load levels with very large face counts or many level sounds much faster
+- Add Discord rich presence (`cl_discord_presence`) showing the server, gametype, map, team scores, match status, player count and time left in multiplayer, and the level, difficulty and mod in single player, with a `Join server` button for public, password-free servers (`cl_discord_join_button`)
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`
