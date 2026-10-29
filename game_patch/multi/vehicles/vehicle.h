@@ -73,7 +73,7 @@ inline float vehicle_wrap_pi(float a)
 
 inline bool vehicle_vector_is_finite(const rf::Vector3& v)
 {
-    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+    return v.is_finite();
 }
 
 // Slack allowed on every face of BOTH boxes.

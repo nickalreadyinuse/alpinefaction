@@ -11,6 +11,7 @@
 #include "network.h"
 #include "server_internal.h"
 #include "multi.h"
+#include "bots/server_bots.h"
 #include "vehicles/vehicle.h"
 #include "../misc/alpine_settings.h"
 #include "../rf/entity.h"
@@ -165,7 +166,7 @@ void projectile_lag_comp_record_positions()
 static float advance_seconds_for_shooter(rf::Entity* shooter)
 {
     rf::Player* pp = rf::player_from_entity_handle(shooter->handle);
-    if (!pp || !pp->net_data || (rf::is_server && pp == rf::local_player))
+    if (!pp || !pp->net_data || (rf::is_server && (pp == rf::local_player || server_bot_from_player(pp))))
         return 0.0f;
 
     float ms;
@@ -249,8 +250,8 @@ void projectile_lag_comp_advance_weapon(rf::Entity* shooter, rf::Weapon* wp)
 static float rewind_ms_for_killer(int killer_handle, bool full_ping)
 {
     rf::Player* pp = rf::player_from_entity_handle(killer_handle);
-    // The listen host sees the server's live state
-    if (!pp || !pp->net_data || pp == rf::local_player)
+    // The listen host and server bots see the server's live state
+    if (!pp || !pp->net_data || pp == rf::local_player || server_bot_from_player(pp))
         return 0.0f;
 
     // Victims' state took half a ping to reach the shooter plus an interp delay. The client -> server

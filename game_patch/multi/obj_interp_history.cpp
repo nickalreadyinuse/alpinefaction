@@ -237,6 +237,10 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Entity*, rf::Vector3*, rf::Vect
         0x00483360,
         [](rf::ObjInterp* self, int edx, rf::Entity* ep, rf::Vector3* pos, rf::Vector3* phb, rf::Vector3* eye_phb,
            rf::Vector3* vel, rf::Vector3* move, uint16_t tick, float always_0) FASTCALL_LAMBDA {
+            // Positions arrive as raw floats and the stock velocity decode yields NaN for crafted direction
+            // bytes; keep both out of the rings and the relay
+            if (!pos->is_finite() || !vel->is_finite())
+                return;
             const uint32_t num_before = self->num;
             const bool anchoring = (self->flags & rf::OIF_REANCHOR) != 0;
             const uint16_t interp_time_before = self->interp_time;

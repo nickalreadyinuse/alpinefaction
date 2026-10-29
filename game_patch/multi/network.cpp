@@ -3542,7 +3542,7 @@ FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
             if (!inserted) {
                 if (static_cast<int>(g_alpine_game_config.server_netfps) >= client_net_fps && n >= 2
                     && wrapped_diff16(interp.time_array[n - 2], it->second) > 0
-                    && !vehicle_server_samples_rows(ep)) {
+                    && !vehicle_server_samples_rows(ep) && !server_bot_from_entity(ep)) {
                     idx = n - 2;
                 }
                 if (it->second == interp.time_array[idx]) {
