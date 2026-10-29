@@ -152,7 +152,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Speed up selecting and deselecting large numbers of brushes, faces, vertices and objects in the level editor, and drawing the viewports while many objects or vertices are selected
 - Speed up loading and duplicating groups with complex brushes in the level editor
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
-- Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
+- Add `-nogsk` command line argument to make dedicated servers ignore `fflink_gsk` and skip FactionFiles registration
 - Implement shared Direct3D 11 renderer for game and level editor
 - Reduce the CPU time bots spend choosing goals and planning routes, and stop bots from repeatedly searching for routes to destinations they cannot reach
 - Tweak `hard`, `expert` and `nightmare` bot skill presets
@@ -176,6 +176,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `ui_color_console` console command to set the console background color
 - Render animated (`.vfx`) meshes on the GPU with per-pixel lighting, and apply their materials' reflection maps (Direct3D 11 renderer only)
 - Load levels with very large face counts or many level sounds much faster
+- Add Discord rich presence (`cl_discord_presence`) showing the server, gametype, map, team scores, match status, player count and time left in multiplayer, and the level, difficulty and mod in single player, with a `Join server` button for public, password-free servers (`cl_discord_join_button`)
 - Add chat, HUD, cinema mode, player outline, and outline x-ray toggles to the spectate options menu, and group its demo playback overlays into a submenu
 - Add `cl_cinema` console command to toggle cinema mode, which hides the HUD except for the reticle and kill feed
 - Keep chat menus and the chat input box visible while the HUD is hidden
@@ -335,6 +336,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix "You are on team" showing on every spawn of a listen server host in team modes
 - Fix a spectating listen server host not seeing the spectated player's ammo, weapon fire animations, damage numbers, awards or critical hit flashes
 - Fix bot clients losing the `personality_overrides` and `skill_overrides` of their bot profile (such as `taunt_on_kill_chance`) when the server sent their skill preset
+- Fix level editor sometimes crashing when moving vertices after using `Weld` in vertex mode
+- Fix some level editor buttons in Face and Vertex modes not working when the mode was entered with a keyboard shortcut
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
@@ -346,6 +349,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix reload animation playing in third person for other players when client tries to reload with a full clip/magazine
 - Fix lighting for pistol silencer and remote charge detonator
 - Fix third-person crouch animations on remote players flickering and snapping
+- Fix the multiplayer camera sitting above the eyes other players see on Parker and Ultor guard characters, which made other players look shorter than you
 
 [@GooberRF](https://github.com/GooberRF) & [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Fix severe frame rate drops when looking over heavily geomodded areas

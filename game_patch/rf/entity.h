@@ -473,6 +473,7 @@ namespace rf
     static_assert(offsetof(Entity, entity_flags) == 0x810);
     static_assert(offsetof(Entity, reload_done_timestamp) == 0x139C);
     static_assert(offsetof(Entity, interface_points) == 0x8CC);
+    static_assert(offsetof(Entity, default_state_anims) == 0xD24);
     static_assert(offsetof(Entity, entity_flags2) == 0x814);
     static_assert(offsetof(Entity, move_mode) == 0x858);
     static_assert(offsetof(Entity, control_data) == 0x860);
@@ -561,6 +562,7 @@ namespace rf
     static auto& entity_fire_list = addr_as_ref<EntityFireInfo*>(0x0062F770);
     static auto& entity_is_swimming = addr_as_ref<bool(Entity* ep)>(0x0042A0A0);
     static auto& entity_is_crouching = addr_as_ref<bool(Entity* ep)>(0x0040A130);
+    static auto& entity_can_crouch = addr_as_ref<bool(Entity* ep)>(0x00428010);
     static auto& entity_is_falling = addr_as_ref<bool(Entity* ep)>(0x0042A020);
     static auto& entity_is_climbing = addr_as_ref<bool(Entity* ep)>(0x0042D8B0);
     static auto& entity_is_running = addr_as_ref<bool(Entity* ep)>(0x00429FF0);
