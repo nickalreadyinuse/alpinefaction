@@ -1,6 +1,5 @@
 #include <windows.h>
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -13,12 +12,16 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 #include <nlohmann/json.hpp>
 #include <xlog/xlog.h>
 #include <common/utils/list-utils.h>
 #include <common/version/version.h>
 #include "discord_presence.h"
 #include "alpine_settings.h"
+#include "misc.h"
 #include "../hud/hud.h"
 #include "../hud/multi_spectate.h"
 #include "../multi/demo/demo.h"
@@ -44,23 +47,25 @@ constexpr const char* discord_client_id = "1565119498611068988";
 constexpr const char* large_image_key = "logo";
 constexpr std::string_view join_url_base = "https://join.alpinefaction.com/";
 
-// Discord rejects activity strings shorter than 2 or longer than 128 bytes.
+// Discord's 2-128 character limit for activity strings, applied to bytes.
 constexpr size_t max_activity_str_len = 128;
 // Discord drops SET_ACTIVITY calls beyond 5 per 20 seconds.
 constexpr auto min_update_interval = std::chrono::seconds{4};
 constexpr auto reconnect_interval = std::chrono::seconds{15};
 constexpr auto handshake_timeout = std::chrono::seconds{5};
 constexpr DWORD state_poll_interval_ms = 1000;
+// Discord's own RPC library caps frames at 64 KiB.
+constexpr uint32_t max_frame_len = 64 * 1024;
 // Remaining-time drift (time limit votes, level time resync) tolerated before the end timestamp moves.
 constexpr int64_t end_time_tolerance_ms = 5000;
 
-enum DiscordOpcode : uint32_t
+enum class DiscordOpcode : uint32_t
 {
-    DISCORD_OP_HANDSHAKE = 0,
-    DISCORD_OP_FRAME = 1,
-    DISCORD_OP_CLOSE = 2,
-    DISCORD_OP_PING = 3,
-    DISCORD_OP_PONG = 4,
+    handshake = 0,
+    frame = 1,
+    close = 2,
+    ping = 3,
+    pong = 4,
 };
 
 struct DiscordFrameHeader
@@ -70,7 +75,45 @@ struct DiscordFrameHeader
 };
 static_assert(sizeof(DiscordFrameHeader) == 8);
 
-// Minimal client for Discord's local RPC named pipe. Owned and used only by the worker thread.
+// json::value() throws on a present key of another type, and command responses carry "evt": null.
+std::string json_str(const json& obj, const char* key)
+{
+    const auto it = obj.find(key);
+    return it != obj.end() && it->is_string() ? it->get<std::string>() : std::string{};
+}
+
+// The game console log appender isn't thread-safe, so the worker queues its log lines for the main thread.
+struct WorkerLog
+{
+    std::mutex mutex;
+    std::vector<std::pair<xlog::Level, std::string>> lines;
+};
+
+WorkerLog g_worker_log;
+std::unordered_set<std::string> g_logged_lines;
+
+void worker_log(xlog::Level level, std::string line)
+{
+    std::lock_guard lock{g_worker_log.mutex};
+    g_worker_log.lines.emplace_back(level, std::move(line));
+}
+
+// Logs each distinct line once per worker run, so a reconnect loop can't spam the console.
+void flush_worker_log()
+{
+    std::vector<std::pair<xlog::Level, std::string>> lines;
+    {
+        std::lock_guard lock{g_worker_log.mutex};
+        lines.swap(g_worker_log.lines);
+    }
+    for (const auto& [level, line] : lines) {
+        if (g_logged_lines.insert(line).second) {
+            xlog::log(level, "[Discord] {}", line);
+        }
+    }
+}
+
+// Owned and used only by the worker thread.
 class DiscordIpc
 {
 public:
@@ -115,7 +158,7 @@ public:
     bool send(DiscordOpcode opcode, const std::string& payload)
     {
         std::string frame(sizeof(DiscordFrameHeader) + payload.size(), '\0');
-        const DiscordFrameHeader header{opcode, static_cast<uint32_t>(payload.size())};
+        const DiscordFrameHeader header{static_cast<uint32_t>(opcode), static_cast<uint32_t>(payload.size())};
         std::memcpy(frame.data(), &header, sizeof(header));
         std::memcpy(frame.data() + sizeof(header), payload.data(), payload.size());
         DWORD written = 0;
@@ -127,7 +170,6 @@ public:
         return true;
     }
 
-    // Handles every frame Discord has sent so far without blocking on an empty pipe.
     bool drain()
     {
         while (is_open()) {
@@ -144,11 +186,23 @@ public:
             if (!read_exact(&header, sizeof(header))) {
                 return false;
             }
+            if (header.length > max_frame_len) {
+                worker_log(xlog::Level::warn, "Oversized frame");
+                close();
+                return false;
+            }
             payload.resize(header.length);
             if (header.length > 0 && !read_exact(payload.data(), header.length)) {
                 return false;
             }
-            handle_frame(static_cast<DiscordOpcode>(header.opcode), payload);
+            try {
+                handle_frame(static_cast<DiscordOpcode>(header.opcode), payload);
+            }
+            catch (const std::exception& e) {
+                worker_log(xlog::Level::warn, std::format("Bad frame: {}", e.what()));
+                close();
+                return false;
+            }
         }
         return false;
     }
@@ -166,28 +220,30 @@ private:
 
     void handle_frame(DiscordOpcode opcode, const std::string& payload)
     {
-        if (opcode == DISCORD_OP_PING) {
-            send(DISCORD_OP_PONG, payload);
+        if (opcode == DiscordOpcode::ping) {
+            send(DiscordOpcode::pong, payload);
             return;
         }
         const json msg = json::parse(payload, nullptr, false);
-        if (opcode == DISCORD_OP_CLOSE) {
-            xlog::warn("[Discord] Connection closed: {}", msg.is_object() ? msg.value("message", "") : payload);
+        if (opcode == DiscordOpcode::close) {
+            worker_log(xlog::Level::warn, std::format("Connection closed: {}",
+                msg.is_object() ? json_str(msg, "message") : payload));
             close();
             return;
         }
-        if (opcode != DISCORD_OP_FRAME || !msg.is_object()) {
+        if (opcode != DiscordOpcode::frame || !msg.is_object()) {
             return;
         }
-        const std::string evt = msg.value("evt", "");
+        const std::string evt = json_str(msg, "evt");
         if (evt == "READY") {
             ready_ = true;
-            xlog::info("[Discord] Connected");
+            worker_log(xlog::Level::info, "Connected");
         }
         else if (evt == "ERROR") {
+            // Not the raw payload: its nonce would make every line distinct to flush_worker_log.
             const auto data = msg.find("data");
-            xlog::warn("[Discord] {} failed: {}", msg.value("cmd", ""),
-                data != msg.end() && data->is_object() ? data->value("message", "") : payload);
+            worker_log(xlog::Level::warn, std::format("{} failed: {}", json_str(msg, "cmd"),
+                data != msg.end() && data->is_object() ? json_str(*data, "message") : std::string{}));
         }
     }
 
@@ -195,7 +251,6 @@ private:
     bool ready_ = false;
 };
 
-// Main thread publishes the latest activity; the worker forwards it to Discord when it can.
 struct PresenceChannel
 {
     std::mutex mutex;
@@ -240,7 +295,7 @@ void presence_worker(std::stop_token stop)
             const bool opened = ipc.open();
             if (opened) {
                 const json handshake{{"v", 1}, {"client_id", discord_client_id}};
-                ipc.send(DISCORD_OP_HANDSHAKE, handshake.dump());
+                ipc.send(DiscordOpcode::handshake, handshake.dump());
                 const auto deadline = std::chrono::steady_clock::now() + handshake_timeout;
                 while (ipc.drain() && !ipc.is_ready() && std::chrono::steady_clock::now() < deadline
                     && !stop.stop_requested()) {
@@ -258,8 +313,7 @@ void presence_worker(std::stop_token stop)
             sent_revision = 0;
         }
 
-        // Wakes for a new activity, for shutdown, or periodically to answer pings and notice a
-        // closed pipe.
+        // The periodic wake answers pings and notices a closed pipe.
         g_channel.cv.wait_for(lock, stop, reconnect_interval, [&] { return g_channel.revision != sent_revision; });
         if (stop.stop_requested()) {
             break;
@@ -285,11 +339,10 @@ void presence_worker(std::stop_token stop)
         };
         sent_revision = g_channel.revision;
         lock.unlock();
-        ipc.send(DISCORD_OP_FRAME, cmd.dump());
+        ipc.send(DiscordOpcode::frame, cmd.dump());
         last_send = std::chrono::steady_clock::now();
         lock.lock();
     }
-    // Closing the pipe makes Discord clear the presence.
 }
 
 void start_worker()
@@ -304,7 +357,8 @@ void stop_worker()
     if (g_worker.joinable()) {
         g_worker.request_stop();
         g_worker.join();
-        g_worker = {};
+        g_worker_log.lines.clear();
+        g_logged_lines.clear();
     }
     g_last_activity_dump.clear();
     g_session = {};
@@ -357,9 +411,6 @@ bool is_publicly_routable(rf::IpAddr ip)
 
 bool server_has_password()
 {
-    if (rf::is_server) {
-        return !rf::netgame.password.empty();
-    }
     // An unknown join (none recorded for this address) counts as passworded.
     return !(g_last_join.addr == rf::netgame.server_addr) || g_last_join.has_password;
 }
@@ -370,7 +421,6 @@ std::string_view current_level_name()
     return name[0] ? std::string_view{name} : std::string_view{rf::level.filename.c_str()};
 }
 
-// Keeps the elapsed timer across level changes on one server, and restarts it on a new activity.
 void update_session(const std::string& key, std::optional<int64_t> remaining_ms)
 {
     const int64_t now = unix_now_ms();
@@ -477,9 +527,8 @@ json build_multi_activity()
 
     if (g_alpine_game_config.discord_join_button && !rf::is_server && is_publicly_routable(server_addr.ip_addr)
         && !server_has_password()) {
-        activity["buttons"] = json::array({
-            {{"label", "Join server"}, {"url", std::format("{}{}/{}", join_url_base, server_addr.ip_addr, server_addr.port)}},
-        });
+        const std::string url = std::format("{}{}/{}", join_url_base, server_addr.ip_addr, server_addr.port);
+        activity["buttons"] = json::array({{{"label", "Join server"}, {"url", url}}});
     }
     return activity;
 }
@@ -501,15 +550,15 @@ json build_activity()
 
     json activity{{"assets", {{"large_image", large_image_key}, {"large_text", PRODUCT_NAME}}}};
     const rf::GameState state = rf::gameseq_get_state();
-    if ((rf::level.flags & rf::LEVEL_LOADED) && state != rf::GS_MAIN_MENU) {
-        // One timer for the whole play session, across level transitions and save loads.
+    // Esc pushes the main menu over gameplay as the pause menu.
+    const bool paused = gameseq_is_stacked(rf::GS_MAIN_MENU) && gameseq_is_deep_stacked(rf::GS_GAMEPLAY);
+    if ((rf::level.flags & rf::LEVEL_LOADED) && (state != rf::GS_MAIN_MENU || paused)) {
         update_session("single", std::nullopt);
         const char* const mod = rf::mod_param.found() ? rf::mod_param.get_arg() : nullptr;
         activity["details"] = activity_str(std::format("{} \xB7 {}", mod && mod[0] ? mod : "Single player",
             difficulty_name(rf::game_get_skill_level())));
-        activity["state"] = activity_str(rf::cutscene_is_playing()
-            ? std::format("Cutscene: {}", current_level_name())
-            : std::string{current_level_name()});
+        const std::string_view prefix = paused ? "Paused: " : rf::cutscene_is_playing() ? "Cutscene: " : "";
+        activity["state"] = activity_str(std::format("{}{}", prefix, current_level_name()));
         activity["assets"]["large_text"] = activity_str(rf::level.filename.c_str());
     }
     else {
@@ -527,7 +576,7 @@ ConsoleCommand2 discord_presence_cmd{
         rf::console::print("Discord rich presence is {}",
             g_alpine_game_config.discord_rich_presence ? "enabled" : "disabled");
     },
-    "Show the server, map and player count you are playing on as your Discord activity",
+    "Show what you are playing, including the server, map and player count in multiplayer, as your Discord activity",
     "cl_discord_presence [bool]",
 };
 
@@ -551,7 +600,8 @@ void discord_presence_init()
 
 void discord_presence_do_frame()
 {
-    if (rf::is_dedicated_server || is_headless_mode()) {
+    // A client bot would replace the player's own presence.
+    if (rf::is_dedicated_server || is_headless_mode() || client_bot_launch_enabled()) {
         return;
     }
     if (!g_alpine_game_config.discord_rich_presence) {
@@ -563,6 +613,7 @@ void discord_presence_do_frame()
         return;
     }
     g_last_poll_ticks = now;
+    flush_worker_log();
     start_worker();
 
     json activity = build_activity();
