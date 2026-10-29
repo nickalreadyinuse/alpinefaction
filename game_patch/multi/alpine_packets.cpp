@@ -466,7 +466,7 @@ static void af_show_damage_notify(uint8_t player_id, const rf::Vector3* world_po
     }
 
     add_damage_notify_world_hud_string(anchor, player_id, hull_handle, damage, died, crit);
-    play_local_hit_sound(died);
+    play_local_hit_sound(player_id, hull_handle, died);
 }
 
 void af_send_damage_notify_packet(uint8_t player_id, float damage, bool died, bool crit, rf::Player* player,
