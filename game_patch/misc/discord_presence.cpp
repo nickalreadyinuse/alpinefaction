@@ -526,7 +526,7 @@ json build_multi_activity()
     }
 
     if (g_alpine_game_config.discord_join_button && !rf::is_server && is_publicly_routable(server_addr.ip_addr)
-        && !server_has_password()) {
+        && (rf::netgame.flags & rf::NG_FLAG_NOT_LAN_ONLY) && !server_has_password()) {
         const std::string url = std::format("{}{}/{}", join_url_base, server_addr.ip_addr, server_addr.port);
         activity["buttons"] = json::array({{{"label", "Join server"}, {"url", url}}});
     }
