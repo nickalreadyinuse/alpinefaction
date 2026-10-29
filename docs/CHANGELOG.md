@@ -152,7 +152,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Speed up selecting and deselecting large numbers of brushes, faces, vertices and objects in the level editor, and drawing the viewports while many objects or vertices are selected
 - Speed up loading and duplicating groups with complex brushes in the level editor
 - End the Gun Game progression with a one-kill Fusion level after the one-kill final weapon, toggleable with `gg_end_with_fusion`
-- Ignore `fflink_gsk` on dedicated servers started with `-lanonly`
+- Add `-nogsk` command line argument to make dedicated servers ignore `fflink_gsk` and skip FactionFiles registration
 - Implement shared Direct3D 11 renderer for game and level editor
 - Reduce the CPU time bots spend choosing goals and planning routes, and stop bots from repeatedly searching for routes to destinations they cannot reach
 - Tweak `hard`, `expert` and `nightmare` bot skill presets
@@ -326,6 +326,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Fix "You are on team" showing on every spawn of a listen server host in team modes
 - Fix a spectating listen server host not seeing the spectated player's ammo, weapon fire animations, damage numbers, awards or critical hit flashes
 - Fix bot clients losing the `personality_overrides` and `skill_overrides` of their bot profile (such as `taunt_on_kill_chance`) when the server sent their skill preset
+- Fix level editor sometimes crashing when moving vertices after using `Weld` in vertex mode
+- Fix some level editor buttons in Face and Vertex modes not working when the mode was entered with a keyboard shortcut
 
 [@is-this-c](https://github.com/is-this-c)
 - Let `Caps Lock` capitalize
