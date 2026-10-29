@@ -31,6 +31,13 @@ void multi_spectate_level_init();
 void multi_spectate_render();
 // A column of bind / label rows at the spectate hints' place, raised clear of the bottom-left HUD.
 void hud_draw_control_hints(const std::pair<const char*, const char*>* hints, int count);
+// Right edge of the hint column drawn this frame or the last, 0 when none is up.
+int hud_control_hints_right_x();
+// The name plaque at the bottom of the screen; demo playback's controls panel draws it as its
+// bottom row with multi_spectate_render_nameplate_row (the camera label in free look / static).
+int multi_spectate_nameplate_top_y();
+int multi_spectate_nameplate_height();
+void multi_spectate_render_nameplate_row(int center_x, int top_y);
 void multi_spectate_on_player_kill(rf::Player* player, rf::Player* killer);
 void multi_spectate_on_destroy_player(rf::Player* player);
 void multi_spectate_player_create_entity_post(rf::Player* player, rf::Entity* entity);

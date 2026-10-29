@@ -183,6 +183,9 @@ Version 1.5.0 (Trillium): Not yet released
 - Mark the followed player's kills, awards, CTF flag steals and captures, and Damage Amplifier, Invulnerability, and Fusion pickups on the demo playback scrubber while spectating in first person; click a marker to jump to just before it
   - Pickup markers require demos recorded by an Alpine Faction 1.5 server
 - Seek within demos faster
+- Merge the demo playback controls and the spectate nameplate into one panel at the bottom of the screen
+  - Expanded by default (except in free look and orbit camera), with the seek and pause buttons showing their shortcuts and clickable previous/next arrows; Use compacts it to the nameplate under a progress line
+  - Clicking outside the panel still cycles the spectated player, and the spectate control hints stay visible
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`
