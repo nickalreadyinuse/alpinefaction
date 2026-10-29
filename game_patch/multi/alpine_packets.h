@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -50,8 +51,9 @@ enum class af_packet_type : uint8_t
     af_vehicle_health = 0x67,           // Alpine 1.5
     af_vehicle_orient = 0x68,           // Alpine 1.5
     af_vehicle_factory_state = 0x69,    // Alpine 1.5
-    af_obj_update_delta = 0x6A,         // Alpine 1.5, server -> client, see multi/obj_update_delta.h
-    af_obj_update_ack = 0x6B,           // Alpine 1.5, client -> server
+    af_scavenger_state = 0x6A,          // Alpine 1.5
+    af_obj_update_delta = 0x6B,         // Alpine 1.5, server -> client, see multi/obj_update_delta.h
+    af_obj_update_ack = 0x6C,           // Alpine 1.5, client -> server
 };
 
 struct af_obj_update_ack_packet
@@ -159,12 +161,13 @@ enum class AfVoteType : uint8_t
     Random = 6,
     Previous = 7,
     CancelMatch = 8,
+    Surrender = 9, // Alpine 1.5
 };
 // Number of vote types this build knows about.
 // NOT a wire limit: a newer server may run a type with a higher value,
 // and a client tolerates that. Only the server uses it as a rejection bound,
 // on incoming vote calls.
-constexpr uint8_t af_vote_type_count = 9;
+constexpr uint8_t af_vote_type_count = 10;
 static_assert(af_vote_type_count <= 32, "enabled_vote_mask is a u32");
 
 // "no gametype override" sentinel in vote-call payloads.
@@ -354,8 +357,9 @@ static_assert(sizeof(VehicleUseReqPayload) == 5);
 enum af_vehicle_crush_kind : uint8_t
 {
     AF_VEHICLE_CRUSH_RUNOVER = 0, // victim_handle names who the hull ran over
-    AF_VEHICLE_CRUSH_WALL = 1,    // impact_dv: the hull hit the level or a mover
+    AF_VEHICLE_CRUSH_WALL = 1,    // impact_dv: the hull hit the level, a mover or a prop
     AF_VEHICLE_CRUSH_GROUND = 2,  // impact_dv: the hull landed
+    AF_VEHICLE_CRUSH_SCRAPE = 3,  // impact_dv: units of slide past the class's free speed, in wall terms
 };
 
 // Roadkill or hull impact report from the hull's driver; handles are server handles, and the server
@@ -365,7 +369,7 @@ struct VehicleCrushReqPayload
     int32_t vehicle_handle = -1;
     int32_t victim_handle = -1; // -1 unless kind is AF_VEHICLE_CRUSH_RUNOVER
     uint8_t kind = AF_VEHICLE_CRUSH_RUNOVER;
-    float impact_dv = 0.0f;     // u/s along the contact normal; 0 for a run-over
+    float impact_dv = 0.0f;     // u/s along the contact normal, or a scrape's slide; 0 for a run-over
 };
 static_assert(sizeof(VehicleCrushReqPayload) == 13);
 
@@ -397,6 +401,7 @@ enum class af_server_req_type : uint8_t
     af_sreq_riot_shield_state = 0xA,   // Alpine 1.4 (20 bytes: obj_handle, life, impact_pos)
     af_sreq_award = 0xB,               // Alpine 1.4 (2 bytes: award_id, victim_player_id; 0xFF = no victim)
     af_sreq_active_mutators = 0xC,     // Alpine 1.4 (variable: one declaration set, see blob_declaration_set)
+    af_sreq_match_state = 0xD,         // Alpine 1.5 (1 byte: af_match_state_flags)
 };
 
 struct ShouldGibPayload
@@ -426,6 +431,18 @@ struct SprayPayload
     uint8_t flags = 0; // af_spray_flags
 };
 static_assert(sizeof(SprayPayload) == 28);
+
+enum af_match_state_flags : uint8_t
+{
+    AF_MATCH_STATE_LIVE = 1 << 0,
+    // The recipient is playing in the live match
+    AF_MATCH_STATE_PARTICIPANT = 1 << 1,
+};
+
+struct MatchStatePayload
+{
+    uint8_t flags = 0; // af_match_state_flags
+};
 
 struct ReadyPromptPayload
 {
@@ -516,7 +533,8 @@ static_assert(sizeof(AwardPayload) == 2);
 
 using af_server_req_payload = std::variant<ShouldGibPayload, TeleportEntityPayload, SprayPayload,
                                            ReadyPromptPayload, PitQueueStatePayload, EntityOnFirePayload,
-                                           EntityJetpackPayload, RiotShieldStatePayload, AwardPayload>;
+                                           EntityJetpackPayload, RiotShieldStatePayload, AwardPayload,
+                                           MatchStatePayload>;
 
 struct af_server_req_packet
 {
@@ -629,6 +647,20 @@ struct af_salvage_state_packet
 };
 static_assert(sizeof(af_salvage_state_packet) == 35);
 
+// af_salvage_state's layout (header included), then the capture zone.
+struct af_scavenger_state_packet
+{
+    af_salvage_state_packet flag;
+    float zone_x;
+    float zone_y;
+    float zone_z;
+    float zone_radius;
+    float zone_floor_y;
+    uint32_t zone_time_left_ms;
+};
+static_assert(sizeof(af_scavenger_state_packet) == 59);
+static_assert(offsetof(af_scavenger_state_packet, zone_x) == sizeof(af_salvage_state_packet));
+
 // Seat occupancy, server -> client. Handles are server handles. The packet states the hull's FULL
 // occupancy rather than an enter/exit event, so a receiver converges on it with no event history.
 constexpr int af_vehicle_state_max_seats = 6;
@@ -677,7 +709,8 @@ static_assert(sizeof(af_vehicle_state_packet) == sizeof(RF_GamePacketHeader) + 4
 
 // Vehicle weapon control. Client -> server: trigger edges, and the jeep driver's horn edges (alt_fire 0).
 // Server -> client: a discrete shot, or a continuous weapon's actual on/off edge (STOP's alt_fire is 0
-// and ignored); the horn reaches clients as AF_VEHICLE_STATE_HORN.
+// and ignored), or the sub setting off its torpedoes in flight (DETONATE's alt_fire is how many it left
+// flying); the horn reaches clients as AF_VEHICLE_STATE_HORN.
 enum af_vehicle_fire_action : uint8_t
 {
     AF_VEHICLE_FIRE_STOP = 0,
@@ -685,6 +718,7 @@ enum af_vehicle_fire_action : uint8_t
     AF_VEHICLE_FIRE_SHOT = 2,
     AF_VEHICLE_HORN_STOP = 3,
     AF_VEHICLE_HORN_START = 4,
+    AF_VEHICLE_FIRE_DETONATE = 5,
 };
 
 struct af_vehicle_fire_packet
@@ -707,8 +741,15 @@ struct af_vehicle_health_packet
     int32_t secondary_ammo;
     int8_t hit_dir[3];      // world travel direction of the latest attributed hit, x127; all zero = none
     uint16_t refill_ms[2];  // per weapon slot, ms until its ammo refills; 0 = none pending
+    uint8_t flags;          // af_vehicle_health_flags
 };
-static_assert(sizeof(af_vehicle_health_packet) == sizeof(RF_GamePacketHeader) + 27);
+static_assert(sizeof(af_vehicle_health_packet) == sizeof(RF_GamePacketHeader) + 28);
+
+enum af_vehicle_health_flags : uint8_t
+{
+    // Every blow noted on the hull since the last packet was scrape damage: the riders get no damage flash.
+    AF_VEHICLE_HEALTH_SCRAPE_ONLY = 0x1,
+};
 
 // Hull angles the stock obj_update row has no slot for; tick keys them to the matching ObjInterp keyframe.
 struct af_vehicle_orient_packet
@@ -985,6 +1026,13 @@ enum class af_skill_field : uint8_t
     crouch_likelihood = 0x08,
     jump_likelihood = 0x09,
     dodge_likelihood = 0x0A,
+    reaction_time_ms = 0x0B,
+    aim_error_min = 0x0C,
+    aim_error_max = 0x0D,
+    yaw_speed_cap = 0x0E,
+    pitch_speed_cap = 0x0F,
+    fire_alignment_threshold = 0x10,
+    semi_auto_click_interval_scale = 0x11,
 };
 
 #pragma pack(pop)
@@ -1075,6 +1123,9 @@ void af_process_gungame_order_packet(const void* data, size_t len, const rf::Net
 void af_send_salvage_state_packet(rf::Player* player);
 void af_send_salvage_state_packet_to_all();
 void af_process_salvage_state_packet(const void* data, size_t len, const rf::NetAddr&);
+void af_send_scavenger_state_packet(rf::Player* player);
+void af_send_scavenger_state_packet_to_all();
+void af_process_scavenger_state_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_vehicle_state_packet(rf::Player* player, int vehicle_handle, const int32_t* seat_rider,
                                   uint8_t seat_count, uint8_t changed_seat,
                                   const af_vehicle_state_attrs& attrs);
@@ -1093,7 +1144,8 @@ void af_send_vehicle_health_packet(rf::Player* player, int vehicle_handle, float
                                    int primary_ammo, int secondary_ammo, const uint16_t refill_ms[2]);
 void af_send_vehicle_health_packet_to_all(int vehicle_handle, float life, float max_life,
                                           int primary_ammo, int secondary_ammo, const uint16_t refill_ms[2],
-                                          bool is_reliable, const rf::Vector3* hit_dir = nullptr);
+                                          bool is_reliable, const rf::Vector3* hit_dir = nullptr,
+                                          uint8_t flags = 0);
 void af_process_vehicle_health_packet(const void* data, size_t len, const rf::NetAddr&);
 // client -> server: the hull pitch/bank of the vehicle the local player drives
 void af_send_vehicle_orient_request(int vehicle_handle, uint16_t tick, int16_t pitch, int16_t bank,
@@ -1120,13 +1172,14 @@ void af_reset_session_overrides_snapshot();
 static void af_process_server_info_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_spectate_start_packet(const rf::Player* spectatee);
 void af_process_spectate_start_packet(const void* data, size_t len, const rf::NetAddr&);
-void af_send_spectate_notify_packet(rf::Player* player, const rf::Player* spectator, bool does_spectate);
+void af_send_spectate_notify_packet(rf::Player* player, rf::Player* spectator, bool does_spectate);
 void af_process_spectate_notify_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_send_server_cfg(rf::Player* player);
 void af_process_server_msg_packet(const void* data, size_t len, const rf::NetAddr&);
 void af_broadcast_automated_chat_msg(std::string_view msg);
 void af_send_automated_chat_msg(std::string_view msg, rf::Player* player, bool tell_server = false);
-void af_broadcast_vote_legacy_chat_msg(std::string_view msg);
+// Sent only to the legacy-chat clients `audience` accepts
+void af_broadcast_vote_legacy_chat_msg(std::string_view msg, const std::function<bool(rf::Player*)>& audience);
 void af_broadcast_hud_notification(
     std::string_view text, int duration_seconds, int notification_type, bool fade_on_expire = true);
 void af_send_hud_notification(
@@ -1150,6 +1203,7 @@ void af_send_stats_pssk(const std::string& pssk);
 void af_send_vehicle_use_request(int vehicle_handle, uint8_t seat_index);
 void af_send_vehicle_crush_report(int vehicle_handle, int victim_handle);
 void af_send_vehicle_crash_report(int vehicle_handle, bool ground, float impact_dv);
+void af_send_vehicle_scrape_report(int vehicle_handle, float slide_excess);
 
 // vote system (client -> server)
 void af_send_vote_call(const AfVoteCallParams& params);
@@ -1177,6 +1231,7 @@ void af_send_active_mutators_to_all();
 // server -> client state (Pit + match ready system)
 void af_send_ready_prompt(rf::Player* player, uint8_t state); // 0/1/2 (see ReadyPromptPayload)
 void af_send_pit_queue_state(rf::Player* player, uint8_t flags, uint8_t pos, uint8_t total);
+void af_send_match_state(rf::Player* player, uint8_t flags); // af_match_state_flags
 
 // server bot control
 void af_send_bot_control_simple(rf::Player* player, af_bot_control_type subtype);

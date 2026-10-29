@@ -51,11 +51,11 @@ set(SRCS
     bmpman/dds.cpp
     bmpman/bmpman.cpp
     bmpman/bmpman.h
-    bmpman/fmt_conv.cpp
-    bmpman/fmt_conv_templates.h
     bmpman/stb_image_loader.cpp
     bmpman/stb_image_loader.h
     graphics/bink.cpp
+    graphics/detail_texture.cpp
+    graphics/detail_texture.h
     graphics/gr_font.cpp
     graphics/gr.cpp
     graphics/gr.h
@@ -74,46 +74,15 @@ set(SRCS
     graphics/legacy/gr_d3d_internal.h
     graphics/d3d11/gr_d3d11.cpp
     graphics/d3d11/gr_d3d11.h
-    graphics/d3d11/gr_d3d11_state.cpp
-    graphics/d3d11/gr_d3d11_state.h
-    graphics/d3d11/gr_d3d11_texture.cpp
-    graphics/d3d11/gr_d3d11_texture.h
-    graphics/d3d11/gr_d3d11_dynamic_geometry.cpp
-    graphics/d3d11/gr_d3d11_dynamic_geometry.h
-    graphics/d3d11/gr_d3d11_context.cpp
-    graphics/d3d11/gr_d3d11_context.h
-    graphics/d3d11/gr_d3d11_shader.cpp
-    graphics/d3d11/gr_d3d11_shader.h
-    graphics/d3d11/gr_d3d11_error.cpp
-    graphics/d3d11/gr_d3d11_transform.h
-    graphics/d3d11/gr_d3d11_solid.cpp
-    graphics/d3d11/gr_d3d11_solid.h
-    graphics/d3d11/gr_d3d11_mesh.cpp
-    graphics/d3d11/gr_d3d11_mesh.h
-    graphics/d3d11/gr_d3d11_vfx.cpp
-    graphics/d3d11/gr_d3d11_vfx.h
     graphics/d3d11/gr_d3d11_entity_shadow.cpp
     graphics/d3d11/gr_d3d11_entity_shadow.h
-    graphics/d3d11/gr_d3d11_caustics.cpp
-    graphics/d3d11/gr_d3d11_caustics.h
-    graphics/d3d11/gr_d3d11_af_lightmap.cpp
-    graphics/d3d11/gr_d3d11_af_lightmap.h
-    graphics/d3d11/gr_d3d11_terrain.cpp
-    graphics/d3d11/gr_d3d11_terrain.h
-    graphics/d3d11/gr_d3d11_decoration.cpp
-    graphics/d3d11/gr_d3d11_decoration.h
-    graphics/d3d11/gr_d3d11_liquid.cpp
-    graphics/d3d11/gr_d3d11_liquid.h
-    graphics/d3d11/gr_d3d11_vertex.h
-    graphics/d3d11/gr_d3d11_buffer.h
     graphics/d3d11/gr_d3d11_hooks.cpp
     graphics/d3d11/gr_d3d11_hooks.h
     graphics/d3d11/gr_d3d11_outline.h
     graphics/d3d11/gr_d3d11_outline.cpp
-    graphics/d3d11/gr_d3d11_gamma.h
-    graphics/d3d11/gr_d3d11_gamma.cpp
     graphics/d3d11/gr_d3d11_scenefx.h
     graphics/d3d11/gr_d3d11_scenefx.cpp
+    graphics/d3d11/engine/gr_d3d11_engine.h
     input/input.h
     input/mouse.h
     input/mouse.cpp
@@ -130,6 +99,8 @@ set(SRCS
     hud/hud.h
     hud/hud_world.cpp
     hud/hud_world.h
+    hud/scavenger_zone.h
+    hud/scavenger_zone.cpp
     hud/minimap.cpp
     hud/minimap.h
     hud/remote_server_cfg_ui.cpp
@@ -172,6 +143,8 @@ set(SRCS
     multi/gungame.cpp
     multi/salvage.h
     multi/salvage.cpp
+    multi/scavenger.h
+    multi/scavenger.cpp
     multi/vehicles/vehicle.h
     multi/vehicles/vehicle.cpp
     multi/vehicles/vehicle_internal.h
@@ -192,6 +165,8 @@ set(SRCS
     multi/vehicles/vehicle_markers.cpp
     multi/vehicles/vehicle_tracers.h
     multi/vehicles/vehicle_tracers.cpp
+    multi/vehicles/vehicle_fx.cpp
+    multi/vehicles/vehicle_fx.h
     multi/vehicles/vehicle_horn.h
     multi/vehicles/vehicle_horn.cpp
     multi/vehicles/vehicle_physics.h
@@ -284,6 +259,9 @@ set(SRCS
     multi/bots/bot_combat.h
     multi/bots/bot_combat_manager.cpp
     multi/bots/bot_combat_manager.h
+    multi/bots/bot_context.cpp
+    multi/bots/bot_context.h
+    multi/bots/bot_context_fwd.h
     multi/bots/bot_decision_eval.cpp
     multi/bots/bot_decision_eval.h
     multi/bots/bot_fsm.cpp
@@ -327,6 +305,8 @@ set(SRCS
     multi/bots/bot_waypoint_route.cpp
     multi/bots/bot_waypoint_route.h
     multi/bots/bot_weapon_profiles.h
+    multi/bots/server_bots.cpp
+    multi/bots/server_bots.h
     os/console.cpp
     os/console.h
     os/commands.cpp
@@ -352,6 +332,8 @@ set(SRCS
     object/mover.cpp
     object/monitor.cpp
     object/particle.cpp
+    object/particle_sim.cpp
+    object/particle_sim.h
     object/obj_light.cpp
     object/obj_collision.cpp
     object/obj_collision.h
@@ -371,6 +353,8 @@ set(SRCS
     object/clock.cpp
     misc/achievements.h
     misc/achievements.cpp
+    misc/discord_presence.cpp
+    misc/discord_presence.h
     misc/character.cpp
     misc/high_fps.cpp
     misc/high_fps.h
@@ -443,6 +427,7 @@ target_include_directories(AlpineFaction PRIVATE
     ${CMAKE_SOURCE_DIR}/vendor/xxhash
     ${CMAKE_SOURCE_DIR}/vendor/stb
     ${CMAKE_SOURCE_DIR}/vendor/freetype/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/graphics/d3d11/engine
 )
 
 if(NOT MSVC)
@@ -467,6 +452,7 @@ target_link_libraries(AlpineFaction
     PatchCommon
     Xlog
     Common
+    GrD3D11Core
     CrashHandlerStub
     xxhash
     bc7enc_rdo

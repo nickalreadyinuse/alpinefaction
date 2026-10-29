@@ -24,6 +24,7 @@
 #include "alpine_packets.h"
 #include "server.h"
 #include "demo/demo.h"
+#include "bots/server_bots.h"
 #include "../sound/sound.h"
 #include "../rf/weapon.h"
 #include "../rf/item.h"
@@ -386,6 +387,37 @@ static void apply_ideal_player_count_override(AlpineServerConfigRules& r, const 
         r.set_ideal_player_count(static_cast<int>(std::clamp<int64_t>(*v, 1, INT32_MAX)));
 }
 
+// Bot skill presets offered by Join Bots, as {UI label, preset name}.
+static const MutatorOptionChoice JOIN_BOTS_SKILLS[] = {
+    {"Beginner", "beginner"},
+    {"Easy", "easy"},
+    {"Average", "average"},
+    {"Hard", "hard"},
+    {"Expert", "expert"},
+    {"Nightmare", "nightmare"},
+};
+static constexpr uint8_t JOIN_BOTS_DEFAULT_SKILL = 2;
+static constexpr int JOIN_BOTS_DEFAULT_COUNT = 2;
+static constexpr int JOIN_BOTS_MAX_COUNT = 8;
+
+// Join Bots: server bots that join for the level, or fill a match (see server_bots_sync_join_bots).
+static void apply_join_bots(AlpineServerConfigRules& r, const toml::table& opts)
+{
+    r.mutators.join_bots = static_cast<int>(
+        std::clamp<int64_t>(opts["bots"].value_or(int64_t{JOIN_BOTS_DEFAULT_COUNT}), 1, JOIN_BOTS_MAX_COUNT));
+    r.mutators.join_bots_skill = JOIN_BOTS_SKILLS[JOIN_BOTS_DEFAULT_SKILL].value;
+    if (auto v = opts["skill"].value<std::string>()) {
+        const auto it = std::ranges::find_if(JOIN_BOTS_SKILLS, [&](const MutatorOptionChoice& c) {
+            return string_iequals(*v, c.value);
+        });
+        if (it != std::end(JOIN_BOTS_SKILLS))
+            r.mutators.join_bots_skill = it->value;
+        else if (!g_rules_parse_quiet)
+            rf::console::print("  [WARN] Join Bots: unknown skill '{}', using {}\n", clamp_for_console(*v),
+                               r.mutators.join_bots_skill);
+    }
+}
+
 // ============================================================================
 // Registry + application order
 // ============================================================================
@@ -422,6 +454,11 @@ static const MutatorOptionDef SCORE_LIMIT_OPTIONS[] = {
 
 static const MutatorOptionDef IDEAL_PLAYERS_OPTIONS[] = {
     {0, "ideal_players", "Ideal players", MutatorOptionType::Int},
+};
+
+static const MutatorOptionDef JOIN_BOTS_OPTIONS[] = {
+    {0, "bots", "Bots (1-8)", MutatorOptionType::Int},
+    {1, "skill", "Skill", MutatorOptionType::Choice},
 };
 
 struct MutatorDef
@@ -473,11 +510,13 @@ static const MutatorDef MUTATORS[] = {
     {MutatorId::Pogo, "pogo", "Pogo", 4, &apply_pogo, nullptr, 0},
     {MutatorId::ScoreLimitOverride, "scorelimit", "Score Limit Override", MUTATOR_NO_CLIENT_REQUIREMENT, &apply_score_limit_override, SCORE_LIMIT_OPTIONS, std::size(SCORE_LIMIT_OPTIONS), MutatorGametypeReq::HasScoreLimit, "Score Limit", "score_limit"},
     {MutatorId::IdealPlayerCountOverride, "idealplayers", "Ideal Player Count Override", MUTATOR_NO_CLIENT_REQUIREMENT, &apply_ideal_player_count_override, IDEAL_PLAYERS_OPTIONS, std::size(IDEAL_PLAYERS_OPTIONS), MutatorGametypeReq::BotsSupported, "Ideal Players", "ideal_players"},
+    {MutatorId::JoinBots, "joinbots", "Join Bots", MUTATOR_NO_CLIENT_REQUIREMENT, &apply_join_bots, JOIN_BOTS_OPTIONS, std::size(JOIN_BOTS_OPTIONS), MutatorGametypeReq::BotsSupported, nullptr, "bots"},
 };
 
 // Hardcoded order in which simultaneously-active mutators are applied. Later
 // entries win where they overlap.
 static const MutatorId MUTATOR_APPLY_ORDER[] = {
+    MutatorId::JoinBots,
     MutatorId::Pogo,
     MutatorId::Dodging,
     MutatorId::Skiing,
@@ -711,6 +750,13 @@ const std::vector<MutatorInfo>& mutators_get_registry()
             }
             else if (def.id == MutatorId::IdealPlayerCountOverride && opt.name == "ideal_players") {
                 opt.default_int = g_alpine_server_config_active_rules.ideal_player_count;
+            }
+            else if (def.id == MutatorId::JoinBots && opt.name == "bots") {
+                opt.default_int = JOIN_BOTS_DEFAULT_COUNT;
+            }
+            else if (def.id == MutatorId::JoinBots && opt.name == "skill") {
+                opt.choices.assign(std::begin(JOIN_BOTS_SKILLS), std::end(JOIN_BOTS_SKILLS));
+                opt.default_choice = JOIN_BOTS_DEFAULT_SKILL;
             }
 
             info.options.push_back(std::move(opt));
@@ -1674,13 +1720,14 @@ CallHook<void(rf::Entity*)> ski_ground_move_hook{
     },
 };
 
-// Slam and rigid-body impact fall damage: immunity insingle player and multiplayer
-// when movement mutators are active. Note 0x004A0C28 (landing) fall damage is not
-// hooked, because we want it to still apply.
+// Slam and rigid-body impact fall damage: immunity in single player and multiplayer
+// when movement mutators are active, for the local player and server bots (simulated
+// on the server). Note 0x004A0C28 (landing) fall damage is not hooked, because we
+// want it to still apply.
 CallHook<void __cdecl(rf::Entity*, float)> ski_fall_damage_hook{
     {0x0049D4B6, 0x0049DE23, 0x0049DE39},
     [](rf::Entity* ep, float impact) {
-        if (ep && ep == rf::local_player_entity && any_movement_mutator_active())
+        if (ep && any_movement_mutator_active() && (ep == rf::local_player_entity || server_bot_from_entity(ep)))
             return;
         ski_fall_damage_hook.call_target(ep, impact);
     },
@@ -2741,11 +2788,15 @@ static void crits_send_shot_to_shooter(rf::Player* shooter, int weapon_type)
             static_cast<uint8_t>(weapon_type), shooter);
     }
 
-    // A listen host cannot spectate, so every spectator here is a real client.
     for (auto& player : SinglyLinkedList{rf::player_list}) {
-        if (!player.net_data || player.spectatee.value_or(nullptr) != shooter)
+        if (!player.net_data || !player_is_spectating(player, shooter))
             continue;
-        if (is_player_minimum_af_client_version(&player, 1, 4, 0)) {
+        // A spectating listen host, as crits_on_crit_shot treats a spectator.
+        if (&player == rf::local_player) {
+            if (multi_spectate_is_first_person())
+                crits_flash_reticle(crit_glow_color_for(shooter));
+        }
+        else if (is_player_minimum_af_client_version(&player, 1, 4, 0)) {
             af_send_crit_shot_packet(shooter->net_data->player_id,
                 static_cast<uint8_t>(weapon_type), &player);
         }

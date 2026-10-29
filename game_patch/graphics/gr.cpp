@@ -39,6 +39,7 @@
 #include "gr_internal.h"
 #include "weather.h"
 #include "scene_capture.h"
+#include "detail_texture.h"
 #include "../misc/alpine_options.h"
 #include "../hud/multi_spectate.h"
 #include "../multi/demo/demo.h"
@@ -210,9 +211,9 @@ CodeInjection gameplay_render_frame_fov_injection{
     []() {
         // Scale world FOV
         rf::gr::gameplay_fov = gr_scale_world_fov(rf::gr::gameplay_fov);
-        // Free-look spectate stepped zoom and the turret zoom narrow the FOV (1.0 when not zoomed)
+        // Free-look spectate stepped zoom and the vehicle gun zoom narrow the FOV (1.0 when not zoomed)
         rf::gr::gameplay_fov /= multi_spectate_get_view_fov_scale();
-        rf::gr::gameplay_fov /= vehicle_turret_zoom_fov_scale();
+        rf::gr::gameplay_fov /= vehicle_gun_zoom_fov_scale();
     },
 };
 
@@ -660,10 +661,6 @@ void gr_mesh_blend_ambient(const float (&lightmap)[3], float (&out)[3])
 }
 
 // Power of 2 texture enforcement
-// Access p2t flag directly to avoid pulling in D3D8 types from gr_direct3d.h
-namespace rf::gr::d3d {
-    static auto& p2t = addr_as_ref<int>(0x01CFCC18);
-}
 static bool override_pow2tex = false;
 
 ConsoleCommand2 pow2_tex_cmd{
@@ -795,6 +792,15 @@ float level_projection_far()
         return camera_far_clip;
     }
     return rf::level.distance_fog_far_clip > 0.0f ? rf::level.distance_fog_far_clip : d3d11_default_projection_far;
+}
+
+float fog_far_clip_fade(float distance)
+{
+    const float far_clip = rf::level.distance_fog_far_clip;
+    if (!(far_clip > 0.0f)) {
+        return 1.0f;
+    }
+    return std::clamp(4.0f * (1.0f - distance / far_clip), 0.0f, 1.0f);
 }
 
 // gameplay_render_frame starts each frame at gr::default_wfar
@@ -996,6 +1002,7 @@ void gr_apply_patch()
     nearest_texture_filtering_cmd.register_cmd();
     lod_distance_scale_cmd.register_cmd();
     picmip_cmd.register_cmd();
+    detail_texture_register_commands();
     colorblind_cmd.register_cmd();
     precache_rooms_cmd.register_cmd();
     disable_rendering_cmd.register_cmd();

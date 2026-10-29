@@ -14,6 +14,8 @@
 #include "../multi/gametype.h"
 #include "../multi/bagman.h"
 #include "../multi/salvage.h"
+#include "../multi/scavenger.h"
+#include "scavenger_zone.h"
 #include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
 #include "../multi/demo/demo.h"
@@ -498,25 +500,9 @@ void do_render_world_hud_text_label(const NameLabelTex& label, const rf::Vector3
 }
 
 // Session-lifetime, like the font atlases: lets a solid quad share the textured labels' render modes.
-static int world_hud_white_bitmap()
+int world_hud_white_bitmap()
 {
-    static int white_bm = -1;
-    static bool failed = false;
-    if (white_bm == -1 && !failed) {
-        const int bm = rf::bm::create(rf::bm::FORMAT_8888_ARGB, 8, 8);
-        if (bm == -1) {
-            failed = true;
-            return -1;
-        }
-        if (!bm_fill(bm, 0xFFFFFFFFu)) {
-            rf::gr::mark_texture_dirty(bm);
-            rf::bm::release(bm);
-            failed = true;
-            return -1;
-        }
-        rf::bm::texture_add_ref(bm);
-        white_bm = bm;
-    }
+    static const int white_bm = bm_create_procedural(8, 8, [](int, int) { return 0xFFFFFFFFu; });
     return white_bm;
 }
 
@@ -725,7 +711,7 @@ static void build_koth_hill_icons()
 // offset_y is the plate's bottom edge; the plate extends upward so it never covers
 // the player model. Both bars share one scale so the 50-unit notches line up; the
 // scale grows in 50-unit steps when a value exceeds 100 (super health/armor amps).
-static void render_player_info_bars(const rf::Vector3& pos, int offset_y, float life, float armor)
+static void render_player_info_bars(const rf::Vector3& pos, int offset_y, float life, float armor, float fade)
 {
     rf::gr::Vertex dest;
     if (rf::gr::rotate_vertex(&dest, &pos))
@@ -750,7 +736,9 @@ static void render_player_info_bars(const rf::Vector3& pos, int offset_y, float 
     const int x = static_cast<int>(dest.sx) - plate_w / 2;
     const int y = static_cast<int>(dest.sy) + offset_y - plate_h;
 
-    rf::gr::set_color(0, 0, 0, 140);
+    auto faded = [fade](int alpha) { return static_cast<int>(std::lround(alpha * fade)); };
+
+    rf::gr::set_color(0, 0, 0, faded(140));
     rf::gr::rect(x, y, plate_w, plate_h);
 
     const int health_y = y + pad;
@@ -760,15 +748,15 @@ static void render_player_info_bars(const rf::Vector3& pos, int offset_y, float 
         return static_cast<int>(std::lround(static_cast<float>(std::min(value, bar_max)) / bar_max * bar_w));
     };
 
-    rf::gr::set_color(90, 200, 90, 220); // health - green
+    rf::gr::set_color(90, 200, 90, faded(220)); // health - green
     if (int w = fill_w(health); w > 0)
         rf::gr::rect(x + pad, health_y, w, bar_h);
-    rf::gr::set_color(210, 175, 60, 220); // armor - amber
+    rf::gr::set_color(210, 175, 60, faded(220)); // armor - amber
     if (int w = fill_w(armor_points); w > 0)
         rf::gr::rect(x + pad, armor_y, w, bar_h);
 
     // notches every 50 units, spanning both bars
-    rf::gr::set_color(0, 0, 0, 200);
+    rf::gr::set_color(0, 0, 0, faded(200));
     for (int notch = 50; notch < bar_max; notch += 50) {
         int notch_x = x + pad + static_cast<int>(std::lround(static_cast<float>(notch) / bar_max * bar_w));
         rf::gr::rect(notch_x, health_y, 1, 2 * bar_h + gap);
@@ -782,6 +770,7 @@ void build_player_labels() {
     bool is_team_mode = multi_is_team_game_type();
     bool show_teammates = g_alpine_game_config.world_hud_team_player_labels && is_team_mode && !is_spectating;
     auto spectate_target = multi_spectate_get_target_player();
+    rf::Camera* const camera = rf::local_player ? rf::local_player->cam : nullptr;
 
     const int font = get_world_hud_font(g_alpine_game_config.get_world_hud_label_text_scale());
     const int base_font = get_world_hud_font(1.0f);
@@ -828,6 +817,10 @@ void build_player_labels() {
 
         rf::Vector3 string_pos = player_entity->pos;
         string_pos.y += 0.85f;
+        const float fade = camera ? fog_far_clip_fade(string_pos.distance_to(rf::camera_get_pos(camera))) : 1.0f;
+        if (!(fade > 0.0f)) {
+            continue;
+        }
         std::string label = player.name;
 
         // determine label width
@@ -862,11 +855,12 @@ void build_player_labels() {
             label_a = teammate_override_a;
         }
 
+        label_a = static_cast<uint8_t>(std::lround(label_a * fade));
         render_string_3d(string_pos, label.c_str(), -half_text_width, centered_offset_y, font, {label_r, label_g, label_b, label_a});
 
         if (demo_player_info) {
             render_player_info_bars(string_pos, centered_offset_y - 2, player_entity->life,
-                                    player_entity->armor);
+                                    player_entity->armor, fade);
         }
     }
 }
@@ -1056,6 +1050,25 @@ static int salvage_deliver_base_team()
     return -1;
 }
 
+// Scavenger's capture zone, with its timeout countdown near the end. The deliver sprite for the carrier.
+static void build_scavenger_zone_icon(WorldHUDRenderMode render_mode)
+{
+    rf::Vector3 zone_pos{};
+    if (!scavenger_get_zone(&zone_pos)) return;
+
+    rf::Player* viewer = world_hud_viewed_player();
+    int bitmap_handle = g_world_hud_assets.koth_neutral;
+    if (salvage_player_is_carrier(viewer)) {
+        bitmap_handle = viewer->team == rf::TEAM_RED ? sal_icon_deliver_red() : sal_icon_deliver_blue();
+    }
+    zone_pos.y += WorldHUDRender::ctf_flag_offset;
+    render_salvage_sprite(zone_pos, bitmap_handle, render_mode);
+    const int time_left_ms = scavenger_get_zone_time_left_ms();
+    if (time_left_ms <= kScavZoneCountdownVisibleMs) {
+        render_world_hud_countdown(zone_pos, WorldHUDRender::bag_countdown_offset, time_left_ms);
+    }
+}
+
 // Draw Salvage's flag sprites.
 void build_salvage_icons()
 {
@@ -1074,6 +1087,7 @@ void build_salvage_icons()
         render_salvage_sprite(base_blue,
             deliver_team == rf::TEAM_BLUE ? sal_icon_deliver_blue() : sal_icon_base_blue(), render_mode);
     }
+    build_scavenger_zone_icon(render_mode);
 
     if (state == SalFlagState::Carried) {
         rf::Player* carrier = salvage_get_carrier();
@@ -1467,7 +1481,9 @@ void hud_world_do_frame() {
     if (rf::is_multi && g_alpine_game_config.world_hud_ctf_icons && rf::multi_get_game_type() == rf::NetGameType::NG_TYPE_CTF) {
         build_ctf_flag_icons();
     }
-    if (rf::is_multi && gt_is_salvage()) {
+    // Unconditional: it also deletes the zone light once Scavenger is gone.
+    scavenger_zone_render();
+    if (rf::is_multi && salvage_framework_active()) {
         salvage_update_dynamic_light();
         if (g_alpine_game_config.world_hud_ctf_icons) {
             build_salvage_icons();
@@ -1622,7 +1638,7 @@ void add_damage_notify_world_hud_string(rf::Vector3 pos, uint8_t damaged_player_
     es.player_id = damaged_player_id;
     es.hull_handle = hull_handle;
     es.damage = damage;
-    es.timestamp.set_ms(1000);
+    es.timestamp.set_ms(damage_number_merge_ms);
     es.float_away = true;
     es.wind_phase_offset = wind_offset_dist(g_rng);
     es.crit = crit;

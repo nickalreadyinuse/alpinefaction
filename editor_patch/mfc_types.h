@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <numbers>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -258,7 +260,54 @@ struct Matrix3
 };
 static_assert(sizeof(Matrix3) == 0x24, "Matrix3 size mismatch!");
 
+// Newell's method: along the polygon's normal, twice its area long
+inline Vector3 newell_normal(std::span<const Vector3> points)
+{
+    Vector3 n{0.0f, 0.0f, 0.0f};
+    for (size_t i = 0; i < points.size(); ++i) {
+        const Vector3& a = points[i];
+        const Vector3& b = points[(i + 1) % points.size()];
+        n.x += (a.y - b.y) * (a.z + b.z);
+        n.y += (a.z - b.z) * (a.x + b.x);
+        n.z += (a.x - b.x) * (a.y + b.y);
+    }
+    return n;
+}
+
+inline Vector3 centroid(std::span<const Vector3> points)
+{
+    Vector3 sum{0.0f, 0.0f, 0.0f};
+    for (const Vector3& p : points) {
+        sum = sum + p;
+    }
+    return points.empty() ? sum : sum * (1.0f / static_cast<float>(points.size()));
+}
+
+// A unit vector square to a
+inline Vector3 any_perpendicular(const Vector3& a)
+{
+    return normalized(cross(a, std::abs(a.x) < 0.9f ? Vector3{1.0f, 0.0f, 0.0f} : Vector3{0.0f, 1.0f, 0.0f}));
+}
+
+// v turned the shortest way that takes unit `from` onto unit `to` (Rodrigues); not for opposite ones
+inline Vector3 rotate_between(const Vector3& from, const Vector3& to, const Vector3& v)
+{
+    const float c = dot(from, to);
+    if (c > 1.0f - 1e-6f) return v;
+    const Vector3 axis = cross(from, to);
+    return v * c + cross(axis, v) + axis * (dot(axis, v) / (1.0f + c));
+}
+
+inline constexpr float two_pi = 2.0f * std::numbers::pi_v<float>;
+
 inline const Matrix3 identity_orient{{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+
+enum class PlaneSide
+{
+    front = 1,
+    on = 2,
+    behind = 3,
+};
 
 struct Plane
 {
@@ -267,6 +316,12 @@ struct Plane
 
     Plane() = default;
     Plane(const Vector3& n, float d) : normal(n), dist(d) {}
+
+    // FUN_0048a790, within RED's on-plane distance (float 1e-4, on the x87)
+    PlaneSide side_of(const Vector3& point) const
+    {
+        return static_cast<PlaneSide>(AddrCaller{0x0048a790}.c_call<int>(&point, this));
+    }
 };
 static_assert(sizeof(Plane) == 0x10, "Plane size mismatch!");
 
@@ -990,6 +1045,20 @@ struct CColorDialog : CDialog
 };
 static_assert(offsetof(CColorDialog, m_cc) == 0x5C, "CColorDialog m_cc offset mismatch!");
 
+// MFC's CCmdUI, which CN_UPDATE_COMMAND_UI passes as pExtra: Enable(BOOL) and SetCheck(int) are its first virtuals
+struct CCmdUI
+{
+    void enable(BOOL on)
+    {
+        AddrCaller{(*reinterpret_cast<uintptr_t**>(this))[0]}.this_call(this, on);
+    }
+
+    void set_check(int check)
+    {
+        AddrCaller{(*reinterpret_cast<uintptr_t**>(this))[1]}.this_call(this, check);
+    }
+};
+
 // RED's float spinner: a runtime child dialog (id 0) holding edit 1234 and up-down 1228. It parses the edit's text
 // into `value` only on EN_KILLFOCUS (0x0044B060, message map 0x005569A8), clearing `valid` when it does not parse.
 struct DedFloatSpinner
@@ -1006,6 +1075,12 @@ struct DedFloatSpinner
     void (*on_change)(); // +0xFC
     char _pad_100[0x110 - 0x100];
     float value;        // +0x110
+
+    // FUN_0044b180: clamps v to the range, stores it and shows it in the edit when there is one
+    void set(float v)
+    {
+        AddrCaller{0x0044B180}.this_call(this, v);
+    }
 };
 static_assert(offsetof(DedFloatSpinner, edit) == 0xAC);
 static_assert(offsetof(DedFloatSpinner, valid) == 0xE9);
@@ -1013,6 +1088,26 @@ static_assert(offsetof(DedFloatSpinner, min_value) == 0xEC);
 static_assert(offsetof(DedFloatSpinner, max_value) == 0xF0);
 static_assert(offsetof(DedFloatSpinner, on_change) == 0xFC);
 static_assert(offsetof(DedFloatSpinner, value) == 0x110);
+
+// The int counterpart of DedFloatSpinner (constructor 0x0044BB30).
+struct DedIntSpinner
+{
+    char _pad_00[0xEC];
+    int min_value; // +0xEC
+    int max_value; // +0xF0
+    char _pad_F4[0x108 - 0xF4];
+    int value;     // +0x108
+
+    // FUN_0044bf40: clamps v to the range, stores it and shows it in the edit when there is one
+    void set(int v)
+    {
+        AddrCaller{0x0044BF40}.this_call(this, v);
+    }
+};
+static_assert(sizeof(DedIntSpinner) == 0x10C);
+static_assert(offsetof(DedIntSpinner, min_value) == 0xEC);
+static_assert(offsetof(DedIntSpinner, max_value) == 0xF0);
+static_assert(offsetof(DedIntSpinner, value) == 0x108);
 
 // Level Properties (FUN_00402300 runs it modally; OnInitDialog 0x00467540 builds the fog spinners)
 struct CLevelDialog : CDialog
@@ -1339,4 +1434,12 @@ static_assert(offsetof(CMainFrame, status_bar) == 0x164);
 static_assert(offsetof(CMainFrame, custom_colors) == 0x4E8, "custom_colors offset mismatch!");
 
 static auto& g_main_frame = addr_as_ref<CMainFrame*>(0x006F9E68);
+
+// Its pane 0 takes SetWindowText
+inline HWND editor_status_bar()
+{
+    const HWND bar = g_main_frame ? g_main_frame->status_bar_hwnd() : nullptr;
+    return bar && IsWindow(bar) ? bar : nullptr;
+}
+
 static auto& g_maximized_viewport = addr_as_ref<int>(0x0057B9C0);

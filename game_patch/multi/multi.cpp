@@ -27,6 +27,8 @@
 #include "vehicles/vehicle_physics.h"
 #include "mutators.h"
 #include "bots/bot_chat_manager.h"
+#include "bots/bot_context_fwd.h"
+#include "bots/server_bots.h"
 #include "../fflink/afstats_events.h"
 #include "../hud/hud.h"
 #include "../hud/multi_spectate.h"
@@ -312,6 +314,7 @@ FunHook<void()> multi_limbo_init{
                 // winner is derived from are still the finished match's.
                 afstats::on_match_end_derived(afstats::MatchResult::completed);
                 g_match_info.reset();
+                server_bots_end_join_bots();
             }
             else if (g_match_info.pre_match_active && g_match_info.everyone_ready) {
                 limbo_time = 5000; // reduce limbo time to 5 sec on match start (will always be a restart of the current map)
@@ -351,7 +354,7 @@ FunHook<void()> multi_limbo_init{
         if (!rf::local_player)
             return;
 
-        bot_chat_manager_on_limbo_enter(*rf::local_player);
+        bot_chat_manager_on_limbo_enter(client_bot_context(), *rf::local_player);
 
         rf::camera_enter_random_fixed_pos();
         rf::camera_enter_fixed(rf::local_player->cam);
@@ -397,7 +400,8 @@ FunHook<void()> multi_limbo_init{
                 blue = multi_koth_get_blue_team_score();
                 break;
             }
-            case rf::NG_TYPE_SAL: {
+            case rf::NG_TYPE_SAL:
+            case rf::NG_TYPE_SCAV: {
                 red = salvage_get_red_team_score();
                 blue = salvage_get_blue_team_score();
                 break;
@@ -542,6 +546,22 @@ bool is_remote_charge_pair(int weapon_a, int weapon_b)
     return is_rc(weapon_a) && is_rc(weapon_b);
 }
 
+bool multi_is_weapon_switch_locked(int from_weapon, int to_weapon)
+{
+    // GunGame allows only Remote Charge <-> Detonator; a lock-to-featured-weapon mutator (Instagib) only its weapon.
+    // Mutator rules exist only on the server.
+    return (gt_is_gungame() && !is_remote_charge_pair(from_weapon, to_weapon))
+        || (rf::is_server && mutators_should_deny_weapon_switch(from_weapon, to_weapon));
+}
+
+bool multi_weapon_fire_is_thrown(int weapon_type, bool alt_fire)
+{
+    return weapon_type == rf::grenade_weapon_type
+        || (weapon_type >= 0 && weapon_type < rf::num_weapon_types
+            && (rf::weapon_types[weapon_type].flags & rf::WTF_REMOTE_CHARGE))
+        || (rf::weapon_is_flamethrower(weapon_type) && alt_fire);
+}
+
 void multi_hide_level_items(const std::vector<int>& allowed_item_type_indices, bool preserve_ctf_objects)
 {
     if (!rf::is_server) return;
@@ -610,13 +630,9 @@ FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hoo
             // Nothing to do
             return;
         }
-        if (gt_is_gungame() && !is_remote_charge_pair(ep->ai.current_primary_weapon, weapon_type)) {
-            // Deny switching in GG except Remote Charge <-> Detonator.
-            return;
-        }
-        if (mutators_should_deny_weapon_switch(ep->ai.current_primary_weapon, weapon_type)) {
-            // Instagib locks the player to the rail.
-            xlog::debug("Player {} denied weapon switch to {} by active mutator", pp->name, weapon_type);
+        if (multi_is_weapon_switch_locked(ep->ai.current_primary_weapon, weapon_type)) {
+            xlog::debug("Player {} denied weapon switch to {} by the game type or an active mutator", pp->name,
+                weapon_type);
             return;
         }
         bool has_weapon;
@@ -971,13 +987,8 @@ FunHook<void(rf::Entity*, int, rf::Vector3&, rf::Matrix3&, bool)> multi_process_
         // Notify spectate system of weapon fire so the fpgun fire animation is triggered.
         // Skip thrown projectile weapons (grenade, C4, flamethrower canister alt-fire) because
         // their animation is driven earlier and at the correct time by entity_play_attack_anim_spectate_hook.
-        if (!rf::is_server) {
-            bool is_thrown = (weapon_type == rf::grenade_weapon_type)
-                || (weapon_type == rf::remote_charge_weapon_type)
-                || (rf::weapon_is_flamethrower(weapon_type) && alt_fire);
-            if (!is_thrown) {
-                multi_spectate_on_obj_update_fire(ep, alt_fire);
-            }
+        if (!rf::is_dedicated_server && !multi_weapon_fire_is_thrown(weapon_type, alt_fire)) {
+            multi_spectate_on_obj_update_fire(ep, alt_fire);
         }
     },
 };
@@ -1015,6 +1026,8 @@ std::string_view multi_game_type_name(const rf::NetGameType game_type) {
         return std::string_view{"Gun Game"};
     } else if (game_type == rf::NG_TYPE_SAL) {
         return std::string_view{"Salvage"};
+    } else if (game_type == rf::NG_TYPE_SCAV) {
+        return std::string_view{"Scavenger"};
     } else if (game_type == rf::NG_TYPE_UNK) {
         return std::string_view{"Unknown"};
     } else {
@@ -1052,6 +1065,8 @@ std::string_view multi_game_type_name_upper(const rf::NetGameType game_type) {
         return std::string_view{"GUN GAME"};
     } else if (game_type == rf::NG_TYPE_SAL) {
         return std::string_view{"SALVAGE"};
+    } else if (game_type == rf::NG_TYPE_SCAV) {
+        return std::string_view{"SCAVENGER"};
     } else if (game_type == rf::NG_TYPE_UNK) {
         return std::string_view{"UNKNOWN"};
     } else {
@@ -1089,6 +1104,8 @@ std::string_view multi_game_type_name_short(const rf::NetGameType game_type) {
         return std::string_view{"GG"};
     } else if (game_type == rf::NG_TYPE_SAL) {
         return std::string_view{"SAL"};
+    } else if (game_type == rf::NG_TYPE_SCAV) {
+        return std::string_view{"SCAV"};
     } else if (game_type == rf::NG_TYPE_UNK) {
         return std::string_view{"UNK"};
     } else {
@@ -1128,6 +1145,8 @@ std::string_view multi_game_type_prefix(const rf::NetGameType game_type) {
         return std::string_view{"gg"};
     } else if (game_type == rf::NG_TYPE_SAL) {
         return std::string_view{"ctf"};
+    } else if (game_type == rf::NG_TYPE_SCAV) {
+        return std::string_view{"scav"};
     } else if (game_type == rf::NG_TYPE_UNK) {
         // No real level-name prefix for unknown game types; "dm" is the safest fallback.
         return std::string_view{"dm"};
@@ -1185,7 +1204,8 @@ bool multi_game_type_uses_any_level(rf::NetGameType game_type)
         || game_type == rf::NetGameType::NG_TYPE_BAG
         || game_type == rf::NetGameType::NG_TYPE_TBAG
         || game_type == rf::NetGameType::NG_TYPE_WO
-        || game_type == rf::NetGameType::NG_TYPE_PIT;
+        || game_type == rf::NetGameType::NG_TYPE_PIT
+        || game_type == rf::NetGameType::NG_TYPE_SCAV;
 }
 
 // True if the level filename starts with any standard MP gametype prefix. Used
@@ -1260,7 +1280,7 @@ void configure_custom_gametype_listen_server_settings() {
     g_alpine_server_config.allow_outlines = true;
 }
 
-void start_level_in_multi(std::string filename) {
+void start_level_in_multi(std::string filename, std::optional<rf::NetGameType> game_type) {
 
     auto [is_valid, valid_filename] = is_level_name_valid(filename);
 
@@ -1276,7 +1296,8 @@ void start_level_in_multi(std::string filename) {
         rf::netgame.geomod_limit = 64;
         rf::netgame.max_captures = 5;
         rf::netgame.flags = 0; // no broadcast to tracker
-        rf::netgame.type = string_istarts_with(filename, "ctf") ? rf::NetGameType::NG_TYPE_CTF
+        rf::netgame.type = game_type ? *game_type
+            : string_istarts_with(filename, "ctf") ? rf::NetGameType::NG_TYPE_CTF
             : string_istarts_with(filename, "koth") ? rf::NetGameType::NG_TYPE_KOTH
             : string_istarts_with(filename, "dc") ? rf::NetGameType::NG_TYPE_DC
             : string_istarts_with(filename, "rev") ? rf::NetGameType::NG_TYPE_REV
@@ -1287,6 +1308,9 @@ void start_level_in_multi(std::string filename) {
         rf::netgame.password = "password";
 
         configure_custom_gametype_listen_server_settings();
+        if (rf::netgame.type == rf::NetGameType::NG_TYPE_SCAV) {
+            rf::netgame.max_captures = g_alpine_server_config_active_rules.scavenger.cap_limit;
+        }
 
         rf::set_in_mp_flag();
         rf::multi_start(0, 0);
@@ -1303,6 +1327,23 @@ CodeInjection multi_customize_listen_server_settings_patch {
     },
 };
 
+void start_local_multi_game(std::string_view filename, std::optional<rf::NetGameType> game_type)
+{
+    auto [is_valid, valid_filename] = is_level_name_valid(filename);
+    if (!is_valid) {
+        rf::console::print("Level '{}' is not available!", filename);
+        return;
+    }
+    start_levelm_load_sequence(valid_filename, game_type);
+    rf::gameseq_set_state(rf::GS_MAIN_MENU, true);
+    if (game_type) {
+        rf::console::print("Starting local {} game on {}", multi_game_type_name(*game_type), valid_filename);
+    }
+    else {
+        rf::console::print("Starting local multiplayer game on {}", valid_filename);
+    }
+}
+
 ConsoleCommand2 levelm_cmd{
     "levelm",
     [](std::string filename) {
@@ -1310,14 +1351,7 @@ ConsoleCommand2 levelm_cmd{
             rf::console::print("This command is not available on dedicated servers");
             return;
         }
-        auto [is_valid, valid_filename] = is_level_name_valid(filename);
-        if (!is_valid) {
-            rf::console::print("Level '{}' is not available!", filename);
-            return;
-        }
-        start_levelm_load_sequence(valid_filename);
-        rf::gameseq_set_state(rf::GS_MAIN_MENU, true);
-        rf::console::print("Starting local multiplayer game on {}", valid_filename);
+        start_local_multi_game(filename, std::nullopt);
     },
     "Start a new local multiplayer game on the specified level",
     "levelm <filename>",

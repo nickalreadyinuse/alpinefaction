@@ -75,7 +75,12 @@ cbuffer TextureScaleBuffer : register(b2)
     float2 tex0_uv_scale;
     float ghost_fill_y;       // world Y below which a ghost mesh keeps its full alpha
     float ghost_alpha_ratio;  // 0 = not a ghost draw; else alpha factor above ghost_fill_y
+    float detail_texels;      // base texels per repeat of detail_tex, 0 = no detail texture
+    float detail_strength;
+    float detail_inv_mean;
 };
+
+#define MAX_SHADOW_CASTERS 16
 
 cbuffer ShadowBuffer : register(b3)
 {
@@ -93,7 +98,11 @@ cbuffer ShadowBuffer : register(b3)
     float shadow_pcf_taps;
     float shadow_debug;
     float shadow_soft_edges;
-    float shadow_pad;
+    float shadow_num_casters;
+    // Light-space boxes of the casters in the map: uv min in xy and max in zw, each widened by the PCF reach
+    float4 shadow_caster_rects[MAX_SHADOW_CASTERS];
+    // x: nearest depth of the box's casters, less a precision margin
+    float4 shadow_caster_depths[MAX_SHADOW_CASTERS];
 };
 
 #ifndef MAX_GAS_REGIONS
@@ -210,6 +219,9 @@ Texture2DArray caustic_tex : register(t3);
 SamplerState   caustic_samp : register(s4);
 // Copy of the scene depth buffer, for the liquid surface pass only.
 Texture2D<float> scene_depth : register(t6);
+// tex0's detail texture (b2 detail_*), and the terrain crater texture's
+Texture2D        detail_tex  : register(t34);
+SamplerState     detail_samp : register(s8);
 
 // Alpine lightmaps. af_lm_index holds the chart records (surfaces, terrains, mover surfaces) and the tile records
 // after them; a chart's .z is already biased past the chart block, so it is added to ty*nx+tx and
@@ -217,6 +229,23 @@ Texture2D<float> scene_depth : register(t6);
 Texture2DArray            af_lm_pages : register(t4);
 Buffer<uint4>             af_lm_index : register(t5);
 SamplerState              af_lm_samp  : register(s5);
+
+// False only where every tap would read cleared texels or casters behind the receiver. Past the far plane a cleared
+// texel compares as shadowed.
+bool shadow_near_caster(float2 uv, float depth)
+{
+    if (depth > 1.0f) {
+        return true;
+    }
+    int count = min((int)shadow_num_casters, MAX_SHADOW_CASTERS);
+    for (int i = 0; i < count; ++i) {
+        float4 rect = shadow_caster_rects[i];
+        if (all(uv >= rect.xy) && all(uv <= rect.zw) && depth > shadow_caster_depths[i].x) {
+            return true;
+        }
+    }
+    return false;
+}
 
 // Poisson disk offsets for multi-tap PCF (up to 15 extra taps beyond center = 16 max)
 static const float2 pcf_offsets[15] = {
@@ -362,6 +391,29 @@ float caustic_sample_plane(float2 p, float2 drift, float s0, float s1, float sf,
     return (ca + cb) * 0.5f;
 }
 
+// Shown where the base texture is magnified: fully from ~1.4 pixels per texel, not at all from ~1.4 texels per pixel
+float detail_fade(float2 tx, float2 ty)
+{
+    float lod = 0.5f * log2(max(max(dot(tx, tx), dot(ty, ty)), 1e-12f));
+    return saturate(0.5f - lod);
+}
+
+float3 detail_factor(float3 detail, float inv_mean, float strength, float fade)
+{
+    return max(1.0f + (detail * inv_mean - 1.0f) * (strength * fade), 0.0f);
+}
+
+float3 apply_detail(float3 rgb, float2 texel, float2 tx, float2 ty)
+{
+    float fade = detail_fade(tx, ty);
+    [branch] if (fade > 0.0f) {
+        float k = 1.0f / detail_texels;
+        float3 d = detail_tex.SampleGrad(detail_samp, texel * k, tx * k, ty * k).rgb;
+        rgb *= detail_factor(d, detail_inv_mean, detail_strength, fade);
+    }
+    return rgb;
+}
+
 // Mirror of alpine_lightmap::sample_page_coords + page_uv. SampleLevel only: vkd3d rejects the
 // implicit-gradient array sample the MSVC compiler would take here.
 float3 af_lm_sample(float2 chart_uv, uint chart)
@@ -443,6 +495,7 @@ float3 add_scene_lights(float3 light_color, float3 pixel_pos, float3 norm, float
         float dist;
         float3 light_dir;
         float ndotl_factor;
+        float3 light_vec = float3(0.0f, 0.0f, 0.0f);
 
         if (ltype > 1.5f) {
             // Tube light: closest point on line segment, no N·L
@@ -469,19 +522,36 @@ float3 add_scene_lights(float3 light_color, float3 pixel_pos, float3 norm, float
                 // Degenerate tube (zero length) — treat as point light at pos
                 dist = length(pixel_pos - seg_start);
             }
+        } else {
+            // Omni or Spot: direction from pixel to light position
+            light_vec = point_lights[i].pos - pixel_pos;
+            dist = length(light_vec);
+        }
+
+        bool is_spot = ltype > 0.5f && ltype < 1.5f;
+        if (is_spot) {
+            dist = (1.0f - point_lights[i].spot_atten) * dist;
+        }
+        // Distance attenuation (same 4 algorithms for all light types,
+        // verified against RED.exe disassembly at 0x00488CC0)
+        float t = saturate(dist / point_lights[i].radius);
+        float algo = point_lights[i].atten_algo;
+        // At t = 1 every curve but the cosine one is exactly 0; cos(1.5707963f) is not
+        [branch] if (t >= 1.0f && !(algo >= 1.5f && algo < 2.5f)) {
+            continue;
+        }
+
+        if (ltype > 1.5f) {
             light_dir = float3(0.0f, 0.0f, 0.0f); // unused for tube
             ndotl_factor = 1.0f; // tube lights have no N·L in editor baking
         } else {
-            // Omni or Spot: direction from pixel to light position
-            float3 light_vec = point_lights[i].pos - pixel_pos;
             light_dir = normalize(light_vec);
-            dist = length(light_vec);
             ndotl_factor = saturate(dot(norm, light_dir));
         }
 
         // Spotlight cone falloff (only for type 1, matches RED.exe baking)
         float spot_factor = 1.0f;
-        if (ltype > 0.5f && ltype < 1.5f) {
+        if (is_spot) {
             float cos_angle = dot(light_dir, point_lights[i].spot_dir);
             if (cos_angle >= point_lights[i].spot_fov2_dot) {
                 spot_factor = 0.0f;
@@ -493,15 +563,10 @@ float3 add_scene_lights(float3 light_color, float3 pixel_pos, float3 norm, float
                     spot_factor = spot_factor * spot_factor;
                 }
             }
-            dist = (1.0f - point_lights[i].spot_atten) * dist;
         }
 
-        // Distance attenuation (same 4 algorithms for all light types,
-        // verified against RED.exe disassembly at 0x00488CC0)
-        float t = saturate(dist / point_lights[i].radius);
         float r = 1.0f - t;
         float atten;
-        float algo = point_lights[i].atten_algo;
         if (algo < 0.5f) {
             atten = r;                      // 0: linear
         } else if (algo < 1.5f) {
@@ -643,13 +708,15 @@ float4 finish_fragment(VsOutput input, float4 target, float3 tex0_rgb, float3 li
 
                 float shadow_value = 1.0f;
                 float debug_proj_fade = 1.0f;
-                if (shadow_uv.x >= 0.0f && shadow_uv.x <= 1.0f && shadow_uv.y >= 0.0f && shadow_uv.y <= 1.0f) {
+
+                // Receiver-side comparison bias
+                float z_compensation = shadow_normal_offset * (1.0f + bias_scale) * NdotL / shadow_depth_range;
+                float compare_depth = shadow_ndc.z + z_compensation;
+
+                if (shadow_uv.x >= 0.0f && shadow_uv.x <= 1.0f && shadow_uv.y >= 0.0f && shadow_uv.y <= 1.0f
+                    && (shadow_debug > 0.5f || shadow_near_caster(shadow_uv, compare_depth))) {
                     float spread = shadow_texel_size * 2.5f;
                     int extra_taps = (int)shadow_pcf_taps - 1;
-
-                    // Receiver-side comparison bias
-                    float z_compensation = shadow_normal_offset * (1.0f + bias_scale) * NdotL / shadow_depth_range;
-                    float compare_depth = shadow_ndc.z + z_compensation;
 
                     // Per-pixel rotation angle to break up PCF banding on small shadows
                     float pcf_angle = frac(sin(dot(input.pos.xy * 0.5f, float2(12.9898f, 78.233f))) * 43758.5453f) * 6.28318530718f;
@@ -967,6 +1034,15 @@ float4 main(VsOutput input) : SV_TARGET
 
     float2 scaled_uv0 = input.uv0 * tex0_uv_scale;
     float4 tex0_color = disable_textures > 0.5f ? float4(1.0, 1.0, 1.0, 1.0) : tex0.Sample(samp0, scaled_uv0);
+    float2 scaled_uv0_dx = ddx(scaled_uv0);
+    float2 scaled_uv0_dy = ddy(scaled_uv0);
+    [branch] if (detail_texels > 0.0f && disable_textures < 0.5f && sky_room < 0.5f) {
+        // Texel coordinates in the texture as bound, so a texture padded to a power of two keeps its texel grid
+        float2 tex0_size;
+        tex0.GetDimensions(tex0_size.x, tex0_size.y);
+        tex0_color.rgb = apply_detail(tex0_color.rgb, scaled_uv0 * tex0_size, scaled_uv0_dx * tex0_size,
+                                      scaled_uv0_dy * tex0_size);
+    }
     float4 target = input.color * tex0_color * current_color;
 
     if (ghost_alpha_ratio > 0.0f) {
@@ -1049,6 +1125,8 @@ cbuffer TerrainBuffer : register(b7)
     float4 ter_overlay_enabled;
     float4 ter_overlay_premultiplied;   // 1: the texture holds premultiplied colour
     float  ter_fullbright;              // 1: lit as a stock fullbright face
+    // Per layer, then the underside: x base texels per detail repeat (0: none), y strength, z 1 / mean
+    float4 ter_detail[9];
 };
 
 Texture2D        ter_weights0   : register(t7);
@@ -1069,6 +1147,15 @@ Texture2D        ter_overlay1   : register(t21);
 Texture2D        ter_overlay2   : register(t22);
 Texture2D        ter_overlay3   : register(t23);
 Texture2D        ter_overlay_coverage : register(t24);
+Texture2D        ter_detail0    : register(t25);
+Texture2D        ter_detail1    : register(t26);
+Texture2D        ter_detail2    : register(t27);
+Texture2D        ter_detail3    : register(t28);
+Texture2D        ter_detail4    : register(t29);
+Texture2D        ter_detail5    : register(t30);
+Texture2D        ter_detail6    : register(t31);
+Texture2D        ter_detail7    : register(t32);
+Texture2D        ter_detail_underside : register(t33);
 SamplerState     ter_layer_samp : register(s6);
 SamplerState     ter_map_samp   : register(s7);
 
@@ -1098,6 +1185,19 @@ float3 ter_triplanar_weights(float3 n)
     return w / max(w.x + w.y + w.z, 1e-4f);
 }
 
+// Projection `k` of a layer's texture space as TER_PLANAR (0) and TER_SIDES (1, 2) lay them; returns
+// its weight.
+float ter_projection(TerCoords tc, float3 tw, int k, bool triplanar, out float2 st, out float2 gx, out float2 gy)
+{
+    st = k == 0 ? tc.p.xz : float2(k == 1 ? tc.p.z : tc.p.x, -tc.p.y);
+    gx = k == 0 ? tc.gx.xz : float2(k == 1 ? tc.gx.z : tc.gx.x, -tc.gx.y);
+    gy = k == 0 ? tc.gy.xz : float2(k == 1 ? tc.gy.z : tc.gy.x, -tc.gy.y);
+    return k == 0 ? (triplanar ? tw.y : 1.0f) : k == 1 ? tw.x : tw.z;
+}
+
+// Triplanar projections under this weight are skipped (below an 8-bit step).
+static const float ter_projection_min = 1.0f / 512.0f;
+
 // One texture in a layer's space: planar XZ, and the two wall planes stood upright as wall_uv lays
 // them. Explicit gradients, so a layer without weight can be skipped per pixel. Macros because
 // texture parameters are not portable to every HLSL compiler the build uses.
@@ -1108,14 +1208,40 @@ float3 ter_triplanar_weights(float3 n)
    + tex.SampleGrad(ter_layer_samp, float2(tc.p.x, -tc.p.y), float2(tc.gx.x, -tc.gx.y),            \
                     float2(tc.gy.x, -tc.gy.y)).rgb * tw.z)
 
-// Adds `w` of one layer to `c`, triplanar when the layer asks for it.
-#define TER_ADD(tex, w, uv_scale, triplanar)                                                       \
+// s *= dtex (entry dp) laid over tex's texels, per projection
+#define TER_DETAIL(s, tex, dtex, dp, tc, tw, triplanar)                                            \
+    [branch] if ((dp).x > 0.0f) {                                                                  \
+        float2 dsize_;                                                                             \
+        tex.GetDimensions(dsize_.x, dsize_.y);                                                     \
+        bool dtri_ = (triplanar) > 0.5f;                                                           \
+        float3 f_ = float3(0.0f, 0.0f, 0.0f);                                                      \
+        for (int dk_ = 0; dk_ < (dtri_ ? 3 : 1); dk_++) {                                          \
+            float2 dst_, dgx_, dgy_;                                                               \
+            float dw_ = ter_projection(tc, tw, dk_, dtri_, dst_, dgx_, dgy_);                      \
+            dst_ *= dsize_;                                                                        \
+            dgx_ *= dsize_;                                                                        \
+            dgy_ *= dsize_;                                                                        \
+            float dfade_ = dw_ > ter_projection_min ? detail_fade(dgx_, dgy_) : 0.0f;              \
+            float3 fk_ = float3(1.0f, 1.0f, 1.0f);                                                 \
+            [branch] if (dfade_ > 0.0f) {                                                          \
+                float dinv_ = 1.0f / (dp).x;                                                       \
+                fk_ = detail_factor(dtex.SampleGrad(ter_layer_samp, dst_ * dinv_, dgx_ * dinv_,    \
+                                                    dgy_ * dinv_).rgb, (dp).z, (dp).y, dfade_);    \
+            }                                                                                      \
+            f_ += fk_ * dw_;                                                                       \
+        }                                                                                          \
+        s *= f_;                                                                                   \
+    }
+
+// Adds `w` of one layer to `c`, triplanar when the layer asks for it, with its detail texture.
+#define TER_ADD(tex, dtex, dp, w, uv_scale, triplanar)                                             \
     [branch] if ((w) > 0.0f) {                                                                     \
         TerCoords tc = ter_coords(wp, dwx, dwy, (uv_scale));                                       \
         float3 s = TER_PLANAR(tex, tc);                                                            \
         if ((triplanar) > 0.5f) {                                                                  \
             s = s * tw.y + TER_SIDES(tex, tc, tw);                                                 \
         }                                                                                          \
+        TER_DETAIL(s, tex, dtex, dp, tc, tw, triplanar)                                            \
         c += (w) * s;                                                                              \
     }
 
@@ -1137,14 +1263,14 @@ float3 ter_albedo(float3 wp, float3 dwx, float3 dwy, float3 tw)
     w1 /= sum;
 
     float3 c = float3(0.0f, 0.0f, 0.0f);
-    TER_ADD(ter_layer0, w0.x, ter_layer_uv_scale[0].x, ter_layer_triplanar[0].x)
-    TER_ADD(ter_layer1, w0.y, ter_layer_uv_scale[0].y, ter_layer_triplanar[0].y)
-    TER_ADD(ter_layer2, w0.z, ter_layer_uv_scale[0].z, ter_layer_triplanar[0].z)
-    TER_ADD(ter_layer3, w0.w, ter_layer_uv_scale[0].w, ter_layer_triplanar[0].w)
-    TER_ADD(ter_layer4, w1.x, ter_layer_uv_scale[1].x, ter_layer_triplanar[1].x)
-    TER_ADD(ter_layer5, w1.y, ter_layer_uv_scale[1].y, ter_layer_triplanar[1].y)
-    TER_ADD(ter_layer6, w1.z, ter_layer_uv_scale[1].z, ter_layer_triplanar[1].z)
-    TER_ADD(ter_layer7, w1.w, ter_layer_uv_scale[1].w, ter_layer_triplanar[1].w)
+    TER_ADD(ter_layer0, ter_detail0, ter_detail[0], w0.x, ter_layer_uv_scale[0].x, ter_layer_triplanar[0].x)
+    TER_ADD(ter_layer1, ter_detail1, ter_detail[1], w0.y, ter_layer_uv_scale[0].y, ter_layer_triplanar[0].y)
+    TER_ADD(ter_layer2, ter_detail2, ter_detail[2], w0.z, ter_layer_uv_scale[0].z, ter_layer_triplanar[0].z)
+    TER_ADD(ter_layer3, ter_detail3, ter_detail[3], w0.w, ter_layer_uv_scale[0].w, ter_layer_triplanar[0].w)
+    TER_ADD(ter_layer4, ter_detail4, ter_detail[4], w1.x, ter_layer_uv_scale[1].x, ter_layer_triplanar[1].x)
+    TER_ADD(ter_layer5, ter_detail5, ter_detail[5], w1.y, ter_layer_uv_scale[1].y, ter_layer_triplanar[1].y)
+    TER_ADD(ter_layer6, ter_detail6, ter_detail[6], w1.z, ter_layer_uv_scale[1].z, ter_layer_triplanar[1].z)
+    TER_ADD(ter_layer7, ter_detail7, ter_detail[7], w1.w, ter_layer_uv_scale[1].w, ter_layer_triplanar[1].w)
     return c;
 }
 
@@ -1152,7 +1278,9 @@ float3 ter_albedo(float3 wp, float3 dwx, float3 dwy, float3 tw)
 float3 ter_underside_albedo(float3 wp, float3 dwx, float3 dwy, float3 tw)
 {
     TerCoords tc = ter_coords(wp, dwx, dwy, ter_underside_uv_scale);
-    return TER_PLANAR(ter_underside, tc) * tw.y + TER_SIDES(ter_underside, tc, tw);
+    float3 s = TER_PLANAR(ter_underside, tc) * tw.y + TER_SIDES(ter_underside, tc, tw);
+    TER_DETAIL(s, ter_underside, ter_detail_underside, ter_detail[8], tc, tw, 1.0f)
+    return s;
 }
 
 // Overlays, each over the result so far in order: albedo = lerp(albedo, rgb, a * coverage), worked
@@ -1223,19 +1351,6 @@ float ter_hex_cell(TerHex h, int i, inout float2 st, inout float2 gx, inout floa
     gy = mul(gy, rot);
     return i == 0 ? h.w.x : i == 1 ? h.w.y : h.w.z;
 }
-
-// Projection `k` of a layer's texture space as TER_PLANAR (0) and TER_SIDES (1, 2) lay them; returns
-// its weight.
-float ter_projection(TerCoords tc, float3 tw, int k, bool triplanar, out float2 st, out float2 gx, out float2 gy)
-{
-    st = k == 0 ? tc.p.xz : float2(k == 1 ? tc.p.z : tc.p.x, -tc.p.y);
-    gx = k == 0 ? tc.gx.xz : float2(k == 1 ? tc.gx.z : tc.gx.x, -tc.gx.y);
-    gy = k == 0 ? tc.gy.xz : float2(k == 1 ? tc.gy.z : tc.gy.x, -tc.gy.y);
-    return k == 0 ? (triplanar ? tw.y : 1.0f) : k == 1 ? tw.x : tw.z;
-}
-
-// Triplanar projections under this weight are skipped (below an 8-bit step).
-static const float ter_projection_min = 1.0f / 512.0f;
 
 // Lays one overlay over `albedo` by coverage `cov`: per projection, one tap or three hex-tiled ones.
 #define TER_OVERLAY(tex, cov, uv_scale, triplanar, break_tiling, premultiplied)                    \
@@ -1348,6 +1463,11 @@ float4 main(VsOutput input) : SV_TARGET
         [branch] if (crater) {
             // The texture and planar UVs the carve gave the face
             albedo = ter_crater.SampleGrad(ter_layer_samp, input.uv0, duvx, duvy).rgb;
+            [branch] if (detail_texels > 0.0f) {
+                float2 size;
+                ter_crater.GetDimensions(size.x, size.y);
+                albedo = apply_detail(albedo, input.uv0 * size, duvx * size, duvy * size);
+            }
         } else if (underside) {
             albedo = ter_underside_albedo(wp, dwx, dwy, tw);
         } else {

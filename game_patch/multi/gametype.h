@@ -187,6 +187,7 @@ bool gt_is_pit();
 bool gt_is_wipeout();
 bool gt_is_gungame();
 bool gt_is_salvage();
+bool gt_is_scavenger();
 const char* multi_gametype_help_text(rf::NetGameType game_type);
 
 // Score is driven by gametype-specific logic rather than directly by frags.
@@ -198,6 +199,7 @@ bool esc_all_points_owned_by_one_team();
 bool esc_team_can_attack_hill(const HillInfo& hill, HillOwner team);
 int multi_koth_get_red_team_score();
 int multi_koth_get_blue_team_score();
+void multi_get_team_scores(rf::NetGameType type, int& red, int& blue);
 void multi_koth_set_red_team_score(int score);
 void multi_koth_set_blue_team_score(int score);
 int koth_get_hill_handler_uid(const HillInfo& hill);

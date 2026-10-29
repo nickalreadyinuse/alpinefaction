@@ -33,7 +33,7 @@ Most important:
 * Direct3D 11 renderer with GPU accelerated realtime per-pixel lighting and full mesh shadows
 * Demo (replay) recording and playback
 * FactionFiles-integrated statistics platform (multiplayer) and achievements system (single player)
-* 11 brand new multiplayer game types: `King of the Hill`, `Damage Control`, `Revolt`, `Escalation`, `Run`, `Bagman`, `Team Bagman`, `Pit`, `Gun Game`, `Wipeout`, and `Salvage`
+* 12 brand new multiplayer game types: `King of the Hill`, `Damage Control`, `Revolt`, `Escalation`, `Run`, `Bagman`, `Team Bagman`, `Pit`, `Gun Game`, `Wipeout`, `Salvage`, and `Scavenger`
 * Advanced multiplayer bots system with headless bot clients, profile customization, and a fully integrated waypoint grid editor (with autogeneration for custom maps)
 * Multiplayer level auto-downloader (using API at https://autodl.factionfiles.com)
 * Fix for infamous submarine explosion bug (and other FPS-related issues)
@@ -123,6 +123,8 @@ If you are somehow using an unsupported game executable, the installer and launc
 In order to fully support current features and enable future expansion, Alpine Faction uses its own unique file for storing player settings (`alpine_settings.ini`)
 
 When you first launch Alpine, if you have a legacy player settings file (`players.cfg`) from any other Red Faction client, Alpine Faction will import those settings for you automatically.
+
+The level editor likewise stores its `Preferences` window settings in `alpine_editor.ini`, importing them from the stock `red\red.cfg` the first time it starts.
 
 Usage
 -----

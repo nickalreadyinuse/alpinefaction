@@ -33,6 +33,9 @@
 #include "alpine_obj.h"
 #include "alpine_spinner.h"
 #include "textures.h"
+#include "texture_mode.h"
+#include "brush_preview.h"
+#include "build_repair.h"
 #include "minimap_bake.h"
 #include "terrain.h"
 #include "terrain_build.h"
@@ -181,6 +184,8 @@ void __fastcall CDedLevel_DeleteContents_hooked(CDedLevel* level, void* edx_unus
     // File > Open applies the existing-level defaults again before it reads the file (0x0042F136)
     props.LoadNewLevelDefaults();
     lightmap_reset_level_state();
+    texture_mode_level_reset();
+    brush_preview_level_reset();
     // Also runs as the document closes at exit, when the views may be gone, so nothing is repainted.
     alpine_lm_reset_level_state();
 }
@@ -658,7 +663,7 @@ static void populate_isolated_face_map()
 // Recompute a room's bbox_min/bbox_max from its current face list.
 // GRoom::add_face only expands the bbox and removing faces does not shrink it,
 // so after splitting faces out we must recompute from scratch.
-static void recompute_room_bbox(GRoom* room)
+void recompute_room_bbox(GRoom* room)
 {
     GFace* head = room->face_list_head;
     if (!head) return;
@@ -680,7 +685,7 @@ static void recompute_room_bbox(GRoom* room)
 }
 
 // Leaves the room exactly as add_face's per-face unlinks would, in one pass.
-static void unlink_room_faces(GRoom* room, const std::unordered_set<GFace*>& faces)
+void unlink_room_faces(GRoom* room, const std::unordered_set<GFace*>& faces)
 {
     GFace** link = &room->face_list_head;
     while (GFace* f = *link) {
@@ -949,8 +954,13 @@ FunHook<decltype(build_rooms_hooked)> build_rooms_hook{
 };
 void __fastcall build_rooms_hooked(GSolid* solid, void* edx_unused)
 {
+    // a level with no brushes finishes in its first tick, before the driver hook can grey Cancel out
+    build_progress_disallow_cancel();
+    build_progress_phase(BuildPhase::rooms);
     populate_isolated_face_map();
+    build_repair_before_rooms(solid);
     build_rooms_hook.call_target(solid, edx_unused);
+    build_repair_after_rooms(solid);
     g_isolated_face_map.clear();
 }
 
@@ -1030,10 +1040,32 @@ void __fastcall build_geometry_start_hooked(CDedLevel* level, void* edx_unused)
     }
     // the build frees the faces the overflow preview is keyed on
     overflow_preview_clear();
-    build_geometry_start_hook.call_target(level, edx_unused);
+    brush_preview_build_started(*level);
+    // before the start shows the stock dialog this window replaces
+    unsigned phases = build_phase_bit(BuildPhase::count) - 1;
+    if (level->GetAlpineLevelProperties().terrain_objects.empty()) {
+        phases &= ~build_phase_bit(BuildPhase::terrain);
+    }
+    if (!build_repair_enabled()) {
+        phases &= ~build_phase_bit(BuildPhase::repair);
+    }
+    if (!build_out_of_level_enabled()) {
+        phases &= ~build_phase_bit(BuildPhase::out_of_level);
+    }
+    build_progress_begin(phases);
+    try {
+        build_geometry_start_hook.call_target(level, edx_unused);
+    }
+    catch (...) {
+        build_progress_end();
+        throw;
+    }
+    if (!level->build_running) {
+        build_progress_end();
+    }
 }
 
-// Hook FUN_004861d0 (face adjacency test, cdecl) as secondary defense.
+// Hook FUN_004861d0 (the room builder's portal side test, cdecl) as secondary defense.
 // The primary fix is post-processing in isolate_marked_rooms, but this hook
 // also prevents merging via the geometric adjacency path during flood-fill.
 bool __cdecl adjacency_test_hooked(GFace* face1, GFace* face2);
@@ -1044,6 +1076,8 @@ FunHook<decltype(adjacency_test_hooked)> adjacency_test_hook{
 
 bool __cdecl adjacency_test_hooked(GFace* face1, GFace* face2)
 {
+    // the room builder runs inside one long driver tick: keep the build window painted
+    build_progress_poll();
     bool result = adjacency_test_hook.call_target(face1, face2);
     if (!result || g_isolated_face_map.empty()) return result;
 

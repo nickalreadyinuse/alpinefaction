@@ -238,7 +238,7 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Entity*, rf::Vector3*, rf::Vect
         [](rf::ObjInterp* self, int edx, rf::Entity* ep, rf::Vector3* pos, rf::Vector3* phb, rf::Vector3* eye_phb,
            rf::Vector3* vel, rf::Vector3* move, uint16_t tick, float always_0) FASTCALL_LAMBDA {
             const uint32_t num_before = self->num;
-            const bool anchoring = (self->flags & 1) != 0;
+            const bool anchoring = (self->flags & rf::OIF_REANCHOR) != 0;
             const uint16_t interp_time_before = self->interp_time;
             obj_interp_set_next_pos_orient_hook.call_target(self, edx, ep, pos, phb, eye_phb, vel, move, tick,
                                                             always_0);
@@ -251,7 +251,8 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Entity*, rf::Vector3*, rf::Vect
             if (num_before == 0)
                 history.reset();
             // The inner vehicle hook can also force a re-anchor, invisible in the flags sampled above
-            const bool anchored = (anchoring && (self->flags & 1) == 0) || self->interp_time != interp_time_before;
+            const bool anchored =
+                (anchoring && (self->flags & rf::OIF_REANCHOR) == 0) || self->interp_time != interp_time_before;
             if (anchored) {
                 // The engine anchored 2.2 x interval behind this keyframe; start at frame_advance's target
                 self->interp_time = static_cast<uint16_t>(tick - static_cast<int>(obj_interp_target_delay_ms(self)));
@@ -304,7 +305,7 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Object*)> obj_interp_frame_adva
             * time_scale;
         self->frame_time_us = now_us;
         // Bit 0: waiting for the next insert to re-anchor
-        if ((self->flags & 1) != 0 || self->num_frames() < 2 || time_scale <= 0.0f)
+        if ((self->flags & rf::OIF_REANCHOR) != 0 || self->num_frames() < 2 || time_scale <= 0.0f)
             return;
 
         float& frac = g_history[obj->handle].clock_frac;

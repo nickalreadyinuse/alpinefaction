@@ -1,10 +1,13 @@
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <numbers>
 #include <optional>
+#include <vector>
 #include <patch_common/CallHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/FunHook.h>
@@ -20,6 +23,7 @@
 #include "vehicle_view.h"
 #include "../alpine_packets.h"
 #include "../multi.h"
+#include "../bots/server_bots.h"
 #include "../demo/demo.h"
 #include "../../hud/multi_spectate.h"
 #include "../../misc/alpine_settings.h"
@@ -375,7 +379,7 @@ namespace
         const float typical_gap =
             std::clamp(interp->arrive_time_avg_diff, 0.0f, static_cast<float>(vehicle_interp_rest_gap_ms));
         interp->last_update_time = now_ms - static_cast<uint32_t>(typical_gap);
-        interp->flags |= 1u; // force the re-anchor on this insert
+        interp->flags |= rf::OIF_REANCHOR;
     }
 
     // Reached only from the engine's RECEIVE path: this machine's own keyframes go in through
@@ -425,21 +429,10 @@ namespace
         if (!vehicle || !vehicle->obj_interp) {
             return false;
         }
-        rf::Vector3 pos = vehicle->pos;
-        rf::Vector3 phb = vehicle_matrix_phb(vehicle->orient);
-        rf::Vector3 eye_phb = vehicle->control_data.eye_phb;
-        rf::Vector3 vel = vehicle->p_data.vel;
-        rf::Vector3 move = vehicle->ai.ci.move;
+        const rf::Vector3 phb = vehicle_matrix_phb(vehicle->orient);
         const auto tick = tick_override.value_or(static_cast<uint16_t>(timer::get_i64(1000)));
-        // The server packs one row per recipient; the tick keeps one frame from filling the ring.
-        rf::ObjInterp* interp = vehicle->obj_interp;
-        const bool inserted = interp->num_frames() == 0 || interp->newest_frame_time() != tick;
-        if (inserted) {
-            // call_target, never the raw address: an authored keyframe must not re-enter the hook.
-            obj_interp_set_next_pos_orient_hook.call_target(interp, 0, vehicle, &pos, &phb,
-                                                            &eye_phb, &vel, &move,
-                                                            static_cast<int>(tick), 0.0f);
-        }
+        const bool inserted = obj_interp_push_keyframe(vehicle, vehicle->pos, phb, vehicle->control_data.eye_phb,
+                                                       vehicle->p_data.vel, vehicle->ai.ci.move, tick);
         vehicle_send_orient_supplement(vehicle, phb, tick);
         return inserted;
     }
@@ -452,7 +445,102 @@ namespace
     constexpr float vehicle_server_row_axis_tolerance = 0.005f; // axis chord, ~rad
 
     bool vehicle_server_samples_vehicle(rf::Entity* vehicle);
+
+    // ObjInterp's 16-bit tick difference (0x0048369D): within 5000 of the wrap counts as wrapped.
+    int obj_interp_tick_diff(const int tick, const int base)
+    {
+        if (0xFFFF - tick < 5000 && base < 5000) {
+            return base + tick - 0xFFFF;
+        }
+        if (0xFFFF - base < 5000 && tick < 5000) {
+            return tick - base + 0xFFFF;
+        }
+        return tick - base;
+    }
 } // namespace
+
+// The server packs one row per recipient; deduping on the tick keeps one frame from filling the ring.
+bool obj_interp_push_keyframe(rf::Entity* ep, rf::Vector3 pos, rf::Vector3 phb, rf::Vector3 eye_phb,
+                              rf::Vector3 vel, rf::Vector3 move, uint16_t tick)
+{
+    rf::ObjInterp* interp = ep->obj_interp;
+    if (!interp || (interp->num_frames() > 0 && interp->newest_frame_time() == tick)) {
+        return false;
+    }
+    // call_target, never the raw address: an authored keyframe must not re-enter the hook.
+    obj_interp_set_next_pos_orient_hook.call_target(interp, 0, ep, &pos, &phb, &eye_phb, &vel, &move,
+                                                    static_cast<int>(tick), 0.0f);
+    return true;
+}
+
+// ObjInterp::set_next_pos_orient (0x00483360) minus its per-keyframe physics step, too costly at many bots.
+bool obj_interp_push_simulated_keyframe(rf::Entity* ep, const rf::Vector3& pos, const rf::Vector3& phb,
+                                        const rf::Vector3& eye_phb, const rf::Vector3& vel, const rf::Vector3& move,
+                                        const uint16_t tick)
+{
+    rf::ObjInterp* const interp = ep->obj_interp;
+    if (!interp || (interp->num_frames() > 0 && interp->newest_frame_time() == tick)) {
+        return false;
+    }
+    const auto last_update_time = static_cast<int32_t>(interp->last_update_time);
+    const int arrive_gap = last_update_time >= 0 ? static_cast<int>(timer::get_i64(1000)) - last_update_time : 0;
+    interp->last_update_time = static_cast<uint32_t>(timer::get_i64(1000));
+
+    constexpr int max_keyframes = rf::ObjInterp::max_keyframes;
+    if (interp->num_frames() >= max_keyframes) {
+        const auto drop_oldest = [](auto& keyframes) {
+            std::copy(std::begin(keyframes) + 1, std::end(keyframes), std::begin(keyframes));
+        };
+        drop_oldest(interp->pos_array);
+        drop_oldest(interp->phb_array);
+        drop_oldest(interp->eye_phb_array);
+        drop_oldest(interp->vel_array);
+        drop_oldest(interp->move_array);
+        drop_oldest(interp->always_0_array);
+        drop_oldest(interp->time_array);
+        drop_oldest(interp->arrive_time_diff);
+        interp->num = max_keyframes - 1;
+    }
+    const int index = interp->num_frames();
+    interp->pos_array[index] = pos;
+    interp->phb_array[index] = phb;
+    interp->eye_phb_array[index] = eye_phb;
+    interp->vel_array[index] = vel;
+    interp->move_array[index] = move;
+    interp->always_0_array[index] = 0;
+    interp->time_array[index] = tick;
+    interp->arrive_time_diff[index] = arrive_gap;
+    const int num = index + 1;
+    interp->num = num;
+
+    int arrive_sum = 0;
+    for (int i = 0; i < num; ++i) {
+        arrive_sum += interp->arrive_time_diff[i];
+    }
+    const double avg_gap = static_cast<double>(arrive_sum) / num;
+    interp->arrive_time_avg_diff = static_cast<float>(avg_gap);
+    if (num < 2) {
+        return true;
+    }
+
+    const double reanchor_headroom = avg_gap * static_cast<double>(2.2f);
+    if (obj_interp_tick_diff(tick, interp->interp_time) > reanchor_headroom || (interp->flags & rf::OIF_REANCHOR)) {
+        interp->interp_time = static_cast<uint16_t>(tick - static_cast<int>(reanchor_headroom));
+        interp->flags = (interp->flags & ~rf::OIF_REANCHOR) | rf::OIF_SNAP;
+        if (rf::Player* const pp = rf::player_from_entity_handle(ep->handle); pp && pp->net_data) {
+            ++pp->net_data->stats.obj_update_too_slow;
+        }
+    }
+    if ((ep->pos - pos).len() >= 2.5f) {
+        interp->flags |= rf::OIF_SNAP;
+    }
+
+    std::array<rf::Vector3, max_keyframes + 1> spline_points;
+    std::copy_n(interp->pos_array, num, spline_points.begin());
+    spline_points[num] = pos + vel * (interp->arrive_time_avg_diff * 0.001f);
+    interp->pos_curve.build(num + 1, spline_points.data());
+    return true;
+}
 
 // Server: replication only, for a fully-unmanned non-dying hull the server simulates in Bullet. The
 // physics post-step has already written pose, orientation and room into the entity.
@@ -791,8 +879,8 @@ namespace
     // next_fire_secondary), so holding both is not a conflict.
     void vehicle_server_apply_trigger(rf::Entity* vehicle, bool alt, bool held, uint8_t requester_id)
     {
-        // A turret's alt trigger is its operator's local zoom and drives no weapon.
-        if (alt && vehicle_hull_is_turret(vehicle)) {
+        // A turret's or jeep's alt trigger is its gunner's local zoom and drives no weapon.
+        if (alt && vehicle_alt_fire_zooms(vehicle)) {
             return;
         }
         const int weapon = alt ? vehicle->ai.current_secondary_weapon : vehicle->ai.current_primary_weapon;
@@ -879,12 +967,21 @@ void vehicle_server_stop_fire(rf::Entity* vehicle)
 // the demo recorder is a virtual observer player.
 void vehicle_broadcast_health(rf::Entity* vehicle, bool is_reliable, const rf::Vector3* hit_dir)
 {
+    // Every send takes the blows noted since the last one. A settle keeps a scrape-only stream's word: it carries
+    // the scrape residue the stream's 1-life floor held back, or a lost streamed drop.
+    VehicleHealthSync& sync = g_vehicle_state.health_sync[vehicle->handle];
+    const bool scrape_only = (sync.scraped || sync.last_streamed_scrape_only) && !sync.hurt_unscraped;
+    sync.scraped = false;
+    sync.hurt_unscraped = false;
+    sync.last_streamed_scrape_only = !is_reliable && scrape_only;
+    const uint8_t flags = scrape_only ? AF_VEHICLE_HEALTH_SCRAPE_ONLY : 0;
+
     uint16_t refill_ms[2];
     vehicle_wire_refill_ms(vehicle, timer::get_i64(1000), refill_ms);
     af_send_vehicle_health_packet_to_all(vehicle->handle, vehicle->life, vehicle_hud_max_life(vehicle),
                                          vehicle_weapon_ammo(vehicle, vehicle->ai.current_primary_weapon),
                                          vehicle_weapon_ammo(vehicle, vehicle->ai.current_secondary_weapon),
-                                         refill_ms, is_reliable, hit_dir);
+                                         refill_ms, is_reliable, hit_dir, flags);
 }
 
 // Streaming UNRELIABLE, settling RELIABLE: each unreliable packet supersedes the last, so only the
@@ -945,9 +1042,11 @@ void vehicle_drop_combat_state(int vehicle_handle)
     g_vehicle_state.horn.erase(vehicle_handle);
     g_vehicle_state.health_sync.erase(vehicle_handle);
     g_vehicle_state.last_damager.erase(vehicle_handle);
+    g_vehicle_state.last_hurt.erase(vehicle_handle);
     g_vehicle_state.lethal_killer.erase(vehicle_handle);
     g_vehicle_state.observed_speed.erase(vehicle_handle);
     g_vehicle_state.crash_cooldown.erase(vehicle_handle);
+    g_vehicle_state.scrape.erase(vehicle_handle);
     g_vehicle_state.health.erase(vehicle_handle);
     g_vehicle_state.ammo_mirror.erase(vehicle_handle);
     g_vehicle_state.hull_state.erase(vehicle_handle);
@@ -955,7 +1054,7 @@ void vehicle_drop_combat_state(int vehicle_handle)
     g_vehicle_state.orient_sent.erase(vehicle_handle);
     g_vehicle_state.kinematics.erase(vehicle_handle);
     g_vehicle_state.void_timer.erase(vehicle_handle);
-    g_vehicle_state.hazard_since.erase(vehicle_handle);
+    g_vehicle_state.hazard_time.erase(vehicle_handle);
     g_vehicle_state.coast_memory.erase(vehicle_handle);
     g_vehicle_state.regen.erase(vehicle_handle);
     g_vehicle_state.pending_seats.erase(vehicle_handle);
@@ -972,13 +1071,17 @@ namespace
 {
     // In MP the physics step runs world collision for the local player entity and non-entity objects
     // only. Injected on the OT_ENTITY half of that filter; EAX is the object. Remote entities must
-    // keep being skipped or they fight ObjInterp.
-    CodeInjection physics_world_collision_vehicle_injection{
+    // keep being skipped or they fight ObjInterp; the server simulates its own bots' entities.
+    CodeInjection physics_world_collision_entity_injection{
         0x0048788E,
         [](auto& regs) {
             rf::Object* obj = regs.eax;
-            if (obj && obj->type == rf::OT_ENTITY && vehicle_level_has_factories()
-                && vehicle_local_driven_vehicle() == static_cast<rf::Entity*>(obj)) {
+            if (!obj || obj->type != rf::OT_ENTITY) {
+                return;
+            }
+            auto* ep = static_cast<rf::Entity*>(obj);
+            if ((vehicle_level_has_factories() && vehicle_local_driven_vehicle() == ep)
+                || server_bot_from_entity(ep)) {
                 regs.eip = 0x00487895; // run the collision
             }
         },
@@ -1683,7 +1786,17 @@ void vehicle_server_handle_fire_request(rf::Player* pp, int vehicle_handle, uint
     const bool held = action == AF_VEHICLE_FIRE_START;
     const bool alt = alt_fire != 0;
     // Never stored, so it can neither fire nor hold off the ammo refill.
-    if (alt && vehicle_hull_is_turret(vehicle)) {
+    if (alt && vehicle_alt_fire_zooms(vehicle)) {
+        return;
+    }
+    // The sub's alt trigger sets off its armed torpedoes in flight, here and on every machine, the pilot's
+    // included: his prediction may have spared one this side of the arming time.
+    if (alt && rf::entity_is_sub(vehicle)) {
+        int still_flying = 0;
+        if (held && vehicle_detonate_armed_torpedoes(vehicle, vehicle_torpedo_arm_s, &still_flying)) {
+            af_send_vehicle_fire_packet_to_all(nullptr, vehicle->handle, AF_VEHICLE_FIRE_DETONATE,
+                                               static_cast<uint8_t>(std::min(still_flying, 255)));
+        }
         return;
     }
 
@@ -1717,6 +1830,75 @@ void vehicle_server_announce_weapon_edge(int entity_handle, int weapon_type, boo
                                        on && alt_fire ? 1 : 0);
 }
 
+// The sub's torpedoes are set off as entity_detonate_remote_charges (0x00429C70) does: an expired torpedo
+// detonates on its next move, damaging only on the server. Each machine sets off its own copies.
+namespace
+{
+    // This machine's copies of the hull's own rounds still in flight, never one a rider fired by hand.
+    void vehicle_flying_torpedoes(rf::Entity* hull, std::vector<rf::Weapon*>& flying)
+    {
+        flying.clear();
+        for (rf::Weapon& weapon : DoublyLinkedList{rf::weapon_list}) {
+            if (weapon.info && (weapon.info->flags & rf::WTF_TORPEDO) && weapon.lifeleft_seconds > 0.0f
+                && weapon.parent_handle == hull->handle) {
+                flying.push_back(&weapon);
+            }
+        }
+    }
+
+    float vehicle_torpedo_age(const rf::Weapon* weapon)
+    {
+        return weapon->info->lifetime_seconds - weapon->lifeleft_seconds;
+    }
+
+    // A watcher's DETONATE: the server's count rather than this machine's clock, its copies being a trip off the
+    // server's; all but the `keep` youngest go. A shot the server fires after it is sent reaches him after it.
+    void vehicle_detonate_all_but_youngest_torpedoes(rf::Entity* hull, std::size_t keep)
+    {
+        std::vector<rf::Weapon*> flying;
+        vehicle_flying_torpedoes(hull, flying);
+        std::sort(flying.begin(), flying.end(), [](const rf::Weapon* a, const rf::Weapon* b) {
+            return vehicle_torpedo_age(a) < vehicle_torpedo_age(b);
+        });
+        for (std::size_t i = keep; i < flying.size(); ++i) {
+            flying[i]->lifeleft_seconds = -1.0f;
+        }
+    }
+
+    // The pilot's DETONATE: the server's rule applied as of his press. The server's count cannot serve him: a shot
+    // he fires around the press exists here before the server fires its copy, so it was never counted.
+    void vehicle_detonate_torpedoes_armed_at_press(rf::Entity* hull, const rf::Timestamp& press)
+    {
+        const float since_press_s = static_cast<float>(press.time_since()) / 1000.0f;
+        std::vector<rf::Weapon*> flying;
+        vehicle_flying_torpedoes(hull, flying);
+        for (rf::Weapon* weapon : flying) {
+            if (vehicle_torpedo_age(weapon) - since_press_s >= vehicle_torpedo_arm_s) {
+                weapon->lifeleft_seconds = -1.0f;
+            }
+        }
+    }
+} // namespace
+
+bool vehicle_detonate_armed_torpedoes(rf::Entity* hull, float arm_s, int* still_flying)
+{
+    std::vector<rf::Weapon*> flying;
+    vehicle_flying_torpedoes(hull, flying);
+    int kept = 0;
+    for (rf::Weapon* weapon : flying) {
+        if (vehicle_torpedo_age(weapon) >= arm_s) {
+            weapon->lifeleft_seconds = -1.0f;
+        }
+        else {
+            ++kept;
+        }
+    }
+    if (still_flying) {
+        *still_flying = kept;
+    }
+    return kept < static_cast<int>(flying.size());
+}
+
 void vehicle_apply_fire_from_packet(int vehicle_handle, uint8_t action, uint8_t alt_fire)
 {
     rf::Object* obj = rf::obj_from_remote_handle(vehicle_handle);
@@ -1724,6 +1906,18 @@ void vehicle_apply_fire_from_packet(int vehicle_handle, uint8_t action, uint8_t 
         return;
     }
     const bool alt = alt_fire != 0;
+    // A dying sub's torpedoes are still its own.
+    if (action == AF_VEHICLE_FIRE_DETONATE) {
+        if (rf::Entity* vehicle = vehicle_synced_entity(obj->handle)) {
+            if (vehicle_local_firing_vehicle() == vehicle && g_vehicle_state.torpedo_press_hull == vehicle->handle) {
+                vehicle_detonate_torpedoes_armed_at_press(vehicle, g_vehicle_state.torpedo_press);
+            }
+            else {
+                vehicle_detonate_all_but_youngest_torpedoes(vehicle, alt_fire);
+            }
+        }
+        return;
+    }
     if (action == AF_VEHICLE_FIRE_STOP) {
         // Unconditional, dying hull included: a spare turn-off is a no-op, a missed one fires forever.
         if (rf::Entity* vehicle = vehicle_synced_entity(obj->handle)) {
@@ -1808,6 +2002,11 @@ void vehicle_apply_orient_from_packet(int vehicle_handle, uint16_t tick, int16_t
 // rides; a spectator gets the flash alone, as for the man he watches.
 void vehicle_rider_damage_feedback(int vehicle_handle, const rf::Vector3* hit_dir)
 {
+    // A draining hull loses life on every health update; its alarm and warning say so instead. The whole
+    // clock, not just the drain: this machine's runs a little behind the server's.
+    if (!hit_dir && !rf::is_server && vehicle_hazard_on_clock(vehicle_handle)) {
+        return;
+    }
     rf::Entity* local_hull = vehicle_ridden_hull(rf::local_player_entity);
     if (rf::local_player && local_hull && local_hull->handle == vehicle_handle) {
         player_damage_feedback();
@@ -1832,7 +2031,7 @@ void vehicle_rider_damage_feedback(int vehicle_handle, const rf::Vector3* hit_di
 
 void vehicle_store_health_from_packet(int vehicle_handle, float life, float max_life, int primary_ammo,
                                       int secondary_ammo, uint16_t primary_refill_ms, uint16_t secondary_refill_ms,
-                                      const rf::Vector3* hit_dir)
+                                      const rf::Vector3* hit_dir, bool scrape_only)
 {
     rf::Object* obj = rf::obj_from_remote_handle(vehicle_handle);
     if (!obj) {
@@ -1846,7 +2045,8 @@ void vehicle_store_health_from_packet(int vehicle_handle, float life, float max_
     const auto prev = g_vehicle_state.health.find(obj->handle);
     const bool hull_hurt = prev != g_vehicle_state.health.end() && life < prev->second.life;
     g_vehicle_state.health[obj->handle] = VehicleHealth{life, max_life};
-    if (hull_hurt) {
+    // A scrape says so with its scrape effects and the gauge, not a flash every quarter second.
+    if (hull_hurt && !scrape_only) {
         vehicle_rider_damage_feedback(obj->handle, hit_dir);
     }
 
@@ -1912,7 +2112,7 @@ void vehicle_sync_apply_patch()
 {
     send_entity_create_packet_vehicle_injection.install();
     process_entity_create_packet_vehicle_hook.install();
-    physics_world_collision_vehicle_injection.install();
+    physics_world_collision_entity_injection.install();
     obj_should_sim_physics_hook.install();
     entity_update_ground_carry_hook.install();
     driller_interp_no_movement_halt_injection.install();
