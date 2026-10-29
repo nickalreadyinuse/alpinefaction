@@ -1840,6 +1840,8 @@ enum JoinReqTlv : uint8_t {
     JR_TLV_BOT_SHARED_SECRET = 0x1,
 };
 
+static_assert(sizeof(RF_JoinRequestPacket) == 4);
+
 CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
     0x0047ABFB,
     [] (const rf::NetAddr* const addr, std::byte* const data, const size_t len) {
@@ -1854,10 +1856,13 @@ CallHook<int(const rf::NetAddr*, std::byte*, size_t)> send_join_req_packet_hook{
             }
             fflink::afstats_client_on_join_req(*addr, extra && (extra->af_flags & AF_GI_FLAG_STATS_ENABLED));
 
-            // Stock layout: header (3), version (1), name\0, u32, password\0
-            const auto* const name = reinterpret_cast<const char*>(data) + 4;
-            const auto* const name_end = static_cast<const char*>(std::memchr(name, '\0', len > 4 ? len - 4 : 0));
-            const size_t password_offset = name_end ? (name_end - reinterpret_cast<const char*>(data)) + 5 : len;
+            // name\0, then a u32 entity type, then password\0 follow RF_JoinRequestPacket's fixed part.
+            const auto* const name = reinterpret_cast<const char*>(data) + sizeof(RF_JoinRequestPacket);
+            const size_t name_space = len > sizeof(RF_JoinRequestPacket) ? len - sizeof(RF_JoinRequestPacket) : 0;
+            const auto* const name_end = static_cast<const char*>(std::memchr(name, '\0', name_space));
+            const size_t password_offset = name_end
+                ? static_cast<size_t>(name_end - reinterpret_cast<const char*>(data)) + 1 + sizeof(uint32_t)
+                : len;
             discord_presence_on_join_request(*addr, password_offset >= len || data[password_offset] != std::byte{0});
         }
 
