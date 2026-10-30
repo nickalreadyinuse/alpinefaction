@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // Alpine Demos ("Alpine Demos" / .afd): server-side demo recording via a virtual
@@ -152,6 +153,14 @@ float demo_playback_sim_time_scale();
 // Playback speed multiplier (same value the demo_timescale command sets), clamped to [0.05, 10].
 float demo_playback_timescale();
 void demo_playback_set_timescale(float scale);
+// Server config text a 1.5+ server records (the af_server_msg chunks and EOF a live client
+// gets on request: the remote-safe printout, without passwords, secrets or rcon profiles),
+// fed from af_process_server_msg_packet during playback.
+void demo_playback_on_server_cfg_chunk(std::string_view chunk);
+void demo_playback_on_server_cfg_eof();
+// The server config as of the playback position, or null when the demo has none yet
+// (demos recorded before 1.5 never do). Shown by the remote server config popup.
+const std::string* demo_playback_server_cfg();
 // True once the demo reached its end (a seek can restart the session).
 bool demo_playback_finished();
 // Toggles pause; no-op unless playback is in the playing state.

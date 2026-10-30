@@ -192,6 +192,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Set a custom marker on the demo playback scrubber with the Quick Save key or the panel's marker button; click it or press the Quick Load key to jump back to that moment
 - Pause demo playback while the Esc menu is open; it resumes on closing the menu unless it was already paused
 - Add a playback speed button to the demo playback panel: click to speed up (up to 8x), right-click to slow down (down to 0.25x)
+- Open the server config display (Remote Server Config key) during demo playback, showing the recording server's config as of the playback position
+  - Requires demos recorded by an Alpine Faction 1.5 server; like the live display, passwords, secrets, and rcon profiles are not included
 - Demo playback speed now applies to the whole world, so locally simulated projectiles, particles, animations and timers keep pace with the recorded players; the console, menus and free look camera stay at normal speed; sounds play at the playback speed too, time-stretched to keep their pitch from 0.5x to 2x (and pitched beyond), so looping weapon and vehicle sounds match
 
 [@is-this-c](https://github.com/is-this-c)

@@ -204,6 +204,11 @@ namespace
         // on this level (or not captured yet).
         double igt_base_left_s = -1.0;
         double igt_last_written_s = -1.0; // re-seed detection (see sync_level_timer)
+        // Server config text recorded by 1.5+ servers: chunks accumulate until their EOF
+        // replaces the shown config (demo_playback_server_cfg)
+        std::string server_cfg_partial;
+        std::string server_cfg;
+        bool has_server_cfg = false;
         StreamMarks marks;
         uint32_t records_read = 0; // records pulled from the reader this session
     };
@@ -887,6 +892,9 @@ namespace
         g_ctx.povcomp_applied_ms = 0.0f;
         g_ctx.igt_base_left_s = -1.0;
         g_ctx.igt_last_written_s = -1.0;
+        g_ctx.server_cfg_partial.clear();
+        g_ctx.server_cfg.clear();
+        g_ctx.has_server_cfg = false;
         g_ctx.marks = {};
         g_ctx.records_read = 0;
     }
@@ -2013,6 +2021,28 @@ float demo_playback_timescale()
 void demo_playback_set_timescale(float scale)
 {
     g_ctx.timescale = std::clamp(scale, 0.05f, 10.0f);
+}
+
+void demo_playback_on_server_cfg_chunk(std::string_view chunk)
+{
+    // Bounds what a crafted demo can make us buffer; the popup caps what it displays
+    constexpr size_t max_server_cfg_len = 1024 * 1024;
+    if (!demo_playback_active() || g_ctx.server_cfg_partial.size() >= max_server_cfg_len)
+        return;
+    g_ctx.server_cfg_partial.append(chunk.substr(0, max_server_cfg_len - g_ctx.server_cfg_partial.size()));
+}
+
+void demo_playback_on_server_cfg_eof()
+{
+    if (!demo_playback_active())
+        return;
+    g_ctx.server_cfg = std::exchange(g_ctx.server_cfg_partial, {});
+    g_ctx.has_server_cfg = true;
+}
+
+const std::string* demo_playback_server_cfg()
+{
+    return demo_playback_active() && g_ctx.has_server_cfg ? &g_ctx.server_cfg : nullptr;
 }
 
 bool demo_playback_finished()

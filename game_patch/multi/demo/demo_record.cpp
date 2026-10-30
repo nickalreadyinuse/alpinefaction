@@ -238,6 +238,10 @@ namespace
         rf::send_state_info(recorder);
         // AF "new joiner" packets outside send_state_info.
         af_send_server_info_packet(recorder);
+        // The remote-safe server config text (no passwords, secrets or rcon profiles) that
+        // playback shows in the server config popup
+        af_send_server_cfg(recorder);
+        recorder->remote_server_cfg_sent = true;
         // Current scores/pings so playback has a sane scoreboard from the start.
         rf::send_netgame_update_packet(recorder);
     }
@@ -564,6 +568,13 @@ void demo_record_server_do_frame()
     // outside the engine's obj_update send loop, so destroying the recorder is safe.
     if (g_state.teardown_pending) {
         destroy_recorder_player();
+    }
+    // A config change (af_server_info's SIF_SERVER_CFG_CHANGED) clears every player's sent
+    // flag; record the new config so playback's popup follows it
+    rf::Player* recorder = g_state.recorder;
+    if (recorder && g_state.writer.is_open() && !recorder->remote_server_cfg_sent) {
+        af_send_server_cfg(recorder);
+        recorder->remote_server_cfg_sent = true;
     }
 }
 
