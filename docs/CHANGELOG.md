@@ -182,7 +182,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Add `cl_hudelement` console command to show, hide, or list individual HUD elements
 - Keep chat menus and the chat input box visible while the HUD is hidden
 - Add `r_outlines_spectator_xray` console command to toggle showing player outlines through walls while spectating
-- Mark the followed player's kills, awards, CTF flag steals and captures, and Damage Amplifier, Invulnerability, and Fusion pickups on the demo playback scrubber while spectating in first person; click a marker to jump to just before it; hovering an award marker names the award
+- Mark the followed player's kills, awards, CTF and Salvage flag and Scavenger cartridge steals and captures, Bagman bag steals, King of the Hill, Damage Control, Revolt, and Escalation point captures, and Damage Amplifier, Invulnerability, and Fusion pickups on the demo playback scrubber while spectating in first person; click a marker to jump to just before it; hovering an award marker names the award
   - Pickup markers require demos recorded by an Alpine Faction 1.5 server
 - Seek within demos faster
 - Merge the demo playback controls and the spectate nameplate into one panel at the bottom of the screen

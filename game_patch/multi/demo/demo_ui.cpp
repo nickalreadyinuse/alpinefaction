@@ -9,6 +9,7 @@
 #include "demo_internal.h"
 #include "demo_ui.h"
 #include "../awards.h"
+#include "../gametype.h"
 #include "../../misc/vote_panel.h"
 #include "../../hud/hud.h"
 #include "../../hud/hud_internal.h"
@@ -476,16 +477,16 @@ struct ButtonStyle
 };
 
 // Markers for the player spectated in first person: a tick on the track at each kill,
-// powerup pickup dots and flag squares (hollow when taken, filled when captured) above it,
-// and award dots below. Clicking one seeks to just before it. The custom marker, a pennant
+// powerup pickup dots, objective squares (hollow when taken, filled when captured) and
+// point capture diamonds above it, and award dots below. Clicking one seeks to just before it. The custom marker, a pennant
 // on a pole across all rows, shows in every camera and seeks exactly to it.
 struct Marker
 {
     int x; // center
     uint32_t t_ms;
     DemoMarkerKind kind;
-    int flag_team;    // flag markers: team whose flag it is (0 red, 1 blue)
-    uint8_t award_id; // award markers: the AwardId earned
+    int team;       // objective and point markers: team whose color it takes (0 red, 1 blue, -1 none)
+    uint8_t detail; // award markers: the AwardId earned; point captures: the hill uid
 };
 
 // Rewind ahead of the moment so the lead-up plays instead of landing on it.
@@ -502,10 +503,12 @@ std::vector<Marker> panel_markers(const Rect& track)
     std::vector<Marker> markers;
     const rf::Player* target = multi_spectate_is_first_person() ? multi_spectate_get_target_player() : nullptr;
     if (target && target != rf::local_player && target->net_data) {
-        // A player only ever takes or captures the other team's flag
-        const int flag_team = target->team == 0 ? 1 : 0;
+        // A CTF player only ever takes or captures the other team's flag; the other game types'
+        // objectives are neutral. A point is captured for the player's own team.
+        const int objective_team = rf::multi_get_game_type() == rf::NG_TYPE_CTF ? (target->team == 0 ? 1 : 0) : -1;
         for (const auto& marker : demo_playback_player_markers(target->net_data->player_id)) {
-            markers.push_back({marker_x(marker.t_ms, track), marker.t_ms, marker.kind, flag_team, marker.award_id});
+            const int team = marker.kind == DemoMarkerKind::point_captured ? target->team : objective_team;
+            markers.push_back({marker_x(marker.t_ms, track), marker.t_ms, marker.kind, team, marker.detail});
         }
     }
     // Last, so it draws over the player's markers
@@ -637,9 +640,21 @@ void fill_dot(int cx, int cy, int r)
     });
 }
 
-bool marker_is_flag(const Marker& marker)
+// Filled diamond of half-diagonal r + 0.5 centered on pixel (cx, cy)
+void fill_diamond(int cx, int cy, int r)
 {
-    return marker.kind == DemoMarkerKind::flag_taken || marker.kind == DemoMarkerKind::flag_captured;
+    const float center_x = cx + 0.5f;
+    const float center_y = cy + 0.5f;
+    const float radius = r + 0.5f;
+    fill_shape_aa(center_y - radius, center_y + radius, [=](float y) {
+        const float half = std::max(0.0f, radius - std::abs(y - center_y));
+        return std::pair{center_x - half, center_x + half};
+    });
+}
+
+bool marker_is_objective(const Marker& marker)
+{
+    return marker.kind == DemoMarkerKind::objective_taken || marker.kind == DemoMarkerKind::objective_captured;
 }
 
 void set_marker_color(const Marker& marker)
@@ -660,19 +675,31 @@ void set_marker_color(const Marker& marker)
     case DemoMarkerKind::award:
         rf::gr::set_color(255, 215, 0, 255);
         break;
-    case DemoMarkerKind::flag_taken:
-    case DemoMarkerKind::flag_captured:
-        if (marker.flag_team == 0) {
+    case DemoMarkerKind::objective_taken:
+    case DemoMarkerKind::objective_captured:
+    case DemoMarkerKind::point_captured:
+        if (marker.team == 0) {
             rf::gr::set_color(255, 70, 70, 255);
         }
-        else {
+        else if (marker.team == 1) {
             rf::gr::set_color(80, 140, 255, 255);
+        }
+        else {
+            rf::gr::set_color(225, 190, 120, 255);
         }
         break;
     case DemoMarkerKind::custom:
         rf::gr::set_color(255, 64, 160, 255);
         break;
     }
+}
+
+const char* objective_label()
+{
+    if (gt_is_bagman_any()) {
+        return "Bag";
+    }
+    return gt_is_scavenger() ? "Cartridge" : "Flag";
 }
 
 std::string marker_label(const Marker& marker)
@@ -688,14 +715,21 @@ std::string marker_label(const Marker& marker)
         return "Fusion";
     case DemoMarkerKind::award:
         // An id from a newer build than this one has no name here
-        if (const char* name = award_name(marker.award_id)) {
+        if (const char* name = award_name(marker.detail)) {
             return std::format("Award: {}", name);
         }
         return "Award";
-    case DemoMarkerKind::flag_taken:
-        return "Flag Taken";
-    case DemoMarkerKind::flag_captured:
-        return "Flag Capture";
+    case DemoMarkerKind::objective_taken:
+        return std::format("{} Taken", objective_label());
+    case DemoMarkerKind::objective_captured:
+        return std::format("{} Capture", objective_label());
+    case DemoMarkerKind::point_captured: {
+        const char* label = gt_is_koth() ? "Hill Capture" : "Point Capture";
+        if (const HillInfo* hill = koth_find_hill_by_uid(marker.detail); hill && !hill->name.empty()) {
+            return std::format("{}: {}", label, hill->name);
+        }
+        return label;
+    }
     case DemoMarkerKind::custom:
         return "Marker";
     }
@@ -737,11 +771,14 @@ void draw_markers(const std::vector<Marker>& markers, const Marker* hovered, con
             draw_pennant(marker.x - pole_w / 2, custom_marker_top(lay), custom_marker_bottom(lay), pole_w,
                          lay.dot_r);
         }
-        else if (marker_is_flag(marker)) {
+        else if (marker.kind == DemoMarkerKind::point_captured) {
+            fill_diamond(marker.x, lay.pickup_dot_y, lay.dot_r);
+        }
+        else if (marker_is_objective(marker)) {
             const int size = 2 * lay.dot_r + 1;
             const int x = marker.x - lay.dot_r;
             const int y = lay.pickup_dot_y - lay.dot_r;
-            if (marker.kind == DemoMarkerKind::flag_captured) {
+            if (marker.kind == DemoMarkerKind::objective_captured) {
                 rf::gr::rect(x, y, size, size);
             }
             else {

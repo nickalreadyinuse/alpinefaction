@@ -23,6 +23,9 @@
 #include "../jetpack.h"
 #include "../alpine_packets.h"
 #include "../awards.h"
+#include "../bagman.h"
+#include "../gametype.h"
+#include "../salvage.h"
 #include "../vehicles/vehicle.h"
 #include "../vehicles/vehicle_tracers.h"
 #include "../vehicles/vehicle_fx.h"
@@ -90,7 +93,7 @@ namespace
         uint32_t t_ms;
         uint8_t player_id;
         DemoMarkerKind kind;
-        uint8_t award_id = 0; // award marks only
+        uint8_t detail = 0; // award marks: the AwardId; point captures: the hill uid
     };
 
     struct LeaveMark
@@ -104,6 +107,13 @@ namespace
         std::vector<EventMark> events;
         std::vector<LeaveMark> leaves; // a player id freed here may be reused by a later joiner
         uint32_t records = 0;          // records indexed so far
+        // Bagman, Salvage and Scavenger state packets report the objective's carrier and the
+        // team captures, not the events, so each is compared against the one before it. The
+        // first is the recorder's join snapshot, a baseline.
+        bool objective_seeded = false;
+        uint8_t objective_carrier_id = 0xFF;
+        uint16_t objective_red_caps = 0;
+        uint16_t objective_blue_caps = 0;
     };
 
     struct PlaybackCtx
@@ -307,9 +317,27 @@ namespace
         g_seek_snapshot_bm = bm;
     }
 
+    // A capture is credited to the carrier the objective came off; a lower score is a reset
+    void index_objective_state(StreamMarks& marks, uint32_t seq, uint32_t t_ms, uint8_t carrier_id,
+                               uint16_t red_caps, uint16_t blue_caps)
+    {
+        if (marks.objective_seeded) {
+            const uint8_t prev_carrier_id = marks.objective_carrier_id;
+            if (prev_carrier_id != 0xFF && (red_caps > marks.objective_red_caps || blue_caps > marks.objective_blue_caps))
+                marks.events.push_back({seq, t_ms, prev_carrier_id, DemoMarkerKind::objective_captured});
+            if (carrier_id != 0xFF && carrier_id != prev_carrier_id)
+                marks.events.push_back({seq, t_ms, carrier_id, DemoMarkerKind::objective_taken});
+        }
+        marks.objective_seeded = true;
+        marks.objective_carrier_id = carrier_id;
+        marks.objective_red_caps = red_caps;
+        marks.objective_blue_caps = blue_caps;
+    }
+
     // Kills come from the recorded kill_info: the stock obj_kill names entities, not players.
     // Suicides and world deaths are not kills. Awards come from their earner-tagged demo form,
-    // pickups from the demo-only item pickup record, flag events from the stock CTF packets.
+    // pickups from the demo-only item pickup record, flag events from the stock CTF packets,
+    // point captures from af_koth_hill_captured and the other objectives from their state packets.
     void index_stream_record(StreamMarks& marks, const DemoRecord& rec)
     {
         const uint32_t seq = marks.records++;
@@ -350,10 +378,41 @@ namespace
         }
         // ctf_flag_picked_up: {u8 player_id, ...}; ctf_flag_captured: {u8 team, u8 player_id, ...}
         else if (rec.packet_type() == RF_GPT_CTF_FLAG_PICKED_UP && len >= 4) {
-            marks.events.push_back({seq, rec.t_ms, data[3], DemoMarkerKind::flag_taken});
+            marks.events.push_back({seq, rec.t_ms, data[3], DemoMarkerKind::objective_taken});
         }
         else if (rec.packet_type() == RF_GPT_CTF_FLAG_CAPTURED && len >= 5) {
-            marks.events.push_back({seq, rec.t_ms, data[4], DemoMarkerKind::flag_captured});
+            marks.events.push_back({seq, rec.t_ms, data[4], DemoMarkerKind::objective_captured});
+        }
+        // The players on the hill credited with it follow the fixed fields
+        else if (rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_koth_hill_captured)
+                 && len >= sizeof(af_koth_hill_captured_packet)) {
+            af_koth_hill_captured_packet pkt;
+            std::memcpy(&pkt, data, sizeof(pkt));
+            if (pkt.ownership != static_cast<uint8_t>(HillOwner::HO_Neutral)) {
+                const size_t num_ids = std::min<size_t>(pkt.num_new_owner_players, len - sizeof(pkt));
+                for (size_t i = 0; i < num_ids; ++i) {
+                    marks.events.push_back(
+                        {seq, rec.t_ms, data[sizeof(pkt) + i], DemoMarkerKind::point_captured, pkt.hill_uid});
+                }
+            }
+        }
+        else if (rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_bagman_state)
+                 && len >= sizeof(af_bagman_state_packet)) {
+            af_bagman_state_packet pkt;
+            std::memcpy(&pkt, data, sizeof(pkt));
+            // The team scores tick while the bag is held, so there is no capture to find in them
+            const bool carried = pkt.state == static_cast<uint8_t>(BagState::BS_Carried);
+            index_objective_state(marks, seq, rec.t_ms, carried ? pkt.carrier_player_id : 0xFF, 0, 0);
+        }
+        // af_scavenger_state starts with af_salvage_state's layout
+        else if ((rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_salvage_state)
+                  || rec.packet_type() == static_cast<uint8_t>(af_packet_type::af_scavenger_state))
+                 && len >= sizeof(af_salvage_state_packet)) {
+            af_salvage_state_packet pkt;
+            std::memcpy(&pkt, data, sizeof(pkt));
+            const bool carried = pkt.state == static_cast<uint8_t>(SalFlagState::Carried);
+            index_objective_state(marks, seq, rec.t_ms, carried ? pkt.carrier_player_id : 0xFF, pkt.red_caps,
+                                  pkt.blue_caps);
         }
         else if (rec.packet_type() == RF_GPT_LEFT_GAME && len >= 4) {
             marks.leaves.push_back({seq, data[3]});
@@ -2055,7 +2114,7 @@ std::vector<DemoPlayerMarker> demo_playback_player_markers(int player_id)
     const auto [stay_begin, stay_end] = player_current_stay(player_id);
     for (const auto& event : g_ctx.marks.events) {
         if (event.player_id == player_id && event.seq >= stay_begin && event.seq < stay_end)
-            markers.push_back({event.t_ms, event.kind, event.award_id});
+            markers.push_back({event.t_ms, event.kind, event.detail});
     }
     return markers;
 }

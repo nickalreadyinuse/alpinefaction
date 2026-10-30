@@ -195,19 +195,21 @@ enum class DemoMarkerKind : uint8_t
     invulnerability,
     fusion,
     award,
-    flag_taken,    // the enemy flag, from its base or off the ground
-    flag_captured,
-    custom,        // the viewer's own marker; never in demo_playback_player_markers
+    objective_taken,    // CTF's enemy flag, Salvage's flag, Scavenger's cartridge or Bagman's bag,
+                        // from its spawn or off the ground
+    objective_captured, // CTF, Salvage and Scavenger
+    point_captured,     // a KOTH hill or DC/Revolt/Escalation control point, one per player credited
+    custom,             // the viewer's own marker; never in demo_playback_player_markers
 };
 struct DemoPlayerMarker
 {
     uint32_t t_ms;
     DemoMarkerKind kind;
-    uint8_t award_id; // award markers: the AwardId earned
+    uint8_t detail; // award markers: the AwardId earned; point captures: the hill uid
 };
 // Every marker of the player with this net id in the whole stream, past and future, in
 // stream order, limited to their current stay in the server (a later joiner reusing the
-// id is someone else). Flag events are in every demo, kills and awards are recorded by
+// id is someone else). Objective events are in every demo, kills and awards are recorded by
 // Alpine 1.4+ servers, pickups by 1.5+. Empty unless playback is active.
 std::vector<DemoPlayerMarker> demo_playback_player_markers(int player_id);
 // Records a player as recently active (killer/attacker) for auto-follow target
