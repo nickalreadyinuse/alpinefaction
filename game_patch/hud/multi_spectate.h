@@ -37,9 +37,11 @@ int hud_control_hints_right_x();
 // bottom row with multi_spectate_render_nameplate_row (the camera label in free look / static).
 int multi_spectate_nameplate_top_y();
 int multi_spectate_nameplate_height();
-// Width of the stock plaque around the row's text (0 when there is nothing to name)
-int multi_spectate_nameplate_row_width();
-void multi_spectate_render_nameplate_row(int center_x, int top_y);
+// Width of the stock plaque around the row's text (0 when there is nothing to name).
+// bare: just the name, without the "Spectating" lead of the label line (the title centers when
+// none is left) or the player's quick-bind numbers.
+int multi_spectate_nameplate_row_width(bool bare = false);
+void multi_spectate_render_nameplate_row(int center_x, int top_y, bool bare = false);
 void multi_spectate_on_player_kill(rf::Player* player, rf::Player* killer);
 void multi_spectate_on_destroy_player(rf::Player* player);
 void multi_spectate_player_create_entity_post(rf::Player* player, rf::Entity* entity);

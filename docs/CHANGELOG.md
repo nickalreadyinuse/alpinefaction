@@ -188,7 +188,7 @@ Version 1.5.0 (Trillium): Not yet released
 - Merge the demo playback controls and the spectate nameplate into one panel at the bottom of the screen
   - Expanded by default (except in free look and orbit camera), with the seek and pause buttons showing their shortcuts and clickable previous/next arrows; Use compacts it to the nameplate under a progress line
   - Clicking outside the panel still cycles the spectated player, and the spectate control hints stay visible
-  - Add a `Minimal compact bar` demo overlay toggle (`spectate_minimalbar`) that shrinks the compact panel back to the plain spectate nameplate, without the progress line
+  - Add a `Minimal compact bar` demo overlay toggle (`spectate_minimalbar`) that shrinks the compact panel back to the plain spectate nameplate, showing just the player's name (no "Spectating" label or quick-bind numbers), without the progress line
 - Set a custom marker on the demo playback scrubber with the Quick Save key or the panel's marker button; click it or press the Quick Load key to jump back to that moment
 - Pause demo playback while the Esc menu is open; it resumes on closing the menu unless it was already paused
 - Add a playback speed button to the demo playback panel: click to speed up (up to 8x), right-click to slow down (down to 0.25x)

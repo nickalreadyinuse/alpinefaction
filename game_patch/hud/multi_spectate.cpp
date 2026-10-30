@@ -2493,12 +2493,15 @@ struct SpectatePlaqueText
     bool bot = false;
 };
 
-static SpectatePlaqueText spectate_target_plaque_text(std::string label)
+// with_binds appends the player's numpad quick-bind slots to the name, e.g. " (1, 3)"
+static SpectatePlaqueText spectate_target_plaque_text(std::string label, bool with_binds = true)
 {
     SpectatePlaqueText text;
     text.label = std::move(label);
-    text.title = std::string(g_spectate_mode_target->name.c_str())
-        + spectate_player_bind_suffix(g_spectate_mode_target);
+    text.title = g_spectate_mode_target->name.c_str();
+    if (with_binds) {
+        text.title += spectate_player_bind_suffix(g_spectate_mode_target);
+    }
     if (multi_is_team_game_type()) {
         text.title_color = g_spectate_mode_target->team ? rf::Color{0x34, 0x4E, 0xA7, 0xFF}
                                                         : rf::Color{0xA7, 0x00, 0x00, 0xFF};
@@ -2525,10 +2528,16 @@ static void draw_spectate_plaque_text(const SpectatePlaqueText& text, int center
     const int small_font = hud_get_small_font();
     const int large_font = hud_get_large_font();
     const int label_y = top_y + spectate_plaque_padding_y();
-    const int name_y = label_y + rf::gr::get_font_height(small_font) + spectate_plaque_line_gap();
+    int name_y = label_y + rf::gr::get_font_height(small_font) + spectate_plaque_line_gap();
 
-    rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xFF);
-    rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, label_y, text.label.c_str(), small_font);
+    if (text.label.empty()) {
+        // Title alone: centered in the plaque
+        name_y = top_y + (spectate_name_plaque_height() - rf::gr::get_font_height(large_font)) / 2;
+    }
+    else {
+        rf::gr::set_color(0xFF, 0xFF, 0xFF, 0xFF);
+        rf::gr::string_aligned(rf::gr::ALIGN_CENTER, center_x, label_y, text.label.c_str(), small_font);
+    }
     int title_w = rf::gr::get_string_size(text.title, large_font).first;
     if (text.bot) {
         title_w += rf::gr::get_string_size(" BOT", small_font).first;
@@ -2572,21 +2581,29 @@ int multi_spectate_nameplate_height()
     return spectate_name_plaque_height();
 }
 
-// The nameplate row's text for the current camera, or nullopt when there is nothing to name
-static std::optional<SpectatePlaqueText> nameplate_row_text()
+// The nameplate row's text for the current camera, or nullopt when there is nothing to name.
+// bare drops the "Spectating" lead from the label line, keeping only the view or camera, and
+// the player's quick-bind numbers from the name.
+static std::optional<SpectatePlaqueText> nameplate_row_text(bool bare)
 {
     const bool minimal = g_alpine_game_config.spectate_mode_minimal_ui;
+    const auto label = [&](const char* bare, const std::string& detail) {
+        if (minimal) {
+            return bare ? std::string{} : std::string{bare};
+        }
+        return bare ? detail : "Spectating - " + detail;
+    };
     SpectatePlaqueText text;
     if (multi_spectate_is_static()) {
-        text.label = minimal ? "Spectating" : "Spectating - " + spectate_static_camera_label();
+        text.label = label("Spectating", spectate_static_camera_label());
         text.title = "Static Camera";
     }
     else if (multi_spectate_is_freelook()) {
-        text.label = "Spectating";
+        text.label = bare ? "" : "Spectating";
         text.title = "Free Look";
     }
     else if (g_spectate_mode_enabled && g_spectate_mode_target) {
-        text = spectate_target_plaque_text(minimal ? "Spectating:" : "Spectating - " + spectate_view_label());
+        text = spectate_target_plaque_text(label("Spectating:", spectate_view_label()), !bare);
     }
     else {
         return std::nullopt;
@@ -2594,18 +2611,18 @@ static std::optional<SpectatePlaqueText> nameplate_row_text()
     return text;
 }
 
-int multi_spectate_nameplate_row_width()
+int multi_spectate_nameplate_row_width(bool bare)
 {
-    const auto text = nameplate_row_text();
+    const auto text = nameplate_row_text(bare);
     if (!text) {
         return 0;
     }
     return std::min(spectate_plaque_text_width(*text) + spectate_plaque_padding_x() * 2, rf::gr::screen_width() - 20);
 }
 
-void multi_spectate_render_nameplate_row(int center_x, int top_y)
+void multi_spectate_render_nameplate_row(int center_x, int top_y, bool bare)
 {
-    const auto row_text = nameplate_row_text();
+    const auto row_text = nameplate_row_text(bare);
     if (!row_text) {
         return;
     }

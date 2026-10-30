@@ -172,7 +172,8 @@ bool nameplate_arrows_shown(bool expanded)
 }
 
 // Minimal compact bar (spectate_minimalbar): compact, the panel is just the stock plaque
-// around the nameplate text, with no progress line.
+// around the nameplate text, without its "Spectating" lead, the player's quick-bind numbers or
+// the progress line.
 bool minimal_compact(bool expanded)
 {
     return !expanded && g_alpine_game_config.demo_minimal_compact_bar;
@@ -198,7 +199,7 @@ Layout compute_layout(bool expanded, const PanelLabels& labels)
         lay.strip.w = std::min(lay.strip.w, std::max(clear_w, scaled(360.0f)));
     }
     const bool minimal = minimal_compact(expanded);
-    if (const int plaque_w = multi_spectate_nameplate_row_width(); minimal && plaque_w > 0) {
+    if (const int plaque_w = multi_spectate_nameplate_row_width(true); minimal && plaque_w > 0) {
         lay.strip.w = plaque_w;
     }
     lay.strip.x = (rf::gr::clip_width() - lay.strip.w) / 2;
@@ -1195,7 +1196,8 @@ void demo_controls_ui_render()
     }
 
     // Nameplate row
-    multi_spectate_render_nameplate_row(lay.nameplate.x + lay.nameplate.w / 2, lay.nameplate.y);
+    multi_spectate_render_nameplate_row(lay.nameplate.x + lay.nameplate.w / 2, lay.nameplate.y,
+                                        minimal_compact(expanded));
     if (nameplate_arrows_shown(expanded)) {
         draw_nameplate_arrow(lay.btn_prev, labels.prev_bind, prev_caption, expanded && point_in(mx, my, lay.btn_prev));
         draw_nameplate_arrow(lay.btn_next, labels.next_bind, next_caption, expanded && point_in(mx, my, lay.btn_next));
