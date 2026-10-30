@@ -387,7 +387,7 @@ bool camera_uses_mouse_look()
 void open(bool play_sound = true)
 {
     if (!demo_playback_active() || !demo_playback_can_seek() || demo_playback_is_seeking()
-        || rf::gameseq_get_state() != rf::GS_GAMEPLAY) {
+        || !demo_playback_in_level_view()) {
         return;
     }
     // Mutually exclusive with the other gameplay overlays: all read the same
@@ -412,7 +412,7 @@ void open(bool play_sound = true)
 bool must_force_close()
 {
     return !demo_playback_active() || !demo_playback_can_seek()
-        || rf::gameseq_get_state() != rf::GS_GAMEPLAY;
+        || !demo_playback_in_level_view();
 }
 
 // Force-close from the input/render passes. A close caused by a queued session
@@ -438,7 +438,7 @@ void auto_open_do_frame()
     if (demo_playback_active()) {
         // Never steal the screen from another overlay (open() would close it)
         if (!g_compact && !camera_uses_mouse_look() && demo_playback_can_seek() && !demo_playback_is_seeking()
-            && rf::gameseq_get_state() == rf::GS_GAMEPLAY && !vote_panel_is_gameplay_overlay_active()
+            && demo_playback_in_level_view() && !vote_panel_is_gameplay_overlay_active()
             && !g_remote_server_cfg_popup.is_active()) {
             open(/* play_sound */ false);
             if (g_open && g_reopen_cursor_valid) {
@@ -1078,7 +1078,7 @@ void demo_controls_ui_input()
 bool demo_controls_ui_draws_nameplate()
 {
     // Compact is HUD and hides with it; expanded stays up for seeking
-    return demo_playback_active() && rf::gameseq_get_state() == rf::GS_GAMEPLAY
+    return demo_playback_active() && demo_playback_in_level_view()
         && (g_open || !is_hud_effectively_hidden());
 }
 

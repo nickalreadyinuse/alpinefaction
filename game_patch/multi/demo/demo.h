@@ -157,6 +157,10 @@ void demo_playback_toggle_pause();
 void demo_playback_stop();
 // True when a seek can be requested (playing or finished).
 bool demo_playback_can_seek();
+// True in gameplay or on the match-end limbo scoreboard a demo file ends on: the
+// level is up and the controls panel and seeks work (stock gameseq_in_gameplay
+// excludes limbo).
+bool demo_playback_in_level_view();
 // True while a backward-seek session restart is queued but has not re-entered
 // playback yet (the window in which demo_playback_active() reads false).
 bool demo_playback_restart_pending();

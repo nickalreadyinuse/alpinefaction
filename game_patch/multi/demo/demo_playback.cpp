@@ -245,7 +245,7 @@ namespace
     {
         // A forward seek waits for the pump to begin; cover that frame too
         const bool forward_pending = g_ctx.pending_seek_ms >= 0.0 && g_ctx.state == PlaybackState::playing
-            && rf::gameseq_in_gameplay();
+            && demo_playback_in_level_view();
         return demo_playback_is_seeking() || seek_restarting() || forward_pending;
     }
 
@@ -1995,6 +1995,11 @@ bool demo_playback_can_seek()
     return g_ctx.state == PlaybackState::playing || g_ctx.state == PlaybackState::finished;
 }
 
+bool demo_playback_in_level_view()
+{
+    return rf::gameseq_in_gameplay() || rf::gameseq_get_state() == rf::GS_MULTI_LIMBO;
+}
+
 bool demo_playback_restart_pending()
 {
     return g_pending_restart.has_value();
@@ -2179,7 +2184,7 @@ void demo_playback_do_frame()
         break;
 
     case PlaybackState::playing: {
-        if (g_ctx.pending_seek_ms >= 0.0 && rf::gameseq_in_gameplay()) {
+        if (g_ctx.pending_seek_ms >= 0.0 && demo_playback_in_level_view()) {
             seek_begin(g_ctx.pending_seek_ms);
             g_ctx.pending_seek_ms = -1.0;
         }
@@ -2392,7 +2397,7 @@ void demo_playback_render_seek_overlay()
     // the gameplay the seek left - later frames are seek or restart frames with nothing rendered.
     if (g_seek_snapshot_bm == -1 && !demo_playback_is_seeking() && !g_ctx.seek_restarting
         && (g_ctx.state == PlaybackState::playing || g_ctx.state == PlaybackState::finished)
-        && rf::gameseq_in_gameplay()) {
+        && demo_playback_in_level_view()) {
         seek_snapshot_capture();
     }
     draw_seek_overlay();
