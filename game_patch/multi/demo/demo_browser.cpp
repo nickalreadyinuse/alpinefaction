@@ -106,6 +106,13 @@ namespace
         int col_date_x, col_date_w;
     };
 
+    // List and preview text. The menu fonts grow with the screen height (see menu_init_hook), so
+    // the medium font would leave the columns little room; it is kept for the title and button.
+    int text_font()
+    {
+        return rf::ui::small_font;
+    }
+
     int text_width(std::string_view text, int font)
     {
         return rf::gr::get_string_size(text, font).first;
@@ -119,12 +126,12 @@ namespace
         lo.scale = std::min(clip_w / REF_WIDTH, clip_h / REF_HEIGHT);
 
         const auto s = [&](float v) { return static_cast<int>(v * lo.scale); };
-        const int font = rf::ui::medium_font_0;
+        const int font = text_font();
         const int fh = rf::gr::get_font_height(font);
 
         // Wide panel (list + preview pane) that leaves a clear margin at every resolution.
-        lo.pw = std::min(s(1180.0f), clip_w - 80);
-        lo.ph = std::min(s(700.0f), clip_h - 80);
+        lo.pw = std::min(s(1240.0f), clip_w - 40);
+        lo.ph = std::min(s(740.0f), clip_h - 40);
         lo.px = (clip_w - lo.pw) / 2;
         lo.py = (clip_h - lo.ph) / 2;
 
@@ -135,7 +142,7 @@ namespace
         lo.gap = std::max(2, s(6.0f));
         lo.text_pad = std::max(4, s(8.0f));
         lo.col_gap = std::max(8, s(16.0f));
-        lo.row_h = std::max(fh + std::max(6, s(14.0f)), s(38.0f));
+        lo.row_h = std::max(fh + std::max(6, s(14.0f)), s(34.0f));
         lo.bar_w = std::max(4, s(6.0f));
 
         const int body_y = lo.py + title_h;
@@ -749,8 +756,10 @@ void demo_browser_render()
     const Layout lo = compute_layout();
     g_scroll = std::clamp(g_scroll, 0.0f, max_scroll(lo));
 
-    const int font = rf::ui::medium_font_0;
+    const int font = text_font();
     const int fh = rf::gr::get_font_height(font);
+    const int title_font = rf::ui::medium_font_0;
+    const int title_fh = rf::gr::get_font_height(title_font);
 
     // Use the stored menu cursor (screen/clip space) for hover feedback so it matches hit-testing.
     const int hovered = row_at(lo, g_cursor_x, g_cursor_y);
@@ -767,10 +776,10 @@ void demo_browser_render()
 
     // Title doubles as the breadcrumb for the current folder.
     const std::string title_str = g_current_dir.empty() ? std::string{"Demos"} : "Demos\\" + g_current_dir;
-    const std::string title = hud_fit_string(title_str, lo.pw - 2 * lo.text_pad, nullptr, font);
+    const std::string title = hud_fit_string(title_str, lo.pw - 2 * lo.text_pad, nullptr, title_font);
     rf::gr::set_color(255, 255, 255, 255);
     rf::gr::string_aligned(rf::gr::ALIGN_CENTER, lo.px + lo.pw / 2,
-        lo.py + static_cast<int>(14 * lo.scale), title.c_str(), font);
+        lo.py + static_cast<int>(14 * lo.scale), title.c_str(), title_font);
 
     // Column header (fixed, above the scrolled region).
     const int row_x = lo.content_x + lo.gap;
@@ -867,7 +876,7 @@ void demo_browser_render()
     update_preview(hovered_demo ? hovered : -1);
     render_preview(lo, font, fh);
 
-    draw_button(lo.back_x, lo.back_y, lo.back_w, lo.back_h, "Back (Esc)", font, fh);
+    draw_button(lo.back_x, lo.back_y, lo.back_w, lo.back_h, "Back (Esc)", title_font, title_fh);
     rf::gr::set_color(130, 130, 130, 255);
     rf::gr::string_aligned(rf::gr::ALIGN_RIGHT, lo.pane_x + lo.pane_w, lo.back_y + (lo.back_h - fh) / 2,
         "Click a demo to watch", font);
