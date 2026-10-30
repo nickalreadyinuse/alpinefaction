@@ -12,6 +12,7 @@
 #include <common/rfproto.h>
 #include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
+#include <patch_common/CallHook.h>
 #include <patch_common/FunHook.h>
 #include "demo.h"
 #include "demo_file.h"
@@ -112,6 +113,12 @@ namespace
         double clock_ms = 0.0;
         float timescale = 1.0f;
         bool paused = false;
+        // The Esc menu paused playback, so closing it resumes
+        bool esc_menu_paused = false;
+        // Fraction of a game time millisecond the timescale left over (game_time_add_delta_hook)
+        double game_time_carry_ms = 0.0;
+        // Inside a timescaled gameplay_sim_frame, where rf::frametime is demo time
+        bool in_scaled_sim_frame = false;
         // True pause is in effect: gameplay_sim_frame is skipped, game time (and with
         // it every rf::Timestamp deadline) is frozen and playing sounds are paused.
         // Managed exclusively by pause_fx_update()/reset_ctx() so the inc/dec of the
@@ -710,6 +717,8 @@ namespace
         g_ctx.clock_ms = 0.0;
         g_ctx.timescale = 1.0f;
         g_ctx.paused = false;
+        g_ctx.esc_menu_paused = false;
+        g_ctx.game_time_carry_ms = 0.0;
         g_ctx.players_fed = false;
         g_ctx.teardown_queued = false;
         g_ctx.duration_ms = 0;
@@ -960,6 +969,37 @@ namespace
         }
     }
 
+    // Esc pushes the main menu over gameplay; menus it opens (options, ...) stack on top
+    bool esc_menu_open()
+    {
+        bool over_gameplay = false;
+        for (int i = 0; i <= rf::gameseq_stack_top_index; ++i) {
+            if (rf::gameseq_state_stack[i] == rf::GS_GAMEPLAY) {
+                over_gameplay = true;
+            }
+            else if (over_gameplay && rf::gameseq_state_stack[i] == rf::GS_MAIN_MENU) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Pauses playback behind the Esc menu, and resumes on closing it unless the viewer had
+    // already paused
+    void esc_menu_pause_update()
+    {
+        if (esc_menu_open()) {
+            if (g_ctx.state == PlaybackState::playing && g_ctx.spectate_entered && !g_ctx.paused) {
+                g_ctx.paused = true;
+                g_ctx.esc_menu_paused = true;
+            }
+        }
+        else if (g_ctx.esc_menu_paused) {
+            g_ctx.esc_menu_paused = false;
+            g_ctx.paused = false;
+        }
+    }
+
     // True pause: freeze the world simulation, freeze game time (every rf::Timestamp
     // deadline - fire waits, corpse decay, emitter spawns - holds, so nothing catches
     // up in a burst on resume) and pause playing sounds. Never engaged while a seek is
@@ -987,20 +1027,26 @@ namespace
         }
     }
 
-    // The freelook camera entity is normally flown by obj_move_all, which the sim
-    // freeze skips. Its input keeps arriving while frozen (player_process_controls ->
-    // player_free_cam_update -> controls_read into ai.ci), so running the engine's own
-    // per-entity physics step for just this entity reproduces stock movement exactly -
-    // same movemode axis mapping, mouselook feel, acceleration and world collision.
-    // Mirrors obj_move_all pass 0 + the obj_process_physics per-entity sequence.
-    void paused_freelook_camera_physics()
+    rf::Entity* freelook_camera_entity()
     {
         if (!rf::local_player || !rf::local_player->cam)
-            return;
+            return nullptr;
         rf::Camera* cam = rf::local_player->cam;
-        if (cam->mode != rf::CAMERA_FREELOOK || !cam->camera_entity)
+        return cam->mode == rf::CAMERA_FREELOOK ? cam->camera_entity : nullptr;
+    }
+
+    // The freelook camera entity is normally flown by obj_move_all, which the sim
+    // freeze skips and the timescale would slow down or speed up. Its input keeps
+    // arriving either way (player_process_controls -> player_free_cam_update ->
+    // controls_read into ai.ci), so running the engine's own per-entity physics step for
+    // just this entity reproduces stock movement exactly - same movemode axis mapping,
+    // mouselook feel, acceleration and world collision.
+    // Mirrors obj_move_all pass 0 + the obj_process_physics per-entity sequence.
+    void freelook_camera_physics()
+    {
+        rf::Entity* cep = freelook_camera_entity();
+        if (!cep)
             return;
-        rf::Entity* cep = cam->camera_entity;
         if (cep->p_data.flags & rf::PF_SKIP_SIM_ONCE) {
             cep->p_data.flags &= ~rf::PF_SKIP_SIM_ONCE; // just entered freelook - skip one frame like obj_move_all
             return;
@@ -1029,28 +1075,66 @@ namespace
     // system is kept alive so perspective switching, third-person orbit, static cams
     // and freelook flying keep working; input processing and rendering run outside
     // this function and are unaffected.
+    // At a timescale the sim frame runs on demo time - rf::frametime scaled for its
+    // duration, game time by game_time_add_delta_hook - so locally simulated projectiles,
+    // particles, animations and every rf::Timestamp follow the playback speed. Everything
+    // outside it (console, menus, HUD) keeps the wall frametime. The freelook camera is
+    // flown at wall speed beforehand and skipped by obj_move_all, as on freelook entry.
     FunHook<void()> gameplay_sim_frame_hook{
         0x00433260,
         []() {
             if (g_ctx.pause_fx_applied) {
-                paused_freelook_camera_physics();
+                freelook_camera_physics();
                 rf::cameras_do_frame();
                 return;
             }
+            if (g_ctx.state == PlaybackState::inactive || g_ctx.timescale == 1.0f) {
+                gameplay_sim_frame_hook.call_target();
+                return;
+            }
+            freelook_camera_physics();
+            if (rf::Entity* cep = freelook_camera_entity()) {
+                cep->p_data.flags |= rf::PF_SKIP_SIM_ONCE;
+            }
+            const float wall_frametime = rf::frametime;
+            // Speedups keep the sim step within stock's 0.25 s frametime clamp
+            rf::frametime = std::min(wall_frametime * g_ctx.timescale, 0.25f);
+            g_ctx.in_scaled_sim_frame = true;
             gameplay_sim_frame_hook.call_target();
+            g_ctx.in_scaled_sim_frame = false;
+            rf::frametime = wall_frametime;
+        },
+    };
+
+    // Game time (every rf::Timestamp) advances in frametime_calculate by the wall frame's
+    // milliseconds; at a timescale it advances by demo milliseconds instead, carrying the
+    // fraction so slow speeds don't truncate every frame to 0.
+    CallHook<void(int)> game_time_add_delta_hook{
+        0x005096AF,
+        [](int delta_ms) {
+            if (g_ctx.state != PlaybackState::inactive && g_ctx.timescale != 1.0f) {
+                g_ctx.game_time_carry_ms += delta_ms * static_cast<double>(g_ctx.timescale);
+                delta_ms = static_cast<int>(g_ctx.game_time_carry_ms);
+                g_ctx.game_time_carry_ms -= delta_ms;
+            }
+            game_time_add_delta_hook.call_target(delta_ms);
         },
     };
 
     // The sim freeze does not stop render-side animation: player_fpgun_process/render
     // advance the first-person weapon meshes through vmesh_process with rf::frametime
     // directly from the render path. Zeroing the delta while frozen freeze-frames every
-    // mesh animation without touching the render itself.
+    // mesh animation without touching the render itself; outside the sim frame the
+    // timescale applies to it here too.
     FunHook<void(rf::VMesh*, float, int, rf::Vector3*, rf::Matrix3*, int)> vmesh_process_hook{
         0x00503360,
         [](rf::VMesh* vmesh, float frametime, int increment_only, rf::Vector3* pos, rf::Matrix3* orient,
            int lod_level) {
             if (g_ctx.pause_fx_applied) {
                 frametime = 0.0f;
+            }
+            else if (g_ctx.state != PlaybackState::inactive && !g_ctx.in_scaled_sim_frame) {
+                frametime *= g_ctx.timescale;
             }
             vmesh_process_hook.call_target(vmesh, frametime, increment_only, pos, orient, lod_level);
         },
@@ -1660,7 +1744,7 @@ namespace
         "demo_timescale",
         [](std::optional<float> scale) {
             if (scale) {
-                g_ctx.timescale = std::clamp(*scale, 0.05f, 10.0f);
+                demo_playback_set_timescale(*scale);
             }
             rf::console::print("Demo timescale: {:.2f}", g_ctx.timescale);
         },
@@ -1784,6 +1868,16 @@ float demo_playback_sim_time_scale()
         return 1.0f;
     }
     return g_ctx.pause_fx_applied ? 0.0f : g_ctx.timescale;
+}
+
+float demo_playback_timescale()
+{
+    return g_ctx.timescale;
+}
+
+void demo_playback_set_timescale(float scale)
+{
+    g_ctx.timescale = std::clamp(scale, 0.05f, 10.0f);
 }
 
 bool demo_playback_finished()
@@ -1929,6 +2023,7 @@ void demo_playback_do_frame()
     }
 
     // After the settle check so a settle that ends this frame re-freezes this frame
+    esc_menu_pause_update();
     pause_fx_update();
 
     switch (g_ctx.state) {
@@ -2258,6 +2353,7 @@ void demo_playback_do_patch()
     multi_check_socket_status_hook.install();
     psnet_rel_connect_to_server_hook.install();
     gameplay_sim_frame_hook.install();
+    game_time_add_delta_hook.install();
     vmesh_process_hook.install();
     entity_reload_current_primary_demo_hook.install();
 

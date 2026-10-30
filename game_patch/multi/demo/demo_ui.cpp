@@ -49,8 +49,8 @@ int g_reopen_cursor_y = 0;
 // pass through.
 int g_swallow_attack_frames = 0;
 bool g_veto_registered = false;
-// The viewer's own seek bar marker, set with the Ready bind or the panel's marker button,
-// jumped to with the Vote Menu bind or a click on it.
+// The viewer's own seek bar marker, set with the Quick Save bind or the panel's marker button,
+// jumped to with the Quick Load bind or a click on it.
 // Survives the backward-seek session restart like g_compact; cleared once playback ends.
 std::optional<uint32_t> g_custom_marker_ms;
 
@@ -77,6 +77,7 @@ struct Layout
     Rect btn_back;  // -10s
     Rect btn_pause; // play/pause
     Rect btn_fwd;   // +10s
+    Rect btn_speed; // playback speed
     Rect btn_mark;  // set the custom marker
     Rect btn_prev;  // nameplate row, left: previous player / camera
     Rect btn_next;  // nameplate row, right: next player / camera
@@ -111,8 +112,8 @@ PanelLabels panel_labels()
         bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES)),
         bind_name(rf::CC_ACTION_RELOAD),
         bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO)),
-        bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY)),
-        bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU)),
+        bind_name(rf::CC_ACTION_QUICK_SAVE),
+        bind_name(rf::CC_ACTION_QUICK_LOAD),
         bind_name(rf::CC_ACTION_SECONDARY_ATTACK),
         bind_name(rf::CC_ACTION_PRIMARY_ATTACK),
     };
@@ -145,6 +146,16 @@ void draw_keycap(int x, int y, const std::string& bind, bool bright)
     rf::gr::rect(x, y, keycap_w(bind), keycap_h());
     rf::gr::set_color(20, 20, 20, 255);
     rf::gr::string(x + keycap_pad_x(), y + 1, bind.c_str(), hud_get_small_font());
+}
+
+// Playback speeds the speed button steps through
+constexpr float speed_steps[] = {0.25f, 0.5f, 1.0f, 2.0f, 4.0f, 8.0f};
+// The widest label the button sizes for, so it doesn't resize as the speed changes
+constexpr const char* widest_speed_label = "0.25x";
+
+std::string speed_label(float scale)
+{
+    return std::format("{:.2g}x", scale);
 }
 
 constexpr const char* prev_caption = "< Previous";
@@ -215,19 +226,22 @@ Layout compute_layout(bool expanded, const PanelLabels& labels)
     const int pad = scaled(6.0f);
     lay.track_hit = {lay.track.x - pad, lay.track.y - pad, lay.track.w + 2 * pad, lay.track.h + 2 * pad};
 
-    // Media-player cluster: skip back, play/pause, skip forward, then set marker set apart, wide
-    // enough for their keycaps
+    // Media-player cluster: skip back, play/pause, skip forward, speed, then set marker set apart,
+    // wide enough for their keycaps and the speed label
     const int skip_w = std::max({scaled(56.0f), keycap_w(labels.back_bind), keycap_w(labels.fwd_bind)});
     const int pause_w = std::max(scaled(44.0f), keycap_w(labels.pause_bind));
+    const int speed_w = std::max(scaled(44.0f),
+        rf::gr::get_string_size(widest_speed_label, hud_get_default_font()).first + scaled(12.0f));
     const int mark_w = std::max(scaled(44.0f), keycap_w(labels.mark_bind));
     const int gap = scaled(8.0f);
-    const int row_w = 2 * skip_w + pause_w + mark_w + 4 * gap;
+    const int row_w = 2 * skip_w + pause_w + speed_w + mark_w + 5 * gap;
     const int row_x = lay.strip.x + (lay.strip.w - row_w) / 2;
     const int row_y = lay.strip.y + btn_row_y;
     lay.btn_back = {row_x, row_y, skip_w, btn_h};
     lay.btn_pause = {lay.btn_back.x + skip_w + gap, row_y, pause_w, btn_h};
     lay.btn_fwd = {lay.btn_pause.x + pause_w + gap, row_y, skip_w, btn_h};
-    lay.btn_mark = {lay.btn_fwd.x + skip_w + 2 * gap, row_y, mark_w, btn_h};
+    lay.btn_speed = {lay.btn_fwd.x + skip_w + gap, row_y, speed_w, btn_h};
+    lay.btn_mark = {lay.btn_speed.x + speed_w + 2 * gap, row_y, mark_w, btn_h};
     lay.keycap_y = row_y + btn_h + keycap_gap;
 
     lay.dot_r = dot_r;
@@ -258,6 +272,31 @@ std::string format_time_ms(double time_ms)
 void play_click_sound()
 {
     rf::snd_play(stock_sound_id::panel_button_click, 0, 0.0f, 1.0f);
+}
+
+// Next speed step up (up) or down from the current speed, wrapping back to normal speed
+// past either end. A console-set speed between steps moves to the neighbouring step.
+void step_timescale(bool up)
+{
+    play_click_sound();
+    const float cur = demo_playback_timescale();
+    float next = 1.0f;
+    if (up) {
+        for (const float step : speed_steps) {
+            if (step > cur + 0.001f) {
+                next = step;
+                break;
+            }
+        }
+    }
+    else {
+        for (const float step : speed_steps) {
+            if (step < cur - 0.001f) {
+                next = step;
+            }
+        }
+    }
+    demo_playback_set_timescale(next);
 }
 
 // Replaces any earlier custom marker
@@ -711,10 +750,11 @@ enum class TransportIcon
     play,
     pause,
     skip_forward,
+    speed,
     set_marker,
 };
 
-const char* transport_tooltip(TransportIcon icon)
+std::string transport_tooltip(TransportIcon icon)
 {
     switch (icon) {
     case TransportIcon::skip_back:
@@ -725,6 +765,8 @@ const char* transport_tooltip(TransportIcon icon)
         return "Pause";
     case TransportIcon::skip_forward:
         return "Forward 10 seconds";
+    case TransportIcon::speed:
+        return std::format("Speed {} (click faster, right-click slower)", speed_label(demo_playback_timescale()));
     case TransportIcon::set_marker:
         return g_custom_marker_ms ? "Move marker here" : "Set marker here";
     }
@@ -767,6 +809,16 @@ void draw_transport_button(const Rect& rect, TransportIcon icon, const std::stri
         const int x = cx - len;
         fill_arrow_triangle(x, cy, half_h, len, icon == TransportIcon::skip_back);
         fill_arrow_triangle(x + len, cy, half_h, len, icon == TransportIcon::skip_back);
+        break;
+    }
+    case TransportIcon::speed: {
+        // Normal speed reads dimmer, so a changed speed stands out
+        if (style.enabled && demo_playback_timescale() == 1.0f && !style.hovered) {
+            rf::gr::set_color(160, 160, 160, 255);
+        }
+        const int font = hud_get_default_font();
+        const int text_y = cy - rf::gr::get_font_height(font) / 2;
+        rf::gr::string_aligned(rf::gr::ALIGN_CENTER, cx, text_y, speed_label(demo_playback_timescale()).c_str(), font);
         break;
     }
     case TransportIcon::set_marker: {
@@ -836,8 +888,6 @@ bool demo_controls_ui_execute_action(rf::ControlConfigAction action, bool was_pr
     // weapon bindings), so no switch here.
     const bool rewind = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
     const bool forward = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
-    const bool mark = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY);
-    const bool jump = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU);
     if (action == rf::CC_ACTION_USE) {
         if (was_pressed) {
             if (g_open) {
@@ -860,16 +910,16 @@ bool demo_controls_ui_execute_action(rf::ControlConfigAction action, bool was_pr
             demo_playback_request_seek(demo_playback_clock_ms() + (rewind ? -10000.0 : 10000.0));
         }
     }
-    else if (mark) {
-        // Keyboard shortcut for the popup's marker button. There is no match to ready up
-        // for during playback, so the Ready key is free for reuse.
+    else if (action == rf::CC_ACTION_QUICK_SAVE) {
+        // Keyboard shortcut for the popup's marker button. Saving does not exist in
+        // multiplayer, so the Quick Save key is free for reuse.
         if (was_pressed && demo_playback_can_seek() && !demo_playback_is_seeking()) {
             set_custom_marker();
         }
     }
-    else if (jump) {
-        // Jumps exactly to the custom marker, like clicking it. Voting does not exist
-        // during playback, so the Vote Menu key is free for reuse.
+    else if (action == rf::CC_ACTION_QUICK_LOAD) {
+        // Jumps exactly to the custom marker, like clicking it - the Quick Load to the
+        // marker's Quick Save.
         if (was_pressed && g_custom_marker_ms && demo_playback_can_seek() && !demo_playback_is_seeking()) {
             play_click_sound();
             demo_playback_request_seek(*g_custom_marker_ms);
@@ -939,6 +989,9 @@ void demo_controls_ui_input()
         g_swallow_attack_frames = 2;
     }
     if (!left_pressed) {
+        if (rf::mouse_was_button_pressed(1) && point_in(mx, my, lay.btn_speed)) {
+            step_timescale(false);
+        }
         return;
     }
     // hovered_marker points into this vector, so it must outlive the seek below
@@ -963,6 +1016,9 @@ void demo_controls_ui_input()
     else if (point_in(mx, my, lay.btn_fwd)) {
         play_click_sound();
         demo_playback_request_seek(demo_playback_clock_ms() + 10000.0);
+    }
+    else if (point_in(mx, my, lay.btn_speed)) {
+        step_timescale(true);
     }
     else if (point_in(mx, my, lay.btn_mark)) {
         set_custom_marker();
@@ -1053,6 +1109,7 @@ void demo_controls_ui_render()
         const bool back_hovered = point_in(mx, my, lay.btn_back);
         const bool pause_hovered = pause_enabled && point_in(mx, my, lay.btn_pause);
         const bool fwd_hovered = point_in(mx, my, lay.btn_fwd);
+        const bool speed_hovered = point_in(mx, my, lay.btn_speed);
         const bool mark_hovered = point_in(mx, my, lay.btn_mark);
         draw_transport_button(lay.btn_back, TransportIcon::skip_back, labels.back_bind, lay.keycap_y,
                               {back_hovered, true});
@@ -1060,6 +1117,7 @@ void demo_controls_ui_render()
                               {pause_hovered, pause_enabled});
         draw_transport_button(lay.btn_fwd, TransportIcon::skip_forward, labels.fwd_bind, lay.keycap_y,
                               {fwd_hovered, true});
+        draw_transport_button(lay.btn_speed, TransportIcon::speed, {}, lay.keycap_y, {speed_hovered, true});
         draw_transport_button(lay.btn_mark, TransportIcon::set_marker, labels.mark_bind, lay.keycap_y,
                               {mark_hovered, true});
         if (back_hovered) {
@@ -1070,6 +1128,9 @@ void demo_controls_ui_render()
         }
         else if (fwd_hovered) {
             hovered_button = {lay.btn_fwd, TransportIcon::skip_forward};
+        }
+        else if (speed_hovered) {
+            hovered_button = {lay.btn_speed, TransportIcon::speed};
         }
         else if (mark_hovered) {
             hovered_button = {lay.btn_mark, TransportIcon::set_marker};

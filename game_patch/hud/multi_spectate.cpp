@@ -2389,10 +2389,8 @@ static int append_demo_playback_hints(std::pair<const char*, const char*>* hints
     binds.forward = get_action_bind_name(
         get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO)).c_str();
     binds.pause = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_RELOAD).c_str();
-    binds.mark = get_action_bind_name(
-        get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY)).c_str();
-    binds.jump = get_action_bind_name(
-        get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU)).c_str();
+    binds.mark = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_QUICK_SAVE).c_str();
+    binds.jump = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_QUICK_LOAD).c_str();
     if (demo_controls_ui_is_open()) {
         // The expanded panel's buttons show the other shortcuts, but jumping to the
         // custom marker has no button

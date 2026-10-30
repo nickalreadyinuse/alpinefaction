@@ -188,7 +188,10 @@ Version 1.5.0 (Trillium): Not yet released
 - Merge the demo playback controls and the spectate nameplate into one panel at the bottom of the screen
   - Expanded by default (except in free look and orbit camera), with the seek and pause buttons showing their shortcuts and clickable previous/next arrows; Use compacts it to the nameplate under a progress line
   - Clicking outside the panel still cycles the spectated player, and the spectate control hints stay visible
-- Set a custom marker on the demo playback scrubber with the Ready For Match key or the panel's marker button; click it or press the Call Vote Menu key to jump back to that moment
+- Set a custom marker on the demo playback scrubber with the Quick Save key or the panel's marker button; click it or press the Quick Load key to jump back to that moment
+- Pause demo playback while the Esc menu is open; it resumes on closing the menu unless it was already paused
+- Add a playback speed button to the demo playback panel: click to speed up (up to 8x), right-click to slow down (down to 0.25x)
+- Demo playback speed now applies to the whole world, so locally simulated projectiles, particles, animations and timers keep pace with the recorded players; the console, menus and free look camera stay at normal speed
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`

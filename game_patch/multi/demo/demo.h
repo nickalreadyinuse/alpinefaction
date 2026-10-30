@@ -141,8 +141,12 @@ bool demo_playback_paused();
 bool demo_playback_sim_frozen();
 // Multiplier that turns rf::frametime (wall clock, unaffected by the pause freeze) into
 // demo simulation time: 0 while frozen, the playback timescale while playing, 1 when no
-// demo is being played back. For viewer-side estimates that tick outside the sim frame.
+// demo is being played back. For viewer-side estimates that tick outside the sim frame
+// (inside it, rf::frametime is already demo time).
 float demo_playback_sim_time_scale();
+// Playback speed multiplier (same value the demo_timescale command sets), clamped to [0.05, 10].
+float demo_playback_timescale();
+void demo_playback_set_timescale(float scale);
 // True once the demo reached its end (a seek can restart the session).
 bool demo_playback_finished();
 // Toggles pause; no-op unless playback is in the playing state.
