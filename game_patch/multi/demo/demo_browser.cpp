@@ -118,6 +118,27 @@ namespace
         return rf::gr::get_string_size(text, font).first;
     }
 
+    // Width of the widest "YYYY-MM-DD HH:MM": the menu font's digits are proportional, so a
+    // sample like all zeros can come out narrower than a real date.
+    int date_column_width(int font)
+    {
+        static int cached_font = -1;
+        static int cached_w = 0;
+        if (font != cached_font) {
+            char widest = '0';
+            for (char digit = '1'; digit <= '9'; ++digit) {
+                if (text_width({&digit, 1}, font) > text_width({&widest, 1}, font)) {
+                    widest = digit;
+                }
+            }
+            std::string sample = "0000-00-00 00:00";
+            std::replace(sample.begin(), sample.end(), '0', widest);
+            cached_font = font;
+            cached_w = text_width(sample, font);
+        }
+        return cached_w;
+    }
+
     Layout compute_layout()
     {
         Layout lo{};
@@ -169,9 +190,10 @@ namespace
         lo.thumb_h = lo.row_h - 2 * lo.thumb_inset;
         lo.thumb_w = lo.thumb_h * 16 / 9;
         lo.col_name_x = lo.thumb_inset + lo.thumb_w + lo.text_pad;
-        lo.col_date_w = text_width("0000-00-00 00:00", font);
+        lo.col_date_w = date_column_width(font);
         lo.col_date_x = rw - lo.text_pad - lo.col_date_w;
-        lo.col_type_w = std::max({text_width("Type", font), text_width("SCAV", font), text_width("TBAG", font)});
+        lo.col_type_w = std::max({text_width("Type", font), text_width("KOTH", font), text_width("SCAV", font),
+            text_width("TBAG", font)});
         lo.col_type_x = lo.col_date_x - lo.col_gap - lo.col_type_w;
         const int name_and_level_w = lo.col_type_x - lo.col_gap - lo.col_name_x;
         lo.col_level_w = std::min(s(170.0f), (name_and_level_w - lo.col_gap) * 2 / 5);
