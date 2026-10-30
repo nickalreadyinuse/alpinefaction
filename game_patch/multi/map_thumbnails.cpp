@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <atomic>
-#include <chrono>
+#include <ctime>
 #include <deque>
 #include <filesystem>
 #include <format>
@@ -32,16 +32,14 @@ namespace
     // Levels fetched at once
     constexpr int max_jobs = 3;
     // Matches FactionFilesClient::fetch_image's download cap
-    constexpr std::uintmax_t max_cached_image_size = 8 * 1024 * 1024;
-    // A level FactionFiles didn't have is asked about again after this long, in case it was added
-    constexpr auto missing_recheck_age = std::chrono::hours{24 * 7};
-    // Least recently used images are deleted past this; a cache hit refreshes the file's mtime
-    constexpr std::uintmax_t max_cache_size = 512ull * 1024 * 1024;
+    constexpr uint32_t max_cached_image_size = 8 * 1024 * 1024;
+    // Least recently used images are dropped from the disk cache past this
+    constexpr uint64_t max_cache_size = 512ull * 1024 * 1024;
 
     struct Job
     {
         std::string level_filename;
-        std::string cache_dir; // empty = no disk cache
+        std::string cache_path; // empty = no disk cache
         unsigned generation = 0;
         std::vector<unsigned char> encoded; // in: cached download (empty = fetch it); out: the download
         std::vector<uint32_t> argb;         // out: downscaled pixels, empty if there is no usable image
@@ -71,7 +69,7 @@ namespace
     std::unordered_map<std::string, Thumb> g_thumbs;
     std::deque<std::string> g_queue;
     std::vector<std::shared_ptr<Job>> g_jobs;
-    std::optional<std::string> g_cache_dir; // resolved on first use; "" = unavailable
+    std::optional<std::string> g_cache_path; // resolved on first use; "" = unavailable
     // Bumped by map_thumbnails_release_bitmaps so a job finishing afterwards doesn't build a bitmap
     unsigned g_generation = 0;
 
@@ -116,173 +114,362 @@ namespace
         stbi_image_free(pixels);
     }
 
-    // <rf_root>\screenshots\thumbnails, created on demand; "" if it can't be
-    const std::string& cache_dir()
+    // Single-file disk cache of the images as downloaded. The file is a header followed by
+    // records appended as entries change; the newest record for a level wins, so an update is
+    // an append. It is rewritten without the superseded records when they pile up, and without
+    // the least recently used images when it outgrows max_cache_size.
+    //   record: u8 kind, u8 key_len, key, u64 time (unix seconds), u32 data_len, data
+    class ThumbCache
     {
-        if (!g_cache_dir) {
-            g_cache_dir.emplace();
-            const std::string screenshots_dir = std::format("{}\\screenshots", rf::root_path);
-            const std::string dir = screenshots_dir + "\\thumbnails";
-            for (const std::string& path : {screenshots_dir, dir}) {
-                if (!CreateDirectoryA(path.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
-                    xlog::warn("[MapThumb] failed to create {}, error {}", path, GetLastError());
-                    return *g_cache_dir;
+    public:
+        enum class Lookup
+        {
+            miss,    // not cached (or the missing marker is due for a recheck)
+            image,   // out holds the cached image
+            missing, // FactionFiles recently had no image for the level
+        };
+
+        // Sets the file on first use; the job threads all pass the same path
+        Lookup get(const std::string& path, const std::string& key, std::vector<unsigned char>& out)
+        {
+            const std::lock_guard lock{mutex_};
+            if (!ensure_loaded(path)) {
+                return Lookup::miss;
+            }
+            const auto it = index_.find(key);
+            if (it == index_.end()) {
+                return Lookup::miss;
+            }
+            Entry& entry = it->second;
+            const uint64_t now = now_unix();
+            if (entry.kind == Kind::missing) {
+                return now - entry.time < missing_recheck_seconds ? Lookup::missing : Lookup::miss;
+            }
+            {
+                std::ifstream file{path_, std::ios::binary};
+                out.resize(entry.data_len);
+                file.seekg(static_cast<std::streamoff>(entry.data_off));
+                if (!file.read(reinterpret_cast<char*>(out.data()), entry.data_len)) {
+                    out.clear();
+                    return Lookup::miss;
                 }
             }
-            *g_cache_dir = dir;
+            // Refresh the LRU time, at most daily so browsing doesn't grow the file much
+            if (now - entry.time >= touch_interval_seconds) {
+                entry.time = now;
+                append(Kind::touch, key, now, {});
+            }
+            return Lookup::image;
         }
-        return *g_cache_dir;
-    }
 
-    // Level filenames come from demo headers, so only plain filenames name a cache file
-    bool is_cacheable_name(const std::string& level_filename)
-    {
-        return !level_filename.empty() && level_filename.size() <= 64
-            && level_filename.find_first_of("\\/:*?\"<>|") == std::string::npos
-            && level_filename.find("..") == std::string::npos;
-    }
-
-    bool read_file(const std::filesystem::path& path, std::vector<unsigned char>& out)
-    {
-        std::error_code ec;
-        const auto size = std::filesystem::file_size(path, ec);
-        if (ec || size == 0 || size > max_cached_image_size) {
-            return false;
-        }
-        std::ifstream file{path, std::ios::binary};
-        out.resize(static_cast<size_t>(size));
-        if (!file.read(reinterpret_cast<char*>(out.data()), static_cast<std::streamsize>(size))) {
-            out.clear();
-            return false;
-        }
-        return true;
-    }
-
-    // Written under a temporary name and renamed, so an interrupted write never leaves a
-    // truncated file under the real name
-    void write_file(const std::filesystem::path& path, const std::vector<unsigned char>& data)
-    {
-        std::filesystem::path tmp_path = path;
-        tmp_path += ".tmp";
+        void put_image(const std::string& path, const std::string& key, const std::vector<unsigned char>& data)
         {
-            std::ofstream file{tmp_path, std::ios::binary | std::ios::trunc};
-            if (!file.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()))) {
-                xlog::warn("[MapThumb] failed to write {}", tmp_path.string());
+            put(path, Kind::image, key, now_unix(), data);
+        }
+
+        void put_missing(const std::string& path, const std::string& key)
+        {
+            put(path, Kind::missing, key, now_unix(), {});
+        }
+
+        // Drops a level's entry (a marker dated 0 reads as due for a recheck)
+        void forget(const std::string& path, const std::string& key)
+        {
+            put(path, Kind::missing, key, 0, {});
+        }
+
+    private:
+        enum class Kind : uint8_t
+        {
+            image = 1,   // data = the image; time = last used
+            missing = 2, // no data; time = when FactionFiles was asked
+            touch = 3,   // no data; time = last use of the level's image
+        };
+
+        struct Entry
+        {
+            Kind kind = Kind::missing;
+            uint64_t time = 0;
+            uint64_t data_off = 0;
+            uint32_t data_len = 0;
+        };
+
+        static constexpr uint32_t magic = 0x43544641; // "AFTC"
+        static constexpr uint32_t version = 1;
+        static constexpr uint64_t header_size = 8;
+        static constexpr uint64_t record_fixed_size = 1 + 1 + 8 + 4;
+        static constexpr uint64_t missing_recheck_seconds = 7 * 24 * 3600;
+        static constexpr uint64_t touch_interval_seconds = 24 * 3600;
+        // Compaction trims to this fraction of the cap, so it doesn't rerun on every download
+        static constexpr uint64_t compact_target_size = max_cache_size / 4 * 3;
+        // Superseded records are only worth a rewrite once there is this much of them
+        static constexpr uint64_t min_garbage_size = 16 * 1024 * 1024;
+
+        std::mutex mutex_;
+        std::string path_;
+        bool loaded_ = false;
+        uint64_t file_size_ = 0; // end of the last valid record; appends go here
+        std::unordered_map<std::string, Entry> index_;
+
+        static uint64_t now_unix()
+        {
+            return static_cast<uint64_t>(std::time(nullptr));
+        }
+
+        static uint64_t record_size(const std::string& key, uint32_t data_len)
+        {
+            return record_fixed_size + key.size() + data_len;
+        }
+
+        template<typename T>
+        static void put_bytes(std::vector<unsigned char>& buf, const T& value)
+        {
+            const auto* bytes = reinterpret_cast<const unsigned char*>(&value);
+            buf.insert(buf.end(), bytes, bytes + sizeof(T));
+        }
+
+        static std::vector<unsigned char> make_record(Kind kind, const std::string& key, uint64_t time,
+            const std::vector<unsigned char>& data)
+        {
+            std::vector<unsigned char> buf;
+            buf.reserve(record_size(key, static_cast<uint32_t>(data.size())));
+            put_bytes(buf, kind);
+            put_bytes(buf, static_cast<uint8_t>(key.size()));
+            buf.insert(buf.end(), key.begin(), key.end());
+            put_bytes(buf, time);
+            put_bytes(buf, static_cast<uint32_t>(data.size()));
+            buf.insert(buf.end(), data.begin(), data.end());
+            return buf;
+        }
+
+        void apply(Kind kind, const std::string& key, uint64_t time, uint64_t data_off, uint32_t data_len)
+        {
+            if (kind == Kind::touch) {
+                if (auto it = index_.find(key); it != index_.end() && it->second.kind == Kind::image) {
+                    it->second.time = time;
+                }
                 return;
             }
+            index_[key] = {kind, time, data_off, data_len};
         }
-        std::error_code ec;
-        std::filesystem::rename(tmp_path, path, ec);
-        if (ec) {
-            xlog::warn("[MapThumb] failed to write {}: {}", path.string(), ec.message());
-            std::filesystem::remove(tmp_path, ec);
-        }
-    }
 
-    // Deletes the least recently used files until the cache fits max_cache_size. Runs after each
-    // download, on the job threads, so it is serialized.
-    void prune_cache(const std::string& dir)
-    {
-        static std::mutex mutex;
-        const std::lock_guard lock{mutex};
-
-        struct CachedFile
+        // Reads the index; a damaged tail (an interrupted write) is cut off
+        bool ensure_loaded(const std::string& path)
         {
-            std::filesystem::path path;
-            std::filesystem::file_time_type mtime;
-            std::uintmax_t size;
-        };
-        std::vector<CachedFile> files;
-        std::uintmax_t total = 0;
-        std::error_code ec;
-        for (const auto& item : std::filesystem::directory_iterator{dir, ec}) {
-            std::error_code item_ec;
-            if (!item.is_regular_file(item_ec)) {
-                continue;
+            if (loaded_) {
+                return !path_.empty();
             }
-            const auto size = item.file_size(item_ec);
-            const auto mtime = item.last_write_time(item_ec);
-            if (!item_ec) {
-                files.push_back({item.path(), mtime, size});
-                total += size;
+            loaded_ = true;
+            path_ = path;
+            if (path_.empty()) {
+                return false;
             }
+            std::ifstream file{path_, std::ios::binary};
+            if (!file) {
+                return true; // no cache yet; the first append creates it
+            }
+            std::error_code ec;
+            const uint64_t size = std::filesystem::file_size(path_, ec);
+            uint32_t file_magic = 0, file_version = 0;
+            file.read(reinterpret_cast<char*>(&file_magic), 4);
+            file.read(reinterpret_cast<char*>(&file_version), 4);
+            if (ec || !file || file_magic != magic || file_version != version) {
+                xlog::info("[MapThumb] starting a new cache in {}", path_);
+                return true; // file_size_ 0: the first append rewrites the header
+            }
+            uint64_t pos = header_size;
+            while (pos + record_fixed_size <= size) {
+                Kind kind{};
+                uint8_t key_len = 0;
+                uint64_t time = 0;
+                uint32_t data_len = 0;
+                std::string key;
+                file.read(reinterpret_cast<char*>(&kind), 1);
+                file.read(reinterpret_cast<char*>(&key_len), 1);
+                key.resize(key_len);
+                file.read(key.data(), key_len);
+                file.read(reinterpret_cast<char*>(&time), 8);
+                file.read(reinterpret_cast<char*>(&data_len), 4);
+                const bool valid_kind = kind == Kind::image || kind == Kind::missing || kind == Kind::touch;
+                const uint64_t end = pos + record_size(key, data_len);
+                if (!file || !valid_kind || key.empty() || end > size || (kind != Kind::image && data_len != 0)
+                    || data_len > max_cached_image_size) {
+                    break;
+                }
+                apply(kind, key, time, end - data_len, data_len);
+                file.seekg(static_cast<std::streamoff>(end));
+                pos = end;
+            }
+            file.close();
+            file_size_ = pos;
+            if (pos < size) {
+                xlog::warn("[MapThumb] cache {} is damaged past byte {}, discarding the rest", path_, pos);
+                std::filesystem::resize_file(path_, pos, ec);
+            }
+            return true;
         }
-        if (total <= max_cache_size) {
-            return;
-        }
-        std::sort(files.begin(), files.end(), [](const CachedFile& a, const CachedFile& b) { return a.mtime < b.mtime; });
-        for (const CachedFile& file : files) {
-            if (total <= max_cache_size) {
-                break;
-            }
-            if (std::filesystem::remove(file.path, ec)) {
-                total -= file.size;
-            }
-        }
-        xlog::debug("[MapThumb] pruned cache to {} bytes", total);
-    }
 
-    bool is_recent(const std::filesystem::path& path)
+        bool append(Kind kind, const std::string& key, uint64_t time, const std::vector<unsigned char>& data)
+        {
+            if (file_size_ == 0) {
+                std::ofstream file{path_, std::ios::binary | std::ios::trunc};
+                file.write(reinterpret_cast<const char*>(&magic), 4);
+                file.write(reinterpret_cast<const char*>(&version), 4);
+                if (!file) {
+                    return false;
+                }
+                file_size_ = header_size;
+            }
+            const std::vector<unsigned char> record = make_record(kind, key, time, data);
+            std::fstream file{path_, std::ios::binary | std::ios::in | std::ios::out};
+            file.seekp(static_cast<std::streamoff>(file_size_));
+            if (!file.write(reinterpret_cast<const char*>(record.data()), static_cast<std::streamsize>(record.size()))) {
+                xlog::warn("[MapThumb] failed to write cache {}", path_);
+                return false;
+            }
+            const uint64_t data_off = file_size_ + record.size() - data.size();
+            file_size_ += record.size();
+            apply(kind, key, time, data_off, static_cast<uint32_t>(data.size()));
+            return true;
+        }
+
+        void put(const std::string& path, Kind kind, const std::string& key, uint64_t time,
+            const std::vector<unsigned char>& data)
+        {
+            const std::lock_guard lock{mutex_};
+            if (!ensure_loaded(path) || key.empty() || key.size() > 255 || data.size() > max_cached_image_size) {
+                return;
+            }
+            if (!append(kind, key, time, data)) {
+                return;
+            }
+            uint64_t live_size = header_size;
+            for (const auto& [entry_key, entry] : index_) {
+                live_size += record_size(entry_key, entry.data_len);
+            }
+            const bool garbage = file_size_ - live_size >= std::max(min_garbage_size, live_size);
+            if (file_size_ > max_cache_size || garbage) {
+                compact();
+            }
+        }
+
+        // Rewrites the cache with the live entries, most recently used first, dropping images
+        // once compact_target_size is reached and missing markers that are due for a recheck
+        void compact()
+        {
+            std::vector<std::pair<std::string, Entry>> entries{index_.begin(), index_.end()};
+            std::sort(entries.begin(), entries.end(),
+                [](const auto& a, const auto& b) { return a.second.time > b.second.time; });
+
+            const std::string tmp_path = path_ + ".tmp";
+            std::unordered_map<std::string, Entry> new_index;
+            uint64_t new_size = header_size;
+            {
+                std::ifstream src{path_, std::ios::binary};
+                std::ofstream dst{tmp_path, std::ios::binary | std::ios::trunc};
+                dst.write(reinterpret_cast<const char*>(&magic), 4);
+                dst.write(reinterpret_cast<const char*>(&version), 4);
+                const uint64_t now = now_unix();
+                std::vector<unsigned char> data;
+                for (const auto& [key, entry] : entries) {
+                    if (entry.kind == Kind::missing && now - entry.time >= missing_recheck_seconds) {
+                        continue;
+                    }
+                    const uint64_t size = record_size(key, entry.data_len);
+                    if (entry.kind == Kind::image && new_size + size > compact_target_size) {
+                        continue;
+                    }
+                    data.resize(entry.data_len);
+                    src.seekg(static_cast<std::streamoff>(entry.data_off));
+                    if (!src.read(reinterpret_cast<char*>(data.data()), entry.data_len)) {
+                        src.clear();
+                        continue;
+                    }
+                    const std::vector<unsigned char> record = make_record(entry.kind, key, entry.time, data);
+                    dst.write(reinterpret_cast<const char*>(record.data()), static_cast<std::streamsize>(record.size()));
+                    new_index[key] = {entry.kind, entry.time, new_size + size - entry.data_len, entry.data_len};
+                    new_size += size;
+                }
+                if (!dst) {
+                    xlog::warn("[MapThumb] failed to compact cache {}", path_);
+                    dst.close();
+                    std::error_code ec;
+                    std::filesystem::remove(tmp_path, ec);
+                    return;
+                }
+            }
+            std::error_code ec;
+            std::filesystem::rename(tmp_path, path_, ec);
+            if (ec) {
+                xlog::warn("[MapThumb] failed to replace cache {}: {}", path_, ec.message());
+                std::filesystem::remove(tmp_path, ec);
+                return;
+            }
+            xlog::debug("[MapThumb] compacted cache from {} to {} bytes", file_size_, new_size);
+            index_ = std::move(new_index);
+            file_size_ = new_size;
+        }
+    };
+
+    ThumbCache g_cache;
+
+    // <rf_root>\screenshots\thumbnails.cache; "" if the folder can't be created
+    const std::string& cache_path()
     {
-        std::error_code ec;
-        const auto mtime = std::filesystem::last_write_time(path, ec);
-        return !ec && std::filesystem::file_time_type::clock::now() - mtime < missing_recheck_age;
+        if (!g_cache_path) {
+            g_cache_path.emplace();
+            const std::string dir = std::format("{}\\screenshots", rf::root_path);
+            if (!CreateDirectoryA(dir.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) {
+                xlog::warn("[MapThumb] failed to create {}, error {}", dir, GetLastError());
+                return *g_cache_path;
+            }
+            *g_cache_path = dir + "\\thumbnails.cache";
+        }
+        return *g_cache_path;
     }
 
     void run_job(const std::shared_ptr<Job>& job)
     {
-        // The cache holds the image as downloaded (<level>.img), or an empty <level>.none
-        // when FactionFiles has no image for the level
-        const bool use_cache = !job->cache_dir.empty() && is_cacheable_name(job->level_filename);
-        const std::filesystem::path img_path = std::filesystem::path{job->cache_dir} / (job->level_filename + ".img");
-        const std::filesystem::path none_path = std::filesystem::path{job->cache_dir} / (job->level_filename + ".none");
+        const std::string& path = job->cache_path;
+        const std::string& key = job->level_filename;
         bool from_cache = !job->encoded.empty();
         try {
-            if (job->encoded.empty() && use_cache) {
-                if (read_file(img_path, job->encoded)) {
-                    from_cache = true;
-                    std::error_code ec;
-                    std::filesystem::last_write_time(img_path, std::filesystem::file_time_type::clock::now(), ec);
-                }
-                else {
-                    from_cache = is_recent(none_path);
-                }
+            if (!from_cache) {
+                from_cache = g_cache.get(path, key, job->encoded) != ThumbCache::Lookup::miss;
             }
             if (!from_cache) {
-                bool missing = false;
                 try {
                     FactionFilesClient client;
-                    const auto info = client.find_map(job->level_filename.c_str());
-                    missing = !info || info->image_url.empty();
-                    if (!missing) {
+                    const auto info = client.find_map(key.c_str());
+                    if (info && !info->image_url.empty()) {
                         job->encoded = client.fetch_image(info->image_url);
+                        if (!job->encoded.empty()) {
+                            g_cache.put_image(path, key, job->encoded);
+                        }
+                    }
+                    else {
+                        g_cache.put_missing(path, key);
                     }
                 }
                 catch (const std::exception& e) {
                     // find_map throws on a 404 for levels FactionFiles doesn't have; any other
                     // failure is left uncached so the next session tries again
-                    missing = std::string_view{e.what()}.find("404") != std::string_view::npos;
-                    xlog::debug("[MapThumb] no image for {}: {}", job->level_filename, e.what());
-                }
-                if (use_cache && !job->encoded.empty()) {
-                    write_file(img_path, job->encoded);
-                    prune_cache(job->cache_dir);
-                }
-                else if (use_cache && missing) {
-                    write_file(none_path, {});
+                    if (std::string_view{e.what()}.find("404") != std::string_view::npos) {
+                        g_cache.put_missing(path, key);
+                    }
+                    xlog::debug("[MapThumb] no image for {}: {}", key, e.what());
                 }
             }
             if (!job->encoded.empty()) {
                 decode_downscaled(*job);
-                if (job->argb.empty() && from_cache && use_cache) {
-                    // Undecodable cached file: drop it so the next session downloads it again
-                    std::error_code ec;
-                    std::filesystem::remove(img_path, ec);
+                if (job->argb.empty() && from_cache) {
+                    // Undecodable cached image: drop it so the next session downloads it again
+                    g_cache.forget(path, key);
                 }
             }
         }
         catch (const std::exception& e) {
-            xlog::warn("[MapThumb] failed to load image for {}: {}", job->level_filename, e.what());
+            xlog::warn("[MapThumb] failed to load image for {}: {}", key, e.what());
         }
         job->done.store(true, std::memory_order_release);
     }
@@ -333,7 +520,7 @@ namespace
             thumb.state = Thumb::State::loading;
             auto job = std::make_shared<Job>();
             job->level_filename = key;
-            job->cache_dir = cache_dir();
+            job->cache_path = cache_path();
             job->generation = g_generation;
             job->encoded = std::move(thumb.encoded);
             // Detached so a slow request never blocks the game; the job is shared with the thread
