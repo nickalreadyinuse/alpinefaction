@@ -6,6 +6,7 @@
 #include <format>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string_view>
 #include <thread>
@@ -34,6 +35,8 @@ namespace
     constexpr std::uintmax_t max_cached_image_size = 8 * 1024 * 1024;
     // A level FactionFiles didn't have is asked about again after this long, in case it was added
     constexpr auto missing_recheck_age = std::chrono::hours{24 * 7};
+    // Least recently used images are deleted past this; a cache hit refreshes the file's mtime
+    constexpr std::uintmax_t max_cache_size = 512ull * 1024 * 1024;
 
     struct Job
     {
@@ -176,6 +179,49 @@ namespace
         }
     }
 
+    // Deletes the least recently used files until the cache fits max_cache_size. Runs after each
+    // download, on the job threads, so it is serialized.
+    void prune_cache(const std::string& dir)
+    {
+        static std::mutex mutex;
+        const std::lock_guard lock{mutex};
+
+        struct CachedFile
+        {
+            std::filesystem::path path;
+            std::filesystem::file_time_type mtime;
+            std::uintmax_t size;
+        };
+        std::vector<CachedFile> files;
+        std::uintmax_t total = 0;
+        std::error_code ec;
+        for (const auto& item : std::filesystem::directory_iterator{dir, ec}) {
+            std::error_code item_ec;
+            if (!item.is_regular_file(item_ec)) {
+                continue;
+            }
+            const auto size = item.file_size(item_ec);
+            const auto mtime = item.last_write_time(item_ec);
+            if (!item_ec) {
+                files.push_back({item.path(), mtime, size});
+                total += size;
+            }
+        }
+        if (total <= max_cache_size) {
+            return;
+        }
+        std::sort(files.begin(), files.end(), [](const CachedFile& a, const CachedFile& b) { return a.mtime < b.mtime; });
+        for (const CachedFile& file : files) {
+            if (total <= max_cache_size) {
+                break;
+            }
+            if (std::filesystem::remove(file.path, ec)) {
+                total -= file.size;
+            }
+        }
+        xlog::debug("[MapThumb] pruned cache to {} bytes", total);
+    }
+
     bool is_recent(const std::filesystem::path& path)
     {
         std::error_code ec;
@@ -193,7 +239,14 @@ namespace
         bool from_cache = !job->encoded.empty();
         try {
             if (job->encoded.empty() && use_cache) {
-                from_cache = read_file(img_path, job->encoded) || is_recent(none_path);
+                if (read_file(img_path, job->encoded)) {
+                    from_cache = true;
+                    std::error_code ec;
+                    std::filesystem::last_write_time(img_path, std::filesystem::file_time_type::clock::now(), ec);
+                }
+                else {
+                    from_cache = is_recent(none_path);
+                }
             }
             if (!from_cache) {
                 bool missing = false;
@@ -213,6 +266,7 @@ namespace
                 }
                 if (use_cache && !job->encoded.empty()) {
                     write_file(img_path, job->encoded);
+                    prune_cache(job->cache_dir);
                 }
                 else if (use_cache && missing) {
                     write_file(none_path, {});
