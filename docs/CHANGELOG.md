@@ -171,6 +171,8 @@ Version 1.5.0 (Trillium): Not yet released
 - During a match, only `Surrender`, `Cancel Match` and `Extend` votes can be called, only players in the match can call or vote in them, and players who don't vote count as no
 - Never treat players as idle during a match, or during the ready-up phase once they have readied up
 - Add `Join Bots` mutator, which adds 1-8 server bots at a chosen skill for the level, or fills a match's open slots once the other players are ready
+- Add `$Fpgun Override` to `af_client.tbl` to replace the first person weapon model and arm textures per multiplayer character and weapon
+- Don't load Alpine Faction `af_*.tbl` option files from packfiles in `user_maps`
 
 [@nickalreadyinuse](https://github.com/nickalreadyinuse)
 - Add `ui_color_console` console command to set the console background color
