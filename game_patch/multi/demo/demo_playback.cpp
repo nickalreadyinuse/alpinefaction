@@ -786,6 +786,7 @@ namespace
             rf::timer::dec_game_paused();
             rf::snd_pause(false);
         }
+        snd_set_global_pitch(1.0f);
         seek_restore_audio(); // teardown can arrive mid-seek
         seek_coalesce_reset();
         demo_powerup_timers_reset();
@@ -1104,6 +1105,14 @@ namespace
             rf::snd_pause(false);
             rebase_interp_clocks_after_freeze();
         }
+    }
+
+    // Sounds play at the timescale's rate, so looping sounds (weapon fire, engines) keep pace with
+    // the world sim and everything else is pitched with it. Menus opened from Esc play at normal
+    // rate (playback is paused behind them anyway).
+    void sound_pitch_update()
+    {
+        snd_set_global_pitch(g_ctx.state == PlaybackState::playing && !esc_menu_open() ? g_ctx.timescale : 1.0f);
     }
 
     rf::Entity* freelook_camera_entity()
@@ -2105,6 +2114,7 @@ void demo_playback_do_frame()
     // After the settle check so a settle that ends this frame re-freezes this frame
     esc_menu_pause_update();
     pause_fx_update();
+    sound_pitch_update();
 
     switch (g_ctx.state) {
     case PlaybackState::joining:

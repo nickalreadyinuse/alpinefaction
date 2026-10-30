@@ -714,24 +714,35 @@ bool snd_instance_is_playing(int instance_handle)
         && rf::snd_pc_is_playing(instance.sig);
 }
 
-void snd_instance_set_pitch(int instance_handle, float ratio)
+static int snd_instance_ds_channel(int instance_handle)
 {
     if (rf::sound_backend != rf::SOUND_BACKEND_DS || !snd_instance_is_playing(instance_handle)) {
-        return;
+        return -1;
     }
-    const int chnl = rf::snd_ds_get_channel(rf::sound_instances[static_cast<uint8_t>(instance_handle)].sig);
-    if (chnl < 0) {
-        return;
+    return rf::snd_ds_get_channel(rf::sound_instances[static_cast<uint8_t>(instance_handle)].sig);
+}
+
+void snd_instance_set_pitch(int instance_handle, float ratio)
+{
+    const int chnl = snd_instance_ds_channel(instance_handle);
+    if (chnl >= 0) {
+        snd_ds_set_channel_pitch(chnl, ratio);
     }
-    IDirectSoundBuffer* buffer = rf::ds_channels[chnl].pdsb;
-    // Room for a WAVEFORMATEXTENSIBLE: GetFormat fails rather than truncate.
-    alignas(WAVEFORMATEX) BYTE format[64]{};
-    if (!buffer || FAILED(buffer->GetFormat(reinterpret_cast<WAVEFORMATEX*>(format), sizeof(format), nullptr))) {
-        return;
+}
+
+void snd_instance_ignore_global_pitch(int instance_handle)
+{
+    const int chnl = snd_instance_ds_channel(instance_handle);
+    if (chnl >= 0) {
+        snd_ds_set_channel_unscaled(chnl);
     }
-    const float freq = reinterpret_cast<const WAVEFORMATEX*>(format)->nSamplesPerSec * ratio;
-    buffer->SetFrequency(static_cast<DWORD>(std::clamp(freq, static_cast<float>(DSBFREQUENCY_MIN),
-                                                       static_cast<float>(DSBFREQUENCY_MAX))));
+}
+
+void snd_set_global_pitch(float scale)
+{
+    if (rf::sound_backend == rf::SOUND_BACKEND_DS) {
+        snd_ds_set_global_pitch(scale);
+    }
 }
 
 void gamesound_parse_custom_sounds() 

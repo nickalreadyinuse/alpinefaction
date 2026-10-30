@@ -297,7 +297,7 @@ std::string format_time_ms(double time_ms)
 
 void play_click_sound()
 {
-    rf::snd_play(stock_sound_id::panel_button_click, 0, 0.0f, 1.0f);
+    snd_instance_ignore_global_pitch(rf::snd_play(stock_sound_id::panel_button_click, 0, 0.0f, 1.0f));
 }
 
 // Next speed step up (up) or down from the current speed, wrapping back to normal speed
@@ -403,7 +403,7 @@ void open(bool play_sound = true)
     g_dragging = false;
     gameplay_overlay_apply_mouse(true);
     if (play_sound) {
-        rf::snd_play(stock_sound_id::menu_select, 0, 0.0f, 1.0f);
+        snd_instance_ignore_global_pitch(rf::snd_play(stock_sound_id::menu_select, 0, 0.0f, 1.0f));
     }
 }
 

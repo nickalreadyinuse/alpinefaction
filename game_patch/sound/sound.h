@@ -33,6 +33,14 @@ bool snd_instance_is_playing(int instance_handle);
 int snd_play_3d_looping(int handle, const rf::Vector3& pos, float volume, int group);
 // Plays a playing instance at ratio times its recorded rate (DirectSound only).
 void snd_instance_set_pitch(int instance_handle, float ratio);
+// Scales the rate (pitch and speed) of every playing and future sound on top of its own pitch (DirectSound only),
+// except music and instances excluded with snd_instance_ignore_global_pitch. 1 restores normal rates.
+void snd_set_global_pitch(float scale);
+void snd_instance_ignore_global_pitch(int instance_handle);
+// sound_ds.cpp: the per-channel side of the above
+void snd_ds_set_channel_pitch(int channel, float ratio);
+void snd_ds_set_channel_unscaled(int channel);
+void snd_ds_set_global_pitch(float scale);
 int play_local_sound_2d(uint16_t sound_id, int group, float volume);
 void play_local_sound_3d(uint16_t sound_id, rf::Vector3 pos, int group, float volume);
 void play_chat_sound(std::string_view msg, bool is_taunt);

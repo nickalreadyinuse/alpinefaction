@@ -6,6 +6,7 @@
 #include <stb_vorbis.h>
 #include <algorithm>
 #include <cstring>
+#include "sound.h"
 #include "../rf/sound/sound.h"
 #include "../rf/sound/sound_ds.h"
 #include "../rf/crt.h"
@@ -194,11 +195,72 @@ CodeInjection snd_ds_init_device_leave_injection{
     },
 };
 
+// Playback rate of each channel: the ratio snd_instance_set_pitch asked for, times the global pitch scale unless the
+// channel is music or was excluded from it
+static float g_ds_global_pitch = 1.0f;
+static float g_ds_channel_pitch[std::size(rf::ds_channels)];
+static bool g_ds_channel_unscaled[std::size(rf::ds_channels)];
+
+static void ds_apply_channel_pitch(int channel)
+{
+    IDirectSoundBuffer* buffer = rf::ds_channels[channel].pdsb;
+    if (!buffer) {
+        return;
+    }
+    const float ratio = g_ds_channel_pitch[channel] * (g_ds_channel_unscaled[channel] ? 1.0f : g_ds_global_pitch);
+    if (ratio == 1.0f) {
+        buffer->SetFrequency(DSBFREQUENCY_ORIGINAL);
+        return;
+    }
+    // Room for a WAVEFORMATEXTENSIBLE: GetFormat fails rather than truncate.
+    alignas(WAVEFORMATEX) BYTE format[64]{};
+    if (FAILED(buffer->GetFormat(reinterpret_cast<WAVEFORMATEX*>(format), sizeof(format), nullptr))) {
+        return;
+    }
+    const float freq = reinterpret_cast<const WAVEFORMATEX*>(format)->nSamplesPerSec * ratio;
+    buffer->SetFrequency(static_cast<DWORD>(std::clamp(freq, static_cast<float>(DSBFREQUENCY_MIN),
+                                                       static_cast<float>(DSBFREQUENCY_MAX))));
+}
+
+void snd_ds_set_channel_pitch(int channel, float ratio)
+{
+    g_ds_channel_pitch[channel] = ratio;
+    ds_apply_channel_pitch(channel);
+}
+
+void snd_ds_set_channel_unscaled(int channel)
+{
+    if (!g_ds_channel_unscaled[channel]) {
+        g_ds_channel_unscaled[channel] = true;
+        ds_apply_channel_pitch(channel);
+    }
+}
+
+void snd_ds_set_global_pitch(float scale)
+{
+    if (scale == g_ds_global_pitch) {
+        return;
+    }
+    g_ds_global_pitch = scale;
+    for (int i = 0; i < static_cast<int>(std::size(rf::ds_channels)); ++i) {
+        if (!g_ds_channel_unscaled[i]) {
+            ds_apply_channel_pitch(i);
+        }
+    }
+}
+
+// Runs once the new sound is playing on the channel
 static void ds_populate_new_sig(int channel)
 {
     static auto sig_counter = 1;
     rf::ds_channels[channel].sig = 0x40000000 | (sig_counter << 8) | channel;
     sig_counter = (sig_counter + 1) % 0x10000;
+
+    g_ds_channel_pitch[channel] = 1.0f;
+    g_ds_channel_unscaled[channel] = (rf::ds_channels[channel].flags & rf::SCHF_MUSIC) != 0;
+    if (g_ds_global_pitch != 1.0f && !g_ds_channel_unscaled[channel]) {
+        ds_apply_channel_pitch(channel);
+    }
 }
 
 static CodeInjection snd_ds_play_sig_generation_patch{
