@@ -133,6 +133,11 @@ bool demo_playback_is_seeking();
 bool demo_playback_in_seek_burst();
 // Current playback position (>= 0). Only meaningful while playback is active.
 double demo_playback_clock_ms();
+// Clock (ms) the ObjInterp rings advance and stamp sample arrivals by, in place of the wall
+// timer: the keyframes they play back are stamped in demo time, so on the wall timer remote
+// entities race through each keyframe gap below 1x and stall on the newest one. Demo time
+// while playback is active (monotonic, holds while paused), timer::get_i64(1000) otherwise.
+int64_t demo_playback_interp_clock_ms();
 // Total demo length, or 0 when unknown (footerless file - grows as records stream in).
 uint32_t demo_playback_duration_ms();
 bool demo_playback_paused();

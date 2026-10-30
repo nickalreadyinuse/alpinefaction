@@ -113,6 +113,10 @@ namespace
         DemoRecord pending;
         bool has_pending = false;
         double clock_ms = 0.0;
+        // The interp rings' clock (demo_playback_interp_clock_ms): clock_ms accumulated
+        // monotonically, so it follows the timescale and holds while paused
+        double interp_clock_ms = 0.0;
+        double interp_clock_seen_ms = 0.0; // clock_ms when interp_clock_ms last caught up
         float timescale = 1.0f;
         bool paused = false;
         // The Esc menu paused playback, so closing it resumes
@@ -794,6 +798,8 @@ namespace
         g_ctx.state = PlaybackState::inactive;
         g_ctx.has_pending = false;
         g_ctx.clock_ms = 0.0;
+        g_ctx.interp_clock_ms = 0.0;
+        g_ctx.interp_clock_seen_ms = 0.0;
         g_ctx.timescale = 1.0f;
         g_ctx.paused = false;
         g_ctx.esc_menu_paused = false;
@@ -1022,33 +1028,6 @@ namespace
         }
     }
 
-    // The interp rings run on wall-clock time, which the pause freeze cannot stop:
-    // the per-frame advance (multi_obj_interp_update @ 0x00483BE0) steps interp_time
-    // by the timer delta since frame_time_us (timer_get(1000) ms as patched by
-    // obj_interp_too_fast_fix), and sample insertion (ObjInterp::set_next_pos_orient
-    // @ 0x00483360) records the timer_get(1000) gap since last_update_time into
-    // arrive_time_diff - whose 20-entry average is the physics-extrapolation step
-    // and re-anchor headroom for every later sample. The freeze stops the sim and
-    // the packet feed but not the wall clock, so after a long pause the first fed
-    // obj_update would log the whole pause as one arrival gap, polluting the average
-    // (and with it the spline endpoint prediction) until it leaves the ring ~20
-    // samples later - every remote player jerks around for that stretch. Stamping
-    // the per-ring clocks to "now" on unfreeze makes the pause invisible to both
-    // consumers; interp_time and the recorded keyframes are untouched, so playback
-    // resumes exactly where it stopped.
-    void rebase_interp_clocks_after_freeze()
-    {
-        const auto now_ms = static_cast<uint32_t>(timer::get_i64(1000));
-        for (rf::Object* obj = rf::object_list.next_obj; obj != &rf::object_list; obj = obj->next_obj) {
-            if (rf::ObjInterp* interp = obj->obj_interp) {
-                interp->frame_time_us = now_ms;
-                if (interp->last_update_time != static_cast<uint32_t>(-1)) { // -1 = no sample yet (Clear)
-                    interp->last_update_time = now_ms;
-                }
-            }
-        }
-    }
-
     // Esc pushes the main menu over gameplay; menus it opens (options, ...) stack on top
     bool esc_menu_open()
     {
@@ -1103,7 +1082,6 @@ namespace
         else {
             rf::timer::dec_game_paused();
             rf::snd_pause(false);
-            rebase_interp_clocks_after_freeze();
         }
     }
 
@@ -1933,6 +1911,16 @@ bool demo_playback_in_seek_burst()
 double demo_playback_clock_ms()
 {
     return std::max(g_ctx.clock_ms, 0.0);
+}
+
+int64_t demo_playback_interp_clock_ms()
+{
+    if (g_ctx.state == PlaybackState::inactive) {
+        return timer::get_i64(1000);
+    }
+    g_ctx.interp_clock_ms += std::max(g_ctx.clock_ms - g_ctx.interp_clock_seen_ms, 0.0);
+    g_ctx.interp_clock_seen_ms = g_ctx.clock_ms;
+    return static_cast<int64_t>(g_ctx.interp_clock_ms);
 }
 
 uint32_t demo_playback_duration_ms()
