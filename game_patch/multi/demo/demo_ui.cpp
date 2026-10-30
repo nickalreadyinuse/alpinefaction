@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "demo.h"
+#include "demo_internal.h"
 #include "demo_ui.h"
 #include "../awards.h"
 #include "../../misc/vote_panel.h"
@@ -16,6 +17,7 @@
 #include "../../input/control_input_filter.h"
 #include "../../input/input.h"
 #include "../../misc/alpine_settings.h"
+#include "../../os/console.h"
 #include "../../sound/sound.h"
 #include "../../rf/gameseq.h"
 #include "../../rf/gr/gr.h"
@@ -169,6 +171,13 @@ bool nameplate_arrows_shown(bool expanded)
         && (expanded || !g_alpine_game_config.spectate_mode_minimal_ui);
 }
 
+// Minimal compact bar (spectate_minimalbar): compact, the panel is just the stock plaque
+// around the nameplate text, with no progress line.
+bool minimal_compact(bool expanded)
+{
+    return !expanded && g_alpine_game_config.demo_minimal_compact_bar;
+}
+
 // Reference-resolution scaling, like the other Alpine overlays.
 constexpr float ref_width = 1280.0f;
 constexpr float ref_height = 800.0f;
@@ -188,6 +197,10 @@ Layout compute_layout(bool expanded, const PanelLabels& labels)
         const int clear_w = rf::gr::clip_width() - 2 * (hints_right + scaled(12.0f));
         lay.strip.w = std::min(lay.strip.w, std::max(clear_w, scaled(360.0f)));
     }
+    const bool minimal = minimal_compact(expanded);
+    if (const int plaque_w = multi_spectate_nameplate_row_width(); minimal && plaque_w > 0) {
+        lay.strip.w = plaque_w;
+    }
     lay.strip.x = (rf::gr::clip_width() - lay.strip.w) / 2;
     // The nameplate row takes the stock plaque's spot at the bottom of the screen
     lay.nameplate = {lay.strip.x, multi_spectate_nameplate_top_y(), lay.strip.w, multi_spectate_nameplate_height()};
@@ -200,8 +213,13 @@ Layout compute_layout(bool expanded, const PanelLabels& labels)
     const int btn_row_y = award_row_bottom + scaled(6.0f);
     const int btn_h = scaled(28.0f);
     const int keycap_gap = scaled(4.0f);
-    const int controls_h = expanded ? btn_row_y + btn_h + keycap_gap + keycap_h() + scaled(8.0f)
-                                    : std::max(3, scaled(4.0f));
+    int controls_h = 0;
+    if (expanded) {
+        controls_h = btn_row_y + btn_h + keycap_gap + keycap_h() + scaled(8.0f);
+    }
+    else if (!minimal) {
+        controls_h = std::max(3, scaled(4.0f)); // the progress line
+    }
     lay.strip.y = lay.nameplate.y - controls_h;
     lay.strip.h = controls_h + lay.nameplate.h;
 
@@ -211,8 +229,15 @@ Layout compute_layout(bool expanded, const PanelLabels& labels)
     };
     const int prev_w = arrow_w(prev_caption, labels.prev_bind);
     const int next_w = arrow_w(next_caption, labels.next_bind);
-    lay.btn_prev = {lay.nameplate.x, lay.nameplate.y, prev_w, lay.nameplate.h};
-    lay.btn_next = {lay.nameplate.x + lay.nameplate.w - next_w, lay.nameplate.y, next_w, lay.nameplate.h};
+    if (minimal) {
+        // The plaque only fits its text, so the arrows flank it like the stock hints
+        lay.btn_prev = {lay.nameplate.x - prev_w, lay.nameplate.y, prev_w, lay.nameplate.h};
+        lay.btn_next = {lay.nameplate.x + lay.nameplate.w, lay.nameplate.y, next_w, lay.nameplate.h};
+    }
+    else {
+        lay.btn_prev = {lay.nameplate.x, lay.nameplate.y, prev_w, lay.nameplate.h};
+        lay.btn_next = {lay.nameplate.x + lay.nameplate.w - next_w, lay.nameplate.y, next_w, lay.nameplate.h};
+    }
 
     if (!expanded) {
         lay.track = {lay.strip.x, lay.strip.y, lay.strip.w, controls_h};
@@ -838,6 +863,17 @@ void draw_transport_button(const Rect& rect, TransportIcon icon, const std::stri
 }
 
 // Keycap over caption, centered in the arrow's slot at the nameplate row's edge
+ConsoleCommand2 spectate_minimalbar_cmd{
+    "spectate_minimalbar",
+    []() {
+        g_alpine_game_config.demo_minimal_compact_bar = !g_alpine_game_config.demo_minimal_compact_bar;
+        rf::console::print("Minimal compact demo bar is {}",
+                           g_alpine_game_config.demo_minimal_compact_bar ? "enabled" : "disabled");
+    },
+    "Toggle shrinking the compact demo playback bar to the plain spectate nameplate (no progress line)",
+    "spectate_minimalbar",
+};
+
 void draw_nameplate_arrow(const Rect& rect, const std::string& bind, const char* caption, bool hovered)
 {
     const int font = hud_get_small_font();
@@ -855,6 +891,11 @@ void draw_nameplate_arrow(const Rect& rect, const std::string& bind, const char*
 }
 
 } // namespace
+
+void demo_controls_ui_do_patch()
+{
+    spectate_minimalbar_cmd.register_cmd();
+}
 
 bool demo_controls_ui_is_open()
 {
@@ -1140,7 +1181,7 @@ void demo_controls_ui_render()
         rf::gr::set_color(90, 90, 90, 255);
         rf::gr::rect(lay.strip.x + 1, lay.nameplate.y, lay.strip.w - 2, 1);
     }
-    else {
+    else if (!minimal_compact(expanded)) {
         // Progress line across the top edge
         const double progress = std::clamp(demo_playback_clock_ms() / effective_duration_ms(), 0.0, 1.0);
         rf::gr::set_color(0, 0x80, 0, 255);

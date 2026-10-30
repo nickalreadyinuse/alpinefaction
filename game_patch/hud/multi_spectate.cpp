@@ -2572,11 +2572,11 @@ int multi_spectate_nameplate_height()
     return spectate_name_plaque_height();
 }
 
-void multi_spectate_render_nameplate_row(int center_x, int top_y)
+// The nameplate row's text for the current camera, or nullopt when there is nothing to name
+static std::optional<SpectatePlaqueText> nameplate_row_text()
 {
     const bool minimal = g_alpine_game_config.spectate_mode_minimal_ui;
     SpectatePlaqueText text;
-    rf::Entity* entity = nullptr;
     if (multi_spectate_is_static()) {
         text.label = minimal ? "Spectating" : "Spectating - " + spectate_static_camera_label();
         text.title = "Static Camera";
@@ -2587,10 +2587,32 @@ void multi_spectate_render_nameplate_row(int center_x, int top_y)
     }
     else if (g_spectate_mode_enabled && g_spectate_mode_target) {
         text = spectate_target_plaque_text(minimal ? "Spectating:" : "Spectating - " + spectate_view_label());
-        entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
     }
     else {
+        return std::nullopt;
+    }
+    return text;
+}
+
+int multi_spectate_nameplate_row_width()
+{
+    const auto text = nameplate_row_text();
+    if (!text) {
+        return 0;
+    }
+    return std::min(spectate_plaque_text_width(*text) + spectate_plaque_padding_x() * 2, rf::gr::screen_width() - 20);
+}
+
+void multi_spectate_render_nameplate_row(int center_x, int top_y)
+{
+    const auto row_text = nameplate_row_text();
+    if (!row_text) {
         return;
+    }
+    const SpectatePlaqueText& text = *row_text;
+    rf::Entity* entity = nullptr;
+    if (!multi_spectate_is_static() && !multi_spectate_is_freelook()) {
+        entity = rf::entity_from_handle(g_spectate_mode_target->entity_handle);
     }
     draw_spectate_plaque_text(text, center_x, top_y);
     const int text_left = center_x - spectate_plaque_text_width(text) / 2 - spectate_plaque_padding_x();

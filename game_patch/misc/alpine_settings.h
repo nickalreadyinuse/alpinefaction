@@ -102,6 +102,7 @@ struct AlpineGameSettings
     bool world_hud_demo_player_info = false;
     bool world_hud_demo_spawns = false;
     bool demo_powerup_timers = true;
+    bool demo_minimal_compact_bar = false;
     bool world_hud_team_player_labels = false;
     bool show_location_pings = true;
     bool play_hit_sounds = true;

@@ -10,7 +10,8 @@
 // player in first person the scrubber carries clickable markers at their kills, powerup
 // pickups, flag events and awards (hover names the award). The viewer's own custom
 // marker shows in every camera and seeks exactly to its moment. Compact, it is the
-// nameplate under a progress line.
+// nameplate under a progress line, or with spectate_minimalbar just the stock-sized
+// nameplate.
 // Expanded by default (except in free look and third-person orbit, which need the
 // mouse); the player's USE key switches between the two and is swallowed for the
 // whole playback session. Clicks on the expanded panel are swallowed; clicks

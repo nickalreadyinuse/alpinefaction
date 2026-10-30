@@ -560,6 +560,7 @@ static const ChatMenuList spectate_demo_overlays_menu{
         {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Player healthbars", "spectate_playerinfo"},
         {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Powerup timers", "spectate_powerups"},
         {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Spawn points", "spectate_spawns"},
+        {false, ChatMenuListName::Null, ChatMenuListType::DemoPlayback, "Minimal compact bar", "spectate_minimalbar"},
     }
 };
 
