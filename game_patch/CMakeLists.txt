@@ -213,6 +213,8 @@ set(SRCS
     multi/saved_info.cpp
     multi/saved_info.h
     multi/level_download.cpp
+    multi/map_thumbnails.h
+    multi/map_thumbnails.cpp
     multi/server.h
     multi/server.cpp
     multi/votes.cpp
