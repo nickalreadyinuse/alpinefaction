@@ -174,8 +174,9 @@ void demo_powerup_timers_render();
 // Called after every processed item_update packet, the only channel through which a
 // spectator learns about level-item pickups/respawns.
 void demo_powerup_timers_on_item_update();
-// Full-screen "SEEKING..." overlay with progress; called from after_frame_render_hook
-// (the world render - including the HUD - is skipped while seeking).
+// Full-screen "SEEKING..." overlay with progress over the frame frozen when the seek was
+// requested; called from after_frame_render_hook (the world render - including the HUD - is
+// skipped while seeking). The backward-seek restart's menus and loading screen are covered too.
 void demo_playback_render_seek_overlay();
 // Seek bar markers for a player's moments.
 enum class DemoMarkerKind : uint8_t

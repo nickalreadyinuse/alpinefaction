@@ -12,6 +12,7 @@
 #include <common/rfproto.h>
 #include <common/utils/list-utils.h>
 #include <xlog/xlog.h>
+#include <patch_common/AsmWriter.h>
 #include <patch_common/CallHook.h>
 #include <patch_common/FunHook.h>
 #include "demo.h"
@@ -41,6 +42,7 @@
 #include "../../rf/vmesh.h"
 #include "../../rf/geometry.h"
 #include "../../graphics/gr.h"
+#include "../../bmpman/bmpman.h"
 #include "../../rf/ui.h"
 #include "../../rf/sound/sound.h"
 #include "../../sound/sound.h"
@@ -147,6 +149,8 @@ namespace
         bool seek_obj_update_seen = false;
         int64_t seek_settle_deadline = 0; // wall-clock cap for the settle window
         bool seek_audio_muted = false;
+        // Session started by a backward-seek restart whose fast-forward has not begun yet
+        bool seek_restarting = false;
         // Demo clock at which each entity (by handle) last started a reload, plus the
         // game-time deadlines armed at that moment. Lets a seek that lands mid-reload
         // resume the reload at the right offset instead of dropping it.
@@ -224,6 +228,80 @@ namespace
         rf::Vector3 cam_free_eye_phb;
     };
     std::optional<PendingRestart> g_pending_restart;
+
+    // From a backward seek's request until the restarted session begins its fast-forward. The
+    // restart passes through the menus, the level load and the state info wait, which the seek
+    // overlay covers.
+    bool seek_restarting()
+    {
+        if (g_pending_restart) {
+            return true;
+        }
+        return g_ctx.seek_restarting && g_ctx.pending_seek_ms >= 0.0
+            && g_ctx.state != PlaybackState::inactive && g_ctx.state != PlaybackState::finished;
+    }
+
+    bool seek_overlay_active()
+    {
+        // A forward seek waits for the pump to begin; cover that frame too
+        const bool forward_pending = g_ctx.pending_seek_ms >= 0.0 && g_ctx.state == PlaybackState::playing
+            && rf::gameseq_in_gameplay();
+        return demo_playback_is_seeking() || seek_restarting() || forward_pending;
+    }
+
+    // The last frame before a seek, frozen behind the seek overlay until the seek settles
+    int g_seek_snapshot_bm = -1;
+
+    void seek_snapshot_release()
+    {
+        if (g_seek_snapshot_bm != -1) {
+            // bm::release does not evict the D3D11 slot-keyed texture cache
+            rf::gr::mark_texture_dirty(g_seek_snapshot_bm);
+            rf::bm::release(g_seek_snapshot_bm);
+            g_seek_snapshot_bm = -1;
+        }
+    }
+
+    void seek_snapshot_capture()
+    {
+        const int w = rf::gr::screen_width();
+        const int h = rf::gr::screen_height();
+        std::vector<uint8_t> pixels(static_cast<size_t>(w) * h * 4);
+        const auto format = static_cast<rf::bm::Format>(rf::gr::read_backbuffer(0, 0, w, h, pixels.data()));
+        if (format != rf::bm::FORMAT_8888_ARGB && format != rf::bm::FORMAT_888_RGB
+            && format != rf::bm::FORMAT_565_RGB) {
+            return;
+        }
+        const int bm = rf::bm::create(rf::bm::FORMAT_8888_ARGB, w, h);
+        if (bm == -1) {
+            return;
+        }
+        rf::gr::LockInfo lock;
+        if (!rf::gr::lock(bm, 0, &lock, rf::gr::LOCK_WRITE_ONLY)) {
+            rf::bm::release(bm);
+            return;
+        }
+        const bool converted = bm_convert_format(lock.data, lock.format, pixels.data(), format, w, h,
+                                                 lock.stride_in_bytes, w * bm_bytes_per_pixel(format));
+        if (converted && lock.format == rf::bm::FORMAT_8888_ARGB) {
+            // The back buffer's alpha is not meaningful
+            for (int y = 0; y < h; ++y) {
+                uint8_t* row = lock.data + y * lock.stride_in_bytes;
+                for (int x = 0; x < w; ++x) {
+                    row[x * 4 + 3] = 0xFF;
+                }
+            }
+        }
+        rf::gr::unlock(&lock);
+        if (!converted) {
+            rf::gr::mark_texture_dirty(bm);
+            rf::bm::release(bm);
+            return;
+        }
+        // Keep it resident through the restart's level load
+        rf::bm::texture_add_ref(bm);
+        g_seek_snapshot_bm = bm;
+    }
 
     // Kills come from the recorded kill_info: the stock obj_kill names entities, not players.
     // Suicides and world deaths are not kills. Awards come from their earner-tagged demo form,
@@ -730,6 +808,7 @@ namespace
         g_ctx.seek_settle = false;
         g_ctx.seek_obj_update_seen = false;
         g_ctx.seek_settle_deadline = 0;
+        g_ctx.seek_restarting = false;
         g_ctx.reload_starts.clear();
         g_ctx.cam_want_attached = true;
         g_ctx.cam_third_person = false;
@@ -1282,6 +1361,7 @@ namespace
         }
         g_ctx.seek_target_ms = target_ms;
         g_ctx.seek_settle = false;
+        g_ctx.seek_restarting = false;
     }
 
     void seek_finish()
@@ -2231,40 +2311,95 @@ static void render_seek_progress_bar(int x, int y, int w, int h, float progress)
     }
 }
 
-void demo_playback_render_seek_overlay()
+static void draw_seek_overlay()
 {
-    if (rf::is_dedicated_server || !demo_playback_is_seeking())
-        return;
-
     const int scr_w = rf::gr::screen_width();
     const int scr_h = rf::gr::screen_height();
 
-    // The world render is skipped while seeking, so the backbuffer holds stale data -
-    // cover the whole frame
-    rf::gr::set_color(0, 0, 0, 255);
+    // The world render is skipped while seeking (and the backward-seek restart shows menus
+    // and the loading screen), so cover the whole frame with the frozen pre-seek frame
+    if (g_seek_snapshot_bm != -1) {
+        int bm_w = 0;
+        int bm_h = 0;
+        rf::bm::get_dimensions(g_seek_snapshot_bm, &bm_w, &bm_h);
+        rf::gr::set_color(255, 255, 255, 255);
+        rf::gr::bitmap_scaled(g_seek_snapshot_bm, 0, 0, scr_w, scr_h, 0, 0, bm_w, bm_h, false, false,
+                              rf::gr::bitmap_clamp_mode);
+        rf::gr::set_color(0, 0, 0, 160);
+    }
+    else {
+        rf::gr::set_color(0, 0, 0, 255);
+    }
     rf::gr::rect(0, 0, scr_w, scr_h);
 
     rf::gr::set_color(255, 255, 255, 255);
     const int title_y = scr_h / 2 - static_cast<int>(40.0f * rf::ui::scale_y);
     rf::gr::string_aligned(rf::gr::ALIGN_CENTER, scr_w / 2, title_y, "SEEKING...", rf::ui::large_font);
 
-    const bool settling = g_ctx.seek_target_ms < 0.0; // target reached, waiting for fresh updates
-    const double target_ms = settling ? g_ctx.clock_ms : g_ctx.seek_target_ms;
-    const auto clock = static_cast<uint32_t>(std::max(g_ctx.clock_ms, 0.0));
+    // Before the fast-forward begins (a forward seek's first frame, or the whole backward-seek
+    // restart) the target is still pending; once it is reached, the settle window waits for
+    // fresh updates
+    const bool bursting = g_ctx.seek_target_ms >= 0.0;
+    const bool restarting = seek_restarting();
+    double target_ms = g_ctx.clock_ms;
+    if (g_pending_restart) {
+        target_ms = g_pending_restart->seek_ms;
+    }
+    else if (bursting) {
+        target_ms = g_ctx.seek_target_ms;
+    }
+    else if (g_ctx.pending_seek_ms >= 0.0) {
+        target_ms = g_ctx.pending_seek_ms;
+    }
+    const auto clock = static_cast<uint32_t>(restarting ? 0.0 : std::max(g_ctx.clock_ms, 0.0));
     const auto target = static_cast<uint32_t>(std::max(target_ms, 0.0));
     std::string time_text = std::format("{}:{:02} / {}:{:02}", clock / 60000, clock / 1000 % 60, target / 60000,
                                         target / 1000 % 60);
     rf::gr::string_aligned(rf::gr::ALIGN_CENTER, scr_w / 2, scr_h / 2, time_text.c_str(), hud_get_default_font());
 
-    float progress = 1.0f; // full during settle
-    if (!settling) {
+    float progress = 0.0f;
+    if (bursting) {
         const double span = std::max(1.0, g_ctx.seek_target_ms - g_ctx.seek_start_ms);
         progress = static_cast<float>(std::clamp((g_ctx.clock_ms - g_ctx.seek_start_ms) / span, 0.0, 1.0));
+    }
+    else if (g_ctx.seek_settle) {
+        progress = 1.0f;
     }
     const int bar_w = scr_w / 3;
     const int bar_h = std::max(10, static_cast<int>(12.0f * rf::ui::scale_y));
     const int bar_y = scr_h / 2 + static_cast<int>(30.0f * rf::ui::scale_y);
     render_seek_progress_bar((scr_w - bar_w) / 2, bar_y, bar_w, bar_h, progress);
+}
+
+void demo_playback_render_seek_overlay()
+{
+    if (rf::is_dedicated_server)
+        return;
+    if (!seek_overlay_active()) {
+        seek_snapshot_release();
+        return;
+    }
+    // The seek was requested this frame and the world is still on screen: freeze it. Only from
+    // the gameplay the seek left - later frames are seek or restart frames with nothing rendered.
+    if (g_seek_snapshot_bm == -1 && !demo_playback_is_seeking() && !g_ctx.seek_restarting
+        && (g_ctx.state == PlaybackState::playing || g_ctx.state == PlaybackState::finished)
+        && rf::gameseq_in_gameplay()) {
+        seek_snapshot_capture();
+    }
+    draw_seek_overlay();
+}
+
+// Tail of game_flip (0x004355F0, after the cursor): every frame of the backward-seek restart's
+// menus, loading screen and state info wait is presented here, so cover each with the seek
+// overlay instead of only the frames after_frame_render_hook draws (it skips the non-visible
+// states, and the loading screen is drawn after it)
+static void game_flip_tail()
+{
+    if (seek_restarting()) {
+        rf::gr::reset_clip(); // a menu may have left its clip set
+        draw_seek_overlay();
+    }
+    AddrCaller{0x0050CE20}.c_call(); // gr_flip
 }
 
 void demo_playback_on_state_init(int state)
@@ -2283,6 +2418,7 @@ void demo_playback_on_state_init(int state)
     const PendingRestart restart = *g_pending_restart;
     g_pending_restart.reset();
     if (demo_play_start(restart.path, restart.seek_ms, true, restart.extent)) {
+        g_ctx.seek_restarting = true;
         g_ctx.timescale = restart.timescale;
         g_ctx.paused = restart.paused;
         g_ctx.cam_want_attached = restart.cam_want_attached;
@@ -2356,6 +2492,7 @@ void demo_playback_do_patch()
     game_time_add_delta_hook.install();
     vmesh_process_hook.install();
     entity_reload_current_primary_demo_hook.install();
+    AsmWriter{0x00435607}.jmp(game_flip_tail); // game_flip: jmp gr_flip
 
     demo_play_cmd.register_cmd();
     demo_stop_cmd.register_cmd();
