@@ -177,16 +177,18 @@ Version 1.5.0 (Trillium): Not yet released
 - Render animated (`.vfx`) meshes on the GPU with per-pixel lighting, and apply their materials' reflection maps (Direct3D 11 renderer only)
 - Load levels with very large face counts or many level sounds much faster
 - Add Discord rich presence (`cl_discord_presence`) showing the server, gametype, map, team scores, match status, player count and time left in multiplayer, and the level, difficulty and mod in single player, with a `Join server` button for public, password-free servers (`cl_discord_join_button`)
-- Add chat, HUD, cinema mode, player outline, and outline x-ray toggles to the spectate options menu, and group its demo playback overlays into a submenu
-- Add `cl_cinema` console command to toggle cinema mode, which hides the HUD except for the reticle and kill feed
+- Add HUD, player outline, and outline x-ray toggles to the spectate options menu, and group its demo playback overlays into a submenu
+- Add a HUD elements submenu to the spectate options menu to show or hide each HUD element individually (health and armor, weapon and ammo, reticle, powerups, jetpack fuel, target names, kill feed, chat, time left, scores, messages, minimap)
+- Add `cl_hudelement` console command to show, hide, or list individual HUD elements
 - Keep chat menus and the chat input box visible while the HUD is hidden
 - Add `r_outlines_spectator_xray` console command to toggle showing player outlines through walls while spectating
-- Mark the followed player's kills, awards, CTF flag steals and captures, and Damage Amplifier, Invulnerability, and Fusion pickups on the demo playback scrubber while spectating in first person; click a marker to jump to just before it
+- Mark the followed player's kills, awards, CTF flag steals and captures, and Damage Amplifier, Invulnerability, and Fusion pickups on the demo playback scrubber while spectating in first person; click a marker to jump to just before it; hovering an award marker names the award
   - Pickup markers require demos recorded by an Alpine Faction 1.5 server
 - Seek within demos faster
 - Merge the demo playback controls and the spectate nameplate into one panel at the bottom of the screen
   - Expanded by default (except in free look and orbit camera), with the seek and pause buttons showing their shortcuts and clickable previous/next arrows; Use compacts it to the nameplate under a progress line
   - Clicking outside the panel still cycles the spectated player, and the spectate control hints stay visible
+- Set a custom marker on the demo playback scrubber with the Ready For Match key or the panel's marker button; click it or press the Call Vote Menu key to jump back to that moment
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`

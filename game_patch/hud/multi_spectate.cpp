@@ -1453,7 +1453,7 @@ void multi_spectate_on_destroy_player(rf::Player* player)
 FunHook<void(rf::Player*)> render_reticle_hook{
     0x0043A2C0,
     [](rf::Player* player) {
-        if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO)
+        if (rf::gameseq_get_state() == rf::GS_MULTI_LIMBO || !hud_element_visible(HudElement::reticle))
             return;
         if (spectate_first_person_render_active())
             render_reticle_hook.call_target(g_spectate_mode_target);
@@ -2372,6 +2372,8 @@ struct DemoPlaybackHintBinds
     std::string rewind;
     std::string forward;
     std::string pause;
+    std::string mark;
+    std::string jump;
 };
 
 // Appends the demo playback control hints (demo controls popup + its keyboard
@@ -2387,15 +2389,24 @@ static int append_demo_playback_hints(std::pair<const char*, const char*>* hints
     binds.forward = get_action_bind_name(
         get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO)).c_str();
     binds.pause = get_action_bind_name(rf::ControlConfigAction::CC_ACTION_RELOAD).c_str();
+    binds.mark = get_action_bind_name(
+        get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY)).c_str();
+    binds.jump = get_action_bind_name(
+        get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU)).c_str();
     if (demo_controls_ui_is_open()) {
-        // The expanded panel's buttons show the other shortcuts
+        // The expanded panel's buttons show the other shortcuts, but jumping to the
+        // custom marker has no button
         hints[nh++] = {binds.popup.c_str(), "Compact Demo Controls"};
-        return nh;
     }
-    hints[nh++] = {binds.popup.c_str(), "Expand Demo Controls"};
-    hints[nh++] = {binds.rewind.c_str(), "Rewind 10s"};
-    hints[nh++] = {binds.forward.c_str(), "Forward 10s"};
-    hints[nh++] = {binds.pause.c_str(), "Pause / Resume"};
+    else {
+        hints[nh++] = {binds.popup.c_str(), "Expand Demo Controls"};
+        hints[nh++] = {binds.rewind.c_str(), "Rewind 10s"};
+        hints[nh++] = {binds.forward.c_str(), "Forward 10s"};
+        hints[nh++] = {binds.pause.c_str(), "Pause / Resume"};
+        hints[nh++] = {binds.mark.c_str(), "Set Marker"};
+    }
+    if (demo_controls_ui_has_custom_marker())
+        hints[nh++] = {binds.jump.c_str(), "Jump to Marker"};
     return nh;
 }
 

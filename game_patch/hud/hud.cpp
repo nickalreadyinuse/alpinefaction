@@ -1,4 +1,6 @@
+#include <array>
 #include <cassert>
+#include <common/utils/string-utils.h>
 #include <patch_common/FunHook.h>
 #include <patch_common/CallHook.h>
 #include <patch_common/AsmWriter.h>
@@ -8,7 +10,6 @@
 #include "../misc/vote_panel.h"
 #include "../multi/demo/demo.h"
 #include "../multi/jetpack.h"
-#include "../multi/mutators.h"
 #include "../multi/vehicles/vehicle_view.h"
 #include "minimap.h"
 #include "multi_scoreboard.h"
@@ -27,7 +28,56 @@
 #include "../rf/gameseq.h"
 
 int g_target_player_name_font = -1;
-static bool g_cinema_mode = false;
+
+namespace
+{
+struct HudElementInfo
+{
+    const char* name; // cl_hudelement argument
+    const char* label;
+};
+
+constexpr std::array<HudElementInfo, hud_element_count> hud_element_info{{
+    {"health", "Health & armor"},
+    {"ammo", "Weapon & ammo"},
+    {"reticle", "Reticle"},
+    {"powerups", "Powerups"},
+    {"gauges", "Jetpack fuel"},
+    {"names", "Target names"},
+    {"killfeed", "Kill feed"},
+    {"chat", "Chat"},
+    {"timer", "Time left"},
+    {"scores", "Scores"},
+    {"messages", "Messages"},
+    {"minimap", "Minimap"},
+}};
+
+// Indexed by HudElement; chat lives in g_alpine_game_config.hide_chat instead
+std::array<bool, hud_element_count> g_hud_element_hidden{};
+} // namespace
+
+bool hud_element_visible(HudElement element)
+{
+    if (element == HudElement::chat) {
+        return !g_alpine_game_config.hide_chat;
+    }
+    return !g_hud_element_hidden[static_cast<int>(element)];
+}
+
+void hud_element_set_visible(HudElement element, bool visible)
+{
+    if (element == HudElement::chat) {
+        g_alpine_game_config.hide_chat = !visible;
+    }
+    else {
+        g_hud_element_hidden[static_cast<int>(element)] = !visible;
+    }
+}
+
+const char* hud_element_label(HudElement element)
+{
+    return hud_element_info[static_cast<int>(element)].label;
+}
 
 int hud_transform_value(int val, int old_max, int new_max)
 {
@@ -62,7 +112,6 @@ rf::HudPoint hud_scale_coords(rf::HudPoint pt, float scale)
 bool is_hud_effectively_hidden()
 {
     return rf::hud_disabled
-        || g_cinema_mode
         || (g_alpine_game_config.spectate_cinematic_mode && multi_spectate_is_freelook());
 }
 
@@ -80,10 +129,6 @@ FunHook<void()> hud_render_for_multi_hook{
             }
             if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
                 multi_hud_render_chat_menu();
-                // Cinema mode keeps the reticle, and the critical hit flash is drawn over it.
-                if (g_cinema_mode && !rf::hud_disabled) {
-                    crits_client_render_reticle_flash();
-                }
             }
         }
     },
@@ -100,13 +145,49 @@ ConsoleCommand2 hud_cmd{
     "Show and hide HUD",
 };
 
-ConsoleCommand2 cinema_mode_cmd{
-    "cl_cinema",
-    []() {
-        g_cinema_mode = !g_cinema_mode;
-        rf::console::print("Cinema mode is {}", g_cinema_mode ? "enabled" : "disabled");
+ConsoleCommand2 hud_element_cmd{
+    "cl_hudelement",
+    [](std::optional<std::string> name, std::optional<bool> visible) {
+        const auto print_state = [](HudElement element) {
+            rf::console::print("{} is {}", hud_element_label(element),
+                hud_element_visible(element) ? "shown" : "hidden");
+        };
+        if (!name) {
+            for (int i = 0; i < hud_element_count; ++i) {
+                rf::console::print("{}: {}", hud_element_info[i].name,
+                    hud_element_visible(static_cast<HudElement>(i)) ? "shown" : "hidden");
+            }
+            return;
+        }
+        if (string_iequals(*name, "all")) {
+            for (int i = 0; i < hud_element_count; ++i) {
+                hud_element_set_visible(static_cast<HudElement>(i), visible.value_or(true));
+            }
+            rf::console::print("All HUD elements are {}", visible.value_or(true) ? "shown" : "hidden");
+            return;
+        }
+        for (int i = 0; i < hud_element_count; ++i) {
+            if (string_iequals(*name, hud_element_info[i].name)) {
+                const auto element = static_cast<HudElement>(i);
+                hud_element_set_visible(element, visible.value_or(!hud_element_visible(element)));
+                print_state(element);
+                return;
+            }
+        }
+        rf::console::print("Unknown HUD element: {}. Run cl_hudelement without arguments to list them.", *name);
     },
-    "Toggle cinema mode, hiding the HUD except for the reticle and kill feed",
+    "Show or hide a HUD element (toggles without a value), all of them, or list them",
+    "cl_hudelement [element|all] [bool]",
+};
+
+// Active powerup icons
+FunHook<void()> multi_powerup_render_hook{
+    0x0047FEC0,
+    []() {
+        if (hud_element_visible(HudElement::powerups)) {
+            multi_powerup_render_hook.call_target();
+        }
+    },
 };
 
 ConsoleCommand2 spectate_cinematic_mode_cmd{
@@ -480,18 +561,6 @@ CallHook hud_msg_render_gr_get_font_height_hook{
     },
 };
 
-static void hud_render_multi_scoreboard()
-{
-    auto& cc = rf::local_player->settings.controls;
-    bool scoreboard_control_pressed = rf::control_config_check_pressed(&cc, rf::CC_ACTION_MP_STATS, nullptr);
-    bool is_player_dead = rf::player_is_dead(rf::local_player) || rf::player_is_dying(rf::local_player);
-    bool limbo = rf::gameseq_get_state() == rf::GS_MULTI_LIMBO;
-    bool show_scoreboard = scoreboard_control_pressed || (!multi_spectate_is_spectating() && is_player_dead) || limbo;
-
-    scoreboard_maybe_render(show_scoreboard && !g_remote_server_cfg_popup.is_active()
-        && !vote_panel_is_gameplay_overlay_active());
-}
-
 void hud_render_00437BC0()
 {
     // Single player jetpack HUD. Multiplayer draws it from multi_hud_render.
@@ -507,7 +576,7 @@ void hud_render_00437BC0()
     multi_spectate_render();
     vehicle_render_control_hints();
 
-    if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
+    if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO && hud_element_visible(HudElement::killfeed)) {
         multi_hud_render_killfeed();
     }
 
@@ -517,7 +586,14 @@ void hud_render_00437BC0()
     // Powerup respawn timers during demo playback
     demo_powerup_timers_render();
 
-    hud_render_multi_scoreboard();
+    auto& cc = rf::local_player->settings.controls;
+    bool scoreboard_control_pressed = rf::control_config_check_pressed(&cc, rf::CC_ACTION_MP_STATS, nullptr);
+    bool is_player_dead = rf::player_is_dead(rf::local_player) || rf::player_is_dying(rf::local_player);
+    bool limbo = rf::gameseq_get_state() == rf::GS_MULTI_LIMBO;
+    bool show_scoreboard = scoreboard_control_pressed || (!multi_spectate_is_spectating() && is_player_dead) || limbo;
+
+    scoreboard_maybe_render(show_scoreboard && !g_remote_server_cfg_popup.is_active()
+        && !vote_panel_is_gameplay_overlay_active());
 
     minimap_render();
 }
@@ -525,19 +601,16 @@ void hud_render_00437BC0()
 FunHook<void(rf::Player*)> hud_render_hook{
     0x00437BA0,
     [](rf::Player* player) {
-        if (!g_cinema_mode) {
-            hud_render_hook.call_target(player);
-            return;
-        }
-        // Cinema mode: of hud_render's items only the kill feed and the scoreboard remain (the reticle
-        // is drawn outside hud_render).
-        if (rf::hud_disabled || !player->settings.show_hud || !rf::is_multi || !rf::local_player) {
-            return;
-        }
-        if (rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
-            multi_hud_render_killfeed();
-        }
-        hud_render_multi_scoreboard();
+        // hud_render gates the ammo and status panels on these player settings, so clear them
+        // for the call to hide those elements
+        auto& settings = player->settings;
+        const bool show_ammo = settings.show_hud_ammo;
+        const bool show_status = settings.show_hud_status;
+        settings.show_hud_ammo = show_ammo && hud_element_visible(HudElement::ammo);
+        settings.show_hud_status = show_status && hud_element_visible(HudElement::health);
+        hud_render_hook.call_target(player);
+        settings.show_hud_ammo = show_ammo;
+        settings.show_hud_status = show_status;
     },
 };
 
@@ -551,7 +624,8 @@ void hud_apply_patches()
     hud_cmd.register_cmd();
     spectate_cinematic_mode_cmd.register_cmd();
     hud_render_hook.install();
-    cinema_mode_cmd.register_cmd();
+    hud_element_cmd.register_cmd();
+    multi_powerup_render_hook.install();
 
     // Add some init code
     hud_init_hook.install();

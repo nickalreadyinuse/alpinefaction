@@ -87,6 +87,7 @@ namespace
         uint32_t t_ms;
         uint8_t player_id;
         DemoMarkerKind kind;
+        uint8_t award_id = 0; // award marks only
     };
 
     struct LeaveMark
@@ -236,8 +237,10 @@ namespace
                     marks.events.push_back({seq, rec.t_ms, payload.killer_player_id, DemoMarkerKind::kill});
             }
             else if (req_type == af_server_req_type::af_sreq_award && len >= 4 + sizeof(AwardPayload) + 1) {
+                AwardPayload payload;
+                std::memcpy(&payload, data + 4, sizeof(payload));
                 const uint8_t earner_id = data[4 + sizeof(AwardPayload)];
-                marks.events.push_back({seq, rec.t_ms, earner_id, DemoMarkerKind::award});
+                marks.events.push_back({seq, rec.t_ms, earner_id, DemoMarkerKind::award, payload.award_id});
             }
             else if (req_type == af_server_req_type::af_sreq_demo_item_pickup && len >= 6) {
                 std::optional<DemoMarkerKind> kind;
@@ -1877,7 +1880,7 @@ std::vector<DemoPlayerMarker> demo_playback_player_markers(int player_id)
     const auto [stay_begin, stay_end] = player_current_stay(player_id);
     for (const auto& event : g_ctx.marks.events) {
         if (event.player_id == player_id && event.seq >= stay_begin && event.seq < stay_end)
-            markers.push_back({event.t_ms, event.kind});
+            markers.push_back({event.t_ms, event.kind, event.award_id});
     }
     return markers;
 }

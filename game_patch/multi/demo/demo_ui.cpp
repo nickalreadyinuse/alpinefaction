@@ -7,6 +7,7 @@
 #include <vector>
 #include "demo.h"
 #include "demo_ui.h"
+#include "../awards.h"
 #include "../../misc/vote_panel.h"
 #include "../../hud/hud.h"
 #include "../../hud/hud_internal.h"
@@ -48,6 +49,10 @@ int g_reopen_cursor_y = 0;
 // pass through.
 int g_swallow_attack_frames = 0;
 bool g_veto_registered = false;
+// The viewer's own seek bar marker, set with the Ready bind or the panel's marker button,
+// jumped to with the Vote Menu bind or a click on it.
+// Survives the backward-seek session restart like g_compact; cleared once playback ends.
+std::optional<uint32_t> g_custom_marker_ms;
 
 struct Rect
 {
@@ -72,6 +77,7 @@ struct Layout
     Rect btn_back;  // -10s
     Rect btn_pause; // play/pause
     Rect btn_fwd;   // +10s
+    Rect btn_mark;  // set the custom marker
     Rect btn_prev;  // nameplate row, left: previous player / camera
     Rect btn_next;  // nameplate row, right: next player / camera
     int keycap_y;     // transport binds, under their buttons
@@ -87,6 +93,8 @@ struct PanelLabels
     std::string back_bind;
     std::string pause_bind;
     std::string fwd_bind;
+    std::string mark_bind;
+    std::string jump_bind;
     std::string prev_bind;
     std::string next_bind;
 };
@@ -103,6 +111,8 @@ PanelLabels panel_labels()
         bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES)),
         bind_name(rf::CC_ACTION_RELOAD),
         bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO)),
+        bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY)),
+        bind_name(get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU)),
         bind_name(rf::CC_ACTION_SECONDARY_ATTACK),
         bind_name(rf::CC_ACTION_PRIMARY_ATTACK),
     };
@@ -205,16 +215,19 @@ Layout compute_layout(bool expanded, const PanelLabels& labels)
     const int pad = scaled(6.0f);
     lay.track_hit = {lay.track.x - pad, lay.track.y - pad, lay.track.w + 2 * pad, lay.track.h + 2 * pad};
 
-    // Media-player cluster: skip back, play/pause, skip forward, wide enough for their keycaps
+    // Media-player cluster: skip back, play/pause, skip forward, then set marker set apart, wide
+    // enough for their keycaps
     const int skip_w = std::max({scaled(56.0f), keycap_w(labels.back_bind), keycap_w(labels.fwd_bind)});
     const int pause_w = std::max(scaled(44.0f), keycap_w(labels.pause_bind));
+    const int mark_w = std::max(scaled(44.0f), keycap_w(labels.mark_bind));
     const int gap = scaled(8.0f);
-    const int row_w = 2 * skip_w + pause_w + 2 * gap;
+    const int row_w = 2 * skip_w + pause_w + mark_w + 4 * gap;
     const int row_x = lay.strip.x + (lay.strip.w - row_w) / 2;
     const int row_y = lay.strip.y + btn_row_y;
     lay.btn_back = {row_x, row_y, skip_w, btn_h};
     lay.btn_pause = {lay.btn_back.x + skip_w + gap, row_y, pause_w, btn_h};
     lay.btn_fwd = {lay.btn_pause.x + pause_w + gap, row_y, skip_w, btn_h};
+    lay.btn_mark = {lay.btn_fwd.x + skip_w + 2 * gap, row_y, mark_w, btn_h};
     lay.keycap_y = row_y + btn_h + keycap_gap;
 
     lay.dot_r = dot_r;
@@ -245,6 +258,13 @@ std::string format_time_ms(double time_ms)
 void play_click_sound()
 {
     rf::snd_play(stock_sound_id::panel_button_click, 0, 0.0f, 1.0f);
+}
+
+// Replaces any earlier custom marker
+void set_custom_marker()
+{
+    play_click_sound();
+    g_custom_marker_ms = static_cast<uint32_t>(demo_playback_clock_ms());
 }
 
 void decay_attack_swallow()
@@ -371,6 +391,7 @@ void auto_open_do_frame()
     else if (!demo_playback_restart_pending()) {
         g_compact = false;
         g_reopen_cursor_valid = false;
+        g_custom_marker_ms.reset();
     }
 }
 
@@ -391,41 +412,58 @@ struct ButtonStyle
 
 // Markers for the player spectated in first person: a tick on the track at each kill,
 // powerup pickup dots and flag squares (hollow when taken, filled when captured) above it,
-// and award dots below. Clicking one seeks to just before it.
+// and award dots below. Clicking one seeks to just before it. The custom marker, a pennant
+// on a pole across all rows, shows in every camera and seeks exactly to it.
 struct Marker
 {
     int x; // center
     uint32_t t_ms;
     DemoMarkerKind kind;
-    int flag_team; // flag markers: team whose flag it is (0 red, 1 blue)
+    int flag_team;    // flag markers: team whose flag it is (0 red, 1 blue)
+    uint8_t award_id; // award markers: the AwardId earned
 };
 
 // Rewind ahead of the moment so the lead-up plays instead of landing on it.
 constexpr double marker_seek_lead_ms = 2000.0;
 
-std::vector<Marker> player_markers(const Rect& track)
+int marker_x(uint32_t t_ms, const Rect& track)
+{
+    const double pos = std::clamp(t_ms / effective_duration_ms(), 0.0, 1.0);
+    return track.x + static_cast<int>(pos * track.w);
+}
+
+std::vector<Marker> panel_markers(const Rect& track)
 {
     std::vector<Marker> markers;
-    if (!multi_spectate_is_first_person()) {
-        return markers;
+    const rf::Player* target = multi_spectate_is_first_person() ? multi_spectate_get_target_player() : nullptr;
+    if (target && target != rf::local_player && target->net_data) {
+        // A player only ever takes or captures the other team's flag
+        const int flag_team = target->team == 0 ? 1 : 0;
+        for (const auto& marker : demo_playback_player_markers(target->net_data->player_id)) {
+            markers.push_back({marker_x(marker.t_ms, track), marker.t_ms, marker.kind, flag_team, marker.award_id});
+        }
     }
-    const rf::Player* target = multi_spectate_get_target_player();
-    if (!target || target == rf::local_player || !target->net_data) {
-        return markers;
-    }
-    const double duration_ms = effective_duration_ms();
-    // A player only ever takes or captures the other team's flag
-    const int flag_team = target->team == 0 ? 1 : 0;
-    for (const auto& marker : demo_playback_player_markers(target->net_data->player_id)) {
-        const double pos = std::clamp(marker.t_ms / duration_ms, 0.0, 1.0);
-        markers.push_back({track.x + static_cast<int>(pos * track.w), marker.t_ms, marker.kind, flag_team});
+    // Last, so it draws over the player's markers
+    if (g_custom_marker_ms) {
+        markers.push_back({marker_x(*g_custom_marker_ms, track), *g_custom_marker_ms, DemoMarkerKind::custom, 0, 0});
     }
     return markers;
 }
 
 bool marker_is_dot(const Marker& marker)
 {
-    return marker.kind != DemoMarkerKind::kill;
+    return marker.kind != DemoMarkerKind::kill && marker.kind != DemoMarkerKind::custom;
+}
+
+// The custom marker's pole spans the pickup row to the award row
+int custom_marker_top(const Layout& lay)
+{
+    return lay.pickup_dot_y - lay.dot_r;
+}
+
+int custom_marker_bottom(const Layout& lay)
+{
+    return lay.award_dot_y + lay.dot_r + 1;
 }
 
 int marker_dot_y(const Marker& marker, const Layout& lay)
@@ -442,9 +480,16 @@ const Marker* hovered_marker(const std::vector<Marker>& markers, int mx, int my,
     const Marker* best = nullptr;
     for (const auto& marker : markers) {
         const int dist = std::abs(marker.x - mx);
-        const bool in_reach = marker_is_dot(marker)
-            ? dist <= dot_reach && std::abs(marker_dot_y(marker, lay) - my) <= dot_reach
-            : dist <= tick_reach && point_in(mx, my, lay.track_hit);
+        bool in_reach = false;
+        if (marker.kind == DemoMarkerKind::custom) {
+            in_reach = dist <= tick_reach && my >= custom_marker_top(lay) - 2 && my < custom_marker_bottom(lay) + 2;
+        }
+        else if (marker_is_dot(marker)) {
+            in_reach = dist <= dot_reach && std::abs(marker_dot_y(marker, lay) - my) <= dot_reach;
+        }
+        else {
+            in_reach = dist <= tick_reach && point_in(mx, my, lay.track_hit);
+        }
         if (in_reach && (!best || dist < std::abs(best->x - mx))) {
             best = &marker;
         }
@@ -559,12 +604,15 @@ void set_marker_color(const Marker& marker)
             rf::gr::set_color(80, 140, 255, 255);
         }
         break;
+    case DemoMarkerKind::custom:
+        rf::gr::set_color(255, 64, 160, 255);
+        break;
     }
 }
 
-const char* marker_label(DemoMarkerKind kind)
+std::string marker_label(const Marker& marker)
 {
-    switch (kind) {
+    switch (marker.kind) {
     case DemoMarkerKind::kill:
         return "Kill";
     case DemoMarkerKind::damage_amp:
@@ -574,13 +622,38 @@ const char* marker_label(DemoMarkerKind kind)
     case DemoMarkerKind::fusion:
         return "Fusion";
     case DemoMarkerKind::award:
+        // An id from a newer build than this one has no name here
+        if (const char* name = award_name(marker.award_id)) {
+            return std::format("Award: {}", name);
+        }
         return "Award";
     case DemoMarkerKind::flag_taken:
         return "Flag Taken";
     case DemoMarkerKind::flag_captured:
         return "Flag Capture";
+    case DemoMarkerKind::custom:
+        return "Marker";
     }
     return "";
+}
+
+// Filled triangle pointing left or right, spanning rows cy - half_h to cy + half_h; x is
+// its left edge
+void fill_arrow_triangle(int x, int cy, int half_h, int len, bool left)
+{
+    const float center_y = cy + 0.5f;
+    const float half = half_h + 0.5f;
+    fill_shape_aa(center_y - half, center_y + half, [=](float y) {
+        const float w = len * (1.0f - std::abs(y - center_y) / half);
+        return left ? std::pair{x + len - w, static_cast<float>(x + len)} : std::pair{static_cast<float>(x), x + w};
+    });
+}
+
+// Pole from top to bottom (exclusive) at x, with a right-pointing pennant at its top
+void draw_pennant(int x, int top, int bottom, int pole_w, int half_h)
+{
+    rf::gr::rect(x, top, pole_w, bottom - top);
+    fill_arrow_triangle(x + pole_w, top + half_h, half_h, half_h * 2, false);
 }
 
 void draw_markers(const std::vector<Marker>& markers, const Marker* hovered, const Layout& lay)
@@ -594,7 +667,12 @@ void draw_markers(const std::vector<Marker>& markers, const Marker* hovered, con
         else {
             set_marker_color(marker);
         }
-        if (marker_is_flag(marker)) {
+        if (marker.kind == DemoMarkerKind::custom) {
+            const int pole_w = std::max(2, tick_w);
+            draw_pennant(marker.x - pole_w / 2, custom_marker_top(lay), custom_marker_bottom(lay), pole_w,
+                         lay.dot_r);
+        }
+        else if (marker_is_flag(marker)) {
             const int size = 2 * lay.dot_r + 1;
             const int x = marker.x - lay.dot_r;
             const int y = lay.pickup_dot_y - lay.dot_r;
@@ -633,6 +711,7 @@ enum class TransportIcon
     play,
     pause,
     skip_forward,
+    set_marker,
 };
 
 const char* transport_tooltip(TransportIcon icon)
@@ -646,20 +725,10 @@ const char* transport_tooltip(TransportIcon icon)
         return "Pause";
     case TransportIcon::skip_forward:
         return "Forward 10 seconds";
+    case TransportIcon::set_marker:
+        return g_custom_marker_ms ? "Move marker here" : "Set marker here";
     }
     return "";
-}
-
-// Filled triangle pointing left or right, spanning rows cy - half_h to cy + half_h; x is
-// its left edge
-void fill_arrow_triangle(int x, int cy, int half_h, int len, bool left)
-{
-    const float center_y = cy + 0.5f;
-    const float half = half_h + 0.5f;
-    fill_shape_aa(center_y - half, center_y + half, [=](float y) {
-        const float w = len * (1.0f - std::abs(y - center_y) / half);
-        return left ? std::pair{x + len - w, static_cast<float>(x + len)} : std::pair{static_cast<float>(x), x + w};
-    });
 }
 
 // Flat icon button with its keycap centered underneath
@@ -700,6 +769,15 @@ void draw_transport_button(const Rect& rect, TransportIcon icon, const std::stri
         fill_arrow_triangle(x + len, cy, half_h, len, icon == TransportIcon::skip_back);
         break;
     }
+    case TransportIcon::set_marker: {
+        // The custom marker's pennant, in its color
+        const int pole_w = std::max(2, half_h / 3);
+        if (style.enabled) {
+            rf::gr::set_color(255, style.hovered ? 120 : 64, style.hovered ? 200 : 160, 255);
+        }
+        draw_pennant(cx - half_h / 2, cy - half_h, cy + half_h + 1, pole_w, half_h / 2);
+        break;
+    }
     }
 
     if (style.enabled) {
@@ -731,6 +809,11 @@ bool demo_controls_ui_is_open()
     return g_open;
 }
 
+bool demo_controls_ui_has_custom_marker()
+{
+    return g_custom_marker_ms.has_value();
+}
+
 void demo_controls_ui_close()
 {
     if (!g_open) {
@@ -753,6 +836,8 @@ bool demo_controls_ui_execute_action(rf::ControlConfigAction action, bool was_pr
     // weapon bindings), so no switch here.
     const bool rewind = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_YES);
     const bool forward = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_NO);
+    const bool mark = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_READY);
+    const bool jump = action == get_af_control(rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU);
     if (action == rf::CC_ACTION_USE) {
         if (was_pressed) {
             if (g_open) {
@@ -773,6 +858,21 @@ bool demo_controls_ui_execute_action(rf::ControlConfigAction action, bool was_pr
         if (was_pressed && demo_playback_can_seek() && !demo_playback_is_seeking()) {
             play_click_sound();
             demo_playback_request_seek(demo_playback_clock_ms() + (rewind ? -10000.0 : 10000.0));
+        }
+    }
+    else if (mark) {
+        // Keyboard shortcut for the popup's marker button. There is no match to ready up
+        // for during playback, so the Ready key is free for reuse.
+        if (was_pressed && demo_playback_can_seek() && !demo_playback_is_seeking()) {
+            set_custom_marker();
+        }
+    }
+    else if (jump) {
+        // Jumps exactly to the custom marker, like clicking it. Voting does not exist
+        // during playback, so the Vote Menu key is free for reuse.
+        if (was_pressed && g_custom_marker_ms && demo_playback_can_seek() && !demo_playback_is_seeking()) {
+            play_click_sound();
+            demo_playback_request_seek(*g_custom_marker_ms);
         }
     }
     else if (action == rf::CC_ACTION_RELOAD) {
@@ -842,10 +942,11 @@ void demo_controls_ui_input()
         return;
     }
     // hovered_marker points into this vector, so it must outlive the seek below
-    const auto markers = player_markers(lay.track);
+    const auto markers = panel_markers(lay.track);
     if (const Marker* marker = hovered_marker(markers, mx, my, lay)) {
         play_click_sound();
-        demo_playback_request_seek(marker->t_ms - marker_seek_lead_ms);
+        const double lead_ms = marker->kind == DemoMarkerKind::custom ? 0.0 : marker_seek_lead_ms;
+        demo_playback_request_seek(marker->t_ms - lead_ms);
     }
     else if (point_in(mx, my, lay.track_hit)) {
         g_dragging = true;
@@ -862,6 +963,9 @@ void demo_controls_ui_input()
     else if (point_in(mx, my, lay.btn_fwd)) {
         play_click_sound();
         demo_playback_request_seek(demo_playback_clock_ms() + 10000.0);
+    }
+    else if (point_in(mx, my, lay.btn_mark)) {
+        set_custom_marker();
     }
     else if (nameplate_arrows_shown(true) && point_in(mx, my, lay.btn_prev)) {
         play_click_sound();
@@ -922,7 +1026,7 @@ void demo_controls_ui_render()
         rf::gr::rect(lay.track.x, lay.track.y, lay.track.w, lay.track.h);
         rf::gr::set_color(0, 0x80, 0, 255);
         rf::gr::rect(lay.track.x, lay.track.y, fill_w, lay.track.h);
-        const auto markers = player_markers(lay.track);
+        const auto markers = panel_markers(lay.track);
         hovered = g_dragging ? nullptr : hovered_marker(markers, mx, my, lay);
         draw_markers(markers, hovered, lay);
         const int handle_w = std::max(4, lay.track.h - 2);
@@ -949,12 +1053,15 @@ void demo_controls_ui_render()
         const bool back_hovered = point_in(mx, my, lay.btn_back);
         const bool pause_hovered = pause_enabled && point_in(mx, my, lay.btn_pause);
         const bool fwd_hovered = point_in(mx, my, lay.btn_fwd);
+        const bool mark_hovered = point_in(mx, my, lay.btn_mark);
         draw_transport_button(lay.btn_back, TransportIcon::skip_back, labels.back_bind, lay.keycap_y,
                               {back_hovered, true});
         draw_transport_button(lay.btn_pause, pause_icon, labels.pause_bind, lay.keycap_y,
                               {pause_hovered, pause_enabled});
         draw_transport_button(lay.btn_fwd, TransportIcon::skip_forward, labels.fwd_bind, lay.keycap_y,
                               {fwd_hovered, true});
+        draw_transport_button(lay.btn_mark, TransportIcon::set_marker, labels.mark_bind, lay.keycap_y,
+                              {mark_hovered, true});
         if (back_hovered) {
             hovered_button = {lay.btn_back, TransportIcon::skip_back};
         }
@@ -963,6 +1070,9 @@ void demo_controls_ui_render()
         }
         else if (fwd_hovered) {
             hovered_button = {lay.btn_fwd, TransportIcon::skip_forward};
+        }
+        else if (mark_hovered) {
+            hovered_button = {lay.btn_mark, TransportIcon::set_marker};
         }
 
         // Divider over the nameplate row
@@ -974,6 +1084,12 @@ void demo_controls_ui_render()
         const double progress = std::clamp(demo_playback_clock_ms() / effective_duration_ms(), 0.0, 1.0);
         rf::gr::set_color(0, 0x80, 0, 255);
         rf::gr::rect(lay.track.x, lay.track.y, static_cast<int>(progress * lay.track.w), lay.track.h);
+        if (g_custom_marker_ms) {
+            rf::gr::set_color(255, 64, 160, 255);
+            const int x = std::clamp(marker_x(*g_custom_marker_ms, lay.track) - 1, lay.track.x,
+                                     lay.track.x + lay.track.w - 2);
+            rf::gr::rect(x, lay.track.y, 2, lay.track.h);
+        }
     }
 
     // Nameplate row
@@ -993,8 +1109,11 @@ void demo_controls_ui_render()
         draw_tooltip(lay.strip, handle_cx, format_time_ms(g_preview_ms), font);
     }
     else if (hovered) {
-        draw_tooltip(lay.strip, hovered->x,
-                     std::format("{} {}", marker_label(hovered->kind), format_time_ms(hovered->t_ms)), font);
+        std::string text = std::format("{} {}", marker_label(*hovered), format_time_ms(hovered->t_ms));
+        if (hovered->kind == DemoMarkerKind::custom && !labels.jump_bind.empty()) {
+            text += std::format(" ({} jumps here)", labels.jump_bind);
+        }
+        draw_tooltip(lay.strip, hovered->x, text, font);
     }
     else if (hovered_button) {
         const auto& [rect, icon] = *hovered_button;

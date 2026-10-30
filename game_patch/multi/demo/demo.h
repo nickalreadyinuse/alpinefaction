@@ -183,11 +183,13 @@ enum class DemoMarkerKind : uint8_t
     award,
     flag_taken,    // the enemy flag, from its base or off the ground
     flag_captured,
+    custom,        // the viewer's own marker; never in demo_playback_player_markers
 };
 struct DemoPlayerMarker
 {
     uint32_t t_ms;
     DemoMarkerKind kind;
+    uint8_t award_id; // award markers: the AwardId earned
 };
 // Every marker of the player with this net id in the whole stream, past and future, in
 // stream order, limited to their current stay in the server (a later joiner reusing the

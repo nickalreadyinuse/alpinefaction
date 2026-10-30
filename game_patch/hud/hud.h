@@ -2,6 +2,7 @@
 
 #include "../rf/input.h"
 #include "../os/os.h"
+#include <cstdint>
 #include <variant>
 #include <vector>
 #include <optional>
@@ -51,6 +52,30 @@ HudNotificationType hud_big_notification_current_type();
 
 // Returns true if HUD should be hidden (cl_hud off, or cinematic spectate freelook)
 bool is_hud_effectively_hidden();
+
+// HUD elements that can be hidden individually (cl_hudelement, the spectate menu's HUD
+// elements submenu). Hidden elements stay hidden until shown again or the game exits,
+// except chat, which is cl_chat's saved setting.
+enum class HudElement : uint8_t
+{
+    health,       // health and armor (and a ridden vehicle's status)
+    ammo,         // weapon and ammo
+    reticle,      // and the critical hit flash over it
+    powerups,     // active powerup icons
+    gauges,       // jetpack fuel
+    target_names, // name of the player under the reticle
+    killfeed,
+    chat,
+    timer,        // time left
+    scores,       // team scores and the mini scoreboard
+    messages,     // HUD messages, notifications and award callouts
+    minimap,      // the corner panel (the held big map stays available)
+};
+inline constexpr int hud_element_count = 12;
+bool hud_element_visible(HudElement element);
+void hud_element_set_visible(HudElement element, bool visible);
+// Menu label, e.g. "Health & armor"
+const char* hud_element_label(HudElement element);
 
 void hud_apply_patches();
 int hud_get_small_font();

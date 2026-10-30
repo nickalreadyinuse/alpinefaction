@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
+#include "hud.h"
 #include "../rf/gr/gr.h"
 #include "../rf/input.h"
 
@@ -35,7 +37,10 @@ enum class ChatMenuListName : int
     Casual,
     RandomFunny,
     SpectateOutlines,
-    SpectateDemoOverlays
+    SpectateDemoOverlays,
+    SpectateHudElements,
+    SpectatePlayerHud,
+    SpectateMatchHud
 };
 
 enum class ChatMenuListType : int
@@ -54,6 +59,8 @@ struct ChatMenuElement
     ChatMenuListType type = ChatMenuListType::Basic;
     std::string display_string = "";
     std::string long_string = "";
+    // Set for HUD element toggles: selecting one flips it and keeps the menu open
+    std::optional<HudElement> hud_element = std::nullopt;
 };
 
 struct ChatMenuList
