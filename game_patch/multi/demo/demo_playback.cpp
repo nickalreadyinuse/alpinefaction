@@ -786,7 +786,7 @@ namespace
             rf::timer::dec_game_paused();
             rf::snd_pause(false);
         }
-        snd_set_global_pitch(1.0f);
+        snd_set_global_rate(1.0f);
         seek_restore_audio(); // teardown can arrive mid-seek
         seek_coalesce_reset();
         demo_powerup_timers_reset();
@@ -1107,12 +1107,11 @@ namespace
         }
     }
 
-    // Sounds play at the timescale's rate, so looping sounds (weapon fire, engines) keep pace with
-    // the world sim and everything else is pitched with it. Menus opened from Esc play at normal
-    // rate (playback is paused behind them anyway).
+    // Sounds play at the timescale, so looping sounds (weapon fire, engines) keep pace with the
+    // world sim. Menus opened from Esc play at normal rate (playback is paused behind them anyway).
     void sound_pitch_update()
     {
-        snd_set_global_pitch(g_ctx.state == PlaybackState::playing && !esc_menu_open() ? g_ctx.timescale : 1.0f);
+        snd_set_global_rate(g_ctx.state == PlaybackState::playing && !esc_menu_open() ? g_ctx.timescale : 1.0f);
     }
 
     rf::Entity* freelook_camera_entity()

@@ -393,6 +393,8 @@ set(SRCS
     sound/sound_ds.cpp
     sound/sound_foley.cpp
     sound/sound_foley.h
+    sound/sound_stretch.cpp
+    sound/sound_stretch.h
     res/resources.rc
     purefaction/pf.cpp
     purefaction/pf.h

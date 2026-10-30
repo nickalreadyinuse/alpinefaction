@@ -730,19 +730,19 @@ void snd_instance_set_pitch(int instance_handle, float ratio)
     }
 }
 
-void snd_instance_ignore_global_pitch(int instance_handle)
+void snd_set_global_rate(float rate)
 {
-    const int chnl = snd_instance_ds_channel(instance_handle);
-    if (chnl >= 0) {
-        snd_ds_set_channel_unscaled(chnl);
+    if (rf::sound_backend == rf::SOUND_BACKEND_DS) {
+        snd_ds_set_global_rate(rate);
     }
 }
 
-void snd_set_global_pitch(float scale)
+int snd_play_unscaled(int handle, int group, float pan, float volume)
 {
-    if (rf::sound_backend == rf::SOUND_BACKEND_DS) {
-        snd_ds_set_global_pitch(scale);
-    }
+    snd_ds_set_new_channel_unscaled(true);
+    const int instance = rf::snd_play(handle, group, pan, volume);
+    snd_ds_set_new_channel_unscaled(false);
+    return instance;
 }
 
 void gamesound_parse_custom_sounds() 
