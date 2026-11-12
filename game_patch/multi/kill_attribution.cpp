@@ -16,6 +16,7 @@
 #include "../rf/weapon.h"
 #include "../fflink/afstats_events.h"
 #include "alpine_packets.h"
+#include "server_vis.h"
 #include "awards.h"
 #include "kill_attribution.h"
 #include "mutators.h"
@@ -365,6 +366,8 @@ FunHook<void(rf::Entity*, rf::Item*, int*)> send_obj_kill_packet_hook{
                 af_send_kill_info(killed_player);
             }
         }
+        // Also ahead of obj_kill: reveal and silence the entity on recipients that had it hidden.
+        server_vis_on_entity_killed(killed_entity);
         send_obj_kill_packet_hook.call_target(killed_entity, item, a3);
     },
 };

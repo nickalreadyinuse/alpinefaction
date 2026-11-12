@@ -27,6 +27,7 @@
 #include "network.h"
 #include "server_internal.h"
 #include "server.h"
+#include "server_vis.h"
 #include "../hud/hud_world.h"
 #include "alpine_packets.h"
 #include "obj_update_delta.h"
@@ -702,12 +703,17 @@ void af_send_obj_update_packet(rf::Player* player)
         }
     }
 
-    // exclude the recipient's own entry
+    // exclude the recipient's own entry and entities the visibility culling hides from them
     obj_updates.clear();
     for (const GatheredObjUpdate& gathered_update : gathered_updates) {
-        if (gathered_update.owner != player) {
-            obj_updates.push_back(gathered_update.update);
+        if (gathered_update.owner == player) {
+            continue;
         }
+        rf::Entity* entity = rf::entity_from_handle(gathered_update.owner->entity_handle);
+        if (!server_vis_can_see(player, entity)) {
+            continue;
+        }
+        obj_updates.push_back(gathered_update.update);
     }
 
     if (obj_updates.empty()) {
@@ -1059,6 +1065,14 @@ void serialize_payload(const EntityOnFirePayload& payload, std::byte* buf, size_
     std::memcpy(buf + offset, &payload.obj_handle, sizeof(payload.obj_handle));
     offset += sizeof(payload.obj_handle);
     buf[offset++] = static_cast<std::byte>(payload.on);
+}
+
+// af_sreq_entity_hidden
+void serialize_payload(const EntityHiddenPayload& payload, std::byte* buf, size_t& offset)
+{
+    std::memcpy(buf + offset, &payload.obj_handle, sizeof(payload.obj_handle));
+    offset += sizeof(payload.obj_handle);
+    buf[offset++] = static_cast<std::byte>(payload.hidden);
 }
 
 // af_sreq_jetpack_state
@@ -2587,6 +2601,45 @@ void af_send_teleport_entity_req(
     }
 }
 
+void af_send_teleport_entity_to_player(
+    rf::Player* player,
+    uint32_t obj_handle,
+    const rf::Vector3& pos,
+    const rf::Matrix3& orient,
+    const rf::Vector3& vel)
+{
+    if (!rf::is_server || !player || !is_player_minimum_af_client_version(player, 1, 4, 0)) {
+        return;
+    }
+
+    TeleportEntityPayload payload{};
+    payload.obj_handle = obj_handle;
+    std::memcpy(&payload.pos, &pos, sizeof(payload.pos));
+    std::memcpy(&payload.orient, &orient, sizeof(payload.orient));
+    std::memcpy(&payload.vel, &vel, sizeof(payload.vel));
+
+    af_server_req_packet packet{};
+    packet.header.type = static_cast<uint8_t>(af_packet_type::af_server_req);
+    packet.header.size = sizeof(uint8_t) + sizeof(payload.obj_handle) + sizeof(payload.pos) + sizeof(payload.orient) + sizeof(payload.vel);
+    packet.req_type = af_server_req_type::af_sreq_teleport_entity;
+    packet.payload = payload;
+    af_send_server_req_packet(packet, player);
+}
+
+void af_send_entity_hidden(rf::Player* player, uint32_t obj_handle, bool hidden)
+{
+    if (!rf::is_server || !player || !is_player_minimum_af_client_version(player, 1, 5, 0)) {
+        return;
+    }
+
+    af_server_req_packet packet{};
+    packet.header.type = static_cast<uint8_t>(af_packet_type::af_server_req);
+    packet.header.size = sizeof(uint8_t) + sizeof(EntityHiddenPayload);
+    packet.req_type = af_server_req_type::af_sreq_entity_hidden;
+    packet.payload = EntityHiddenPayload{obj_handle, static_cast<uint8_t>(hidden ? 1 : 0)};
+    af_send_server_req_packet(packet, player);
+}
+
 void af_send_spray_to_player(uint8_t player_id, uint16_t texture_id, const rf::Vector3& pos,
     const rf::Vector3& normal, uint8_t flags, rf::Player* player)
 {
@@ -3248,6 +3301,49 @@ static void af_process_server_req_packet(const void* data, size_t len, const rf:
             }
 
             mutators_apply_entity_on_fire(entity, payload.on != 0);
+            break;
+        }
+        case af_server_req_type::af_sreq_entity_hidden: {
+            if (remaining < sizeof(EntityHiddenPayload)) {
+                xlog::warn("af_process_server_req_packet: EntityHidden payload too short");
+                return;
+            }
+
+            EntityHiddenPayload payload{};
+            std::memcpy(&payload.obj_handle, bytes + offset, sizeof(payload.obj_handle));
+            payload.hidden = bytes[offset + sizeof(payload.obj_handle)];
+
+            rf::Object* remote_object = rf::obj_from_remote_handle(payload.obj_handle);
+            if (!remote_object) {
+                xlog::debug("af_process_server_req_packet: EntityHidden invalid remote handle {:x}", payload.obj_handle);
+                return;
+            }
+            // Never hide our own entity, whatever the server says.
+            if (remote_object == static_cast<rf::Object*>(rf::local_player_entity)) {
+                return;
+            }
+            // Toggle the flag directly: obj_unhide resets a character mesh to animation state 0
+            // (the spawn animation) and obj_hide turns the weapon off, neither of which we want.
+            // Rendering and the scanner only test OF_HIDDEN.
+            if (payload.hidden) {
+                remote_object->obj_flags = static_cast<rf::ObjectFlags>(remote_object->obj_flags | rf::OF_HIDDEN);
+                // No more records will arrive while hidden, so a looping on/off weapon sound
+                // (assault rifle) would never be told to stop.
+                void multi_turn_weapon_off(rf::Entity* ep);
+                if (rf::Entity* entity = rf::entity_from_handle(remote_object->handle)) {
+                    multi_turn_weapon_off(entity);
+                    // entity_create attaches respawn.vfx and entity_process_effects plays it out,
+                    // but entity_process_post returns early for hidden entities (0x0041E4C8), so a
+                    // player who spawned out of view would play the spawn effect on reveal instead.
+                    if (entity->respawn_vfx_handle) {
+                        rf::vmesh_delete(entity->respawn_vfx_handle);
+                        entity->respawn_vfx_handle = nullptr;
+                    }
+                }
+            }
+            else {
+                remote_object->obj_flags = static_cast<rf::ObjectFlags>(remote_object->obj_flags & ~rf::OF_HIDDEN);
+            }
             break;
         }
         case af_server_req_type::af_sreq_jetpack_state: {

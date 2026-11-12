@@ -24,6 +24,7 @@
 #include "../misc/alpine_settings.h"
 #include "../sound/sound.h"
 #include "server_internal.h"
+#include "server_vis.h"
 #include "multi_private.h"
 #include "mutators.h"
 #include "alpine_packets.h"
@@ -135,6 +136,7 @@ FunHook<void()> multi_level_init_hook{
         // Award tracking, including the nemesis pairs - those survive Pit/Wipeout rounds, but
         // never a level.
         awards_level_init();
+        server_vis_level_init();
 
         // Stop allowing endgame votes after the next level starts
         multi_player_set_can_endgame_vote(false);

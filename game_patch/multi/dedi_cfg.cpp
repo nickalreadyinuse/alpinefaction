@@ -1043,6 +1043,32 @@ static DamageNotificationConfig parse_damage_notification_config(const toml::tab
     return o;
 }
 
+static VisibilityCullingConfig parse_visibility_culling_config(const toml::table& t)
+{
+    VisibilityCullingConfig o;
+    if (auto v = t["enabled"].value<bool>())
+        o.enabled = *v;
+    if (auto v = t["min_dist"].value<double>())
+        o.min_dist = std::max(0.0f, static_cast<float>(*v));
+    if (auto v = t["scanner_margin"].value<double>())
+        o.scanner_margin = std::max(0.0f, static_cast<float>(*v));
+    if (auto v = t["lookahead_ms"].value<int>())
+        o.lookahead_ms = std::max(0, *v);
+    if (auto v = t["hysteresis_ms"].value<int>())
+        o.hysteresis_ms = std::max(0, *v);
+    if (auto v = t["ping_lookahead_cap_ms"].value<int>())
+        o.ping_lookahead_cap_ms = std::max(0, *v);
+    if (auto v = t["max_rays_per_pair"].value<int>())
+        o.max_rays_per_pair = std::clamp(*v, 1, 8);
+    if (auto v = t["exempt_bots"].value<bool>())
+        o.exempt_bots = *v;
+    if (auto v = t["movers_occlude"].value<bool>())
+        o.movers_occlude = *v;
+    if (auto v = t["footstep_relay_dist"].value<double>())
+        o.footstep_relay_dist = std::max(0.0f, static_cast<float>(*v));
+    return o;
+}
+
 static SprayConfig parse_spray_config(const toml::table& t)
 {
     SprayConfig o;
@@ -1513,6 +1539,8 @@ static void apply_known_table_in_order(
         cfg.damage_notification_config = parse_damage_notification_config(tbl);
     else if (key == "sprays")
         cfg.spray_config = parse_spray_config(tbl);
+    else if (key == "visibility_culling")
+        cfg.visibility_culling_config = parse_visibility_culling_config(tbl);
     else if (key == "alpine_restrict")
         cfg.alpine_restricted_config = parse_alpine_restrict_config(tbl);
     else if (key == "click_limiter")
@@ -2531,6 +2559,20 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     }
     std::format_to(iter, "  Hitscan lag compensation max:          {}ms\n", cfg.hitscan_lag_comp_max_ms);
     std::format_to(iter, "  Delta object updates:                  {}\n", cfg.delta_obj_update);
+
+    // visibility culling
+    std::format_to(iter, "  Visibility culling:                    {}\n", cfg.visibility_culling_config.enabled);
+    if (cfg.visibility_culling_config.enabled) {
+        std::format_to(iter, "    Always send within:                  {} m\n", cfg.visibility_culling_config.min_dist);
+        std::format_to(iter, "    Scanner margin:                      {} m\n", cfg.visibility_culling_config.scanner_margin);
+        std::format_to(iter, "    Lookahead:                           {} ms\n", cfg.visibility_culling_config.lookahead_ms);
+        std::format_to(iter, "    Ping lookahead cap:                  {} ms\n", cfg.visibility_culling_config.ping_lookahead_cap_ms);
+        std::format_to(iter, "    Hysteresis:                          {} ms\n", cfg.visibility_culling_config.hysteresis_ms);
+        std::format_to(iter, "    Max rays per pair:                   {}\n", cfg.visibility_culling_config.max_rays_per_pair);
+        std::format_to(iter, "    Exempt bots:                         {}\n", cfg.visibility_culling_config.exempt_bots);
+        std::format_to(iter, "    Movers occlude:                      {}\n", cfg.visibility_culling_config.movers_occlude);
+        std::format_to(iter, "    Footstep relay distance:             {} m\n", cfg.visibility_culling_config.footstep_relay_dist);
+    }
 
     // inactivity
     std::format_to(iter, "  Identify inactive players:             {}\n", cfg.inactivity_config.enabled);

@@ -496,6 +496,7 @@ enum class af_server_req_type : uint8_t
     af_sreq_rcon_state = 0x11,         // Alpine 1.5 (variable: is_holder, command count, commands)
     af_sreq_force_spectate = 0x12,     // Alpine 1.5 (1 byte: 1 = enter spectate, 0 = leave)
     af_sreq_player_roles = 0x13,       // Alpine 1.5 (variable: count, {player_id, af_player_role_flags})
+    af_sreq_entity_hidden = 0x14,      // Alpine 1.5 (5 bytes: obj_handle, hidden) - server visibility culling
 };
 
 struct ShouldGibPayload
@@ -644,10 +645,20 @@ struct ReserveAmmoPayload
 };
 static_assert(sizeof(ReserveAmmoPayload) == 3);
 
+// Server visibility culling (server_vis.cpp): the recipient has no line of sight to this entity,
+// so its obj_update records stop and the client hides it; unhide is followed by a teleport snap.
+struct EntityHiddenPayload
+{
+    uint32_t obj_handle = 0;
+    uint8_t hidden = 0; // 1 = obj_hide, 0 = obj_unhide
+};
+static_assert(sizeof(EntityHiddenPayload) == 5);
+
 using af_server_req_payload = std::variant<ShouldGibPayload, TeleportEntityPayload, SprayPayload,
                                            ReadyPromptPayload, PitQueueStatePayload, EntityOnFirePayload,
                                            EntityJetpackPayload, RiotShieldStatePayload, AwardPayload,
-                                           MatchStatePayload, ZiplineStatePayload, ReserveAmmoPayload>;
+                                           MatchStatePayload, ZiplineStatePayload, ReserveAmmoPayload,
+                                           EntityHiddenPayload>;
 
 struct af_server_req_packet
 {
@@ -1258,6 +1269,8 @@ void af_send_award(rf::Player* player, uint8_t award_id, uint8_t victim_player_i
 void af_send_reserve_ammo(rf::Player* player, int weapon_type, int reserve);
 void af_send_award_for_demo(rf::Player* recorder, uint8_t award_id, uint8_t victim_player_id, uint8_t earner_id);
 void af_send_teleport_entity_req(uint32_t obj_handle, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::Vector3& vel);
+void af_send_teleport_entity_to_player(rf::Player* player, uint32_t obj_handle, const rf::Vector3& pos, const rf::Matrix3& orient, const rf::Vector3& vel);
+void af_send_entity_hidden(rf::Player* player, uint32_t obj_handle, bool hidden);
 void af_send_spray_to_player(uint8_t player_id, uint16_t texture_id, const rf::Vector3& pos, const rf::Vector3& normal, uint8_t flags, rf::Player* player);
 void af_broadcast_spray(uint8_t player_id, uint16_t texture_id, const rf::Vector3& pos, const rf::Vector3& normal);
 static void af_process_server_req_packet(const void* data, size_t len, const rf::NetAddr& addr);

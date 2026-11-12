@@ -43,6 +43,7 @@
 #include "../multi/bots/server_bots.h"
 #include "object.h"
 #include "zipline.h"
+#include "../multi/server_vis.h"
 
 rf::Timestamp g_player_jump_timestamp;
 // Server bots are simulated at this machine's frame rate.
@@ -1041,7 +1042,8 @@ FunHook<void(rf::Entity*)> entity_footsteps_do_frame_hook{
 
         // Gate sound playback: local player and pistol always play (stock behavior),
         // other entities require the footstep fix to be active
-        if (ep == rf::local_player_entity || g_footsteps_active || rf::weapon_is_glock(ep->ai.current_primary_weapon)) {
+        if (ep == rf::local_player_entity || g_footsteps_active || rf::weapon_is_glock(ep->ai.current_primary_weapon)
+            || server_vis_wants_footsteps()) {
             entity_footsteps_do_frame_hook.call_target(ep);
         }
     }

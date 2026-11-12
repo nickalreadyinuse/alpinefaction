@@ -44,6 +44,7 @@
 #include "netmeter.h"
 #include "server.h"
 #include "server_internal.h"
+#include "server_vis.h"
 #include "salvage.h"
 #include "scavenger.h"
 #include "vehicles/vehicle.h"
@@ -3699,6 +3700,15 @@ FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
         if (rf::is_server && pp->net_data && pp->net_data->reliable_socket == static_cast<rf::uint>(-1)) {
             return 0;
         }
+        if (rf::is_server && !server_vis_can_see(pp, ep)) {
+            // visibility culling: this recipient has no line of sight to the entity. At most a
+            // positionless stub goes out, to switch off a looping on/off weapon sound.
+            const int len = server_vis_withheld_record(pp, ep, data);
+            if (pp->delta_obj_update && len > 0) {
+                return obj_update_delta::server_pack(pp, ep, static_cast<uint8_t*>(data), len);
+            }
+            return len;
+        }
         rf::ObjInterp* exposed = nullptr; // ring whose num is lowered to expose an older keyframe
         uint32_t exposed_num = 0;
         if (rf::is_server && ep != rf::local_player_entity && pp->entity_handle != ep->handle
@@ -3739,6 +3749,9 @@ FunHook<int(rf::Player*, rf::Entity*, void*)> pack_obj_update_data_hook{
         const int len = pack_obj_update_data_hook.call_target(pp, ep, data);
         if (exposed) {
             exposed->num = exposed_num;
+        }
+        if (rf::is_server && len > 0) {
+            server_vis_record_sent(pp, ep, data, len); // reads the stock record, before the delta rewrite
         }
         if (rf::is_server && pp->delta_obj_update && len > 0) {
             // Rewrite the stock record in place as a delta against the newest snapshot this client acked

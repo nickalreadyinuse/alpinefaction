@@ -306,6 +306,21 @@ struct SprayConfig
     int cooldown_ms = 500;
 };
 
+// Server-side visibility culling, see multi/server_vis.cpp.
+struct VisibilityCullingConfig
+{
+    bool enabled = false;
+    float min_dist = 10.0f;      // always send inside this range (footsteps are client-side)
+    float scanner_margin = 2.0f; // added to the 30 m rail / 13 m IR scanner spheres
+    int lookahead_ms = 250;      // probe where both entities could be this far ahead (velocity + 9 m/s ring)
+    int ping_lookahead_cap_ms = 300; // the pair's higher ping is added to lookahead_ms, up to this
+    int hysteresis_ms = 300;     // keep visible this long after the last clear ray
+    int max_rays_per_pair = 8;
+    bool exempt_bots = true;
+    bool movers_occlude = true;  // closed doors and platforms block sight (collide_linesegment_world)
+    float footstep_relay_dist = 25.0f; // relay hidden entities' footsteps as sound packets inside this range (0 = off)
+};
+
 struct WeaponStayExemptionConfigOld
 {
     bool enabled = false;
@@ -1206,6 +1221,7 @@ struct AlpineServerConfig
     InactivityConfig inactivity_config;
     DamageNotificationConfig damage_notification_config;
     SprayConfig spray_config;
+    VisibilityCullingConfig visibility_culling_config;
     ClickLimiterConfig click_limiter_config;
     VoteConfig vote_match;
     VoteConfig vote_kick;

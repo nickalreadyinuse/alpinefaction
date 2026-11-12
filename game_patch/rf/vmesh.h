@@ -125,6 +125,7 @@ namespace rf
     static_assert(sizeof(MeshMaterial) == 0xC8);
 
     static auto& vmesh_get_type = addr_as_ref<VMeshType(VMesh *vmesh)>(0x00502B00);
+    static auto& vmesh_delete = addr_as_ref<void(VMesh *vmesh)>(0x00502B10);
     static auto& vmesh_get_name = addr_as_ref<const char*(VMesh* vmesh)>(0x00503470);
     static auto& vmesh_get_num_cspheres = addr_as_ref<int(VMesh *vmesh)>(0x00503250);
     static auto& vmesh_get_bbox = addr_as_ref<void(VMesh*, Vector3*, Vector3*)>(0x00503310);

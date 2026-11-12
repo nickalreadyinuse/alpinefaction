@@ -35,6 +35,7 @@
 #include "../multi/pit.h"
 #include "../multi/gungame.h"
 #include "../multi/awards.h"
+#include "../multi/server_vis.h"
 #include "../multi/mutators.h"
 #include "../multi/bots/server_bots.h"
 #include "../multi/vehicles/vehicle.h"
@@ -291,6 +292,7 @@ FunHook<void(rf::Player*)> player_destroy_hook{
         vehicle_on_player_disconnect(player);
         accuracy_stats_on_player_destroy(player);
         awards_on_player_destroy(player);
+        server_vis_on_player_destroy(player);
         mutators_on_player_destroy(player);
         if (rf::is_server) {
             // Must run while PlayerAdditionalData is still alive, since the leave

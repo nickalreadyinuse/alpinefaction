@@ -21,6 +21,7 @@
 #include <winsock2.h>
 #include "server.h"
 #include "server_internal.h"
+#include "server_vis.h"
 #include "alpine_packets.h"
 #include "obj_update_delta.h"
 #include "demo/demo.h"
@@ -5736,6 +5737,8 @@ void server_init()
         "If this issue persists, join the community Discord at https://discord.gg/factionfiles for some assistance.\n";
     AsmWriter{0x0046E230}.push(reinterpret_cast<int32_t>(new_config_error_message));
 
+    server_vis_apply_patch();
+
     // Handle no player collide server option
     entity_create_no_collide_hook.install();
 
@@ -6034,6 +6037,7 @@ void server_do_frame()
     mutators_do_frame();
     awards_server_do_frame();
     projectile_lag_comp_record_positions();
+    server_vis_do_frame();
 }
 
 void server_on_limbo_state_enter()
@@ -6272,6 +6276,13 @@ std::tuple<bool, int, bool, bool> server_features_require_alpine_client()
     }
 
     if (static_cast<int>(g_alpine_server_config_active_rules.game_type) >= rf::NG_TYPE_SCAV) {
+        requires_alpine = true;
+        hard_reject = true;
+        min_minor_version = std::max(min_minor_version, 5);
+    }
+
+    // Pre-1.5 clients cannot hide culled entities; they would freeze in place instead.
+    if (g_alpine_server_config.visibility_culling_config.enabled) {
         requires_alpine = true;
         hard_reject = true;
         min_minor_version = std::max(min_minor_version, 5);

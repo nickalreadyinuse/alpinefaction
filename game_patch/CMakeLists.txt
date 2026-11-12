@@ -223,6 +223,8 @@ set(SRCS
     multi/demo/demo_powerup_timers.cpp
     multi/awards.cpp
     multi/awards.h
+    multi/server_vis.cpp
+    multi/server_vis.h
     multi/network.cpp
     multi/network.h
     multi/network_debug.cpp
