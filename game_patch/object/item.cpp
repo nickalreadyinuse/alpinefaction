@@ -1,4 +1,5 @@
 #include <patch_common/FunHook.h>
+#include <patch_common/CallHook.h>
 #include <patch_common/CodeInjection.h>
 #include <patch_common/AsmWriter.h>
 #include <common/utils/string-utils.h>
@@ -6,6 +7,7 @@
 #include <xlog/xlog.h>
 #include <algorithm>
 #include <string_view>
+#include <vector>
 #include "../fflink/afstats_events.h"
 #include "../rf/event.h"
 #include "../rf/item.h"
@@ -16,6 +18,8 @@
 #include "../rf/weapon.h"
 #include "../rf/os/frametime.h"
 #include "../rf/player/player.h"
+#include "../misc/alpine_settings.h"
+#include "../multi/multi.h"
 #include "../misc/achievements.h"
 #include "../misc/misc.h"
 #include "../multi/bagman.h"
@@ -204,11 +208,111 @@ CodeInjection multi_powerup_add_mp_check {
     }
 };
 
+// Client-side cosmetic pickup prediction. A stock client hides the item and plays its pickup sound only when the
+// server's item_apply arrives (one RTT after the touch). We do both at touch time for weapons and ammo; inventory stays
+// server-authoritative. Until the server answers (or a deadline passes), the item_update sync must not un-hide the item
+// and item_apply must not replay the sound. If the server refused, level items come back with the next item_update
+// (every 250 ms) and dropped items, which item_update doesn't cover, are unhidden here.
+struct PredictedPickup
+{
+    int item_handle;
+    rf::Timestamp deadline;
+};
+static std::vector<PredictedPickup> g_predicted_pickups;
+
+static bool is_pickup_predicted(int item_handle)
+{
+    return std::ranges::any_of(g_predicted_pickups, [=](const PredictedPickup& p) { return p.item_handle == item_handle; });
+}
+
+static bool item_pickup_is_predictable(const rf::Item* item, rf::Entity* ep)
+{
+    const rf::ItemInfo* info = item->info;
+    constexpr int skip_flags = rf::IF_NO_PICKUP | rf::IF_RED_FLAG | rf::IF_BLUE_FLAG | rf::IF_RED_BASE
+        | rf::IF_BLUE_BASE | rf::IF_CTF_FLAG;
+    if (!info || (item->item_flags & skip_flags) || (item->obj_flags & rf::OF_HIDDEN)
+        || (gt_is_bagman_any() && item->info_index == g_bagman_info.bag_item_type)
+        || rf::entity_in_vehicle(ep) || rf::entity_is_on_turret(ep) || rf::entity_is_dying(ep)) {
+        return false;
+    }
+    // Weapons and ammo only: health, armor and powerups are contested or capped by rules we can't see (D6/D8).
+    const bool gives_weapon = info->gives_weapon_id >= 0;
+    const int weapon = gives_weapon ? info->gives_weapon_id : info->ammo_for_weapon_id;
+    if (weapon < 0 || weapon >= rf::num_weapon_types) {
+        return false;
+    }
+    // Weapon stay leaves level weapons in place (with server-side exemptions); leave those to the server.
+    if (gives_weapon && !(item->item_flags & rf::IF_DROPPED) && (rf::multi_server_flags & rf::NG_FLAG_WEAPON_STAY)) {
+        return false;
+    }
+    // The server refuses ammo at max reserve (item_pickup 0x004596F6); be as careful with weapons we already own.
+    const rf::WeaponInfo& winfo = rf::weapon_types[weapon];
+    const bool ammo_full = winfo.ammo_type >= 0 && ep->ai.ammo[winfo.ammo_type] >= winfo.max_ammo_multi;
+    // ponytail: no line-of-sight mirror; a pickup the server refuses for LOS just pops back.
+    return !(ammo_full && (!gives_weapon || rf::ai_has_weapon(&ep->ai, weapon)));
+}
+
+// item_resolve_collision -> item_pickup(item, entity, 1, 0), which returns at once on an MP client
+CallHook<void(rf::Item*, rf::Entity*, int, int)> item_resolve_collision_pickup_hook{
+    0x00458905,
+    [](rf::Item* item, rf::Entity* ep, int do_los_check, int allow_multi) {
+        item_resolve_collision_pickup_hook.call_target(item, ep, do_los_check, allow_multi);
+        if (!rf::is_multi || rf::is_server || !ep || ep != rf::local_player_entity
+            || !g_alpine_game_config.item_pickup_prediction || !get_af_server_info().has_value()
+            || is_pickup_predicted(item->handle) || !item_pickup_is_predictable(item, ep)) {
+            return;
+        }
+        rf::obj_hide(item);
+        rf::item_play_pickup_sound(item);
+        const int ping = rf::local_player && rf::local_player->net_data
+            ? std::clamp(rf::local_player->net_data->ping, 0, 1000) : 300;
+        PredictedPickup& p = g_predicted_pickups.emplace_back(PredictedPickup{item->handle, {}});
+        p.deadline.set(ping + 200);
+    },
+};
+
+// item_pickup's pickup sound; on a client this is item_apply confirming our touch (or a dropped item's broadcast)
+CallHook<void(rf::Item*)> item_pickup_play_sound_hook{
+    0x004598EB,
+    [](rf::Item* item) {
+        if (std::erase_if(g_predicted_pickups, [=](const PredictedPickup& p) { return p.item_handle == item->handle; })) {
+            return; // already played at touch
+        }
+        item_pickup_play_sound_hook.call_target(item);
+    },
+};
+
+// process_item_update_packet: the server's bitmask says the item is present
+CallHook<void(rf::Item*)> process_item_update_respawn_hook{
+    0x0047A291,
+    [](rf::Item* item) {
+        if (is_pickup_predicted(item->handle)) {
+            return; // sent before the server saw our touch
+        }
+        process_item_update_respawn_hook.call_target(item);
+    },
+};
+
+static void item_expire_predicted_pickups()
+{
+    std::erase_if(g_predicted_pickups, [](const PredictedPickup& p) {
+        if (p.deadline.valid() && !p.deadline.elapsed()) {
+            return false;
+        }
+        rf::Item* item = rf::item_from_handle(p.item_handle);
+        if (item && (item->item_flags & rf::IF_DROPPED)) {
+            rf::obj_unhide(item);
+        }
+        return true;
+    });
+}
+
 void item_do_frame()
 {
     if (rf::is_dedicated_server || !rf::is_multi || rf::game_paused) {
         return;
     }
+    item_expire_predicted_pickups();
     constexpr float spin_rate = 2.35619449f;
     constexpr float two_pi = 6.28318548f;
     const float delta = rf::frametime * demo_playback_sim_time_scale() * spin_rate;
@@ -239,6 +343,11 @@ void item_do_patch()
 
     // Objective item slot reservation and Bagman bag mesh swap
     item_create_pool_reserve_hook.install();
+
+    // Client-side cosmetic pickup prediction
+    item_resolve_collision_pickup_hook.install();
+    item_pickup_play_sound_hook.install();
+    process_item_update_respawn_hook.install();
 
     // Skip item_render's spin advance in favour of item_do_frame.
     AsmWriter{0x00459071, 0x00459073}.jmp(0x004590A8);

@@ -84,6 +84,9 @@ namespace rf
     static auto& player_fpgun_locked_on = addr_as_ref<bool(Player* pp)>(0x004ACEA0);
     static auto& player_fpgun_set_state = addr_as_ref<void(Player* player, int weapon_type)>(0x004AA230);
     static auto& player_fpgun_process = addr_as_ref<void(Player* player)>(0x004AA6D0);
+    // Sets fpgun_data.pending_weapon; player_fpgun_process holsters/draws 150 ms later.
+    static auto& player_fpgun_set_pending_weapon = addr_as_ref<void(Player* player, int weapon_type)>(0x004ACD50);
+    static auto& player_fpgun_set_remote_charge_visible = addr_as_ref<void()>(0x004AB180);
     static auto& player_fpgun_is_zoomed = addr_as_ref<bool(Player* player)>(0x004ACE90);
     static auto& player_fpgun_render_ir = addr_as_ref<void(Player* player)>(0x004AEEF0);
     // World position of the current weapon's fpgun muzzle tag; false when it has none.

@@ -1013,6 +1013,7 @@ enum af_server_info_flags : uint32_t {
     SIF_SCRAPYARD_GIBS = 1u << 28,
     SIF_NO_EXPOSURE_DAMAGE = 1u << 29,
     SIF_PROJECTILE_LAG_COMP = 1u << 30,
+    SIF_WEAPON_PREDICTION = 1u << 31, // clients may predict weapon switches (no server-only switch rules active)
 };
 
 // Subset of `rf::NetGameFlags`.

@@ -697,6 +697,179 @@ FunHook<void(rf::Player*, rf::Entity*, int)> multi_select_weapon_server_side_hoo
     },
 };
 
+// Client-side weapon switch prediction. Stock clients only send the pending weapon byte and wait for their own
+// obj_update record to come back with the new weapon (RTT + ~200 ms before the draw starts). When the server
+// advertises SIF_WEAPON_PREDICTION we start the fpgun switch at key press and, until the server reports the predicted
+// weapon or a deadline passes, ignore server records naming any other weapon (they were sent before the server
+// handled the request). A refused prediction snaps back to the server's weapon once the deadline passes.
+static struct
+{
+    int predicted_weapon = -1;
+    rf::Timestamp deadline;     // stop ignoring server weapons that disagree
+    rf::Timestamp select_lock;  // mirror of the server's 300 ms g_select_weapon_done_timestamp
+} g_weapon_prediction;
+
+static bool weapon_prediction_enabled()
+{
+    const auto& info = get_af_server_info();
+    return rf::is_multi && !rf::is_server && g_alpine_game_config.weapon_switch_prediction && info
+        && info->weapon_prediction;
+}
+
+static void weapon_prediction_predict(int weapon_type)
+{
+    rf::Player* pp = rf::local_player;
+    rf::Entity* ep = pp ? rf::entity_from_handle(pp->entity_handle) : nullptr;
+    if (!weapon_prediction_enabled() || !ep || weapon_type < 0) {
+        g_weapon_prediction.predicted_weapon = -1;
+        return;
+    }
+    const int current = ep->ai.current_primary_weapon;
+    const int pending = pp->fpgun_data.pending_weapon;
+    if (weapon_type == (pending != -1 ? pending : current)) {
+        return; // already heading there
+    }
+    static auto& entity_is_hiding_weapon = addr_as_ref<bool(rf::Entity*)>(0x00428E60);
+    // Mirror multi_select_weapon_server_side (reloading was already checked by player_select_weapon); anything we
+    // can't predict falls back to the stock round trip.
+    const int owned_type = weapon_type == rf::remote_charge_det_weapon_type ? rf::remote_charge_weapon_type : weapon_type;
+    const bool predictable = rf::ai_has_weapon(&ep->ai, owned_type)
+        && !(g_weapon_prediction.select_lock.valid() && !g_weapon_prediction.select_lock.elapsed())
+        && !multi_is_rail_gun_on_cooldown(pp, ep) // force_rail_reload isn't advertised; assume it's on
+        && !multi_is_weapon_switch_locked(current, weapon_type)
+        && !rf::entity_in_vehicle(ep) && !rf::entity_is_on_turret(ep) && !entity_is_hiding_weapon(ep);
+    if (!predictable) {
+        g_weapon_prediction.predicted_weapon = -1;
+        return;
+    }
+    if (weapon_type == rf::remote_charge_weapon_type) {
+        rf::player_fpgun_set_remote_charge_visible();
+    }
+    rf::player_fpgun_set_pending_weapon(pp, weapon_type);
+    // Request waits up to one 25 ms upload, the echo up to one more, plus margin for jitter.
+    const int ping = pp->net_data ? std::clamp(pp->net_data->ping, 0, 1000) : 300;
+    g_weapon_prediction.predicted_weapon = weapon_type;
+    g_weapon_prediction.deadline.set(ping + 2 * 25 + 50);
+    g_weapon_prediction.select_lock.set(300);
+}
+
+// player_select_weapon, MP client branch: multi_set_pending_weapon(weapon_type)
+CallHook<void(int)> player_select_weapon_set_pending_hook{
+    0x004A4B5C,
+    [](int weapon_type) {
+        player_select_weapon_set_pending_hook.call_target(weapon_type);
+        weapon_prediction_predict(weapon_type);
+    },
+};
+
+// process_obj_update_packet: our own record names a weapon other than the entity's current one (ebx = weapon,
+// edi = entity), right before it shows the remote charge and calls player_fpgun_set_pending_weapon.
+CodeInjection process_obj_update_local_weapon_injection{
+    0x0047E435,
+    [](auto& regs) {
+        auto& pred = g_weapon_prediction;
+        if (pred.predicted_weapon == -1) {
+            return;
+        }
+        const int server_weapon = regs.ebx;
+        if (server_weapon == pred.predicted_weapon || !pred.deadline.valid() || pred.deadline.elapsed()) {
+            pred.predicted_weapon = -1; // confirmed or timed out: follow the server
+            return;
+        }
+        regs.eip = 0x0047E467; // stale record from before the server switched; skip the weapon branch
+    },
+};
+
+// Client-side reload prediction. A stock client only sends a reload request (send_reload_request_packet 0x00485990)
+// and starts the reload when the server's reload packet comes back. When the request actually goes out we start the
+// reload locally (the same entity_reload_current_primary call process_reload_packet makes) and apply the new clip
+// and reserve counts, so the client doesn't auto-reload again at the end of the animation. The server's reload packet
+// then only writes its authoritative counts. If no packet arrives before the deadline (refused, or the unreliable
+// reply was lost), the predicted ammo move is undone.
+static struct
+{
+    int weapon_type = -1; // -1: no reload pending
+    int entity_handle = -1;
+    int clip_delta = 0;
+    int reserve_delta = 0;
+    rf::Timestamp deadline;
+} g_reload_prediction;
+
+static void reload_prediction_predict()
+{
+    rf::Player* pp = rf::local_player;
+    rf::Entity* ep = pp ? rf::entity_from_handle(pp->entity_handle) : nullptr;
+    const auto& info = get_af_server_info();
+    if (!g_alpine_game_config.reload_prediction || !info || !ep) {
+        return;
+    }
+    static auto& entity_clip_is_full = addr_as_ref<bool(rf::Entity*)>(0x00428C20);
+    static auto& player_fpgun_in_transition = addr_as_ref<bool(rf::Player*)>(0x004A9DC0);
+    const int w = ep->ai.current_primary_weapon;
+    if (w < 0 || w >= rf::num_weapon_types || !rf::weapon_uses_clip(w)) {
+        return;
+    }
+    const int ammo_type = rf::weapon_types[w].ammo_type;
+    // Mirror multi_reload_weapon_server_side, plus the stock "nothing to reload" branch the client skips for packets.
+    // entity_reload_current_primary itself refuses while reloading, dying or in a vehicle.
+    if (ammo_type < 0 || ep->ai.ammo[ammo_type] <= 0 || entity_clip_is_full(ep) || player_fpgun_in_transition(pp)
+        || (g_weapon_prediction.select_lock.valid() && !g_weapon_prediction.select_lock.elapsed())) {
+        return;
+    }
+    const int old_clip = ep->ai.clip_ammo[w];
+    const int old_reserve = ep->ai.ammo[ammo_type];
+    rf::entity_turn_weapon_off(ep->handle, w);
+    if (!rf::entity_reload_current_primary(ep, true, true)) {
+        return;
+    }
+    ep->ai.clip_ammo[w] = ep->reload_clip_ammo;
+    ep->ai.ammo[ammo_type] = ep->reload_reserve_ammo;
+    const int ping = pp->net_data ? std::clamp(pp->net_data->ping, 0, 1000) : 300;
+    g_reload_prediction.weapon_type = w;
+    g_reload_prediction.entity_handle = ep->handle;
+    g_reload_prediction.clip_delta = ep->reload_clip_ammo - old_clip;
+    g_reload_prediction.reserve_delta = ep->reload_reserve_ammo - old_reserve;
+    g_reload_prediction.deadline.set(ping + 2 * 25 + 150);
+}
+
+// send_reload_request_packet: the request passed its fire-anim and 200 ms rate-limit checks and is going out
+CallHook<void(rf::Player*, const void*, int, bool)> send_reload_request_send_hook{
+    0x00485A47,
+    [](rf::Player* player, const void* data, int len, bool require_in_game) {
+        send_reload_request_send_hook.call_target(player, data, len, require_in_game);
+        reload_prediction_predict();
+    },
+};
+
+// process_reload_packet: entity_reload_current_primary(ep, 1, 1) before the authoritative counts are written
+CallHook<bool(rf::Entity*, bool, bool)> process_reload_packet_reload_hook{
+    0x00485B0A,
+    [](rf::Entity* ep, bool no_sound, bool is_reload_packet) {
+        if (g_reload_prediction.weapon_type != -1 && ep == rf::local_player_entity) {
+            g_reload_prediction.weapon_type = -1;
+            return false; // already reloading (or done) locally; just take the server's counts
+        }
+        return process_reload_packet_reload_hook.call_target(ep, no_sound, is_reload_packet);
+    },
+};
+
+void reload_prediction_do_frame()
+{
+    auto& pred = g_reload_prediction;
+    if (pred.weapon_type == -1 || (pred.deadline.valid() && !pred.deadline.elapsed())) {
+        return;
+    }
+    rf::Entity* ep = rf::entity_from_handle(pred.entity_handle); // not a respawned entity
+    if (ep) {
+        const int ammo_type = rf::weapon_types[pred.weapon_type].ammo_type;
+        auto& clip = ep->ai.clip_ammo[pred.weapon_type];
+        clip = std::max(clip - pred.clip_delta, 0);
+        ep->ai.ammo[ammo_type] = std::max(ep->ai.ammo[ammo_type] - pred.reserve_delta, 0);
+        xlog::debug("Reload prediction for weapon {} got no server reload; ammo restored", pred.weapon_type);
+    }
+    pred.weapon_type = -1;
+}
+
 CallHook<void(rf::Entity*, int, int, int)> entity_reload_resync_send_hook{
     0x00425403,
     [](rf::Entity* ep, int weapon_type, int ammo, int clip_ammo) {
@@ -1607,6 +1780,14 @@ void multi_do_patch()
 
     // Weapon select server-side handling
     multi_select_weapon_server_side_hook.install();
+
+    // Client-side weapon switch prediction
+    player_select_weapon_set_pending_hook.install();
+    process_obj_update_local_weapon_injection.install();
+
+    // Client-side reload prediction
+    send_reload_request_send_hook.install();
+    process_reload_packet_reload_hook.install();
 
     // Send the "nothing to reload" ammo resync only to the requesting player
     entity_reload_resync_send_hook.install();

@@ -199,6 +199,7 @@ FunHook<int()> rf_do_frame_hook{
         alpine_rope_do_frame();
         zipline_do_frame();
         item_do_frame();
+        reload_prediction_do_frame();
         atx_do_frame();
         fflink::do_frame();
         int result = rf_do_frame_hook.call_target();

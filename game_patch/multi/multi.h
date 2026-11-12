@@ -173,6 +173,7 @@ struct AlpineFactionServerInfo
     int server_netfps = 0; // 0: unknown (older server)
     int projectile_lag_comp_max_ms = 0;
     bool delta_obj_update = false;
+    bool weapon_prediction = false;
 };
 
 enum class AlpineRestrictVerdict : uint8_t
@@ -215,6 +216,7 @@ bool af_server_is_1_5_or_newer();
 int client_obj_update_send_interval_ms();
 std::optional<AlpineFactionServerInfo>& get_af_server_info_mutable();
 void multi_limbo_just_joined_do_frame();
+void reload_prediction_do_frame();
 void multi_level_download_do_frame();
 void multi_level_download_abort();
 void multi_level_download_manager_start(std::string filename);

@@ -4994,6 +4994,9 @@ uint32_t af_compute_server_info_flags()
         af |= af_server_info_flags::SIF_SCRAPYARD_GIBS;
     if (g_alpine_server_config.projectile_lag_comp)
         af |= af_server_info_flags::SIF_PROJECTILE_LAG_COMP;
+    // A lock-to-featured-weapon mutator refuses switches the client can't see coming.
+    if (!mutators_should_deny_weapon_switch(-1, -1))
+        af |= af_server_info_flags::SIF_WEAPON_PREDICTION;
     return af;
 }
 
@@ -5133,6 +5136,7 @@ static void decode_af_server_info_flags(const af_server_info_packet& pkt, Alpine
     server_info.scrapyard_gibs = (pkt.af_flags & af_server_info_flags::SIF_SCRAPYARD_GIBS) != 0;
     server_info.no_exposure_damage = (pkt.af_flags & af_server_info_flags::SIF_NO_EXPOSURE_DAMAGE) != 0;
     server_info.projectile_lag_comp = (pkt.af_flags & af_server_info_flags::SIF_PROJECTILE_LAG_COMP) != 0;
+    server_info.weapon_prediction = (pkt.af_flags & af_server_info_flags::SIF_WEAPON_PREDICTION) != 0;
 }
 
 // Apply af_server_info_packet flags to the local server info (for listen server host)
