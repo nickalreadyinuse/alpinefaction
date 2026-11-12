@@ -209,10 +209,11 @@ CodeInjection multi_powerup_add_mp_check {
 };
 
 // Client-side cosmetic pickup prediction. A stock client hides the item and plays its pickup sound only when the
-// server's item_apply arrives (one RTT after the touch). We do both at touch time for weapons and ammo; inventory stays
-// server-authoritative. Until the server answers (or a deadline passes), the item_update sync must not un-hide the item
-// and item_apply must not replay the sound. If the server refused, level items come back with the next item_update
-// (every 250 ms) and dropped items, which item_update doesn't cover, are unhidden here.
+// server's item_apply arrives (one RTT after the touch). We do both at touch time for everything but powerups, flags,
+// the bag and the fusion; inventory stays server-authoritative. Until the server answers (or a deadline passes),
+// the item_update sync must not un-hide the item and item_apply must not replay the sound. If the server refused,
+// level items come back with the next item_update (every 250 ms) and dropped items, which item_update doesn't cover,
+// are unhidden here.
 struct PredictedPickup
 {
     int item_handle;
@@ -235,11 +236,25 @@ static bool item_pickup_is_predictable(const rf::Item* item, rf::Entity* ep)
         || rf::entity_in_vehicle(ep) || rf::entity_is_on_turret(ep) || rf::entity_is_dying(ep)) {
         return false;
     }
-    // Weapons and ammo only: health, armor and powerups are contested or capped by rules we can't see (D6/D8).
+    // Powerups (amp, invulnerability, super health/armor; table at 0x0059EF3C, as multi_powerup_lookup_type) are
+    // contested or capped by rules we can't see (D6/D8); the fusion is the most contested weapon.
+    static auto& powerup_names = addr_as_ref<const char* const[5]>(0x0059EF3C);
+    if (std::ranges::any_of(powerup_names, [&](const char* n) { return string_iequals(info->cls_name.c_str(), n); })
+        || (info->gives_weapon_id >= 0 && info->gives_weapon_id == rf::shoulder_cannon_weapon_type)) {
+        return false;
+    }
+    // Health and armor items refuse at max (the touch callbacks check this on the server only).
+    const auto touch = reinterpret_cast<uintptr_t>(info->touch_callback);
+    if (touch == 0x0045A2E0 && ep->info && ep->life >= ep->info->max_life) { // medical kit
+        return false;
+    }
+    if ((touch == 0x0045A1F0 || touch == 0x0045A050) && ep->info && ep->armor >= ep->info->max_armor) { // suit repair, envirosuit
+        return false;
+    }
     const bool gives_weapon = info->gives_weapon_id >= 0;
     const int weapon = gives_weapon ? info->gives_weapon_id : info->ammo_for_weapon_id;
     if (weapon < 0 || weapon >= rf::num_weapon_types) {
-        return false;
+        return true;
     }
     // Weapon stay leaves level weapons in place (with server-side exemptions); leave those to the server.
     if (gives_weapon && !(item->item_flags & rf::IF_DROPPED) && (rf::multi_server_flags & rf::NG_FLAG_WEAPON_STAY)) {
