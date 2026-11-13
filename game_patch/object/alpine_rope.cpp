@@ -13,6 +13,7 @@
 #include "../misc/decoration_mesh_cache.h"
 #include "../misc/level.h"
 #include "../multi/demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "../multi/multi.h"
 #include "../os/os.h"
 #include "../rf/bmpman.h"
@@ -2248,7 +2249,7 @@ void alpine_rope_do_frame()
     if (rf::game_paused) {
         return;
     }
-    const float time_scale = demo_playback_sim_time_scale();
+    const float time_scale = sim_time_scale();
     const float dt = std::clamp(rf::frametime, 0.0f, rope_max_frame_delta) * time_scale;
     if (!(dt >= 0.0f)) {
         return; // NaN fails the comparison, which is the point

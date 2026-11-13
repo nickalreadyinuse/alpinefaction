@@ -24,6 +24,7 @@
 #include "../multi/salvage.h"
 #include "../multi/server.h"
 #include "../multi/demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "object.h"
 
 int item_lookup_type(const char* name)
@@ -211,7 +212,7 @@ void item_do_frame()
     }
     constexpr float spin_rate = 2.35619449f;
     constexpr float two_pi = 6.28318548f;
-    const float delta = rf::frametime * demo_playback_sim_time_scale() * spin_rate;
+    const float delta = rf::frametime * sim_time_scale() * spin_rate;
     for (auto& item : DoublyLinkedList{rf::item_list}) {
         if (item.info && (item.info->flags & rf::IIF_SPINS_IN_MULTI)) {
             const float angle = item.spin_angle + delta;

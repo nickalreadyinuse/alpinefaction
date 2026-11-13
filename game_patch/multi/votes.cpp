@@ -29,6 +29,7 @@
 #include "mutators.h"
 #include "server.h"
 #include "alpine_packets.h"
+#include "match_pause.h"
 #include "../misc/vpackfile.h"
 #include "bots/server_bots.h"
 
@@ -55,6 +56,8 @@ enum class VoteType
     Match,
     CancelMatch,
     Surrender,
+    Pause,
+    Unpause,
     Unknown
 };
 
@@ -71,6 +74,8 @@ static AfVoteType vote_type_to_wire(VoteType type)
         case VoteType::Previous: return AfVoteType::Previous;
         case VoteType::CancelMatch: return AfVoteType::CancelMatch;
         case VoteType::Surrender: return AfVoteType::Surrender;
+        case VoteType::Pause: return AfVoteType::Pause;
+        case VoteType::Unpause: return AfVoteType::Unpause;
         default: return AfVoteType::Kick;
     }
 }
@@ -142,7 +147,8 @@ private:
     bool reminder_sent = false;
     bool announced = false;
     bool end_event_sent = false;
-    rf::Timestamp early_finish_check_timer;
+    // Realtime: a match timeout freezes game time, and the resume vote runs during one
+    rf::TimestampRealtime early_finish_check_timer;
     std::map<rf::Player*, bool> players_who_voted;
     rf::Player* owner = nullptr;
     // Copied at start time so the wire name never depends on the owner's
@@ -252,7 +258,7 @@ public:
 
             broadcast_vote_legacy_msg("Vote timed out!");
             finish_vote(requires_unanimity() ? tally.no == 0 && tally.remaining == 0 && tally.yes > 0
-                                             : tally.yes > tally.no,
+                                             : tally.yes > tally.no || deciding_team_has_majority(),
                         AfVoteResult::TimedOut);
             return false;
         }
@@ -400,6 +406,12 @@ protected:
     [[nodiscard]] virtual bool requires_unanimity() const
     {
         return false;
+    }
+
+    // A team whose own majority passes the vote, whatever the rest of the voters do
+    [[nodiscard]] virtual std::optional<int> get_deciding_team() const
+    {
+        return std::nullopt;
     }
 
     static uint8_t clamp_to_u8(int value)
@@ -557,9 +569,36 @@ protected:
         return tally;
     }
 
+    // More than half of the deciding team's eligible voters voted yes
+    [[nodiscard]] bool deciding_team_has_majority() const
+    {
+        const std::optional<int> team = get_deciding_team();
+        if (!team) {
+            return false;
+        }
+        int yes = 0;
+        int eligible = 0;
+        for (auto* p : get_clients(false, false)) {
+            if (!is_eligible_voter(p) || p->team != *team) {
+                continue;
+            }
+            ++eligible;
+            const auto it = players_who_voted.find(p);
+            if (it != players_who_voted.end() && it->second) {
+                ++yes;
+            }
+        }
+        return eligible > 0 && yes * 2 > eligible;
+    }
+
     bool check_for_early_vote_finish()
     {
         const VoteTally tally = compute_tally();
+
+        if (deciding_team_has_majority()) {
+            finish_vote(true);
+            return false;
+        }
 
         if (requires_unanimity()) {
             if (tally.no > 0 || tally.remaining == 0) {
@@ -1080,6 +1119,121 @@ struct VoteSurrender : public Vote
         return g_alpine_server_config.vote_match;
     }
 };
+
+// Calls a match timeout, or extends the one in progress. A new timeout passes with a majority of
+// the match or of the caller's team; an extension needs a majority of the match, so one team can't
+// keep the game frozen on its own.
+struct VotePause : public Vote
+{
+    int m_team;
+    bool m_extending = match_pause_server_active();
+
+    explicit VotePause(int team) : m_team(team) {}
+
+    VoteType get_type() const override
+    {
+        return VoteType::Pause;
+    }
+
+    bool validate(rf::Player* source) override
+    {
+        const int max_per_team = g_alpine_server_config.vote_pause.max_per_team;
+        if (max_per_team > 0 && match_pause_server_timeouts_used(m_team) >= max_per_team) {
+            send_vote_reject_msg(std::format("Your team has used all of its timeouts ({}).", max_per_team), source);
+            return false;
+        }
+        // Every player in the match must be able to freeze, or he would play on alone
+        for (rf::Player* p : g_match_info.active_match_players) {
+            if (!p->is_bot && p != rf::local_player && !is_player_minimum_af_client_version(p, 1, 5, 0)) {
+                send_vote_reject_msg(
+                    std::format("Cannot call a timeout: {} is using a client that does not support them.", p->name),
+                    source);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    [[nodiscard]] std::string get_title() const override
+    {
+        const int duration_s = g_alpine_server_config.vote_pause.duration_seconds;
+        return m_extending
+            ? std::format("EXTEND TIMEOUT BY {}:{:02}", duration_s / 60, duration_s % 60)
+            : std::format("CALL TIMEOUT ({}:{:02})", duration_s / 60, duration_s % 60);
+    }
+
+    [[nodiscard]] std::string get_outcome_text(bool accepted) const override
+    {
+        if (!accepted) {
+            return Vote::get_outcome_text(false);
+        }
+        return m_extending ? "Vote passed: extending the timeout." : "Vote passed: timeout!";
+    }
+
+    void on_accepted() override
+    {
+        // The match can end while the vote runs
+        if (g_match_info.match_active) {
+            match_pause_server_pause(m_team);
+        }
+    }
+
+    [[nodiscard]] std::string get_detail() const override { return std::to_string(m_team); }
+
+    [[nodiscard]] std::optional<int> get_deciding_team() const override
+    {
+        return m_extending ? std::nullopt : std::optional{m_team};
+    }
+
+    [[nodiscard]] const VoteConfig& get_config() const override
+    {
+        return g_alpine_server_config.vote_pause;
+    }
+};
+
+// Ends the match timeout early. Passes with a majority of the match, or with a majority
+// of the team that called the timeout.
+struct VoteUnpause : public Vote
+{
+    VoteType get_type() const override
+    {
+        return VoteType::Unpause;
+    }
+
+    bool validate(rf::Player* source) override
+    {
+        if (!match_pause_server_paused()) {
+            send_vote_reject_msg("There is no timeout to end.", source);
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] std::string get_title() const override
+    {
+        return "END TIMEOUT";
+    }
+
+    [[nodiscard]] std::string get_outcome_text(bool accepted) const override
+    {
+        return accepted ? "Vote passed: ending the timeout." : Vote::get_outcome_text(false);
+    }
+
+    void on_accepted() override
+    {
+        match_pause_server_resume();
+    }
+
+    [[nodiscard]] std::optional<int> get_deciding_team() const override
+    {
+        return match_pause_server_pausing_team();
+    }
+
+    [[nodiscard]] const VoteConfig& get_config() const override
+    {
+        return g_alpine_server_config.vote_pause;
+    }
+};
 } // namespace
 
 
@@ -1558,13 +1712,15 @@ public:
 
         // Players' only way to end a live match, so Surrender and Cancel Match skip the enabled check during one
         const VoteType type = vote->get_type();
+        const bool is_pause_type = type == VoteType::Pause || type == VoteType::Unpause;
         if (g_match_info.match_active) {
-            if (type != VoteType::Surrender && type != VoteType::CancelMatch && type != VoteType::Extend) {
-                send_vote_reject_msg("Only surrender, cancel match and extend votes can be called during a match.",
-                                     source);
+            if (type != VoteType::Surrender && type != VoteType::CancelMatch && type != VoteType::Extend
+                && !is_pause_type) {
+                send_vote_reject_msg(
+                    "Only surrender, cancel match, extend and timeout votes can be called during a match.", source);
                 return false;
             }
-            if (type == VoteType::Extend && !vote->get_config().enabled) {
+            if ((type == VoteType::Extend || is_pause_type) && !vote->get_config().enabled) {
                 send_vote_reject_msg("This vote type is disabled!", source);
                 return false;
             }
@@ -1573,8 +1729,10 @@ public:
                 return false;
             }
         }
-        else if (type == VoteType::Surrender) {
-            send_vote_reject_msg("Surrender votes can only be called during a match.", source);
+        else if (type == VoteType::Surrender || is_pause_type) {
+            send_vote_reject_msg(type == VoteType::Surrender ? "Surrender votes can only be called during a match."
+                                                             : "Timeouts can only be called during a match.",
+                                 source);
             return false;
         }
         else if (!vote->get_config().enabled) {
@@ -1917,6 +2075,7 @@ static uint32_t build_enabled_vote_mask()
     if (cfg.vote_next.enabled) mask |= bit(AfVoteType::Next);
     if (cfg.vote_rand.enabled) mask |= bit(AfVoteType::Random);
     if (cfg.vote_previous.enabled) mask |= bit(AfVoteType::Previous);
+    if (cfg.vote_pause.enabled) mask |= bit(AfVoteType::Pause) | bit(AfVoteType::Unpause);
     return mask;
 }
 
@@ -2211,6 +2370,12 @@ bool handle_vote_command(std::string_view vote_args, rf::Player* sender)
     else if (vote_name == "surrender") {
         params.type = AfVoteType::Surrender;
     }
+    else if (vote_name == "pause" || vote_name == "timeout") {
+        params.type = AfVoteType::Pause;
+    }
+    else if (vote_name == "unpause" || vote_name == "resume") {
+        params.type = AfVoteType::Unpause;
+    }
     else {
         return false; // not a vote command; caller reports it as unrecognized
     }
@@ -2360,6 +2525,12 @@ void handle_vote_call_packet(rf::Player* sender, AfVoteCallParams&& params)
             break;
         case AfVoteType::Surrender:
             g_vote_mgr.StartVote<VoteSurrender>(sender, sender->team);
+            break;
+        case AfVoteType::Pause:
+            g_vote_mgr.StartVote<VotePause>(sender, sender->team);
+            break;
+        case AfVoteType::Unpause:
+            g_vote_mgr.StartVote<VoteUnpause>(sender);
             break;
         default:
             xlog::warn("handle_vote_call_packet: unhandled vote type {}", static_cast<int>(params.type));

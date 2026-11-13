@@ -198,6 +198,9 @@ struct PlayerAdditionalData {
     // af_match_state_flags last sent to this player; a new client starts with none set.
     uint8_t match_state_sent = 0;
 
+    // Match timeout state generation last sent to this player; 0 = nothing sent yet.
+    uint32_t match_pause_generation_sent = 0;
+
     // Server side rail gun reload cooldown, used for force_rail_reload
     // needed because entity_is_reloading is unreliable on server
     rf::Timestamp rail_gun_reload_timer{};

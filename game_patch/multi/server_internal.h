@@ -124,6 +124,25 @@ struct VoteConfig
     }
 };
 
+// [vote_pause]: match timeouts. Also gates the matching vote to resume early.
+struct PauseVoteConfig : VoteConfig
+{
+    // Length of a timeout, and of each extension
+    int duration_seconds = 60;
+    // Timeouts (including extensions) each team may call per match; 0 = unlimited
+    int max_per_team = 0;
+
+    PauseVoteConfig()
+    {
+        time_limit_seconds = 15;
+    }
+
+    void set_duration_seconds(float in_time)
+    {
+        duration_seconds = static_cast<int>(std::clamp(in_time, 15.0f, 3600.0f));
+    }
+};
+
 struct BagmanConfig
 {
     int bag_return_time_ms = 7500;
@@ -1215,6 +1234,7 @@ struct AlpineServerConfig
     VoteConfig vote_next;
     VoteConfig vote_rand;
     VoteConfig vote_previous;
+    PauseVoteConfig vote_pause;
 
     AlpineServerConfigRules base_rules;
     std::vector<AlpineServerConfigLevelEntry> levels;

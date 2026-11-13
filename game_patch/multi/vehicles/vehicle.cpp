@@ -19,6 +19,7 @@
 #include "vehicle_fx.h"
 #include "../alpine_packets.h"
 #include "../demo/demo.h"
+#include "../../misc/sim_pause.h"
 #include "../multi.h"
 #include "../server_internal.h"
 #include "../../hud/hud.h"
@@ -752,7 +753,7 @@ void vehicle_hazard_clear_client_clocks()
 void vehicle_hazard_client_do_frame()
 {
     // On demo time, so a paused or slowed replay holds or slows the countdown with its hulls.
-    const float dt = rf::frametime * demo_playback_sim_time_scale();
+    const float dt = rf::frametime * sim_time_scale();
     if (!rf::is_server && dt > 0.0f) {
         for (auto it = g_vehicle_state.hazard_time.begin(); it != g_vehicle_state.hazard_time.end();) {
             it = rf::entity_from_handle(it->first) ? std::next(it) : g_vehicle_state.hazard_time.erase(it);

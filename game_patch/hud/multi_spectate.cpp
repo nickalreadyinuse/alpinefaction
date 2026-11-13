@@ -1,6 +1,7 @@
 #include "multi_spectate.h"
 #include "../misc/vote_panel.h"
 #include "../multi/demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "../multi/demo/demo_ui.h"
 #include "hud.h"
 #include "hud_internal.h"
@@ -2027,7 +2028,7 @@ static void player_render_new(rf::Player* player)
                 // treat it as not firing so pausing reads as a falling edge (muzzle flash and
                 // fire anim stop) and resuming as a rising edge, instead of firing forever
                 bool weapon_is_on = rf::entity_weapon_is_on(entity->handle, weapon_type)
-                    && !demo_playback_sim_frozen();
+                    && !sim_pause_active();
                 bool is_alt_fire = (entity->ai.ai_flags & rf::AIF_ALT_FIRE) != 0;
                 bool is_continuous_alt_fire_weapon =
                     rf::weapon_is_on_off_weapon(weapon_type, true);
@@ -2097,7 +2098,7 @@ static void player_render_new(rf::Player* player)
         // system may not complete in time for the render check. Directly writing the state fields
         // guarantees player_fpgun_render's is_in_state_anim(WS_LOOP_FIRE) check passes.
         if (entity && rf::entity_weapon_is_on(entity->handle, entity->ai.current_primary_weapon)
-            && !demo_playback_sim_frozen()) {
+            && !sim_pause_active()) {
             g_spectate_mode_target->fpgun_current_state_anim = rf::WS_LOOP_FIRE;
         }
 

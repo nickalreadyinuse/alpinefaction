@@ -20,6 +20,7 @@
 #include "../misc/settings_registry.h"
 #include "../misc/level.h"
 #include "../multi/demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "../os/console.h"
 #include "../os/os.h"
 #include "../rf/bmpman.h"
@@ -1409,7 +1410,7 @@ void weather_render()
     }
 
     const rf::Matrix3 camera_orient = rf::camera_get_orient(camera);
-    const float dt = std::clamp(rf::frametime, 0.0f, max_frame_delta) * demo_playback_sim_time_scale();
+    const float dt = std::clamp(rf::frametime, 0.0f, max_frame_delta) * sim_time_scale();
     g_weather_clock += dt;
     int trace_budget = weather_column_trace_budget;
     const bool gpu = weather_gpu_ready();

@@ -32,6 +32,7 @@
 #include "../vehicles/vehicle_fx.h"
 #include "../../misc/misc.h"
 #include "../../misc/alpine_settings.h"
+#include "../../misc/sim_pause.h"
 #include "../../hud/multi_spectate.h"
 #include "../../hud/hud.h"
 #include "../../hud/hud_world.h"
@@ -867,8 +868,7 @@ namespace
         // restart) - release the engine pause primitives so the counter never leaks
         if (g_ctx.pause_fx_applied) {
             g_ctx.pause_fx_applied = false;
-            rf::timer::dec_game_paused();
-            rf::snd_pause(false);
+            sim_pause_set(SimPauseReason::demo, false);
         }
         snd_set_global_rate(1.0f);
         snd_clear_global_rate_cache();
@@ -1168,14 +1168,7 @@ namespace
         if (want == g_ctx.pause_fx_applied)
             return;
         g_ctx.pause_fx_applied = want;
-        if (want) {
-            rf::timer::inc_game_paused();
-            rf::snd_pause(true);
-        }
-        else {
-            rf::timer::dec_game_paused();
-            rf::snd_pause(false);
-        }
+        sim_pause_set(SimPauseReason::demo, want);
     }
 
     // Sounds play at the timescale, so looping sounds (weapon fire, engines) keep pace with the
@@ -1228,8 +1221,9 @@ namespace
         cep->update_room();
     }
 
-    // While the world is frozen for demo pause the whole sim frame is skipped - object
-    // movement, weapon fire regeneration, particles, corpse decay. Only the camera
+    // While the world is frozen (demo pause or match timeout, see misc/sim_pause.h) the whole
+    // sim frame is skipped - object movement, weapon fire regeneration, particles, corpse decay
+    // and the level clock. A dedicated server reaches it straight from gameplay_do_frame. Only the camera
     // system is kept alive so perspective switching, third-person orbit, static cams
     // and freelook flying keep working; input processing and rendering run outside
     // this function and are unaffected.
@@ -1237,7 +1231,7 @@ namespace
     FunHook<void()> gameplay_sim_frame_hook{
         0x00433260,
         []() {
-            if (g_ctx.pause_fx_applied) {
+            if (sim_pause_active()) {
                 freelook_camera_physics();
                 rf::cameras_do_frame();
                 return;
@@ -1289,7 +1283,7 @@ namespace
         0x00503360,
         [](rf::VMesh* vmesh, float frametime, int increment_only, rf::Vector3* pos, rf::Matrix3* orient,
            int lod_level) {
-            if (g_ctx.pause_fx_applied) {
+            if (sim_pause_active()) {
                 frametime = 0.0f;
             }
             else if (g_ctx.state != PlaybackState::inactive && !g_ctx.in_scaled_sim_frame) {
@@ -2012,11 +2006,6 @@ uint32_t demo_playback_duration_ms()
 bool demo_playback_paused()
 {
     return g_ctx.paused;
-}
-
-bool demo_playback_sim_frozen()
-{
-    return g_ctx.pause_fx_applied;
 }
 
 float demo_playback_sim_time_scale()

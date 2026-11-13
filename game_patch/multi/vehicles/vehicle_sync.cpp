@@ -26,6 +26,7 @@
 #include "../multi.h"
 #include "../bots/server_bots.h"
 #include "../demo/demo.h"
+#include "../../misc/sim_pause.h"
 #include "../../hud/multi_spectate.h"
 #include "../../misc/alpine_settings.h"
 #include "../../misc/level.h"
@@ -2235,7 +2236,7 @@ void vehicle_store_health_from_packet(int vehicle_handle, float life, float max_
 // Ticked on demo time, so a paused or rescaled demo keeps the bars in step with the recorded refills.
 void vehicle_tick_ammo_refill_mirrors()
 {
-    const float dt_ms = rf::frametime * 1000.0f * demo_playback_sim_time_scale();
+    const float dt_ms = rf::frametime * 1000.0f * sim_time_scale();
     for (auto& [handle, mirror] : g_vehicle_state.ammo_mirror) {
         for (float& ms_left : mirror.refill_ms_left) {
             ms_left = std::max(ms_left - dt_ms, 0.0f);

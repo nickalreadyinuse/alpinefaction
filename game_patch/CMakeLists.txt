@@ -147,6 +147,8 @@ set(SRCS
     multi/jetpack.cpp
     multi/rounds.h
     multi/rounds.cpp
+    multi/match_pause.h
+    multi/match_pause.cpp
     multi/pit.h
     multi/pit.cpp
     multi/wipeout.h
@@ -388,6 +390,8 @@ set(SRCS
     misc/character.cpp
     misc/high_fps.cpp
     misc/high_fps.h
+    misc/sim_pause.cpp
+    misc/sim_pause.h
     misc/misc.cpp
     misc/misc.h
     misc/string.cpp

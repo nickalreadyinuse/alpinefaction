@@ -29,6 +29,7 @@
 #include "awards.h"
 #include "bagman.h"
 #include "demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "gametype.h"
 #include "kill_attribution.h"
 #include "multi.h"
@@ -1430,7 +1431,7 @@ void awards_client_do_frame()
         g_award_slot_busy.invalidate();
         return;
     }
-    if (demo_playback_sim_frozen()) {
+    if (sim_pause_active()) {
         return;
     }
     if (g_award_queue.empty()) {

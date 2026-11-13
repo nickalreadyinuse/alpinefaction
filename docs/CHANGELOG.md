@@ -258,6 +258,8 @@ Version 1.5.0 (Trillium): Not yet released
 - Show the recording server's config during demo playback with the Remote Server Config key
 - Apply demo playback speed to the whole world, including particles, animations and sounds
 - Add `ui_show_netmeter` console command to show network statistics
+- Add match timeouts: the bindable `Call Timeout` control (`Pause` by default) calls a `Timeout` vote during a match, which passes with a majority of the match or of the caller's team and freezes the game for everyone; calling it again extends the timeout if a majority of the match agrees, an `End Timeout` vote resumes early, and play resumes after a 10 second countdown; rcon holders can call, extend or end one at any time with `sv_timeout [end]`
+  - Configure with the `[vote_pause]` dedicated server config section: `enabled`, `time`, `duration` (seconds, default 60) and `max_per_team` (0 = unlimited)
 
 [@is-this-c](https://github.com/is-this-c)
 - Add `bighud_health` and `bighud_ammo` console variables to disable `bighud` for health and ammo, which is useful for mods incompatible with `bighud`

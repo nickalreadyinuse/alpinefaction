@@ -32,6 +32,7 @@
 #include "../hud/multi_spectate.h"
 #include "../sound/sound.h"
 #include "../rf/os/timestamp.h"
+#include "../misc/sim_pause.h"
 #include "../object/object.h"
 #include "../object/event_alpine.h"
 #include "../rf/entity.h"
@@ -1957,12 +1958,19 @@ void koth_do_frame() // fires every frame on both server and client
     if (rf::gameseq_get_state() != rf::GameState::GS_GAMEPLAY)
         return;
 
+    // The ticks run on wall-clock time; while the sim is frozen (match timeout) they
+    // consume the elapsed time without advancing capture progress
+    const bool sim_paused = sim_pause_active();
+
     // server tick
     if (rf::is_dedicated_server || rf::is_server) {
         static int64_t last_srv = timer::get_i64(1000);
         const int64_t now_srv = timer::get_i64(1000);
         const int64_t dt_srv = now_srv - last_srv;
-        if (dt_srv > 0) {
+        if (sim_paused) {
+            last_srv = now_srv;
+        }
+        else if (dt_srv > 0) {
             last_srv = now_srv;
             const int dt_ms = static_cast<int>(std::min(dt_srv, 250LL));
 
@@ -1991,7 +1999,7 @@ void koth_do_frame() // fires every frame on both server and client
         static int64_t last_cli = demo_playback_interp_clock_ms();
         const int64_t now_cli = demo_playback_interp_clock_ms();
         const int64_t dt_cli = now_cli - last_cli;
-        if (dt_cli != 0) {
+        if (sim_paused || dt_cli != 0) {
             last_cli = now_cli;
         }
         if (dt_cli > 0) {

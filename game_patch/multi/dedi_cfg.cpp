@@ -85,6 +85,7 @@ const std::vector<std::string> g_legacy_rcon_allowed_commands = {
     "sv_gametype",
     "sv_geolimit",
     "sv_timelimit",
+    "sv_timeout",
     "unban_last"
 };
 
@@ -907,9 +908,8 @@ static std::vector<std::string> parse_allowed_maps(const toml::table& t)
     return allowed_maps;
 }
 
-static VoteConfig parse_vote_config(const toml::table& t)
+static VoteConfig parse_vote_config(const toml::table& t, VoteConfig v = {})
 {
-    VoteConfig v;
     if (auto x = t["enabled"].value<bool>())
         v.enabled = *x;
 
@@ -933,6 +933,21 @@ static VoteConfig parse_vote_level_config(const toml::table& t)
             v.add_installed_to_allowed_levels = *x;
         if (auto x = t["only_allow_gametype_prefix"].value<bool>())
             v.only_allow_gametype_prefix = *x;
+    }
+
+    return v;
+}
+
+static PauseVoteConfig parse_vote_pause_config(const toml::table& t)
+{
+    PauseVoteConfig v;
+    static_cast<VoteConfig&>(v) = parse_vote_config(t, v);
+
+    if (v.enabled) {
+        if (auto x = t["duration"].value<float>())
+            v.set_duration_seconds(*x);
+        if (auto x = t["max_per_team"].value<int>())
+            v.max_per_team = std::max(*x, 0);
     }
 
     return v;
@@ -1537,6 +1552,8 @@ static void apply_known_table_in_order(
         cfg.vote_rand = parse_vote_config(tbl);
     else if (key == "vote_previous")
         cfg.vote_previous = parse_vote_config(tbl);
+    else if (key == "vote_pause")
+        cfg.vote_pause = parse_vote_pause_config(tbl);
     else if (key == "base") {
         g_parsing_base_scope_tables.push_back(tbl);
         cfg.base_rules = parse_scope_rules(tbl, cfg.base_rules);
@@ -2594,6 +2611,13 @@ void print_alpine_dedicated_server_config_info(std::string& output, bool verbose
     print_vote("Vote next:    ", cfg.vote_next);
     print_vote("Vote random:  ", cfg.vote_rand);
     print_vote("Vote previous:", cfg.vote_previous);
+
+    std::format_to(iter, "  Vote pause:                            {}\n", cfg.vote_pause.enabled);
+    if (cfg.vote_pause.enabled) {
+        std::format_to(iter, "    Time limit:                          {} sec\n", cfg.vote_pause.time_limit_seconds);
+        std::format_to(iter, "    Timeout duration:                    {} sec\n", cfg.vote_pause.duration_seconds);
+        std::format_to(iter, "    Max per team:                        {}\n", cfg.vote_pause.max_per_team);
+    }
 
     std::format_to(iter, "  Vote level:                            {}\n", cfg.vote_level.enabled);
     if (cfg.vote_level.enabled) {

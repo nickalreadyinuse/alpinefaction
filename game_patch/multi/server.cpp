@@ -33,6 +33,7 @@
 #include "mutators.h"
 #include "bagman.h"
 #include "rounds.h"
+#include "match_pause.h"
 #include "pit.h"
 #include "wipeout.h"
 #include "gungame.h"
@@ -117,6 +118,7 @@ const std::vector<std::string> g_rcon_cmd_masterlist = {
     "sv_toggle_ready",
     "sv_force_unspectate",
     "sv_mute_chat",
+    "sv_timeout",
 };
 
 std::vector<rf::AlpineRespawnPoint> g_alpine_respawn_points;
@@ -2693,6 +2695,7 @@ void start_match()
 // queues runs, so the limbo never reports this match itself.
 static void end_match_early()
 {
+    match_pause_server_reset();
     if (g_match_info.match_active) {
         load_next_level(); // end the round if active match is canceled
     }
@@ -3618,6 +3621,10 @@ FunHook<void(rf::Player*)> multi_spawn_player_server_side_hook{
         if (g_match_info.match_active && !is_player_in_match(player)) {
             send_spawn_decline_msg(player,
                 "You cannot spawn because a match is in progress. Please feel free to spectate.");
+            return;
+        }
+        if (match_pause_server_active()) {
+            send_spawn_decline_msg(player, "You cannot spawn during a timeout.");
             return;
         }
         if (player->is_bot && player->is_spawn_disabled) {
@@ -6020,6 +6027,7 @@ void server_do_frame()
     fire_ticks_do_frame();
     match_do_frame();
     sync_match_state_to_clients();
+    match_pause_server_do_frame();
     process_delayed_kicks();
     server_player_roles_do_frame();
     pit_do_frame();

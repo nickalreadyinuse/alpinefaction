@@ -141,13 +141,10 @@ int64_t demo_playback_interp_clock_us();
 // Total demo length, or 0 when unknown (footerless file - grows as records stream in).
 uint32_t demo_playback_duration_ms();
 bool demo_playback_paused();
-// True while the world simulation is frozen for demo pause (paused, in gameplay and
-// not seeking). The paused freelook camera drive keys on this.
-bool demo_playback_sim_frozen();
 // Multiplier that turns rf::frametime (wall clock, unaffected by the pause freeze) into
 // demo simulation time: 0 while frozen, the playback timescale while playing, 1 when no
-// demo is being played back. For viewer-side estimates that tick outside the sim frame
-// (inside it, rf::frametime is already demo time).
+// demo is being played back. Ignores match timeouts: use sim_time_scale() (misc/sim_pause.h)
+// for code that ticks outside the sim frame (inside it, rf::frametime is already demo time).
 float demo_playback_sim_time_scale();
 // Playback speed multiplier (same value the demo_timescale command sets), clamped to [0.05, 10].
 float demo_playback_timescale();

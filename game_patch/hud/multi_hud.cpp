@@ -60,6 +60,7 @@
 #include "../multi/network.h"
 #include "../multi/bots/bot_main.h"
 #include "../multi/mutators.h"
+#include "../multi/match_pause.h"
 #include "multi_spectate.h"
 #include "../misc/settings_registry.h"
 #include "../object/zipline.h"
@@ -2428,6 +2429,7 @@ CodeInjection multi_hud_render_patch{
         hud_render_notification();
         hud_render_big_notification();
         hud_render_reticle_prompt();
+        match_pause_hud_render();
 
         if (g_draw_respawn_timer_notification) {
             hud_render_respawn_timer_notification();

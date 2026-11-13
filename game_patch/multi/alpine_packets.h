@@ -167,12 +167,14 @@ enum class AfVoteType : uint8_t
     Previous = 7,
     CancelMatch = 8,
     Surrender = 9, // Alpine 1.5
+    Pause = 10,    // Alpine 1.5 (call a match timeout, or extend the one in progress)
+    Unpause = 11,  // Alpine 1.5 (end the match timeout early)
 };
 // Number of vote types this build knows about.
 // NOT a wire limit: a newer server may run a type with a higher value,
 // and a client tolerates that. Only the server uses it as a rejection bound,
 // on incoming vote calls.
-constexpr uint8_t af_vote_type_count = 10;
+constexpr uint8_t af_vote_type_count = 12;
 static_assert(af_vote_type_count <= 32, "enabled_vote_mask is a u32");
 
 // "no gametype override" sentinel in vote-call payloads.
@@ -496,6 +498,7 @@ enum class af_server_req_type : uint8_t
     af_sreq_rcon_state = 0x11,         // Alpine 1.5 (variable: is_holder, command count, commands)
     af_sreq_force_spectate = 0x12,     // Alpine 1.5 (1 byte: 1 = enter spectate, 0 = leave)
     af_sreq_player_roles = 0x13,       // Alpine 1.5 (variable: count, {player_id, af_player_role_flags})
+    af_sreq_match_pause = 0x14,        // Alpine 1.5 (6 bytes: MatchPausePayload)
 };
 
 struct ShouldGibPayload
@@ -536,6 +539,21 @@ enum af_match_state_flags : uint8_t
 struct MatchStatePayload
 {
     uint8_t flags = 0; // af_match_state_flags
+};
+
+// af_sreq_match_pause `phase` byte. FROZEN wire constants.
+enum class AfMatchPausePhase : uint8_t
+{
+    None = 0,     // not paused
+    Paused = 1,   // timeout in progress
+    Resuming = 2, // final countdown before play resumes (still frozen)
+};
+
+struct MatchPausePayload
+{
+    AfMatchPausePhase phase = AfMatchPausePhase::None;
+    uint8_t pausing_team = 0;  // team that called the timeout
+    uint32_t remaining_ms = 0; // until the phase ends
 };
 
 struct ReadyPromptPayload
@@ -647,7 +665,8 @@ static_assert(sizeof(ReserveAmmoPayload) == 3);
 using af_server_req_payload = std::variant<ShouldGibPayload, TeleportEntityPayload, SprayPayload,
                                            ReadyPromptPayload, PitQueueStatePayload, EntityOnFirePayload,
                                            EntityJetpackPayload, RiotShieldStatePayload, AwardPayload,
-                                           MatchStatePayload, ZiplineStatePayload, ReserveAmmoPayload>;
+                                           MatchStatePayload, ZiplineStatePayload, ReserveAmmoPayload,
+                                           MatchPausePayload>;
 
 struct af_server_req_packet
 {
@@ -1394,6 +1413,7 @@ void af_send_rcon_state(rf::Player* player, bool is_holder, const std::vector<st
 void af_send_force_spectate(rf::Player* player, bool enter);
 void af_set_player_spectatee(rf::Player* spectator, rf::Player* new_target, bool in_spectate);
 void af_send_player_roles(rf::Player* player, const std::vector<std::pair<uint8_t, uint8_t>>& roles);
+void af_send_match_pause(rf::Player* player, const MatchPausePayload& payload);
 
 // server bot control
 void af_send_bot_control_simple(rf::Player* player, af_bot_control_type subtype);

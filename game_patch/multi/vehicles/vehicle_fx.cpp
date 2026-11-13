@@ -14,6 +14,7 @@
 #include "vehicle_internal.h"
 #include "vehicle_physics.h"
 #include "../demo/demo.h"
+#include "../../misc/sim_pause.h"
 #include "../../graphics/gr.h"
 #include "../../graphics/weather.h"
 #include "../../main/main.h"
@@ -1308,7 +1309,7 @@ void vehicle_fx_do_frame()
     fx_load_bitmaps();
     fx_load_sounds();
 
-    g_fx_dt = rf::frametime * demo_playback_sim_time_scale();
+    g_fx_dt = rf::frametime * sim_time_scale();
     const float dt = g_fx_dt;
     fx_tick(g_fx_debris_cooldown);
     g_fx_live_particles = 0;

@@ -43,6 +43,7 @@
 #include "obj_update_delta.h"
 #include "netmeter.h"
 #include "server.h"
+#include "match_pause.h"
 #include "server_internal.h"
 #include "salvage.h"
 #include "scavenger.h"
@@ -1621,6 +1622,10 @@ CodeInjection process_obj_update_check_flags_injection{
                     // No player associated with this update; reject rather than dereference pp below.
                     valid = false;
                 }
+                else if (match_pause_server_active()) {
+                    // Nobody moves or fires during a match timeout
+                    valid = false;
+                }
                 else if (ep && ep->handle != pp->entity_handle) {
                     if (!vehicle_is_driver_obj_update_row(pp, ep, flags)) {
                         xlog::trace("Invalid obj_update entity {:x} {:x} {}", ep->handle, pp->entity_handle,
@@ -1703,6 +1708,17 @@ CodeInjection process_obj_update_weapon_fire_injection{
             }
         }
         regs.eip = 0x0047E346;
+    },
+};
+
+// A client's shot during a match timeout is dropped like its movement (process_obj_update_check_flags_injection)
+FunHook<MultiIoPacketHandler> process_weapon_fire_packet_hook{
+    0x0047D6C0,
+    [](char* data, const rf::NetAddr& addr) {
+        if (rf::is_server && match_pause_server_active()) {
+            return;
+        }
+        process_weapon_fire_packet_hook.call_target(data, addr);
     },
 };
 
@@ -3399,6 +3415,10 @@ FunHook<void()> multi_stop_hook{
         g_local_player_roles.clear();
         mutators_set_no_clip_weapon(-1); // restore any server weapon-table overrides
         vote_client_reset(); // drop the cached vote options and active vote state
+        if (rf::is_server) {
+            match_pause_server_reset();
+        }
+        match_pause_client_reset(); // release a match timeout's freeze
         vote_panel_reset(); // drop the vote form, which describes the server being left
         clear_pending_rotation_preserve(); // server side: no rotation carry survives a session
         af_reset_session_overrides_snapshot();
@@ -4698,6 +4718,7 @@ void network_init()
 
     // Verify on/off weapons handling
     process_obj_update_weapon_fire_injection.install();
+    process_weapon_fire_packet_hook.install();
 
     // Client-side green team fix
     using namespace asm_regs;

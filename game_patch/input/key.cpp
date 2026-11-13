@@ -331,6 +331,8 @@ CodeInjection control_config_init_patch{
                                        rf::AlpineControlConfigAction::AF_ACTION_VOTE_MENU);
         alpine_control_config_add_item(ccp, "Show Map", false, rf::KEY_Q, -1, -1,
                                        rf::AlpineControlConfigAction::AF_ACTION_BIG_MAP);
+        alpine_control_config_add_item(ccp, "Call Timeout", false, rf::KEY_PAUSE, -1, -1,
+                                       rf::AlpineControlConfigAction::AF_ACTION_MATCH_PAUSE);
     },
 };
 
@@ -393,6 +395,24 @@ static void cast_local_vote(bool is_yes_vote)
 
     send_chat_line_packet(is_yes_vote ? "/vote yes" : "/vote no", nullptr);
     remove_hud_vote_notification(); // optimistic; legacy servers send no tally
+}
+
+// Calls a match timeout, or an extension while one runs. Pressed during a timeout vote
+// it votes yes instead, so the whole team can just press the same key.
+static void call_local_timeout_vote()
+{
+    if (!vote_client_match_live() || vote_client_spectating_match() || !is_server_minimum_af_version(1, 5)) {
+        return;
+    }
+    if (const auto& vote = vote_state_get(); vote && vote->known_type() == AfVoteType::Pause) {
+        if (!vote->is_owner && !vote->has_voted) {
+            cast_local_vote(true);
+        }
+        return;
+    }
+    AfVoteCallParams params;
+    params.type = AfVoteType::Pause;
+    af_send_vote_call(params);
 }
 
 CodeInjection player_execute_action_patch{
@@ -478,6 +498,12 @@ CodeInjection player_execute_action_patch2{
                 && rf::is_multi
                 && !rf::is_dedicated_server) {
                 toggle_chat_menu(ChatMenuType::Commands);
+            } else if (alpine_action_index
+                == static_cast<int>(rf::AlpineControlConfigAction::AF_ACTION_MATCH_PAUSE)
+                && rf::is_multi
+                && !rf::is_server
+                && rf::gameseq_get_state() != rf::GS_MULTI_LIMBO) {
+                call_local_timeout_vote();
             }
         }
     },
@@ -655,12 +681,12 @@ FunHook<void(int, int, int)> key_msg_handler_hook{
 // waiting for input (scan code from the key queue, or -1 to check mouse buttons).
 // Stock RF rejects Left/Right Alt and any scan code its internal key name table has
 // no name for, which blocks Alpine's extra mouse button scan codes — accept both
-// directly; everything else keeps stock behavior (including the Esc/PrtScn/Pause
-// blacklist and mouse button handling).
+// directly, and Pause too (the default Call Timeout key); everything else keeps stock
+// behavior (including the Esc/PrtScn/Break blacklist and mouse button handling).
 FunHook<void(int)> options_controls_record_binding_hook{
     0x0044FE60,
     [](int key) {
-        if (ctrl_is_extra_mouse_scan(key) || key == rf::KEY_LALT || key == rf::KEY_RALT) {
+        if (ctrl_is_extra_mouse_scan(key) || key == rf::KEY_LALT || key == rf::KEY_RALT || key == rf::KEY_PAUSE) {
             rf::ui::options_controls_assign_binding(key, -1);
             rf::ui::options_controls_stop_waiting_for_key();
             return;

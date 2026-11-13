@@ -48,6 +48,7 @@
 #include "../hud/hud.h"
 #include "../hud/multi_spectate.h"
 #include "rounds.h"
+#include "match_pause.h"
 #include "../sound/sound.h"
 #include "../misc/alpine_settings.h"
 #include "../object/object.h"
@@ -1030,6 +1031,15 @@ void serialize_payload(const ReadyPromptPayload& payload, std::byte* buf, size_t
 void serialize_payload(const MatchStatePayload& payload, std::byte* buf, size_t& offset)
 {
     buf[offset++] = static_cast<std::byte>(payload.flags);
+}
+
+// af_sreq_match_pause
+void serialize_payload(const MatchPausePayload& payload, std::byte* buf, size_t& offset)
+{
+    buf[offset++] = static_cast<std::byte>(payload.phase);
+    buf[offset++] = static_cast<std::byte>(payload.pausing_team);
+    std::memcpy(buf + offset, &payload.remaining_ms, sizeof(payload.remaining_ms));
+    offset += sizeof(payload.remaining_ms);
 }
 
 // af_sreq_pit_queue_state
@@ -2733,6 +2743,25 @@ void af_send_player_roles(rf::Player* player, const std::vector<std::pair<uint8_
     af_finish_server_req_packet(player, buf, w, "af_send_player_roles");
 }
 
+void af_send_match_pause(rf::Player* player, const MatchPausePayload& payload)
+{
+    // The listen-server host applies the pause directly
+    if (!rf::is_server || !player || player == rf::local_player || !player->net_data) {
+        return;
+    }
+    if (!is_player_minimum_af_client_version(player, 1, 5, 0)) {
+        return;
+    }
+
+    af_server_req_packet packet{};
+    packet.header.type = static_cast<uint8_t>(af_packet_type::af_server_req);
+    packet.header.size = sizeof(uint8_t) + 2 * sizeof(uint8_t) + sizeof(uint32_t); // req_type + payload
+    packet.req_type = af_server_req_type::af_sreq_match_pause;
+    packet.payload = payload;
+
+    af_send_server_req_packet(packet, player);
+}
+
 // Apply a Pit queue-state update on the local client.
 static void apply_local_pit_queue_state(uint8_t flags, uint8_t pos, uint8_t total)
 {
@@ -3171,6 +3200,24 @@ static void af_process_server_req_packet(const void* data, size_t len, const rf:
                 return;
             }
             set_local_player_roles(std::move(roles));
+            break;
+        }
+        case af_server_req_type::af_sreq_match_pause: {
+            constexpr size_t expected = 2 * sizeof(uint8_t) + sizeof(uint32_t);
+            if (remaining < expected) {
+                xlog::warn("af_process_server_req_packet: MatchPause payload too short");
+                return;
+            }
+            const uint8_t phase = static_cast<uint8_t>(bytes[offset]);
+            if (phase > static_cast<uint8_t>(AfMatchPausePhase::Resuming)) {
+                xlog::warn("af_process_server_req_packet: MatchPause unknown phase {}", phase);
+                return;
+            }
+            MatchPausePayload payload;
+            payload.phase = static_cast<AfMatchPausePhase>(phase);
+            payload.pausing_team = static_cast<uint8_t>(bytes[offset + 1]);
+            std::memcpy(&payload.remaining_ms, bytes + offset + 2, sizeof(payload.remaining_ms));
+            match_pause_client_on_state(payload);
             break;
         }
         case af_server_req_type::af_sreq_pit_queue_state: {

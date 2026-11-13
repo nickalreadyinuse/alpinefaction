@@ -62,7 +62,8 @@ namespace rf
         AF_ACTION_SPRAY = 0x12,
         AF_ACTION_VOTE_MENU = 0x13,
         AF_ACTION_BIG_MAP = 0x14,
-        _AF_ACTION_LAST_VARIANT = AF_ACTION_BIG_MAP
+        AF_ACTION_MATCH_PAUSE = 0x15,
+        _AF_ACTION_LAST_VARIANT = AF_ACTION_MATCH_PAUSE
     };
 
     struct ControlConfigItem

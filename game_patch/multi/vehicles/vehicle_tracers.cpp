@@ -11,6 +11,7 @@
 #include "../gametype.h"
 #include "../multi.h"
 #include "../demo/demo.h"
+#include "../../misc/sim_pause.h"
 #include "../../hud/hud_world.h"
 #include "../../graphics/gr.h"
 #include "../../misc/alpine_settings.h"
@@ -537,7 +538,7 @@ void vehicle_tracers_render()
     }
     float dt = 0.0f;
     if (!rf::game_paused) {
-        dt = std::clamp(rf::frametime, 0.0f, tracer_max_frame_delta) * demo_playback_sim_time_scale();
+        dt = std::clamp(rf::frametime, 0.0f, tracer_max_frame_delta) * sim_time_scale();
         if (!(dt >= 0.0f)) {
             dt = 0.0f;
         }

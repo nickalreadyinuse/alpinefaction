@@ -42,6 +42,7 @@
 #include "../hud/hud_internal.h"
 #include "../hud/hud.h"
 #include "../multi/alpine_packets.h"
+#include "../multi/match_pause.h"
 #include "../fflink/afstats_events.h"
 #include "../hud/hud_world.h"
 #include <common/utils/list-utils.h>
@@ -580,6 +581,9 @@ FunHook<void(rf::Player*, rf::ControlConfigAction, bool)> player_execute_action_
         }
         if (zipline_execute_action(player, action)) {
             return;
+        }
+        if (match_pause_blocks_action(action)) {
+            return; // the world is frozen for a match timeout
         }
         // A turret operator's or jeep gunner's alt is his zoom, read from the raw control state. Stock
         // would run his hand weapon's alt route, which can fire the gun locally where the server never

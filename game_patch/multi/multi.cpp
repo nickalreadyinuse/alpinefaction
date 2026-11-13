@@ -22,6 +22,7 @@
 #include "server_internal.h"
 #include "gametype.h"
 #include "rounds.h"
+#include "match_pause.h"
 #include "salvage.h"
 #include "payload.h"
 #include "vehicles/vehicle.h"
@@ -327,6 +328,9 @@ bool handle_awpgen_param()
 FunHook<void()> multi_limbo_init{
     0x0047C280,
     [] {
+        // Before anything arms a timer: a match timeout's frozen game time would stall the limbo
+        match_pause_on_limbo();
+
         rf::activate_all_events_of_type(rf::EventType::When_Round_Ends, -1, -1, true);
 
         int limbo_time = 10000;

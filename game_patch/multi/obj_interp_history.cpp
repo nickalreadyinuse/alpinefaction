@@ -12,6 +12,7 @@
 #include "obj_interp_history.h"
 #include "server.h"
 #include "demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "../rf/entity.h"
 #include "../rf/object.h"
 #include "../rf/multi.h"
@@ -288,7 +289,7 @@ FunHook<void __fastcall(rf::ObjInterp*, int, rf::Object*)> obj_interp_frame_adva
         const auto now_us = static_cast<uint32_t>(demo_playback_interp_clock_us());
         const float elapsed_ms =
             std::clamp(static_cast<float>(static_cast<int32_t>(now_us - self->frame_time_us)) / 1000.0f, 0.0f,
-                       elapsed_max_ms * demo_playback_sim_time_scale());
+                       elapsed_max_ms * sim_time_scale());
         self->frame_time_us = now_us;
         if ((self->flags & rf::OIF_REANCHOR) != 0 || self->num_frames() < 2)
             return;

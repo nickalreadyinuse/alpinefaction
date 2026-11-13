@@ -16,6 +16,7 @@
 #include "../rf/player/player.h"
 #include "../rf/sound/sound.h"
 #include "../sound/sound.h"
+#include "match_pause.h"
 
 namespace
 {
@@ -605,10 +606,17 @@ bool vote_options_is_type_enabled(AfVoteType type)
             case AfVoteType::CancelMatch:
                 return true;
             case AfVoteType::Extend:
+            case AfVoteType::Pause:
                 return advertised;
+            case AfVoteType::Unpause:
+                return advertised && match_pause_client_paused();
             default:
                 return false;
         }
+    }
+    // Timeouts exist only during a live match
+    if (type == AfVoteType::Pause || type == AfVoteType::Unpause) {
+        return false;
     }
     return advertised;
 }

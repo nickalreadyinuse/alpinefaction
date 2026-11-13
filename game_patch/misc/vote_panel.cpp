@@ -249,6 +249,8 @@ const VoteTypeInfo vote_type_infos[] = {
     {AfVoteType::Match, "Match", "Set up a match on the chosen level with the chosen team size."},
     {AfVoteType::CancelMatch, "Cancel Match", "Cancel the match that is currently set up."},
     {AfVoteType::Surrender, "Surrender", "Concede the match. Passes only if every player on your team agrees."},
+    {AfVoteType::Pause, "Timeout", "Pause the match, or extend the timeout in progress. A majority of your team can call one; extending needs a majority of the match."},
+    {AfVoteType::Unpause, "End Timeout", "Resume the match early, after a short countdown."},
     {AfVoteType::Kick, "Kick", "Kick the selected player from the server."},
 };
 

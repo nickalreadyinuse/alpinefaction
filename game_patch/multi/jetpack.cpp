@@ -9,6 +9,7 @@
 #include "server_internal.h"
 #include "alpine_packets.h"
 #include "demo/demo.h"
+#include "../misc/sim_pause.h"
 #include "../rf/multi.h"
 #include "../rf/entity.h"
 #include "../rf/object.h"
@@ -328,7 +329,7 @@ void jetpack_update_remote_fuel()
 {
     // Runs from rf_do_frame, outside the sim frame the demo pause freezes, so the
     // estimate has to be scaled onto demo time by hand.
-    const float dt = rf::frametime * demo_playback_sim_time_scale();
+    const float dt = rf::frametime * sim_time_scale();
     for (auto it = g_jetpack_remote_fuel.begin(); it != g_jetpack_remote_fuel.end();) {
         rf::Entity* ep = rf::entity_from_handle(it->first);
         if (!ep || rf::entity_is_dying(ep)) {
