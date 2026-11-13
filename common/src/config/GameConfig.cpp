@@ -148,6 +148,7 @@ bool GameConfig::visit_vars(T&& visitor, bool is_save)
     result &= visitor(alpine_faction_key, "Anisotropic Filtering", anisotropic_filtering);
     result &= visitor(alpine_faction_key, "High Scanner Resolution", high_scanner_res);
     result &= visitor(alpine_faction_key, "True Color Textures", true_color_textures);
+    result &= visitor(alpine_faction_key, "WASAPI Audio", wasapi_audio);
     result &= visitor(alpine_faction_key, "Renderer", renderer);
     result &= visitor(alpine_faction_key, "Executable Path", game_executable_path);
     result &= visitor(alpine_faction_key, "Fast Start", fast_start);

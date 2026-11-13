@@ -461,6 +461,9 @@ set(SRCS
     sound/sound_foley.h
     sound/sound_stretch.cpp
     sound/sound_stretch.h
+    sound/sound_wasapi.h
+    sound/sound_wasapi.cpp
+    sound/sound_wasapi_hooks.cpp
     res/resources.rc
     purefaction/pf.cpp
     purefaction/pf.h
@@ -528,4 +531,6 @@ target_link_libraries(AlpineFaction
     BulletDynamics
     BulletCollision
     LinearMath
+    ole32
+    avrt
 )

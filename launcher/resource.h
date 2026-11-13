@@ -25,6 +25,7 @@
 // #define IDC_TRACKER_EDIT                1006
 // #define IDC_VSYNC_CHECK                 1007
 #define IDC_EAX_SOUND_CHECK             1008
+#define IDC_WASAPI_AUDIO_CHECK          1072
 // #define IDC_FAST_ANIMS_CHECK            1009
 #define IDC_RENDERING_CACHE_EDIT        1010
 #define IDC_DIRECT_INPUT_CHECK          1011
@@ -185,7 +186,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        113
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1072
+#define _APS_NEXT_CONTROL_VALUE         1073
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

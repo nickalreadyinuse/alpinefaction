@@ -57,6 +57,8 @@ struct GameConfig
 
     // Audio
     CfgVar<bool> eax_sound = true;
+    // WASAPI output via Alpine's DirectSound emulation; false (or a failed WASAPI start) uses real DirectSound
+    CfgVar<bool> wasapi_audio = true;
 
     // Multiplayer
     CfgVar<unsigned int> force_port{

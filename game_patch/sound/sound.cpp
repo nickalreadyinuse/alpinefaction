@@ -8,6 +8,7 @@
 #include <vector>
 #include <common/utils/string-utils.h>
 #include "sound.h"
+#include "sound_wasapi.h"
 #include "../rf/sound/sound.h"
 #include "../rf/sound/sound_ds.h"
 #include "../rf/entity.h"
@@ -1131,6 +1132,8 @@ void apply_sound_patches()
 
     // Apply foley and impact sound set patches
     sound_foley_apply_patches();
+    // Install WASAPI playback hooks (dispatch to WASAPI when active, else fall through to DS)
+    snd_wasapi_apply_hooks();
 
     // eax_ks_property_set should not call Release, since it is a weak pointer.
     AsmWriter{0x00527EE0, 0x00527EE4}.nop();
@@ -1155,6 +1158,7 @@ void register_sound_commands()
 {
     level_sounds_cmd.register_cmd();
     sound_enabled_cmd.register_cmd();
+    snd_wasapi_register_commands();
 #ifdef DEBUG
     sound_stress_test_cmd.register_cmd();
 #endif

@@ -1,6 +1,7 @@
 #include "../misc.h"
 #include "../../main/main.h"
 #include "../../sound/sound.h"
+#include "../../sound/sound_wasapi.h"
 #include "../../rf/sound/sound.h"
 #include "settings_rows.h"
 
@@ -221,6 +222,36 @@ const SettingRow rows[] = {
         .access = AccBool{&AGS::vehicle_horns},
         .flags = SF_MP_ONLY,
         .console_cmd = "cl_vehiclehorns",
+    },
+    {
+        // Both WASAPI rows apply live by reopening the device; the device is first opened with the defaults because
+        // sound starts before settings load, hence SF_APPLY_ON_LOAD (one apply covers both rows).
+        .id = "wasapi_exclusive",
+        .key = "WasapiExclusive",
+        .label = "Exclusive output",
+        .tooltip = "Take sole control of the audio device for the lowest latency. Other apps go silent while the "
+                   "game runs. Falls back to shared mode if Windows refuses. WASAPI output only (see launcher).",
+        .category = Cat::Audio,
+        .subcategory = "Output",
+        .widget = Wid::Toggle,
+        .access = AccBool{&AGS::wasapi_exclusive},
+        .flags = SF_NOT_DEDICATED | SF_APPLY_ON_LOAD,
+        .apply = wasapi_apply_settings,
+    },
+    {
+        .id = "wasapi_buffer_ms",
+        .key = "WasapiBufferMs",
+        .label = "WASAPI buffer",
+        .tooltip = "Target output latency. Lower is more responsive; raise it if audio crackles. Shared mode "
+                   "only goes below 10 ms on Windows 10+ drivers that allow it. WASAPI output only (see launcher).",
+        .category = Cat::Audio,
+        .subcategory = "Output",
+        .widget = Wid::Stepper,
+        .access = AccInt{&AGS::wasapi_buffer_ms, &AGS::set_wasapi_buffer_ms, 2, 100},
+        .flags = SF_NOT_DEDICATED,
+        .apply = wasapi_apply_settings,
+        .ui_step = 1.0f,
+        .ui_suffix = " ms",
     },
 };
 

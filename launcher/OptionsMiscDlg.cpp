@@ -21,6 +21,7 @@ BOOL OptionsMiscDlg::OnInitDialog()
     InitToolTip();
 
     CheckDlgButton(IDC_EAX_SOUND_CHECK, m_conf.eax_sound ? BST_CHECKED : BST_UNCHECKED);
+    CheckDlgButton(IDC_WASAPI_AUDIO_CHECK, m_conf.wasapi_audio ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_FAST_START_CHECK, m_conf.fast_start ? BST_CHECKED : BST_UNCHECKED);
     CheckDlgButton(IDC_KEEP_LAUNCHER_OPEN_CHECK, m_conf.keep_launcher_open ? BST_CHECKED : BST_UNCHECKED);
     m_lang_combo.SetCurSel(m_conf.language + 1);
@@ -31,7 +32,10 @@ BOOL OptionsMiscDlg::OnInitDialog()
 void OptionsMiscDlg::InitToolTip()
 {
     m_tool_tip.Create(*this);
-    m_tool_tip.AddTool(GetDlgItem(IDC_EAX_SOUND_CHECK), "Enable 3D and EAX sounds if supported");
+    m_tool_tip.AddTool(GetDlgItem(IDC_EAX_SOUND_CHECK), "Enable 3D and EAX sounds if supported (DirectSound only)");
+    m_tool_tip.AddTool(GetDlgItem(IDC_WASAPI_AUDIO_CHECK),
+        "Output audio through WASAPI for lower latency and optional exclusive mode. "
+        "Uncheck to use DirectSound, which is also used automatically if WASAPI fails to start");
     m_tool_tip.AddTool(GetDlgItem(IDC_FAST_START_CHECK), "Skip game intro videos and go straight to main menu");
     m_tool_tip.AddTool(GetDlgItem(IDC_KEEP_LAUNCHER_OPEN_CHECK), "Keep launcher window open after game or editor launch");
 }
@@ -39,6 +43,7 @@ void OptionsMiscDlg::InitToolTip()
 void OptionsMiscDlg::OnSave()
 {
     m_conf.eax_sound = (IsDlgButtonChecked(IDC_EAX_SOUND_CHECK) == BST_CHECKED);
+    m_conf.wasapi_audio = (IsDlgButtonChecked(IDC_WASAPI_AUDIO_CHECK) == BST_CHECKED);
     m_conf.fast_start = (IsDlgButtonChecked(IDC_FAST_START_CHECK) == BST_CHECKED);
     m_conf.keep_launcher_open = (IsDlgButtonChecked(IDC_KEEP_LAUNCHER_OPEN_CHECK) == BST_CHECKED);
     m_conf.language = m_lang_combo.GetCurSel() - 1;

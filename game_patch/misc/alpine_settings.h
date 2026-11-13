@@ -757,6 +757,11 @@ struct AlpineGameSettings
     {
         shadow_frame_lag = std::clamp(value, min_shadow_frame_lag, max_shadow_frame_lag);
     }
+
+    // WASAPI output (the DirectSound/WASAPI choice itself is a launcher setting, GameConfig::wasapi_audio)
+    bool wasapi_exclusive = false;
+    int wasapi_buffer_ms = 10;
+    void set_wasapi_buffer_ms(int value) { wasapi_buffer_ms = std::clamp(value, 2, 100); }
 };
 
 struct FpsCounterState
